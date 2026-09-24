@@ -4,7 +4,7 @@ import { useVisitorSession } from '../../context/VisitorSessionContext';
 
 const LANG_BCP47 = { vi: 'vi-VN', en: 'en-US', ja: 'ja-JP', ko: 'ko-KR', zh: 'zh-CN' };
 
-export default function AudioPlayer({ audioUrl, fallbackText, languageCode = 'vi' }) {
+export default function AudioPlayer({ audioUrl, fallbackText, languageCode = 'vi', onListen }) {
   const { t } = useVisitorSession();
   const audioRef = useRef(null);
   const [isPlaying, setIsPlaying]       = useState(false);
@@ -47,7 +47,12 @@ export default function AudioPlayer({ audioUrl, fallbackText, languageCode = 'vi
     setCurrentTime(t);
     setProgress((t / d) * 100);
   };
-  const onEnded = () => { setIsPlaying(false); setCurrentTime(0); setProgress(0); };
+  const onEnded = () => {
+    setIsPlaying(false);
+    setCurrentTime(0);
+    setProgress(0);
+    onListen?.();
+  };
   const onCanPlay = () => setIsLoading(false);
   const onWaiting = () => setIsLoading(true);
   const onAudioError = () => {
@@ -68,10 +73,14 @@ export default function AudioPlayer({ audioUrl, fallbackText, languageCode = 'vi
       const utt = new SpeechSynthesisUtterance(fallbackText);
       utt.lang  = LANG_BCP47[languageCode] || 'vi-VN';
       utt.rate  = speed;
-      utt.onend = () => setIsPlaying(false);
+      utt.onend = () => {
+        setIsPlaying(false);
+        onListen?.();
+      };
       utt.onerror = () => { setIsPlaying(false); setError(true); };
       window.speechSynthesis.speak(utt);
       setIsPlaying(true);
+      onListen?.();
     } else {
       const a = audioRef.current;
       if (!a) return;
@@ -81,8 +90,15 @@ export default function AudioPlayer({ audioUrl, fallbackText, languageCode = 'vi
       } else {
         setIsLoading(true);
         a.play()
-          .then(() => { setIsPlaying(true); setIsLoading(false); })
-          .catch(() => { setUseFallback(true); setIsLoading(false); });
+          .then(() => {
+            setIsPlaying(true);
+            setIsLoading(false);
+            onListen?.();
+          })
+          .catch(() => {
+            setUseFallback(true);
+            setIsLoading(false);
+          });
       }
     }
   };

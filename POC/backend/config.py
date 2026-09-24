@@ -4,6 +4,13 @@ from pathlib import Path
 # Thư mục gốc backend
 BASE_DIR = Path(__file__).resolve().parent
 
+# Nạp cấu hình từ .env nếu tồn tại
+try:
+    from dotenv import load_dotenv
+    load_dotenv(BASE_DIR / ".env")
+except Exception:
+    pass
+
 # Đường dẫn CSDL SQLite & Thư mục static
 DATABASE_PATH = os.getenv("DATABASE_URL", str(BASE_DIR / "data" / "data.db"))
 STATIC_DIR = Path(os.getenv("STATIC_DIR", str(BASE_DIR / "static")))
@@ -31,5 +38,34 @@ TTS_VOICE_MAPPING = {
     "zh": "zh-CN-XiaoxiaoNeural",
 }
 
-# Domain hoặc base URL của Frontend để sinh mã QR
-FRONTEND_BASE_URL = os.getenv("FRONTEND_BASE_URL", "http://localhost:5173")
+# Hàm lấy Base URL động từ .env (tự động cập nhật không cần khởi động lại server)
+def get_frontend_base_url() -> str:
+    try:
+        from dotenv import load_dotenv
+        load_dotenv(BASE_DIR / ".env", override=True)
+    except Exception:
+        pass
+    return os.getenv("FRONTEND_BASE_URL", "http://localhost:5173")
+
+FRONTEND_BASE_URL = get_frontend_base_url()
+
+# Hàm lấy Gemini API Key động từ .env
+def get_gemini_api_key() -> str:
+    try:
+        from dotenv import load_dotenv
+        load_dotenv(BASE_DIR / ".env", override=True)
+    except Exception:
+        pass
+    return os.getenv("GEMINI_API_KEY", "").strip()
+
+GEMINI_API_KEY = get_gemini_api_key()
+
+# Hàm lấy Gemini Model động từ .env (mặc định gemini-3.6-flash)
+def get_gemini_model() -> str:
+    try:
+        from dotenv import load_dotenv
+        load_dotenv(BASE_DIR / ".env", override=True)
+    except Exception:
+        pass
+    return os.getenv("GEMINI_MODEL", "gemini-3.6-flash").strip()
+

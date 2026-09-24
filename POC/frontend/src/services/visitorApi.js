@@ -12,10 +12,13 @@ export const visitorApi = {
   },
 
   // Lấy gợi ý lộ trình và vị trí hiện tại (UC-02)
-  getRouteRecommendation: async (currentPoiId = null, floor = 1) => {
+  getRouteRecommendation: async (currentPoiId = null, floor = 1, visitedIds = []) => {
     let url = `/api/visitor/map/recommend?floor=${floor}`;
     if (currentPoiId) {
       url += `&current_poi_id=${currentPoiId}`;
+    }
+    if (visitedIds && visitedIds.length > 0) {
+      url += `&visited_ids=${visitedIds.join(',')}`;
     }
     return await request(url);
   },

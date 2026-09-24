@@ -1,21 +1,12 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { MapPin, Move, Layers, Sparkles, LocateFixed } from 'lucide-react';
-
-const ROOMS_BY_FLOOR = {
-  1: [
-    { id: 'room1', x: 30,  y: 30,  w: 240, h: 140, label: 'Khu Cổ Vật Tiền Sử', center: { x: 150, y: 100 } },
-    { id: 'room2', x: 330, y: 30,  w: 240, h: 140, label: 'Khu Văn Hóa Đông Sơn', center: { x: 450, y: 100 } },
-    { id: 'hall',  x: 30,  y: 230, w: 540, h: 155, label: 'Đại Sảnh Chính & Cổng Vào', center: { x: 300, y: 300 } },
-  ],
-  2: [
-    { id: 'art1',  x: 30,  y: 30,  w: 260, h: 160, label: 'Khu Nghệ Thuật Điêu Khắc', center: { x: 160, y: 110 } },
-    { id: 'art2',  x: 310, y: 30,  w: 260, h: 160, label: 'Khu Tranh Thủy Mặc & Trống', center: { x: 440, y: 110 } },
-    { id: 'hall2', x: 30,  y: 220, w: 540, h: 165, label: 'Khu Trưng Bày Chuyên Đề', center: { x: 300, y: 300 } },
-  ],
-};
-
-const SVG_WIDTH = 600;
-const SVG_HEIGHT = 420;
+import {
+  ROOMS_BY_FLOOR,
+  STAIRS_CONFIG,
+  ENTRANCE_CONFIG,
+  SVG_WIDTH,
+  SVG_HEIGHT
+} from '../../config/mapConfig';
 
 export default function InteractiveMapPicker({
   xCoord = 150,
@@ -196,12 +187,41 @@ export default function InteractiveMapPicker({
             );
           })}
 
+          {/* Stairs Zone on Both Floors */}
+          <g>
+            <rect
+              x={STAIRS_CONFIG.x}
+              y={STAIRS_CONFIG.y}
+              width={STAIRS_CONFIG.w}
+              height={STAIRS_CONFIG.h}
+              rx="10"
+              fill="#131c31"
+              stroke="#38bdf8"
+              strokeWidth="1.5"
+              strokeDasharray="4 2"
+            />
+            <line x1={STAIRS_CONFIG.x + 8} y1={STAIRS_CONFIG.y + 13} x2={STAIRS_CONFIG.x + STAIRS_CONFIG.w - 8} y2={STAIRS_CONFIG.y + 13} stroke="#475569" strokeWidth="1.5" />
+            <line x1={STAIRS_CONFIG.x + 8} y1={STAIRS_CONFIG.y + 22} x2={STAIRS_CONFIG.x + STAIRS_CONFIG.w - 8} y2={STAIRS_CONFIG.y + 22} stroke="#475569" strokeWidth="1.5" />
+            <line x1={STAIRS_CONFIG.x + 8} y1={STAIRS_CONFIG.y + 31} x2={STAIRS_CONFIG.x + STAIRS_CONFIG.w - 8} y2={STAIRS_CONFIG.y + 31} stroke="#475569" strokeWidth="1.5" />
+            <line x1={STAIRS_CONFIG.x + 8} y1={STAIRS_CONFIG.y + 40} x2={STAIRS_CONFIG.x + STAIRS_CONFIG.w - 8} y2={STAIRS_CONFIG.y + 40} stroke="#475569" strokeWidth="1.5" />
+            <text
+              x={STAIRS_CONFIG.center.x}
+              y={STAIRS_CONFIG.y + 28}
+              fill="#7dd3fc"
+              fontSize="9"
+              fontWeight="700"
+              textAnchor="middle"
+            >
+              {STAIRS_CONFIG.label}
+            </text>
+          </g>
+
           {/* Entrance marker on Floor 1 */}
           {floor === 1 && (
             <g>
-              <rect x={255} y={382} width={90} height={8} rx="4" fill="#f59e0b" opacity="0.8" />
-              <text x={300} y={374} fill="#f59e0b" fontSize="9" fontWeight="700" textAnchor="middle" opacity="0.8">
-                CỔNG VÀO CHÍNH
+              <rect x={ENTRANCE_CONFIG.x} y={ENTRANCE_CONFIG.y} width={ENTRANCE_CONFIG.w} height={ENTRANCE_CONFIG.h} rx="4" fill="#f59e0b" opacity="0.8" />
+              <text x={ENTRANCE_CONFIG.center.x} y={ENTRANCE_CONFIG.y - 4} fill="#f59e0b" fontSize="9" fontWeight="700" textAnchor="middle" opacity="0.8">
+                {ENTRANCE_CONFIG.label}
               </text>
             </g>
           )}

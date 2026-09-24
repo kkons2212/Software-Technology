@@ -22,6 +22,15 @@ export function VisitorSessionProvider({ children }) {
     return saved ? parseInt(saved) : null;
   });
 
+  const [listenedPoiIds, setListenedPoiIds] = useState(() => {
+    try {
+      const saved = localStorage.getItem('museum_listened_pois');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
   const selectLanguage = (lang) => {
     setPreferredLanguage(lang);
     setHasChosenLanguage(true);
@@ -49,6 +58,27 @@ export function VisitorSessionProvider({ children }) {
     }
   };
 
+  const markPoiAsListened = (poiId) => {
+    if (!poiId) return;
+    const numericId = parseInt(poiId);
+    setListenedPoiIds((prev) => {
+      if (prev.includes(numericId)) return prev;
+      const updated = [...prev, numericId];
+      localStorage.setItem('museum_listened_pois', JSON.stringify(updated));
+      return updated;
+    });
+  };
+
+  const isPoiListened = (poiId) => {
+    if (!poiId) return false;
+    return listenedPoiIds.includes(parseInt(poiId));
+  };
+
+  const resetListenedPois = () => {
+    setListenedPoiIds([]);
+    localStorage.removeItem('museum_listened_pois');
+  };
+
   // Helper hàm dịch giao diện theo ngôn ngữ hiện tại
   const t = (key) => {
     const dict = VISITOR_I18N[preferredLanguage] || VISITOR_I18N['vi'];
@@ -67,6 +97,10 @@ export function VisitorSessionProvider({ children }) {
         closeLanguageModal,
         lastScannedPoiId,
         setLastScannedPoiId: updateLastScannedPoi,
+        listenedPoiIds,
+        markPoiAsListened,
+        isPoiListened,
+        resetListenedPois,
         t,
       }}
     >

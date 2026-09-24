@@ -60,3 +60,8 @@ pnpm-debug.log*
 .env.*.local
 *.pem
 *.key
+
+# ── Executables / Binaries ───────────────────────────────────
+*.exe
+cloudflared.exe
+

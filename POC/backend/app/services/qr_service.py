@@ -2,7 +2,7 @@ import qrcode
 from PIL import Image
 import os
 from pathlib import Path
-from config import QR_DIR, FRONTEND_BASE_URL
+from config import QR_DIR, get_frontend_base_url
 from app.repositories.poi_repository import POIRepository
 
 class QRService:
@@ -12,8 +12,9 @@ class QRService:
         Sinh mã QR code cho POI (UC-05).
         Mã QR chứa link trực tiếp tới trang chi tiết hiện vật: {base_url}/poi/{poi_id}
         """
-        target_base = base_url or FRONTEND_BASE_URL
+        target_base = base_url or get_frontend_base_url()
         poi_url = f"{target_base.rstrip('/')}/poi/{poi_id}"
+        print(f"[QRService] Sinh ma QR cho POI #{poi_id} voi URL dich: {poi_url}")
         
         # Cấu hình QR Code chất lượng cao
         qr = qrcode.QRCode(

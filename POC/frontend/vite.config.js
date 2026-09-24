@@ -6,6 +6,7 @@ export default defineConfig({
   server: {
     port: 5173,
     host: true, // Cho phép truy cập từ thiết bị di động trong cùng mạng LAN / Tunnel
+    allowedHosts: true, // Cho phép tất cả các host từ Cloudflare Tunnel
     proxy: {
       '/api': {
         target: 'http://127.0.0.1:8000',

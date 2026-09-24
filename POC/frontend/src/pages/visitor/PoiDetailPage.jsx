@@ -16,7 +16,15 @@ export default function PoiDetailPage() {
   const { id } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { preferredLanguage, setPreferredLanguage, setLastScannedPoiId, openLanguageModal, t } = useVisitorSession();
+  const {
+    preferredLanguage,
+    setPreferredLanguage,
+    setLastScannedPoiId,
+    markPoiAsListened,
+    isPoiListened,
+    openLanguageModal,
+    t
+  } = useVisitorSession();
 
   const [poi, setPoi]         = useState(null);
   const [loading, setLoading] = useState(true);
@@ -183,10 +191,15 @@ export default function PoiDetailPage() {
           {t('floor_label')} {poi.floor} &nbsp;·&nbsp; #{poi.id}
         </div>
 
-        {/* Scan Status Badge */}
-        <div className="absolute top-3 right-3">
+        {/* Scan Status & Listened Badge */}
+        <div className="absolute top-3 right-3 flex items-center gap-1.5">
+          {isPoiListened(id) && (
+            <div className="glass px-3 py-1 rounded-full border border-emerald-500/40 text-[11px] font-bold text-emerald-400 flex items-center gap-1.5 shadow bg-emerald-950/60 animate-pulse">
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> {t('listened_badge')}
+            </div>
+          )}
           {isUnlocked ? (
-            <div className="glass px-3 py-1 rounded-full border border-emerald-500/40 text-[11px] font-bold text-emerald-400 flex items-center gap-1.5 shadow bg-emerald-950/40">
+            <div className="glass px-3 py-1 rounded-full border border-sky-500/40 text-[11px] font-bold text-sky-400 flex items-center gap-1.5 shadow bg-sky-950/40">
               <CheckCircle2 className="w-3.5 h-3.5" /> {t('scanned_badge')}
             </div>
           ) : (
@@ -202,7 +215,14 @@ export default function PoiDetailPage() {
 
         {/* Title */}
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-white leading-tight">{poi.title}</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold tracking-tight text-white leading-tight">{poi.title}</h1>
+            {isPoiListened(id) && (
+              <span className="flex-shrink-0 text-emerald-400 text-xs font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30">
+                ✓ {t('listened_badge')}
+              </span>
+            )}
+          </div>
           <p className="text-xs text-slate-400 mt-1 flex items-center gap-1.5">
             <Globe className="w-3.5 h-3.5 text-amber-400" />
             {t('current_lang')}: <span className="text-amber-400 font-semibold">{LANG_NAME[preferredLanguage] || preferredLanguage}</span>
@@ -248,6 +268,7 @@ export default function PoiDetailPage() {
               audioUrl={poi.audio_url}
               fallbackText={`${poi.title}. ${poi.description}`}
               languageCode={preferredLanguage}
+              onListen={() => markPoiAsListened(poi?.id || id)}
             />
 
             {/* Full Detailed Description */}

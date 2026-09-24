@@ -57,3 +57,11 @@ def health_check():
         "service": "Smart Museum Audio Guide POC Backend",
         "database": "SQLite (WAL Mode)"
     }
+
+@app.get("/api/config")
+def get_app_config():
+    from config import get_frontend_base_url
+    return {
+        "frontend_base_url": get_frontend_base_url()
+    }
+

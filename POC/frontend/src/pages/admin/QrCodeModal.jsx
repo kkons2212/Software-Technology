@@ -1,24 +1,45 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Download, RefreshCw, ExternalLink, QrCode, Globe, Check } from 'lucide-react';
 import { adminApi } from '../../services/adminApi';
+import { request } from '../../services/api';
 
 export default function QrCodeModal({ isOpen, onClose, poi }) {
   const [customBaseUrl, setCustomBaseUrl] = useState('');
+  const [backendBaseUrl, setBackendBaseUrl] = useState('');
   const [isRegenerating, setIsRegenerating] = useState(false);
   const [copied, setCopied] = useState(false);
   const [qrTimestamp, setQrTimestamp] = useState(Date.now());
 
+  useEffect(() => {
+    if (isOpen) {
+      // Tự động lấy URL từ backend (.env)
+      request('/api/config')
+        .then((res) => {
+          if (res && res.frontend_base_url) {
+            setBackendBaseUrl(res.frontend_base_url);
+            if (!customBaseUrl && res.frontend_base_url !== 'http://localhost:5173') {
+              setCustomBaseUrl(res.frontend_base_url);
+            }
+          }
+        })
+        .catch(() => {});
+    }
+  }, [isOpen]);
+
   if (!isOpen || !poi) return null;
 
   const currentOrigin = window.location.origin;
-  const effectiveBaseUrl = customBaseUrl.trim() || currentOrigin;
+  const effectiveBaseUrl =
+    customBaseUrl.trim() ||
+    (backendBaseUrl && !backendBaseUrl.includes('localhost') ? backendBaseUrl : null) ||
+    currentOrigin;
   const targetMobileUrl = `${effectiveBaseUrl.replace(/\/$/, '')}/poi/${poi.id}`;
   const qrImageUrl = `${poi.qr_code_url}?t=${qrTimestamp}`;
 
   const handleRegenerate = async () => {
     setIsRegenerating(true);
     try {
-      await adminApi.regenerateQrCode(poi.id, customBaseUrl.trim() || null);
+      await adminApi.regenerateQrCode(poi.id, effectiveBaseUrl);
       setQrTimestamp(Date.now());
     } catch (err) {
       alert('Không thể tái tạo mã QR: ' + err.message);
