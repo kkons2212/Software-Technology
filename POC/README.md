@@ -235,6 +235,7 @@ See the UC files in the project root for detailed use case specifications:
 | `UC-5.md` | QR code generation |
 | `UC-8.md` | Admin dashboard |
 | `UC-9.md` | Text-to-Speech pipeline |
+| `ERD.md` | Entity Relationship Diagram & Database Design |
 
 ---
 
