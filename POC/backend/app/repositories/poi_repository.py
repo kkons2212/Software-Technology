@@ -40,20 +40,37 @@ class POIRepository:
             return poi
 
     @staticmethod
+    def get_next_available_id(cursor) -> int:
+        """
+        Tìm ID số nguyên dương nhỏ nhất chưa được sử dụng (>= 1).
+        Tự động lấp các khoảng trống do đã xoá POI trước đó.
+        """
+        cursor.execute("SELECT id FROM pois ORDER BY id ASC")
+        rows = cursor.fetchall()
+        used_ids = set(row[0] for row in rows)
+        
+        candidate = 1
+        while candidate in used_ids:
+            candidate += 1
+        return candidate
+
+    @staticmethod
     def create_poi(title_vi: str, description_vi: str, short_description_vi: Optional[str] = None,
-                   image_url: Optional[str] = None, x_coord: float = 0.0, y_coord: float = 0.0, floor: int = 1) -> int:
-        """Tạo mới một bản ghi POI và trả về id vừa tạo."""
+                   image_url: Optional[str] = None, x_coord: float = 0.0, y_coord: float = 0.0, floor: int = 1,
+                   custom_id: Optional[int] = None) -> int:
+        """Tạo mới một bản ghi POI với ID tự động tái sử dụng các số còn trống."""
         if not short_description_vi or not short_description_vi.strip():
             # Tự động lấy câu đầu tiên hoặc 140 ký tự đầu
             short_description_vi = description_vi.split(".")[0].strip() + "." if "." in description_vi else description_vi[:140]
 
         with db_session() as conn:
             cursor = conn.cursor()
+            target_id = custom_id if custom_id else POIRepository.get_next_available_id(cursor)
             cursor.execute("""
-                INSERT INTO pois (title_vi, short_description_vi, description_vi, image_url, x_coord, y_coord, floor, translation_status)
-                VALUES (?, ?, ?, ?, ?, ?, ?, 'PENDING')
-            """, (title_vi, short_description_vi, description_vi, image_url, x_coord, y_coord, floor))
-            return cursor.lastrowid
+                INSERT INTO pois (id, title_vi, short_description_vi, description_vi, image_url, x_coord, y_coord, floor, translation_status)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'PENDING')
+            """, (target_id, title_vi, short_description_vi, description_vi, image_url, x_coord, y_coord, floor))
+            return target_id
 
     @staticmethod
     def update_poi(poi_id: int, title_vi: Optional[str] = None, short_description_vi: Optional[str] = None,
