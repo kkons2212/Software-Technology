@@ -1,6 +1,6 @@
 Frontend:
 
-Using UC-1, 2
+Using UC-1 (Audio Guide & Exhibit Details)
 
 Backend:
 

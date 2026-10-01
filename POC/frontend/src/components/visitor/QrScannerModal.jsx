@@ -34,7 +34,7 @@ export default function QrScannerModal({ isOpen, onClose }) {
   // Fetch only existing, active POIs from DB for testing mode
   useEffect(() => {
     if (isOpen) {
-      visitorApi.getMapMarkers(null)
+      visitorApi.getPoiList()
         .then((data) => {
           if (Array.isArray(data)) {
             const sorted = [...data].sort((a, b) => (a.floor - b.floor) || (a.id - b.id));
@@ -595,7 +595,7 @@ export default function QrScannerModal({ isOpen, onClose }) {
                     className="py-1.5 px-2.5 rounded-xl bg-slate-800/90 hover:bg-amber-500 hover:text-slate-950 text-slate-200 text-left border border-slate-700/60 transition-all active:scale-95 flex flex-col group"
                   >
                     <span className="text-[10px] text-amber-400 group-hover:text-slate-950 font-bold">
-                      POI #{p.id} · Tầng {p.floor}
+                      POI #{p.id} · {p.floor === 1 ? 'Tầng Trệt' : `Lầu ${p.floor - 1}`}
                     </span>
                     <span className="text-xs font-semibold truncate w-full">
                       {p.title}

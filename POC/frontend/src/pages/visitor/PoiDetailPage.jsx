@@ -190,7 +190,7 @@ export default function PoiDetailPage() {
         {/* Floor badge */}
         <div className="absolute top-3 left-3 glass px-3 py-1 rounded-full border border-slate-700/60 text-[11px] font-bold text-amber-300 flex items-center gap-1.5 shadow">
           <MapPin className="w-3 h-3" />
-          {t('floor_label')} {poi.floor} &nbsp;·&nbsp; #{poi.id}
+          {poi.floor === 1 ? 'Tầng Trệt' : `Lầu ${poi.floor - 1}`} &nbsp;·&nbsp; #{poi.id}
         </div>
 
         {/* Scan Status & Listened Badge */}
@@ -325,34 +325,26 @@ export default function PoiDetailPage() {
           </div>
         )}
 
-        {/* Location Info */}
-        <div className="flex items-center justify-between bg-slate-900/60 border border-slate-800/80 rounded-2xl p-4">
-          <div className="flex items-center gap-2.5 text-sm text-slate-300">
-            <div className="w-8 h-8 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
-              <MapPin className="w-4 h-4" />
-            </div>
-            <div>
-              <p className="text-[11px] text-slate-400 font-medium">{t('location_on_map')}</p>
-              <p className="font-bold text-white text-sm">{t('floor_label')} {poi.floor} — ({poi.x_coord}, {poi.y_coord})</p>
-            </div>
-          </div>
-          <Link
-            to={`/map?focus_poi=${poi.id}`}
-            className="flex items-center gap-1 text-xs font-bold text-amber-400 hover:text-amber-300 transition-colors"
+        {/* Next Action Buttons */}
+        <div className="space-y-3 pt-2">
+          <button
+            type="button"
+            onClick={() => setIsScannerOpen(true)}
+            className="w-full py-4 px-4 rounded-3xl bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 text-slate-950 font-black text-sm shadow-xl shadow-amber-500/20 active:scale-[0.98] hover:brightness-105 transition-all flex items-center justify-center gap-2.5 border border-amber-300/40"
           >
-            {t('view_on_map')} <ChevronRight className="w-3.5 h-3.5" />
-          </Link>
-        </div>
+            <QrCode className="w-5 h-5 text-slate-950" />
+            <span>{t('scan_next_poi')}</span>
+          </button>
 
-        {/* Navigate to Map CTA */}
-        <button
-          onClick={() => navigate(`/map?focus_poi=${poi.id}`)}
-          className="w-full py-4 rounded-3xl bg-gradient-to-r from-slate-800 to-slate-900 border border-slate-700 text-sm font-bold text-slate-200 flex items-center justify-center gap-2.5 hover:border-amber-500/40 hover:text-amber-300 transition-all active:scale-[0.98]"
-        >
-          <Compass className="w-5 h-5 text-amber-400" />
-          {t('next_recommendation_btn')}
-          <ChevronRight className="w-4 h-4 text-slate-500" />
-        </button>
+          <button
+            type="button"
+            onClick={() => navigate('/welcome')}
+            className="w-full py-3.5 px-4 rounded-2xl bg-slate-900/80 border border-slate-800 text-xs font-bold text-slate-400 hover:text-white hover:border-slate-700 transition-all flex items-center justify-center gap-2 active:scale-[0.98]"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            <span>{t('back_to_home')}</span>
+          </button>
+        </div>
       </div>
 
       {/* QR Scanner Camera Modal */}

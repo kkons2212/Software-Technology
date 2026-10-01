@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, Upload, MapPin, Sparkles, Loader2 } from 'lucide-react';
 import { adminApi } from '../../services/adminApi';
-import InteractiveMapPicker from '../../components/admin/InteractiveMapPicker';
 
 export default function PoiFormModal({ isOpen, onClose, onSuccess, editPoi = null, existingPois = [] }) {
   const [formData, setFormData] = useState({
@@ -176,17 +175,27 @@ export default function PoiFormModal({ isOpen, onClose, onSuccess, editPoi = nul
             />
           </div>
 
-          {/* Bộ chọn vị trí trực quan trên Sơ đồ Bản đồ */}
+          {/* Chọn Tầng / Khu vực trưng bày */}
           <div>
-            <InteractiveMapPicker
-              xCoord={formData.x_coord}
-              yCoord={formData.y_coord}
-              floor={formData.floor}
-              onChange={(x, y) => setFormData((prev) => ({ ...prev, x_coord: x, y_coord: y }))}
-              onFloorChange={(f) => setFormData((prev) => ({ ...prev, floor: f }))}
-              existingPois={existingPois}
-              currentPoiId={editPoi?.id}
-            />
+            <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
+              Tầng Trưng Bày
+            </label>
+            <div className="flex gap-3">
+              {[1, 2, 3].map((f) => (
+                <button
+                  key={f}
+                  type="button"
+                  onClick={() => setFormData((prev) => ({ ...prev, floor: f }))}
+                  className={`flex-1 py-2.5 px-4 rounded-xl text-xs font-bold border transition-all ${
+                    formData.floor === f
+                      ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-md shadow-amber-500/20'
+                      : 'bg-slate-800/80 text-slate-300 border-slate-700 hover:border-slate-600'
+                  }`}
+                >
+                  Tầng {f}
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Tải ảnh hiện vật */}

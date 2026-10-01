@@ -160,8 +160,8 @@ docker-compose up --build
 ### Visitor
 1. Open `http://localhost:5173` → select a language
 2. Scan the QR code on an exhibit → opens the POI detail page
-3. Listen to the AI-generated audio guide in the selected language
-4. Use the interactive floor map to navigate the museum
+3. Listen to the AI-generated audio guide in the selected language (VI, EN, JA, KO, ZH)
+4. Freely explore exhibits and scan subsequent QR codes
 
 ### Admin
 1. Open `http://localhost:5173/admin`
@@ -175,12 +175,11 @@ docker-compose up --build
 
 | Feature | Description |
 |---|---|
-| AI Text-to-Speech | Microsoft Edge TTS voices — VI, EN, JA, KO, ZH |
-| Auto Translation | Google Translate integration |
-| Interactive Floor Map | SVG-based map with floor switching |
-| Locked / Unlocked Content | Full description revealed only after scanning QR |
-| QR Code Generator | Auto-generate and manage QR codes per exhibit |
-| Language Selection Modal | Choose language on first visit; switch anytime |
+| AI Text-to-Speech | Microsoft Edge TTS neural voices — VI, EN, JA, KO, ZH |
+| Auto Translation | Google Translate integration (EN, JA, KO, ZH) |
+| Locked / Unlocked Content | Full description and audio guide unlocked upon scanning exhibit QR |
+| QR Code Generator | Auto-generate and manage downloadable QR codes per exhibit |
+| Language Selection Modal | Choose language on first visit; switch commentary language anytime |
 
 ---
 
@@ -230,10 +229,9 @@ See the UC files in the project root for detailed use case specifications:
 | File | Description |
 |---|---|
 | `UC-1.md` | Auto audio guide via QR scan |
-| `UC-2.md` | Smart in-museum navigation |
 | `UC-4.md` | Multilingual content management |
 | `UC-5.md` | QR code generation |
-| `UC-8.md` | Admin dashboard |
+| `UC-8.md` | Multilingual AI translation pipeline |
 | `UC-9.md` | Text-to-Speech pipeline |
 | `ERD.md` | Entity Relationship Diagram & Database Design |
 

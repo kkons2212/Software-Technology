@@ -60,23 +60,7 @@ class VisitorPOIDetail(BaseModel):
     is_unlocked: bool = True
     image_url: Optional[str] = None
     audio_url: Optional[str] = None
-    x_coord: float
-    y_coord: float
-    floor: int
+    x_coord: Optional[float] = 0.0
+    y_coord: Optional[float] = 0.0
+    floor: Optional[int] = 1
     available_languages: List[str]
-
-# Schema Marker bản đồ (UC-02)
-class MapMarker(BaseModel):
-    id: int
-    title: str
-    short_description: Optional[str] = None
-    x_coord: float
-    y_coord: float
-    floor: int
-    image_url: Optional[str] = None
-
-# Schema gợi ý lộ trình (UC-02)
-class RouteRecommendation(BaseModel):
-    current_poi_id: Optional[int]
-    next_poi: Optional[MapMarker]
-    all_markers: List[MapMarker]

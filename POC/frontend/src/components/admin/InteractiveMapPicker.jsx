@@ -108,7 +108,7 @@ export default function InteractiveMapPicker({
                 : 'text-slate-400 hover:text-white'
             }`}
           >
-            Tầng 1
+            Tầng Trệt
           </button>
           <button
             type="button"
@@ -119,7 +119,7 @@ export default function InteractiveMapPicker({
                 : 'text-slate-400 hover:text-white'
             }`}
           >
-            Tầng 2
+            Lầu 1
           </button>
         </div>
       </div>

@@ -14,7 +14,6 @@ from app.database import init_db
 from app.routers.admin_poi_router import router as admin_poi_router
 from app.routers.admin_qr_router import router as admin_qr_router
 from app.routers.visitor_poi_router import router as visitor_poi_router
-from app.routers.visitor_map_router import router as visitor_map_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -24,8 +23,8 @@ async def lifespan(app: FastAPI):
     yield
 
 app = FastAPI(
-    title="Smart Museum Audio Guide & Navigation POC",
-    description="Backend API phục vụ tự động hóa thuyết minh đa ngôn ngữ, QR code và bản đồ bảo tàng.",
+    title="Smart Museum Multilingual Audio Guide POC",
+    description="Backend API phục vụ tự động hóa thuyết minh đa ngôn ngữ, QR code và AI Text-to-Speech.",
     version="1.0.0",
     lifespan=lifespan
 )
@@ -46,9 +45,8 @@ app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 app.include_router(admin_poi_router)
 app.include_router(admin_qr_router)
 
-# Đăng ký các Router Khách Tham Quan (Visitor)
+# Đăng ký các Router Khách Tham Quan (Visitor - UC-01)
 app.include_router(visitor_poi_router)
-app.include_router(visitor_map_router)
 
 @app.get("/api/health")
 def health_check():

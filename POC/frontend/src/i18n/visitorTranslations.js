@@ -86,10 +86,12 @@ export const VISITOR_I18N = {
     step2_desc: "Thuyết minh tự động bằng 5 ngôn ngữ: Việt, Anh, Nhật, Hàn, Trung.",
     step3_title: "Nghe Audio Guide",
     step3_desc: "Hệ thống AI tổng hợp giọng đọc tự nhiên cho từng hiện vật trưng bày.",
-    step4_title: "Khám Phá Bảo Tàng",
-    step4_desc: "Theo dõi sơ đồ tương tác và nhận gợi ý hiện vật tiếp theo phù hợp nhất.",
+    step4_title: "Thưởng Thức Trọn Vẹn",
+    step4_desc: "Tự do khám phá các hiện vật trong bảo tàng và quét QR để nghe thuyết minh chi tiết.",
     continue_previous: "Tiếp Tục Từ Lần Trước",
     view_previous: "Xem lại Hiện Vật",
+    scan_next_poi: "Quét Hiện Vật Tiếp Theo",
+    back_to_home: "Về Trang Chủ",
 
     // QR Scanner
     qr_scanner_title: "Quét Mã QR Hiện Vật",
@@ -187,10 +189,12 @@ export const VISITOR_I18N = {
     step2_desc: "Automatic narration in Vietnamese, English, Japanese, Korean, Chinese.",
     step3_title: "Listen to Audio Guide",
     step3_desc: "High-fidelity AI synthesized speech for every exhibit.",
-    step4_title: "Explore Museum",
-    step4_desc: "Navigate interactive floor plans with smart next-stop suggestions.",
+    step4_title: "Enjoy the Tour",
+    step4_desc: "Freely explore exhibits at your own pace and scan QR codes for detailed audio commentary.",
     continue_previous: "Resume Last Visit",
     view_previous: "View Exhibit",
+    scan_next_poi: "Scan Next Exhibit",
+    back_to_home: "Back to Home",
 
     // QR Scanner
     qr_scanner_title: "Scan Exhibit QR Code",
@@ -288,10 +292,12 @@ export const VISITOR_I18N = {
     step2_desc: "ベトナム語、英語、日本語、韓国語、中国語に対応。",
     step3_title: "音声ガイドを聴く",
     step3_desc: "AIによる自然な音声で展示を解説します。",
-    step4_title: "館内を探索",
-    step4_desc: "インタラクティブマップで次のおすすめスポットへ案内します。",
+    step4_title: "自由に見学を満喫",
+    step4_desc: "館内を自由に見学し、展示台のQRコードをスキャンして詳細な音声解説をお楽しみください。",
     continue_previous: "前回の続きから見る",
     view_previous: "展示品を見る",
+    scan_next_poi: "次の展示品をスキャン",
+    back_to_home: "ホームへ戻る",
 
     // QR Scanner
     qr_scanner_title: "展示物QRコード読取",
@@ -389,10 +395,12 @@ export const VISITOR_I18N = {
     step2_desc: "한국어, 영어, 베트남어, 일본어, 중국어 5개 국어 지원.",
     step3_title: "오디오 가이드 청취",
     step3_desc: "AI가 생성한 자연스러운 음성 해설을 즐겨보세요.",
-    step4_title: "박물관 탐색",
-    step4_desc: "인터랙티브 지도에서 최적의 다음 동선을 안내받으세요.",
+    step4_title: "자유로운 관람 즐기기",
+    step4_desc: "박물관을 자유롭게 둘러보며 전시대의 QR 코드를 스캔하여 풍부한 음성 해설을 감상하세요.",
     continue_previous: "이전 관람 이어보기",
     view_previous: "전시물 보기",
+    scan_next_poi: "다음 전시물 스캔하기",
+    back_to_home: "홈으로 돌아가기",
 
     // QR Scanner
     qr_scanner_title: "전시물 QR 코드 스캔",
@@ -490,10 +498,12 @@ export const VISITOR_I18N = {
     step2_desc: "支持中文、英文、越南语、日语、韩语 5 种语言。",
     step3_title: "收听语音导览",
     step3_desc: "高品质 AI 语音为每件展品生动解说。",
-    step4_title: "探索博物馆",
-    step4_desc: "跟随互动地图与智能路线推荐畅游展厅。",
+    step4_title: "畅享精彩导览",
+    step4_desc: "自由探索展厅内的各大展品，随时扫描展台二维码聆听生动详尽的语音解说。",
     continue_previous: "继续上次浏览",
     view_previous: "查看展品",
+    scan_next_poi: "扫描下一件展品",
+    back_to_home: "返回首页",
 
     // QR Scanner
     qr_scanner_title: "扫描展品二维码",

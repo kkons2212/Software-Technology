@@ -47,7 +47,7 @@ export default function VisitorWelcomePage() {
       glow: 'shadow-emerald-500/25',
     },
     {
-      icon: <Compass className="w-6 h-6" />,
+      icon: <Sparkles className="w-6 h-6" />,
       title: t('step4_title'),
       desc: t('step4_desc'),
       color: 'from-sky-500 to-sky-700',
@@ -153,42 +153,35 @@ export default function VisitorWelcomePage() {
           </div>
         </div>
 
-        {/* ── Quick-access shortcuts ── */}
-        <div className="grid grid-cols-2 gap-3 mb-8">
-          {lastScannedPoiId && (
-            <Link
-              to={`/poi/${lastScannedPoiId}`}
-              className="col-span-2 flex items-center gap-3 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 hover:bg-amber-500/15 transition-all active:scale-[0.98]"
-            >
-              <div className="w-10 h-10 rounded-xl bg-amber-500/20 flex items-center justify-center text-amber-400 flex-shrink-0">
-                <Headphones className="w-5 h-5" />
-              </div>
-              <div className="flex-1">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-amber-400/80">{t('continue_previous')}</p>
-                <p className="text-sm font-bold text-white">{t('view_previous')} #{lastScannedPoiId}</p>
-              </div>
-              <ArrowRight className="w-4 h-4 text-amber-400 flex-shrink-0" />
-            </Link>
-          )}
-
-          <Link to="/map"
-            className="flex flex-col items-center gap-2.5 p-4 rounded-2xl bg-slate-900 border border-slate-800 hover:border-slate-600 active:scale-[0.97] transition-all">
-            <div className="w-10 h-10 rounded-xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-400">
-              <Compass className="w-5 h-5" />
-            </div>
-            <p className="text-xs font-bold text-slate-200">{t('museum_map')}</p>
-          </Link>
-
+        {/* ── Main Action: Scan QR & Resume ── */}
+        <div className="space-y-3 mb-8">
           <button
             type="button"
             onClick={() => setIsScannerOpen(true)}
-            className="flex flex-col items-center gap-2.5 p-4 rounded-2xl bg-slate-900 border border-violet-500/30 hover:border-violet-400 active:scale-[0.97] transition-all cursor-pointer group shadow-lg shadow-violet-500/10"
+            className="w-full flex items-center justify-center gap-3.5 p-4 rounded-3xl bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 text-slate-950 font-black text-base shadow-xl shadow-amber-500/20 active:scale-[0.98] hover:brightness-105 transition-all cursor-pointer group border border-amber-300/40"
           >
-            <div className="w-10 h-10 rounded-xl bg-violet-500/10 border border-violet-500/30 flex items-center justify-center text-violet-400 group-hover:scale-110 group-hover:bg-violet-500/20 transition-all">
+            <div className="w-9 h-9 rounded-2xl bg-slate-950/20 flex items-center justify-center text-slate-950 group-hover:scale-110 transition-transform">
               <QrCode className="w-5 h-5" />
             </div>
-            <p className="text-xs font-bold text-violet-200 group-hover:text-white transition-colors">{t('scan_qr')}</p>
+            <span>{t('scan_qr')}</span>
+            <ChevronRight className="w-5 h-5 text-slate-950/70 ml-auto" />
           </button>
+
+          {lastScannedPoiId && (
+            <Link
+              to={`/poi/${lastScannedPoiId}`}
+              className="flex items-center gap-3 p-3.5 rounded-2xl bg-slate-900/90 border border-slate-800 hover:border-amber-500/40 hover:bg-slate-900 transition-all active:scale-[0.98]"
+            >
+              <div className="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 flex-shrink-0">
+                <Headphones className="w-4 h-4" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-amber-400/80">{t('continue_previous')}</p>
+                <p className="text-xs font-bold text-white truncate">{t('view_previous')} #{lastScannedPoiId}</p>
+              </div>
+              <ArrowRight className="w-4 h-4 text-slate-400 flex-shrink-0" />
+            </Link>
+          )}
         </div>
 
         {/* ── How it works ── */}

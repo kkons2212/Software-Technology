@@ -4,6 +4,28 @@
 .DS_Store
 Thumbs.db
 
-# Virtual environments
+# Virtual environments & Node
 .venv/
 venv/
+**/node_modules/
+**/dist/
+**/.vite/
+
+# Database files
+*.db
+*.db-shm
+*.db-wal
+**/data/*.db
+**/data/*.db-shm
+**/data/*.db-wal
+
+# Secrets & environment
+.env
+.env.*
+*.pem
+*.key
+
+# Generated media / cache
+**/__pycache__/
+**/.pytest_cache/
+

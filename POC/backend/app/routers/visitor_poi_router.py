@@ -1,10 +1,50 @@
 from fastapi import APIRouter, HTTPException, Query, status
-from typing import Optional
+from typing import Optional, List
 from app.repositories.poi_repository import POIRepository
 from app.schemas.poi_schema import VisitorPOIDetail
 from config import ALL_LANGUAGES
 
 router = APIRouter(prefix="/api/visitor/pois", tags=["Visitor POI Details & Audio (UC-01)"])
+
+@router.get("", response_model=List[dict])
+def get_visitor_poi_list(
+    lang: str = Query("vi", description="Mã ngôn ngữ: vi, en, ja, ko, zh"),
+    floor: Optional[int] = Query(None, description="Lọc theo tầng")
+):
+    """
+    Lấy danh sách tất cả các hiện vật cho khách tham quan (hiển thị trong tab Danh Sách).
+    Trả về tiêu đề và mô tả ngắn theo ngôn ngữ đã chọn.
+    """
+    all_pois = POIRepository.get_all_pois()
+    result = []
+    for poi in all_pois:
+        if floor is not None and poi.get("floor") != floor:
+            continue
+        
+        # Get full POI with translations to resolve language
+        full_poi = POIRepository.get_poi_by_id(poi["id"])
+        translations = {t["language_code"]: t for t in full_poi.get("translations", [])} if full_poi else {}
+        selected = translations.get(lang)
+        
+        title = selected["title"] if selected else poi["title_vi"]
+        short_desc = (selected.get("short_description") if selected else None) or poi.get("short_description_vi") or ""
+        
+        # Check audio availability
+        audios = full_poi.get("audios", []) if full_poi else []
+        has_audio = any(a["language_code"] == lang and a.get("status") == "READY" for a in audios)
+        
+        result.append({
+            "id": poi["id"],
+            "title": title,
+            "short_description": short_desc,
+            "image_url": poi.get("image_url"),
+            "floor": poi.get("floor", 1),
+            "has_audio": has_audio,
+        })
+    
+    # Sort by ID ascending for consistent display
+    result.sort(key=lambda x: x["id"])
+    return result
 
 @router.get("/{poi_id}", response_model=VisitorPOIDetail)
 def get_visitor_poi_detail(

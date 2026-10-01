@@ -1,28 +1,17 @@
 import { request } from './api';
 
 export const visitorApi = {
+  // Lấy danh sách hiện vật theo ngôn ngữ & tầng (Exhibits Directory)
+  getPoiList: async (lang = 'vi', floor = null) => {
+    let url = `/api/visitor/pois?lang=${lang}`;
+    if (floor !== null && floor !== undefined) {
+      url += `&floor=${floor}`;
+    }
+    return await request(url);
+  },
+
   // Lấy chi tiết hiện vật theo ngôn ngữ & trạng thái quét QR (UC-01)
   getPoiDetail: async (poiId, lang = 'vi', unlocked = true) => {
     return await request(`/api/visitor/pois/${poiId}?lang=${lang}&unlocked=${unlocked}`);
-  },
-
-  // Lấy danh sách điểm đánh dấu trên bản đồ (UC-02)
-  getMapMarkers: async (floor = null) => {
-    const url = (floor !== null && floor !== undefined)
-      ? `/api/visitor/map/markers?floor=${floor}`
-      : '/api/visitor/map/markers';
-    return await request(url);
-  },
-
-  // Lấy gợi ý lộ trình và vị trí hiện tại (UC-02)
-  getRouteRecommendation: async (currentPoiId = null, floor = 1, visitedIds = []) => {
-    let url = `/api/visitor/map/recommend?floor=${floor}`;
-    if (currentPoiId) {
-      url += `&current_poi_id=${currentPoiId}`;
-    }
-    if (visitedIds && visitedIds.length > 0) {
-      url += `&visited_ids=${visitedIds.join(',')}`;
-    }
-    return await request(url);
   },
 };

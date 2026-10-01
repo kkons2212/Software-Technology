@@ -238,7 +238,7 @@ export default function AdminDashboardPage() {
               <thead className="bg-slate-950/60 border-b border-slate-800 text-slate-400 text-xs uppercase tracking-wider font-semibold">
                 <tr>
                   <th className="px-6 py-4">Hiện Vật</th>
-                  <th className="px-6 py-4">Vị Trí</th>
+                  <th className="px-6 py-4">Khu Vực</th>
                   <th className="px-6 py-4">Mã QR</th>
                   <th className="px-6 py-4">Pipeline AI (UC-08 & 09)</th>
                   <th className="px-6 py-4 text-right">Thao Tác</th>
@@ -296,15 +296,11 @@ export default function AdminDashboardPage() {
                             </div>
                           </td>
 
-                          {/* Coordinates */}
+                          {/* Floor Badge */}
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="flex items-center gap-1.5 text-xs text-slate-300">
-                              <MapPin className="w-3.5 h-3.5 text-amber-400" />
-                              <span>({poi.x_coord}, {poi.y_coord})</span>
-                              <span className="px-2 py-0.5 rounded-full bg-slate-800 border border-slate-700 text-[10px] text-slate-400 ml-1">
-                                Tầng {poi.floor}
-                              </span>
-                            </div>
+                            <span className="px-3 py-1 rounded-xl bg-slate-800 border border-slate-700 text-xs font-semibold text-amber-300">
+                              Tầng {poi.floor || 1}
+                            </span>
                           </td>
 
                           {/* QR Code */}
