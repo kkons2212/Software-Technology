@@ -7,8 +7,11 @@ export const visitorApi = {
   },
 
   // Lấy danh sách điểm đánh dấu trên bản đồ (UC-02)
-  getMapMarkers: async (floor = 1) => {
-    return await request(`/api/visitor/map/markers?floor=${floor}`);
+  getMapMarkers: async (floor = null) => {
+    const url = (floor !== null && floor !== undefined)
+      ? `/api/visitor/map/markers?floor=${floor}`
+      : '/api/visitor/map/markers';
+    return await request(url);
   },
 
   // Lấy gợi ý lộ trình và vị trí hiện tại (UC-02)

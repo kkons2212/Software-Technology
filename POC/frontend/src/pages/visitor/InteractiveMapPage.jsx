@@ -3,10 +3,11 @@ import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import {
   Compass, MapPin, Navigation, ArrowRight, Volume2,
   Landmark, Layers, RefreshCw, AlertTriangle, ChevronRight, X, Globe,
-  CheckCircle2, TrendingUp, RotateCcw, Sparkles
+  CheckCircle2, TrendingUp, RotateCcw, Sparkles, QrCode
 } from 'lucide-react';
 import { visitorApi } from '../../services/visitorApi';
 import { useVisitorSession } from '../../context/VisitorSessionContext';
+import QrScannerModal from '../../components/visitor/QrScannerModal';
 import {
   ROOMS_BY_FLOOR,
   STAIRS_CONFIG,
@@ -369,6 +370,7 @@ export default function InteractiveMapPage() {
   const [customTargetPoi, setCustomTargetPoi] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
 
   const focusPoiId = searchParams.get('focus_poi')
     ? parseInt(searchParams.get('focus_poi'))
@@ -461,8 +463,17 @@ export default function InteractiveMapPage() {
           </div>
         </div>
 
-        {/* Floor toggle & Language switch button (Không reset customTargetPoi khi chuyển tầng) */}
+        {/* Floor toggle & Language switch button & QR Scan */}
         <div className="flex items-center gap-2 flex-shrink-0">
+          <button
+            type="button"
+            onClick={() => setIsScannerOpen(true)}
+            className="p-1.5 rounded-xl bg-slate-900 border border-violet-500/30 text-violet-400 hover:bg-slate-800 text-xs font-bold transition-all shadow-md shadow-violet-500/10 flex items-center justify-center"
+            title={t('scan_qr')}
+          >
+            <QrCode className="w-4 h-4" />
+          </button>
+
           <button
             type="button"
             onClick={openLanguageModal}
@@ -942,6 +953,12 @@ export default function InteractiveMapPage() {
           </div>
         )}
       </div>
+
+      {/* QR Scanner Camera Modal */}
+      <QrScannerModal
+        isOpen={isScannerOpen}
+        onClose={() => setIsScannerOpen(false)}
+      />
     </div>
   );
 }

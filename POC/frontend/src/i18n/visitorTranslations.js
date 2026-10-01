@@ -90,6 +90,21 @@ export const VISITOR_I18N = {
     step4_desc: "Theo dõi sơ đồ tương tác và nhận gợi ý hiện vật tiếp theo phù hợp nhất.",
     continue_previous: "Tiếp Tục Từ Lần Trước",
     view_previous: "Xem lại Hiện Vật",
+
+    // QR Scanner
+    qr_scanner_title: "Quét Mã QR Hiện Vật",
+    qr_scanner_sub: "Đưa camera vào mã QR tại bảng trưng bày để mở khoá",
+    qr_align_guide: "Căn chỉnh mã QR vào giữa khung hình",
+    camera_permission_denied: "Không thể truy cập máy ảnh. Vui lòng cấp quyền Camera trên trình duyệt.",
+    camera_error_tip: "Bạn có thể chụp ảnh hoặc chọn ảnh mã QR từ máy để quét.",
+    upload_qr_photo: "Chọn Ảnh QR Từ Máy",
+    scanning_active: "Đang dò quét mã QR...",
+    scan_success: "Nhận diện mã QR thành công!",
+    switch_camera: "Đổi Camera",
+    toggle_flash: "Bật/Tắt Đèn",
+    simulate_scan_title: "Chế độ thử nghiệm (Không cần Camera):",
+    simulate_scan_btn: "Mở Nhanh Hiện Vật",
+    unrecognized_qr: "Mã QR không thuộc hệ thống bảo tàng.",
   },
   
   en: {
@@ -176,6 +191,21 @@ export const VISITOR_I18N = {
     step4_desc: "Navigate interactive floor plans with smart next-stop suggestions.",
     continue_previous: "Resume Last Visit",
     view_previous: "View Exhibit",
+
+    // QR Scanner
+    qr_scanner_title: "Scan Exhibit QR Code",
+    qr_scanner_sub: "Point camera at the QR code on the display stand to unlock",
+    qr_align_guide: "Align the QR code within the frame",
+    camera_permission_denied: "Unable to access camera. Please allow camera permissions in browser settings.",
+    camera_error_tip: "You can also take a photo or upload a QR image from your device.",
+    upload_qr_photo: "Upload QR Photo",
+    scanning_active: "Scanning for QR Code...",
+    scan_success: "QR Code successfully recognized!",
+    switch_camera: "Switch Camera",
+    toggle_flash: "Toggle Flash",
+    simulate_scan_title: "Demo Mode (No Camera):",
+    simulate_scan_btn: "Quick Open Exhibit",
+    unrecognized_qr: "QR code does not belong to the museum system.",
   },
 
   ja: {
@@ -262,6 +292,21 @@ export const VISITOR_I18N = {
     step4_desc: "インタラクティブマップで次のおすすめスポットへ案内します。",
     continue_previous: "前回の続きから見る",
     view_previous: "展示品を見る",
+
+    // QR Scanner
+    qr_scanner_title: "展示物QRコード読取",
+    qr_scanner_sub: "展示プレートのQRコードにカメラを向けてロック解除",
+    qr_align_guide: "QRコードを枠内に合わせてください",
+    camera_permission_denied: "カメラへのアクセスが拒否されました。設定で許可してください。",
+    camera_error_tip: "QRコードの写真を撮影またはアップロードして読み取ることもできます。",
+    upload_qr_photo: "QR画像をアップロード",
+    scanning_active: "QRコードをスキャン中...",
+    scan_success: "QRコードを認識しました！",
+    switch_camera: "カメラ切替",
+    toggle_flash: "ライト切替",
+    simulate_scan_title: "デモモード (カメラ不要):",
+    simulate_scan_btn: "展示物を直接開く",
+    unrecognized_qr: "このQRコードは博物館システムのものではありません。",
   },
 
   ko: {
@@ -348,6 +393,21 @@ export const VISITOR_I18N = {
     step4_desc: "인터랙티브 지도에서 최적의 다음 동선을 안내받으세요.",
     continue_previous: "이전 관람 이어보기",
     view_previous: "전시물 보기",
+
+    // QR Scanner
+    qr_scanner_title: "전시물 QR 코드 스캔",
+    qr_scanner_sub: "전시대의 QR 코드에 카메라를 비춰 잠금을 해제하세요",
+    qr_align_guide: "QR 코드를 프레임 안에 맞춰주세요",
+    camera_permission_denied: "카메라 접근 권한이 없습니다. 브라우저 설정에서 허용해주세요.",
+    camera_error_tip: "QR 코드 사진을 업로드하여 스캔할 수도 있습니다.",
+    upload_qr_photo: "QR 사진 업로드",
+    scanning_active: "QR 코드 인식 중...",
+    scan_success: "QR 코드가 성공적으로 인식되었습니다!",
+    switch_camera: "카메라 전환",
+    toggle_flash: "플래시 켜기/끄기",
+    simulate_scan_title: "데모 모드 (카메라 미사용):",
+    simulate_scan_btn: "전시물 바로 열기",
+    unrecognized_qr: "박물관 시스템에 등록되지 않은 QR 코드입니다.",
   },
 
   zh: {
@@ -434,5 +494,20 @@ export const VISITOR_I18N = {
     step4_desc: "跟随互动地图与智能路线推荐畅游展厅。",
     continue_previous: "继续上次浏览",
     view_previous: "查看展品",
+
+    // QR Scanner
+    qr_scanner_title: "扫描展品二维码",
+    qr_scanner_sub: "将摄像头对准展台上的二维码以解锁",
+    qr_align_guide: "将二维码对准在框线内",
+    camera_permission_denied: "无法访问摄像头，请在浏览器设置中开启相机权限。",
+    camera_error_tip: "您也可以拍照或从设备中上传二维码图片进行识别。",
+    upload_qr_photo: "上传二维码图片",
+    scanning_active: "正在扫描二维码...",
+    scan_success: "二维码识别成功！",
+    switch_camera: "切换摄像头",
+    toggle_flash: "开/关闪光灯",
+    simulate_scan_title: "演示模式（无需相机）:",
+    simulate_scan_btn: "快速打开展品",
+    unrecognized_qr: "该二维码不属于博物馆导览系统。",
   }
 };

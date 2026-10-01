@@ -1,7 +1,8 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { QrCode, Compass, Headphones, Globe2, Sparkles, ChevronRight, ArrowRight, Globe } from 'lucide-react';
 import { useVisitorSession } from '../../context/VisitorSessionContext';
+import QrScannerModal from '../../components/visitor/QrScannerModal';
 
 const LANGS = [
   { code: 'vi', label: 'Việt Nam', flag: '🇻🇳' },
@@ -21,6 +22,7 @@ export default function VisitorWelcomePage() {
     t,
   } = useVisitorSession();
   const canvasRef = useRef(null);
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
 
   const STEPS = [
     {
@@ -177,16 +179,16 @@ export default function VisitorWelcomePage() {
             <p className="text-xs font-bold text-slate-200">{t('museum_map')}</p>
           </Link>
 
-          <a href="javascript:void(0)"
-            onClick={() => {
-              alert(t('step1_desc'));
-            }}
-            className="flex flex-col items-center gap-2.5 p-4 rounded-2xl bg-slate-900 border border-slate-800 hover:border-slate-600 active:scale-[0.97] transition-all cursor-pointer">
-            <div className="w-10 h-10 rounded-xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center text-violet-400">
+          <button
+            type="button"
+            onClick={() => setIsScannerOpen(true)}
+            className="flex flex-col items-center gap-2.5 p-4 rounded-2xl bg-slate-900 border border-violet-500/30 hover:border-violet-400 active:scale-[0.97] transition-all cursor-pointer group shadow-lg shadow-violet-500/10"
+          >
+            <div className="w-10 h-10 rounded-xl bg-violet-500/10 border border-violet-500/30 flex items-center justify-center text-violet-400 group-hover:scale-110 group-hover:bg-violet-500/20 transition-all">
               <QrCode className="w-5 h-5" />
             </div>
-            <p className="text-xs font-bold text-slate-200">{t('scan_qr')}</p>
-          </a>
+            <p className="text-xs font-bold text-violet-200 group-hover:text-white transition-colors">{t('scan_qr')}</p>
+          </button>
         </div>
 
         {/* ── How it works ── */}
@@ -196,16 +198,28 @@ export default function VisitorWelcomePage() {
           </p>
           <div className="space-y-3">
             {STEPS.map((step, i) => (
-              <div key={i}
-                className="flex items-start gap-3.5 p-4 rounded-2xl bg-slate-900/80 border border-slate-800/80">
-                <div className={`w-11 h-11 rounded-xl bg-gradient-to-br ${step.color} flex items-center justify-center text-white shadow-lg ${step.glow} flex-shrink-0`}>
+              <div
+                key={i}
+                onClick={i === 0 ? () => setIsScannerOpen(true) : undefined}
+                className={`flex items-start gap-3.5 p-4 rounded-2xl bg-slate-900/80 border border-slate-800/80 transition-all ${
+                  i === 0 ? 'hover:border-violet-500/40 cursor-pointer group active:scale-[0.99]' : ''
+                }`}
+              >
+                <div className={`w-11 h-11 rounded-xl bg-gradient-to-br ${step.color} flex items-center justify-center text-white shadow-lg ${step.glow} flex-shrink-0 group-hover:scale-105 transition-transform`}>
                   {step.icon}
                 </div>
-                <div>
-                  <p className="text-sm font-bold text-white mb-0.5">
-                    <span className="text-slate-600 mr-1.5">{i + 1}.</span>
-                    {step.title}
-                  </p>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-bold text-white mb-0.5">
+                      <span className="text-slate-600 mr-1.5">{i + 1}.</span>
+                      {step.title}
+                    </p>
+                    {i === 0 && (
+                      <span className="text-[10px] font-bold text-violet-400 bg-violet-500/10 px-2 py-0.5 rounded-full border border-violet-500/20">
+                        {t('scan_qr')}
+                      </span>
+                    )}
+                  </div>
                   <p className="text-[12px] text-slate-400 leading-5">{step.desc}</p>
                 </div>
               </div>
@@ -218,6 +232,12 @@ export default function VisitorWelcomePage() {
           Powered by <span className="text-amber-500 font-semibold">Microsoft Edge Neural TTS</span> · FastAPI · React
         </p>
       </div>
+
+      {/* QR Scanner Camera Modal */}
+      <QrScannerModal
+        isOpen={isScannerOpen}
+        onClose={() => setIsScannerOpen(false)}
+      />
     </div>
   );
 }

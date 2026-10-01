@@ -9,6 +9,7 @@ import { visitorApi } from '../../services/visitorApi';
 import { useVisitorSession } from '../../context/VisitorSessionContext';
 import LanguageSwitcher from '../../components/visitor/LanguageSwitcher';
 import AudioPlayer from '../../components/visitor/AudioPlayer';
+import QrScannerModal from '../../components/visitor/QrScannerModal';
 
 const LANG_NAME = { vi:'Tiếng Việt', en:'English', ja:'日本語', ko:'한국어', zh:'中文' };
 
@@ -32,6 +33,7 @@ export default function PoiDetailPage() {
   const [imgLoaded, setImgLoaded] = useState(false);
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
   const scrollRef = useRef(null);
 
   // Kiểm tra trạng thái đã quét QR từ URL hoặc localStorage
@@ -294,23 +296,32 @@ export default function PoiDetailPage() {
               </p>
             </div>
 
-            <button
-              onClick={handleSimulateScan}
-              disabled={isScanning}
-              className="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold text-sm shadow-lg shadow-amber-500/25 active:scale-95 transition-all flex items-center justify-center gap-2"
-            >
-              {isScanning ? (
-                <>
-                  <RefreshCw className="w-4 h-4 animate-spin" />
-                  <span>{t('authenticating_scan')}</span>
-                </>
-              ) : (
-                <>
-                  <QrCode className="w-5 h-5" />
-                  <span>{t('scan_to_unlock')}</span>
-                </>
-              )}
-            </button>
+            <div className="flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={() => setIsScannerOpen(true)}
+                className="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold text-sm shadow-lg shadow-amber-500/25 active:scale-95 transition-all flex items-center justify-center gap-2"
+              >
+                <QrCode className="w-5 h-5" />
+                <span>{t('scan_to_unlock')}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleSimulateScan}
+                disabled={isScanning}
+                className="w-full py-1 text-center text-xs text-slate-500 hover:text-amber-400/80 transition-colors"
+              >
+                {isScanning ? (
+                  <span className="flex items-center justify-center gap-1.5 text-amber-400">
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    <span>{t('authenticating_scan')}</span>
+                  </span>
+                ) : (
+                  <span>(Mô phỏng mở khoá không cần quét)</span>
+                )}
+              </button>
+            </div>
           </div>
         )}
 
@@ -343,6 +354,12 @@ export default function PoiDetailPage() {
           <ChevronRight className="w-4 h-4 text-slate-500" />
         </button>
       </div>
+
+      {/* QR Scanner Camera Modal */}
+      <QrScannerModal
+        isOpen={isScannerOpen}
+        onClose={() => setIsScannerOpen(false)}
+      />
     </div>
   );
 }
