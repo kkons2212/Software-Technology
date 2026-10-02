@@ -14,47 +14,7 @@ During the Proof of Concept (POC) phase, the system leverages **SQLite** configu
 
 ## 2. Entity Relationship Diagram (ERD)
 
-```mermaid
-erDiagram
-    POIS ||--o{ POI_TRANSLATIONS : "has translations (1:N)"
-    POIS ||--o{ POI_AUDIOS : "has audio files (1:N)"
-
-    POIS {
-        INTEGER id PK "Auto-increment primary key"
-        TEXT title_vi "Exhibit title in Vietnamese (Source)"
-        TEXT short_description_vi "Brief teaser (visible before QR scan)"
-        TEXT description_vi "Full description in Vietnamese"
-        TEXT image_url "Relative path to exhibit image"
-        REAL x_coord "Map X coordinate percentage (0.0 - 100.0)"
-        REAL y_coord "Map Y coordinate percentage (0.0 - 100.0)"
-        INTEGER floor "Floor level (Default: 1)"
-        TEXT qr_code_url "Path to generated QR code PNG file"
-        TEXT translation_status "Status: PENDING, COMPLETED, FAILED"
-        TIMESTAMP created_at "Record creation timestamp"
-        TIMESTAMP updated_at "Last update timestamp"
-    }
-
-    POI_TRANSLATIONS {
-        INTEGER id PK "Auto-increment primary key"
-        INTEGER poi_id FK "Foreign key -> pois(id) ON DELETE CASCADE"
-        TEXT language_code "Target ISO language code (en, ja, ko, zh)"
-        TEXT title "Translated exhibit title"
-        TEXT short_description "Translated short teaser"
-        TEXT description "Translated full description"
-        TEXT status "Status: COMPLETED, FAILED"
-        TIMESTAMP updated_at "Last update timestamp"
-    }
-
-    POI_AUDIOS {
-        INTEGER id PK "Auto-increment primary key"
-        INTEGER poi_id FK "Foreign key -> pois(id) ON DELETE CASCADE"
-        TEXT language_code "Voice language code (vi, en, ja, ko, zh)"
-        TEXT audio_url "Relative path to generated MP3 file"
-        TEXT text_hash "Content hash (MD5/SHA256) for caching"
-        TEXT status "TTS Status: READY, GENERATING, FAILED"
-        TIMESTAMP updated_at "Last update timestamp"
-    }
-```
+<img width="688" height="426" alt="erd" src="https://github.com/user-attachments/assets/33ac681b-418b-453b-ad61-88e31d21093d" />
 
 ---
 
