@@ -47,6 +47,8 @@ class POIService:
         x_coord: float = 0.0,
         y_coord: float = 0.0,
         floor: int = 1,
+        latitude: Optional[float] = None,
+        longitude: Optional[float] = None,
         image_file: Optional[UploadFile] = None,
         background_tasks: Optional[BackgroundTasks] = None
     ) -> Dict[str, Any]:
@@ -63,8 +65,8 @@ class POIService:
             final_short = description_vi.split(".")[0].strip() + "." if "." in description_vi else description_vi[:140]
 
         from config import DEFAULT_MAP_LAT, DEFAULT_MAP_LNG
-        lat = DEFAULT_MAP_LAT + ((y_coord - 200.0) * 0.0006 / 200.0)
-        lng = DEFAULT_MAP_LNG + ((x_coord - 300.0) * 0.0006 / 300.0)
+        lat = latitude if latitude is not None else (DEFAULT_MAP_LAT + ((y_coord - 200.0) * 0.0006 / 200.0))
+        lng = longitude if longitude is not None else (DEFAULT_MAP_LNG + ((x_coord - 300.0) * 0.0006 / 300.0))
 
         poi_id = POIRepository.create_poi(
             title_vi=title_vi,
@@ -112,6 +114,8 @@ class POIService:
         x_coord: Optional[float] = None,
         y_coord: Optional[float] = None,
         floor: Optional[int] = None,
+        latitude: Optional[float] = None,
+        longitude: Optional[float] = None,
         image_file: Optional[UploadFile] = None,
         background_tasks: Optional[BackgroundTasks] = None
     ) -> Optional[Dict[str, Any]]:
@@ -125,11 +129,11 @@ class POIService:
             image_url = await POIService.save_image_file(image_file)
             
         from config import DEFAULT_MAP_LAT, DEFAULT_MAP_LNG
-        lat = None
-        lng = None
-        if y_coord is not None:
+        lat = latitude
+        lng = longitude
+        if lat is None and y_coord is not None:
             lat = DEFAULT_MAP_LAT + ((y_coord - 200.0) * 0.0006 / 200.0)
-        if x_coord is not None:
+        if lng is None and x_coord is not None:
             lng = DEFAULT_MAP_LNG + ((x_coord - 300.0) * 0.0006 / 300.0)
 
         POIRepository.update_poi(

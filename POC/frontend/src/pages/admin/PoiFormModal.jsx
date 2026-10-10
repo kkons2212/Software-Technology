@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Upload, MapPin, Sparkles, Loader2 } from 'lucide-react';
 import { adminApi } from '../../services/adminApi';
+import InteractiveMapPicker from '../../components/admin/InteractiveMapPicker';
 
 export default function PoiFormModal({ isOpen, onClose, onSuccess, editPoi = null, existingPois = [] }) {
   const [formData, setFormData] = useState({
@@ -10,6 +11,8 @@ export default function PoiFormModal({ isOpen, onClose, onSuccess, editPoi = nul
     x_coord: 150,
     y_coord: 150,
     floor: 1,
+    latitude: 10.7769,
+    longitude: 106.6953,
   });
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
@@ -25,6 +28,8 @@ export default function PoiFormModal({ isOpen, onClose, onSuccess, editPoi = nul
         x_coord: editPoi.x_coord || 150,
         y_coord: editPoi.y_coord || 150,
         floor: editPoi.floor || 1,
+        latitude: editPoi.latitude || 10.7769,
+        longitude: editPoi.longitude || 106.6953,
       });
       setImagePreview(editPoi.image_url || null);
       setImageFile(null);
@@ -36,6 +41,8 @@ export default function PoiFormModal({ isOpen, onClose, onSuccess, editPoi = nul
         x_coord: 200,
         y_coord: 200,
         floor: 1,
+        latitude: 10.7769,
+        longitude: 106.6953,
       });
       setImagePreview(null);
       setImageFile(null);
@@ -51,6 +58,14 @@ export default function PoiFormModal({ isOpen, onClose, onSuccess, editPoi = nul
       setImageFile(file);
       setImagePreview(URL.createObjectURL(file));
     }
+  };
+
+  const handleMapCoordinateChange = (lat, lng) => {
+    setFormData((prev) => ({
+      ...prev,
+      latitude: lat,
+      longitude: lng,
+    }));
   };
 
   const handleSubmit = async (e) => {
@@ -73,6 +88,8 @@ export default function PoiFormModal({ isOpen, onClose, onSuccess, editPoi = nul
       data.append('x_coord', formData.x_coord);
       data.append('y_coord', formData.y_coord);
       data.append('floor', formData.floor);
+      data.append('latitude', formData.latitude);
+      data.append('longitude', formData.longitude);
       if (imageFile) {
         data.append('image', imageFile);
       }
@@ -175,10 +192,19 @@ export default function PoiFormModal({ isOpen, onClose, onSuccess, editPoi = nul
             />
           </div>
 
-          {/* Chọn Tầng / Khu vực trưng bày */}
+          {/* Chọn Vị Trí Trên Bản Đồ Ngoài Trời (GPS Picker) */}
+          <InteractiveMapPicker
+            latitude={formData.latitude}
+            longitude={formData.longitude}
+            onChange={handleMapCoordinateChange}
+            existingPois={existingPois}
+            currentPoiId={editPoi?.id}
+          />
+
+          {/* Chọn Tầng / Phân khu trưng bày */}
           <div>
             <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
-              Tầng Trưng Bày
+              Khu Vực / Tầng Trưng Bày
             </label>
             <div className="flex gap-3">
               {[1, 2, 3].map((f) => (

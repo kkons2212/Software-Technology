@@ -24,9 +24,11 @@ async def create_poi(
     title_vi: str = Form(..., description="Tiêu đề tiếng Việt của hiện vật"),
     description_vi: str = Form(..., description="Mô tả chi tiết tiếng Việt"),
     short_description_vi: Optional[str] = Form(None, description="Mô tả tóm tắt tiếng Việt"),
-    x_coord: float = Form(0.0, description="Toạ độ X trên bản đồ (0 - 1000)"),
-    y_coord: float = Form(0.0, description="Toạ độ Y trên bản đồ (0 - 1000)"),
+    x_coord: float = Form(0.0, description="Toạ độ X trên sơ đồ (0 - 1000)"),
+    y_coord: float = Form(0.0, description="Toạ độ Y trên sơ đồ (0 - 1000)"),
     floor: int = Form(1, description="Tầng hiển thị"),
+    latitude: Optional[float] = Form(None, description="Toạ độ Vĩ độ GPS (Latitude)"),
+    longitude: Optional[float] = Form(None, description="Toạ độ Kinh độ GPS (Longitude)"),
     image: Optional[UploadFile] = File(None, description="Hình ảnh hiện vật")
 ):
     """
@@ -45,6 +47,8 @@ async def create_poi(
         x_coord=x_coord,
         y_coord=y_coord,
         floor=floor,
+        latitude=latitude,
+        longitude=longitude,
         image_file=image,
         background_tasks=background_tasks
     )
@@ -60,6 +64,8 @@ async def update_poi(
     x_coord: Optional[float] = Form(None),
     y_coord: Optional[float] = Form(None),
     floor: Optional[int] = Form(None),
+    latitude: Optional[float] = Form(None),
+    longitude: Optional[float] = Form(None),
     image: Optional[UploadFile] = File(None)
 ):
     """Cập nhật thông tin hiện vật / POI và tự động sinh lại bản dịch + audio (UC-04 A1)."""
@@ -71,6 +77,8 @@ async def update_poi(
         x_coord=x_coord,
         y_coord=y_coord,
         floor=floor,
+        latitude=latitude,
+        longitude=longitude,
         image_file=image,
         background_tasks=background_tasks
     )

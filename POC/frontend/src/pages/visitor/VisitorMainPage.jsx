@@ -10,6 +10,7 @@ import { visitorApi } from '../../services/visitorApi';
 import { useVisitorSession } from '../../context/VisitorSessionContext';
 import LanguageSwitcher from '../../components/visitor/LanguageSwitcher';
 import AudioPlayer from '../../components/visitor/AudioPlayer';
+import FloatingAudioBar from '../../components/visitor/FloatingAudioBar';
 import QrScannerModal from '../../components/visitor/QrScannerModal';
 import OutdoorMapView from '../../components/visitor/OutdoorMapView';
 
@@ -161,6 +162,17 @@ export default function VisitorMainPage() {
   const [isScanning, setIsScanning] = useState(false);
   const [imgLoaded, setImgLoaded] = useState(false);
 
+  // === FLOATING AUDIO PLAYER STATE (UC-01 & UC-02) ===
+  const [floatingPoi, setFloatingPoi] = useState(null);
+  const [floatingAutoPlay, setFloatingAutoPlay] = useState(true);
+
+  // Sync POI into floating player whenever POI detail is loaded
+  useEffect(() => {
+    if (poi) {
+      setFloatingPoi(poi);
+    }
+  }, [poi]);
+
   // === LIST STATE ===
   const [poiList, setPoiList] = useState([]);
   const [listLoading, setListLoading] = useState(false);
@@ -248,14 +260,42 @@ export default function VisitorMainPage() {
     scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleSelectPoi = (poiId) => {
+  const handleSelectPoi = (poiId, autoUnlock = false) => {
     const unlockedStorage = JSON.parse(localStorage.getItem('unlocked_pois') || '{}');
+    if (autoUnlock) {
+      unlockedStorage[poiId] = true;
+      localStorage.setItem('unlocked_pois', JSON.stringify(unlockedStorage));
+      setLastScannedPoiId(poiId);
+    }
     setSelectedPoiId(poiId);
-    setIsUnlocked(!!unlockedStorage[poiId]);
+    setIsUnlocked(autoUnlock || !!unlockedStorage[poiId]);
     setActiveTab('guide');
     setImgLoaded(false);
     navigate(`/poi/${poiId}`, { replace: true });
     scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handlePlayFloatingAudio = async (poiItemOrId, autoPlay = true) => {
+    let poiData = poiItemOrId;
+    if (typeof poiItemOrId === 'number' || typeof poiItemOrId === 'string') {
+      try {
+        poiData = await visitorApi.getPoiDetail(poiItemOrId, preferredLanguage, true);
+      } catch (e) {
+        console.error('Failed to load floating audio POI:', e);
+        return;
+      }
+    }
+    if (poiData) {
+      setFloatingPoi(poiData);
+      setFloatingAutoPlay(autoPlay);
+      setSelectedPoiId(poiData.id);
+      setLastScannedPoiId(poiData.id);
+      // Auto-unlock POI in storage
+      const unlockedStorage = JSON.parse(localStorage.getItem('unlocked_pois') || '{}');
+      unlockedStorage[poiData.id] = true;
+      localStorage.setItem('unlocked_pois', JSON.stringify(unlockedStorage));
+      setIsUnlocked(true);
+    }
   };
 
   const handleSimulateScan = () => {
@@ -748,9 +788,31 @@ export default function VisitorMainPage() {
 
       {/* ══════ MAIN CONTENT ══════ */}
       {activeTab === 'home' && renderHomeView()}
-      {activeTab === 'map' && <OutdoorMapView onSelectPoi={handleSelectPoi} initialPoiId={selectedPoiId} />}
+      {activeTab === 'map' && (
+        <OutdoorMapView
+          onSelectPoi={handleSelectPoi}
+          onPlayAudio={handlePlayFloatingAudio}
+          initialPoiId={selectedPoiId}
+        />
+      )}
       {activeTab === 'list' && renderListView()}
       {activeTab === 'guide' && renderGuideView()}
+
+      {/* ══════ FLOATING MINI AUDIO PLAYER (Docked above lower navbar) ══════ */}
+      {activeTab !== 'guide' && floatingPoi && (
+        <FloatingAudioBar
+          poi={floatingPoi}
+          language={preferredLanguage}
+          autoPlay={floatingAutoPlay}
+          onClose={() => setFloatingPoi(null)}
+          onOpenFullDetail={(poiId) => {
+            handleSelectPoi(poiId, true);
+          }}
+          onAudioEnded={(poiId) => {
+            markPoiAsListened(poiId);
+          }}
+        />
+      )}
 
       {/* ══════ LOWER NAVBAR ══════ */}
       <nav className="fixed bottom-0 left-0 right-0 z-50 glass border-t border-slate-800/80">

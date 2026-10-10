@@ -296,11 +296,19 @@ export default function AdminDashboardPage() {
                             </div>
                           </td>
 
-                          {/* Floor Badge */}
+                          {/* Floor & GPS Badge */}
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <span className="px-3 py-1 rounded-xl bg-slate-800 border border-slate-700 text-xs font-semibold text-amber-300">
-                              Tầng {poi.floor || 1}
-                            </span>
+                            <div className="flex flex-col gap-1">
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-slate-800 border border-slate-700 text-xs font-semibold text-amber-300 w-fit">
+                                Tầng / Khu {poi.floor || 1}
+                              </span>
+                              {poi.latitude && poi.longitude && (
+                                <span className="text-[10px] font-mono text-sky-400 flex items-center gap-1">
+                                  <MapPin className="w-3 h-3 text-sky-400 flex-shrink-0" />
+                                  <span>{Number(poi.latitude).toFixed(4)}, {Number(poi.longitude).toFixed(4)}</span>
+                                </span>
+                              )}
+                            </div>
                           </td>
 
                           {/* QR Code */}

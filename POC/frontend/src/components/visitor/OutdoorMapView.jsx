@@ -3,11 +3,46 @@ import L from 'leaflet';
 import {
   Navigation, MapPin, Compass, RefreshCw, Volume2,
   CheckCircle2, Sparkles, LocateFixed, Map as MapIcon,
-  Route, Footprints, AlertCircle, ArrowUpRight, ChevronUp, ChevronDown,
-  Smartphone, ShieldCheck
+  Route, Footprints, AlertCircle, ChevronUp, ChevronDown,
+  Smartphone, Radio, VolumeX, Play, Pause, RotateCcw, FastForward
 } from 'lucide-react';
 import { visitorApi } from '../../services/visitorApi';
 import { useVisitorSession } from '../../context/VisitorSessionContext';
+
+const PROXIMITY_RADIUS_METERS = 30; // Bán kính tự động nhận diện hiện vật (30 mét)
+
+// Helper: Generate interpolated walking steps along route or straight line
+function generateWalkingSteps(start, end, polyline = []) {
+  const steps = [];
+  if (polyline && polyline.length >= 2) {
+    for (let i = 0; i < polyline.length - 1; i++) {
+      const [lat1, lng1] = polyline[i];
+      const [lat2, lng2] = polyline[i + 1];
+      const segmentDist = getHaversineDist(lat1, lng1, lat2, lng2);
+      const subSteps = Math.max(1, Math.round(segmentDist / 2)); // ~2m per step
+      for (let s = 0; s < subSteps; s++) {
+        const ratio = s / subSteps;
+        steps.push({
+          lat: lat1 + (lat2 - lat1) * ratio,
+          lng: lng1 + (lng2 - lng1) * ratio
+        });
+      }
+    }
+    const last = polyline[polyline.length - 1];
+    steps.push({ lat: last[0], lng: last[1] });
+  } else if (start && end && end.latitude && end.longitude) {
+    const dist = getHaversineDist(start.lat, start.lng, end.latitude, end.longitude);
+    const totalSteps = Math.max(10, Math.round(dist / 2));
+    for (let i = 0; i <= totalSteps; i++) {
+      const ratio = i / totalSteps;
+      steps.push({
+        lat: start.lat + (end.latitude - start.lat) * ratio,
+        lng: start.lng + (end.longitude - start.lng) * ratio
+      });
+    }
+  }
+  return steps;
+}
 
 // Custom POI Pin Icon generator
 const createPoiIcon = (item, isSelected = false, isVisited = false) => {
@@ -54,16 +89,18 @@ function getHaversineDist(lat1, lon1, lat2, lon2) {
   return Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
 }
 
-export default function OutdoorMapView({ onSelectPoi, initialPoiId = null }) {
+export default function OutdoorMapView({ onSelectPoi, onPlayAudio, initialPoiId = null }) {
   const { preferredLanguage, lastScannedPoiId, isPoiListened, t } = useVisitorSession();
 
   const mapContainerRef = useRef(null);
   const mapInstanceRef = useRef(null);
   const markersLayerRef = useRef(null);
+  const geofenceLayerRef = useRef(null);
   const routeLayerRef = useRef(null);
   const userMarkerRef = useRef(null);
   const userAccuracyCircleRef = useRef(null);
   const watchIdRef = useRef(null);
+  const triggeredPoiIdsRef = useRef(new Set()); // Ghi nhớ POI đã kích hoạt tự động
 
   // States
   const [loading, setLoading] = useState(true);
@@ -82,6 +119,22 @@ export default function OutdoorMapView({ onSelectPoi, initialPoiId = null }) {
   const [gpsAccuracy, setGpsAccuracy] = useState(null);
   const [locationMode, setLocationMode] = useState('simulated'); // 'real' | 'simulated'
   const [gpsErrorMsg, setGpsErrorMsg] = useState(null);
+
+  // Proximity Autoplay feature (Tự động phát khi lại gần)
+  const [autoTourEnabled, setAutoTourEnabled] = useState(true);
+  const [proximityAlert, setProximityAlert] = useState(null); // { poi, distance, countdown }
+  const countdownTimerRef = useRef(null);
+
+  // Walking Simulation for Geofence Testing
+  const [isSimulatingWalk, setIsSimulatingWalk] = useState(false);
+  const [simSpeed, setSimSpeed] = useState(1); // 1x | 2x | 4x
+  const [simProgress, setSimProgress] = useState(0); // 0 -> 100%
+  const [showSimPanel, setShowSimPanel] = useState(true);
+  const [startPointToast, setStartPointToast] = useState(null);
+  const toastTimeoutRef = useRef(null);
+  const simIntervalRef = useRef(null);
+  const simStepsRef = useRef([]);
+  const simCurrentIndexRef = useRef(0);
 
   // Turn-by-turn route state from OSRM
   const [routeInfo, setRouteInfo] = useState({
@@ -119,7 +172,7 @@ export default function OutdoorMapView({ onSelectPoi, initialPoiId = null }) {
     }
   }, [initialPoiId, lastScannedPoiId, selectedPoi]);
 
-  // 2. Fetch OSRM Walking Route (Đường đi bộ uốn lượn theo vỉa hè/lối đi thực tế)
+  // 2. Fetch OSRM Walking Route
   const calculateWalkingRoute = useCallback(async (origin, target) => {
     if (!origin || !target || !target.latitude || !target.longitude) return;
 
@@ -131,7 +184,6 @@ export default function OutdoorMapView({ onSelectPoi, initialPoiId = null }) {
 
       if (data.code === 'Ok' && data.routes && data.routes[0]) {
         const route = data.routes[0];
-        // Coordinates from OSRM are [lng, lat], convert to Leaflet [lat, lng]
         const latlngs = route.geometry.coordinates.map((coord) => [coord[1], coord[0]]);
 
         const steps = route.legs[0]?.steps?.map((step) => {
@@ -179,11 +231,10 @@ export default function OutdoorMapView({ onSelectPoi, initialPoiId = null }) {
           }).addTo(mapInstanceRef.current);
         }
       } else {
-        // Fallback straight line
         drawFallbackStraightLine(origin, target);
       }
     } catch (err) {
-      console.warn('OSRM routing request failed, using straight-line fallback:', err);
+      console.warn('OSRM routing request failed, using fallback:', err);
       drawFallbackStraightLine(origin, target);
     } finally {
       setRoutingLoading(false);
@@ -217,7 +268,50 @@ export default function OutdoorMapView({ onSelectPoi, initialPoiId = null }) {
     }
   };
 
-  // 3. Initialize Leaflet Map
+  // 3. Proximity Geofence Triggering (Tự động phát khi lại gần)
+  const checkProximityTrigger = useCallback((lat, lng, markers) => {
+    if (!autoTourEnabled || !markers || markers.length === 0) return;
+
+    for (const poi of markers) {
+      if (!poi.latitude || !poi.longitude) continue;
+      const dist = getHaversineDist(lat, lng, poi.latitude, poi.longitude);
+
+      if (dist <= PROXIMITY_RADIUS_METERS) {
+        // Nếu chưa từng kích hoạt tự động POI này trong phiên
+        if (!triggeredPoiIdsRef.current.has(poi.id)) {
+          triggeredPoiIdsRef.current.add(poi.id);
+
+          setProximityAlert({
+            poi,
+            distance: dist,
+            countdown: 3
+          });
+
+          // Tự động kích hoạt thuyết minh sau 3 giây (hoặc khách bấm ngay)
+          if (countdownTimerRef.current) clearInterval(countdownTimerRef.current);
+          let count = 3;
+          countdownTimerRef.current = setInterval(() => {
+            count -= 1;
+            if (count <= 0) {
+              clearInterval(countdownTimerRef.current);
+              setProximityAlert(null);
+              if (onPlayAudio) {
+                onPlayAudio(poi.id, true);
+              } else {
+                onSelectPoi(poi.id, true);
+              }
+            } else {
+              setProximityAlert((prev) => (prev ? { ...prev, countdown: count } : null));
+            }
+          }, 1000);
+
+          break;
+        }
+      }
+    }
+  }, [autoTourEnabled, onSelectPoi, onPlayAudio]);
+
+  // 4. Initialize Leaflet Map
   useEffect(() => {
     if (!mapContainerRef.current || mapInstanceRef.current) return;
 
@@ -233,7 +327,7 @@ export default function OutdoorMapView({ onSelectPoi, initialPoiId = null }) {
       attributionControl: false
     });
 
-    // OpenStreetMap Tile Layer with maxNativeZoom: 19 so zoom >= 20 never goes black!
+    // OpenStreetMap Tile Layer
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxNativeZoom: 19,
       maxZoom: 22,
@@ -246,13 +340,14 @@ export default function OutdoorMapView({ onSelectPoi, initialPoiId = null }) {
 
     L.control.zoom({ position: 'topright' }).addTo(map);
 
+    geofenceLayerRef.current = L.layerGroup().addTo(map);
     markersLayerRef.current = L.layerGroup().addTo(map);
     mapInstanceRef.current = map;
 
-    // Allow user to click anywhere on map to relocate in simulation mode
+    // Allow user to click anywhere on map to set starting location in simulation mode
     map.on('click', (e) => {
       const { lat, lng } = e.latlng;
-      updateUserMarkerPosition(lat, lng, null, true);
+      handleSetSimulatedStartLocation(lat, lng, 'Vị trí đã chọn trên bản đồ');
     });
 
     // Default simulated location at entrance
@@ -266,12 +361,51 @@ export default function OutdoorMapView({ onSelectPoi, initialPoiId = null }) {
       if (watchIdRef.current) {
         navigator.geolocation?.clearWatch(watchIdRef.current);
       }
+      if (countdownTimerRef.current) {
+        clearInterval(countdownTimerRef.current);
+      }
+      if (toastTimeoutRef.current) {
+        clearTimeout(toastTimeoutRef.current);
+      }
       map.remove();
       mapInstanceRef.current = null;
     };
   }, []);
 
-  // Update user marker & optional accuracy circle
+  // Set custom simulated starting location
+  const handleSetSimulatedStartLocation = (lat, lng, name = null) => {
+    if (watchIdRef.current) {
+      navigator.geolocation?.clearWatch(watchIdRef.current);
+      watchIdRef.current = null;
+    }
+    if (simIntervalRef.current) {
+      clearInterval(simIntervalRef.current);
+      simIntervalRef.current = null;
+    }
+    setIsSimulatingWalk(false);
+    setSimProgress(0);
+    simCurrentIndexRef.current = 0;
+    simStepsRef.current = [];
+    triggeredPoiIdsRef.current.clear(); // Reset geofence history for re-testing
+
+    updateUserMarkerPosition(lat, lng, null, true);
+
+    if (mapInstanceRef.current) {
+      mapInstanceRef.current.panTo([lat, lng], { animate: true, duration: 0.5 });
+    }
+
+    const target = selectedPoi || nextPoi;
+    const dist = target && target.latitude ? getHaversineDist(lat, lng, target.latitude, target.longitude) : 0;
+    const msg = name 
+      ? `📍 Điểm xuất phát: ${name} (Cách #${target?.id || ''}: ~${dist}m)` 
+      : `📍 Đã đặt điểm xuất phát mới (Cách #${target?.id || ''}: ~${dist}m)`;
+    
+    setStartPointToast(msg);
+    if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+    toastTimeoutRef.current = setTimeout(() => setStartPointToast(null), 3500);
+  };
+
+  // Update user marker, accuracy circle & check geofence
   const updateUserMarkerPosition = (lat, lng, accuracy = null, isSimulated = false) => {
     const coords = { lat, lng };
     setUserLocation(coords);
@@ -309,12 +443,15 @@ export default function OutdoorMapView({ onSelectPoi, initialPoiId = null }) {
     if (target) {
       calculateWalkingRoute(coords, target);
     }
+
+    // Check GPS Geofence for proximity auto-tour
+    checkProximityTrigger(lat, lng, markersData);
   };
 
-  // 4. Trigger Real Phone GPS
+  // 5. Trigger Real Phone GPS
   const handleEnableRealGps = () => {
     if (!('geolocation' in navigator)) {
-      setGpsErrorMsg('Trình duyệt hoặc thiết bị của bạn không hỗ trợ định vị GPS.');
+      setGpsErrorMsg('Trình duyệt hoặc thiết bị không hỗ trợ GPS.');
       return;
     }
 
@@ -345,20 +482,17 @@ export default function OutdoorMapView({ onSelectPoi, initialPoiId = null }) {
         setLoading(false);
         let msg = 'Không thể lấy GPS điện thoại.';
         if (error.code === 1) {
-          msg = 'Bạn đã từ chối quyền GPS. Vui lòng cho phép quyền vị trí trong cài đặt trình duyệt.';
+          msg = 'Bạn đã từ chối quyền GPS. Hãy cho phép quyền vị trí trong cài đặt trình duyệt.';
         } else if (error.code === 2) {
-          msg = 'Vị trí GPS không khả dụng (hãy bật GPS trên điện thoại).';
-        } else if (error.code === 3) {
-          msg = 'Yêu cầu định vị GPS bị quá hạn thời gian.';
+          msg = 'Vị trí GPS không khả dụng (hãy bật GPS thiết bị).';
         }
         setGpsErrorMsg(msg);
-        console.warn('Geolocation error:', error);
       },
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
     );
   };
 
-  // 5. Reset to Simulated Entrance
+  // 6. Reset to Simulated Entrance
   const handleResetToEntrance = () => {
     if (watchIdRef.current) {
       navigator.geolocation?.clearWatch(watchIdRef.current);
@@ -372,28 +506,39 @@ export default function OutdoorMapView({ onSelectPoi, initialPoiId = null }) {
     }
   };
 
-  // 6. Update POI Markers on Map
+  // 7. Update POI Markers & Geofence Zones on Map
   useEffect(() => {
-    if (!mapInstanceRef.current || !markersLayerRef.current) return;
+    if (!mapInstanceRef.current || !markersLayerRef.current || !geofenceLayerRef.current) return;
 
     markersLayerRef.current.clearLayers();
+    geofenceLayerRef.current.clearLayers();
 
     markersData.forEach((item) => {
       const isSelected = selectedPoi && selectedPoi.id === item.id;
       const isVisited = isPoiListened(item.id);
       const icon = createPoiIcon(item, isSelected, isVisited);
 
+      // Marker
       const marker = L.marker([item.latitude, item.longitude], { icon });
-
       marker.on('click', () => {
         setSelectedPoi(item);
       });
-
       markersLayerRef.current.addLayer(marker);
+
+      // Proximity Geofence Zone Circle (30m radius)
+      const geofenceCircle = L.circle([item.latitude, item.longitude], {
+        radius: PROXIMITY_RADIUS_METERS,
+        color: isVisited ? '#10b981' : isSelected ? '#f59e0b' : '#38bdf8',
+        fillColor: isVisited ? '#10b981' : isSelected ? '#f59e0b' : '#38bdf8',
+        fillOpacity: isSelected ? 0.12 : 0.06,
+        weight: 1,
+        dashArray: '4, 4'
+      });
+      geofenceLayerRef.current.addLayer(geofenceCircle);
     });
   }, [markersData, selectedPoi, isPoiListened]);
 
-  // 7. Calculate Walking Route whenever target changes
+  // 8. Calculate Walking Route whenever target changes
   useEffect(() => {
     const target = selectedPoi || nextPoi;
     if (userLocation && target) {
@@ -408,12 +553,92 @@ export default function OutdoorMapView({ onSelectPoi, initialPoiId = null }) {
     }
   };
 
-  // Open native Google Maps app for direct walking navigation
-  const handleOpenGoogleMaps = (poi) => {
-    if (!poi || !poi.latitude || !poi.longitude) return;
-    const url = `https://www.google.com/maps/dir/?api=1&destination=${poi.latitude},${poi.longitude}&travelmode=walking`;
-    window.open(url, '_blank');
+  // ─── WALKING SIMULATION SYSTEM (TEST GPS GEOFENCE STEP-BY-STEP) ───
+  const handleStartWalkingSimulation = () => {
+    const target = selectedPoi || nextPoi;
+    if (!target || !userLocation) return;
+
+    if (simIntervalRef.current) clearInterval(simIntervalRef.current);
+
+    // If starting fresh or reached the end, regenerate steps
+    if (simStepsRef.current.length === 0 || simCurrentIndexRef.current >= simStepsRef.current.length) {
+      const steps = generateWalkingSteps(userLocation, target, routeInfo.polyline);
+      simStepsRef.current = steps;
+      simCurrentIndexRef.current = 0;
+    }
+
+    setIsSimulatingWalk(true);
+
+    const intervalMs = Math.max(70, Math.round(450 / simSpeed));
+    simIntervalRef.current = setInterval(() => {
+      if (simCurrentIndexRef.current >= simStepsRef.current.length) {
+        clearInterval(simIntervalRef.current);
+        simIntervalRef.current = null;
+        setIsSimulatingWalk(false);
+        return;
+      }
+
+      const currentStep = simStepsRef.current[simCurrentIndexRef.current];
+      updateUserMarkerPosition(currentStep.lat, currentStep.lng, null, true);
+
+      if (mapInstanceRef.current && simCurrentIndexRef.current % 2 === 0) {
+        mapInstanceRef.current.panTo([currentStep.lat, currentStep.lng], { animate: true, duration: 0.25 });
+      }
+
+      const progress = Math.round((simCurrentIndexRef.current / (simStepsRef.current.length - 1)) * 100);
+      setSimProgress(progress);
+      simCurrentIndexRef.current += 1;
+    }, intervalMs);
   };
+
+  const handlePauseWalkingSimulation = () => {
+    if (simIntervalRef.current) {
+      clearInterval(simIntervalRef.current);
+      simIntervalRef.current = null;
+    }
+    setIsSimulatingWalk(false);
+  };
+
+  const handleResetWalkingSimulation = () => {
+    if (simIntervalRef.current) {
+      clearInterval(simIntervalRef.current);
+      simIntervalRef.current = null;
+    }
+    setIsSimulatingWalk(false);
+    setSimProgress(0);
+    simCurrentIndexRef.current = 0;
+    simStepsRef.current = [];
+    // Reset triggered POI history so geofence alert can fire again for testing
+    triggeredPoiIdsRef.current.clear();
+    handleResetToEntrance();
+  };
+
+  // Speed changes reaction
+  useEffect(() => {
+    if (isSimulatingWalk && simStepsRef.current.length > 0) {
+      if (simIntervalRef.current) clearInterval(simIntervalRef.current);
+      const intervalMs = Math.max(70, Math.round(450 / simSpeed));
+      simIntervalRef.current = setInterval(() => {
+        if (simCurrentIndexRef.current >= simStepsRef.current.length) {
+          clearInterval(simIntervalRef.current);
+          simIntervalRef.current = null;
+          setIsSimulatingWalk(false);
+          return;
+        }
+
+        const currentStep = simStepsRef.current[simCurrentIndexRef.current];
+        updateUserMarkerPosition(currentStep.lat, currentStep.lng, null, true);
+
+        if (mapInstanceRef.current && simCurrentIndexRef.current % 2 === 0) {
+          mapInstanceRef.current.panTo([currentStep.lat, currentStep.lng], { animate: true, duration: 0.25 });
+        }
+
+        const progress = Math.round((simCurrentIndexRef.current / (simStepsRef.current.length - 1)) * 100);
+        setSimProgress(progress);
+        simCurrentIndexRef.current += 1;
+      }, intervalMs);
+    }
+  }, [simSpeed, isSimulatingWalk]);
 
   const activeTarget = selectedPoi || nextPoi;
   const walkingMins = Math.max(1, Math.round(routeInfo.distanceMeters / 70));
@@ -424,7 +649,7 @@ export default function OutdoorMapView({ onSelectPoi, initialPoiId = null }) {
       {/* ─── LEAFLET MAP CANVAS ─── */}
       <div ref={mapContainerRef} className="w-full h-full z-0" />
 
-      {/* ─── TOP CONTROL BAR (GPS MODE SWITCHER) ─── */}
+      {/* ─── TOP CONTROL BAR (GPS MODE & AUTO-TOUR TOGGLE) ─── */}
       <div className="absolute top-3 left-3 right-14 z-10 flex flex-wrap items-center gap-1.5">
         {/* Toggle Real GPS Button */}
         <button
@@ -437,7 +662,7 @@ export default function OutdoorMapView({ onSelectPoi, initialPoiId = null }) {
           }`}
         >
           <Smartphone className={`w-3.5 h-3.5 ${locationMode === 'real' ? 'text-white' : 'text-sky-400'}`} />
-          <span>{locationMode === 'real' ? 'Đang Dùng GPS Thật' : 'Bật GPS Điện Thoại'}</span>
+          <span>{locationMode === 'real' ? 'GPS Thật' : 'Bật GPS Điện Thoại'}</span>
           {gpsAccuracy && <span className="text-[10px] opacity-80">(±{Math.round(gpsAccuracy)}m)</span>}
         </button>
 
@@ -452,7 +677,21 @@ export default function OutdoorMapView({ onSelectPoi, initialPoiId = null }) {
           }`}
         >
           <MapPin className="w-3.5 h-3.5 text-amber-400" />
-          <span>Mô Phỏng Tại Di Tích</span>
+          <span>Mô Phỏng Cổng Di Tích</span>
+        </button>
+
+        {/* Toggle Proximity Auto-Tour Mode */}
+        <button
+          type="button"
+          onClick={() => setAutoTourEnabled(!autoTourEnabled)}
+          className={`px-3 py-1.5 rounded-full border text-xs font-bold transition-all shadow-lg active:scale-95 flex items-center gap-1.5 ${
+            autoTourEnabled
+              ? 'bg-amber-500/20 border-amber-500/50 text-amber-300 backdrop-blur-md'
+              : 'glass bg-slate-950/85 border-slate-800 text-slate-400'
+          }`}
+        >
+          <Radio className={`w-3.5 h-3.5 ${autoTourEnabled ? 'text-amber-400 animate-pulse' : 'text-slate-500'}`} />
+          <span>Tự Động Phát GPS: {autoTourEnabled ? 'BẬT' : 'TẮT'}</span>
         </button>
       </div>
 
@@ -466,9 +705,174 @@ export default function OutdoorMapView({ onSelectPoi, initialPoiId = null }) {
         <LocateFixed className="w-5 h-5" />
       </button>
 
-      {/* ─── GPS ERROR BANNER (IF ANY) ─── */}
+      {/* ─── WALKING TEST SIMULATION BAR (THỬ NGHIỆM ĐI BỘ LẠI GẦN HIỆN VẬT) ─── */}
+      <div className="absolute top-14 left-3 right-3 z-20 max-w-md mx-auto">
+        <div className="bg-slate-900/95 border border-amber-500/40 rounded-2xl p-2.5 shadow-2xl backdrop-blur-xl flex flex-col gap-2">
+          {/* Header & Status */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5 text-xs font-black text-amber-400">
+              <Footprints className="w-4 h-4 animate-bounce-short" />
+              <span>Thử Nghiệm Đi Bộ GPS (Test Geofence)</span>
+            </div>
+            {activeTarget && (
+              <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${
+                (routeInfo.distanceMeters || 0) <= PROXIMITY_RADIUS_METERS
+                  ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-300 animate-pulse'
+                  : 'bg-slate-800 border-slate-700 text-slate-300'
+              }`}>
+                {(routeInfo.distanceMeters || 0) <= PROXIMITY_RADIUS_METERS
+                  ? '⚡ ĐÃ VÀO VÙNG PHÁT (≤30m)'
+                  : `Cách #${activeTarget.id}: ${routeInfo.distanceMeters || 50}m`}
+              </span>
+            )}
+          </div>
+
+          {/* Quick Start Location Presets */}
+          <div className="flex items-center gap-1 overflow-x-auto py-0.5 scrollbar-none text-[10px]">
+            <span className="text-slate-500 font-bold whitespace-nowrap">Xuất phát từ:</span>
+            <button
+              type="button"
+              onClick={() => handleSetSimulatedStartLocation(10.77688, 106.69532, 'Cổng Di Tích')}
+              className="px-2 py-0.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 whitespace-nowrap active:scale-95 transition-all"
+            >
+              🏛️ Cổng Chính
+            </button>
+            <button
+              type="button"
+              onClick={() => handleSetSimulatedStartLocation(10.77645, 106.69505, 'Sân Vườn Trước')}
+              className="px-2 py-0.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 whitespace-nowrap active:scale-95 transition-all"
+            >
+              🌲 Sân Vườn (~65m)
+            </button>
+            <button
+              type="button"
+              onClick={() => handleSetSimulatedStartLocation(10.77615, 106.69470, 'Bãi Đỗ Xe')}
+              className="px-2 py-0.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 whitespace-nowrap active:scale-95 transition-all"
+            >
+              🅿️ Bãi Xe (~110m)
+            </button>
+            <span className="text-amber-400/80 italic whitespace-nowrap text-[9px]">
+              (hoặc click bản đồ)
+            </span>
+          </div>
+
+          {/* Progress bar */}
+          <div className="w-full bg-slate-800/80 rounded-full h-1.5 overflow-hidden">
+            <div
+              className="bg-gradient-to-r from-amber-400 via-amber-500 to-emerald-400 h-full transition-all duration-200"
+              style={{ width: `${simProgress}%` }}
+            />
+          </div>
+
+          {/* Controls: Play/Pause, Speed, Reset */}
+          <div className="flex items-center justify-between gap-1.5">
+            {/* Play / Pause Walk */}
+            {!isSimulatingWalk ? (
+              <button
+                type="button"
+                onClick={handleStartWalkingSimulation}
+                className="flex-1 py-1.5 px-3 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 text-xs font-black shadow-md flex items-center justify-center gap-1.5 active:scale-95 transition-all"
+              >
+                <Play className="w-3.5 h-3.5 fill-slate-950" />
+                <span>{simProgress > 0 && simProgress < 100 ? 'Tiếp Tục Đi Bộ' : 'Bắt Đầu Đi Bộ Lại Gần'}</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={handlePauseWalkingSimulation}
+                className="flex-1 py-1.5 px-3 rounded-xl bg-amber-500/20 border border-amber-500/50 text-amber-300 text-xs font-black shadow-md flex items-center justify-center gap-1.5 active:scale-95 transition-all"
+              >
+                <Pause className="w-3.5 h-3.5" />
+                <span>Tạm Dừng ({simProgress}%)</span>
+              </button>
+            )}
+
+            {/* Speed Toggle: 1x, 2x, 4x */}
+            <div className="flex items-center bg-slate-800/80 border border-slate-700/80 rounded-xl p-0.5">
+              {[1, 2, 4].map((spd) => (
+                <button
+                  key={spd}
+                  type="button"
+                  onClick={() => setSimSpeed(spd)}
+                  className={`px-2 py-1 rounded-lg text-[10px] font-black transition-all ${
+                    simSpeed === spd
+                      ? 'bg-amber-400 text-slate-950 shadow'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  {spd}x
+                </button>
+              ))}
+            </div>
+
+            {/* Reset */}
+            <button
+              type="button"
+              onClick={handleResetWalkingSimulation}
+              title="Đặt lại vị trí cổng & xoá lịch sử kích hoạt để test lại"
+              className="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 active:scale-95 transition-all flex items-center gap-1 text-[10px] font-bold"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span>Reset</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* ─── START POINT TOAST NOTIFICATION ─── */}
+      {startPointToast && (
+        <div className="absolute top-44 left-1/2 -translate-x-1/2 z-30 glass px-3.5 py-1.5 rounded-full border border-sky-500/50 bg-slate-950/90 text-sky-300 text-xs font-bold shadow-xl animate-fade-in flex items-center gap-2 whitespace-nowrap">
+          <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+          <span>{startPointToast}</span>
+        </div>
+      )}
+
+      {/* ─── PROXIMITY GEOFENCE POPUP ALERT (KHI LẠI GẦN HIỆN VẬT) ─── */}
+      {proximityAlert && (
+        <div className="absolute top-40 left-3 right-3 z-30 max-w-md mx-auto animate-bounce-short">
+          <div className="bg-gradient-to-r from-amber-500 via-amber-600 to-amber-500 text-slate-950 p-4 rounded-3xl shadow-2xl border-2 border-white/40 flex items-center gap-3">
+            <div className="w-12 h-12 rounded-2xl bg-slate-950 text-amber-400 flex items-center justify-center flex-shrink-0 shadow-lg">
+              <Radio className="w-6 h-6 animate-ping" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] font-black uppercase tracking-wider bg-slate-950 text-amber-400 px-2 py-0.5 rounded-full">
+                  GPS Tự Động Nhận Diện
+                </span>
+                <span className="text-xs font-black text-slate-900">
+                  (~{proximityAlert.distance}m)
+                </span>
+              </div>
+              <h4 className="text-sm font-black text-slate-950 truncate mt-0.5 leading-tight">
+                {proximityAlert.poi.title}
+              </h4>
+              <p className="text-[11px] font-semibold text-slate-900/90">
+                Tự động mở bài thuyết minh trong {proximityAlert.countdown}s...
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                if (countdownTimerRef.current) clearInterval(countdownTimerRef.current);
+                setProximityAlert(null);
+                if (onPlayAudio) {
+                  onPlayAudio(proximityAlert.poi.id, true);
+                } else {
+                  onSelectPoi(proximityAlert.poi.id, true);
+                }
+              }}
+              className="py-2 px-3 rounded-xl bg-slate-950 hover:bg-slate-900 text-amber-400 font-black text-xs shadow-lg active:scale-95 flex items-center gap-1 flex-shrink-0"
+            >
+              <Play className="w-3.5 h-3.5 fill-amber-400" />
+              <span>Nghe Ngay</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ─── GPS ERROR BANNER ─── */}
       {gpsErrorMsg && (
-        <div className="absolute top-14 left-3 right-3 z-20 glass px-3.5 py-2 rounded-2xl border border-red-500/50 bg-red-950/90 text-red-200 text-xs font-medium flex items-center justify-between shadow-xl animate-fade-in">
+        <div className="absolute top-40 left-3 right-3 z-20 glass px-3.5 py-2 rounded-2xl border border-red-500/50 bg-red-950/90 text-red-200 text-xs font-medium flex items-center justify-between shadow-xl animate-fade-in">
           <div className="flex items-center gap-2">
             <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0" />
             <span>{gpsErrorMsg}</span>
@@ -551,24 +955,21 @@ export default function OutdoorMapView({ onSelectPoi, initialPoiId = null }) {
               </div>
             </div>
 
-            {/* Action Buttons: Google Maps link + Audio Guide */}
-            <div className="grid grid-cols-2 gap-2 pt-1 border-t border-slate-800/80">
+            {/* Action Button: Audio Guide */}
+            <div className="pt-1 border-t border-slate-800/80">
               <button
                 type="button"
-                onClick={() => handleOpenGoogleMaps(activeTarget)}
-                className="py-2.5 px-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition-all flex items-center justify-center gap-1.5 active:scale-95"
+                onClick={() => {
+                  if (onPlayAudio) {
+                    onPlayAudio(activeTarget.id, true);
+                  } else {
+                    onSelectPoi(activeTarget.id, true);
+                  }
+                }}
+                className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 text-xs font-black shadow-md shadow-amber-500/25 transition-all flex items-center justify-center gap-1.5 active:scale-95"
               >
-                <ArrowUpRight className="w-3.5 h-3.5 text-sky-400" />
-                <span>Mở Google Maps</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => onSelectPoi(activeTarget.id)}
-                className="py-2.5 px-3 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 text-xs font-black shadow-md shadow-amber-500/25 transition-all flex items-center justify-center gap-1.5 active:scale-95"
-              >
-                <Volume2 className="w-3.5 h-3.5" />
-                <span>Nghe Thuyết Minh</span>
+                <Volume2 className="w-4 h-4" />
+                <span>Nghe Thuyết Minh Hiện Vật</span>
               </button>
             </div>
           </div>
