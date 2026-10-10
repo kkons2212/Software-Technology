@@ -69,3 +69,9 @@ def get_gemini_model() -> str:
         pass
     return os.getenv("GEMINI_MODEL", "gemini-3.6-flash").strip()
 
+# Cấu hình địa điểm ngoài trời & Tọa độ bản đồ mặc định (Outdoor GPS Site)
+DEFAULT_MAP_LAT = float(os.getenv("DEFAULT_MAP_LAT", "10.7769"))  # Dinh Độc Lập / Công viên 30/4
+DEFAULT_MAP_LNG = float(os.getenv("DEFAULT_MAP_LNG", "106.6953"))
+DEFAULT_MAP_ZOOM = int(os.getenv("DEFAULT_MAP_ZOOM", "17"))
+SITE_NAME = os.getenv("SITE_NAME", "Khu Di Tích & Công Viên Lịch Sử")
+

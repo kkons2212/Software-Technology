@@ -10,7 +10,7 @@ class POIRepository:
             cursor = conn.cursor()
             cursor.execute("""
                 SELECT id, title_vi, short_description_vi, description_vi, image_url, x_coord, y_coord, floor, 
-                       qr_code_url, translation_status, created_at, updated_at
+                       latitude, longitude, qr_code_url, translation_status, created_at, updated_at
                 FROM pois
                 ORDER BY id DESC
             """)
@@ -57,26 +57,32 @@ class POIRepository:
     @staticmethod
     def create_poi(title_vi: str, description_vi: str, short_description_vi: Optional[str] = None,
                    image_url: Optional[str] = None, x_coord: float = 0.0, y_coord: float = 0.0, floor: int = 1,
+                   latitude: Optional[float] = None, longitude: Optional[float] = None,
                    custom_id: Optional[int] = None) -> int:
-        """Tạo mới một bản ghi POI với ID tự động tái sử dụng các số còn trống."""
+        """Tạo mới một bản ghi POI với ID tự động tái sử dụng các số còn trống và GPS toạ độ."""
+        from config import DEFAULT_MAP_LAT, DEFAULT_MAP_LNG
         if not short_description_vi or not short_description_vi.strip():
             # Tự động lấy câu đầu tiên hoặc 140 ký tự đầu
             short_description_vi = description_vi.split(".")[0].strip() + "." if "." in description_vi else description_vi[:140]
+
+        lat = latitude if latitude is not None else DEFAULT_MAP_LAT
+        lng = longitude if longitude is not None else DEFAULT_MAP_LNG
 
         with db_session() as conn:
             cursor = conn.cursor()
             target_id = custom_id if custom_id else POIRepository.get_next_available_id(cursor)
             cursor.execute("""
-                INSERT INTO pois (id, title_vi, short_description_vi, description_vi, image_url, x_coord, y_coord, floor, translation_status)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'PENDING')
-            """, (target_id, title_vi, short_description_vi, description_vi, image_url, x_coord, y_coord, floor))
+                INSERT INTO pois (id, title_vi, short_description_vi, description_vi, image_url, x_coord, y_coord, floor, latitude, longitude, translation_status)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING')
+            """, (target_id, title_vi, short_description_vi, description_vi, image_url, x_coord, y_coord, floor, lat, lng))
             return target_id
 
     @staticmethod
     def update_poi(poi_id: int, title_vi: Optional[str] = None, short_description_vi: Optional[str] = None,
                    description_vi: Optional[str] = None, image_url: Optional[str] = None, 
-                   x_coord: Optional[float] = None, y_coord: Optional[float] = None, floor: Optional[int] = None) -> bool:
-        """Cập nhật thông tin POI."""
+                   x_coord: Optional[float] = None, y_coord: Optional[float] = None, floor: Optional[int] = None,
+                   latitude: Optional[float] = None, longitude: Optional[float] = None) -> bool:
+        """Cập nhật thông tin POI kèm toạ độ GPS."""
         fields = []
         values = []
         
@@ -101,6 +107,12 @@ class POIRepository:
         if floor is not None:
             fields.append("floor = ?")
             values.append(floor)
+        if latitude is not None:
+            fields.append("latitude = ?")
+            values.append(latitude)
+        if longitude is not None:
+            fields.append("longitude = ?")
+            values.append(longitude)
             
         if not fields:
             return False

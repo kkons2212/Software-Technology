@@ -14,6 +14,7 @@ from app.database import init_db
 from app.routers.admin_poi_router import router as admin_poi_router
 from app.routers.admin_qr_router import router as admin_qr_router
 from app.routers.visitor_poi_router import router as visitor_poi_router
+from app.routers.visitor_map_router import router as visitor_map_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -45,8 +46,9 @@ app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 app.include_router(admin_poi_router)
 app.include_router(admin_qr_router)
 
-# Đăng ký các Router Khách Tham Quan (Visitor - UC-01)
+# Đăng ký các Router Khách Tham Quan (Visitor - UC-01, UC-02)
 app.include_router(visitor_poi_router)
+app.include_router(visitor_map_router)
 
 @app.get("/api/health")
 def health_check():
@@ -58,8 +60,12 @@ def health_check():
 
 @app.get("/api/config")
 def get_app_config():
-    from config import get_frontend_base_url
+    from config import get_frontend_base_url, DEFAULT_MAP_LAT, DEFAULT_MAP_LNG, DEFAULT_MAP_ZOOM, SITE_NAME
     return {
-        "frontend_base_url": get_frontend_base_url()
+        "frontend_base_url": get_frontend_base_url(),
+        "default_map_lat": DEFAULT_MAP_LAT,
+        "default_map_lng": DEFAULT_MAP_LNG,
+        "default_map_zoom": DEFAULT_MAP_ZOOM,
+        "site_name": SITE_NAME
     }
 

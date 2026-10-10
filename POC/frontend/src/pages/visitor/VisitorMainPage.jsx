@@ -4,13 +4,14 @@ import {
   QrCode, Globe, ArrowLeft, Landmark, RefreshCw,
   AlertCircle, Sparkles, Lock, CheckCircle2,
   ShieldCheck, Headphones, List, ChevronRight,
-  ChevronLeft, ChevronDown, Home
+  ChevronLeft, ChevronDown, Home, Map as MapIcon, MapPin
 } from 'lucide-react';
 import { visitorApi } from '../../services/visitorApi';
 import { useVisitorSession } from '../../context/VisitorSessionContext';
 import LanguageSwitcher from '../../components/visitor/LanguageSwitcher';
 import AudioPlayer from '../../components/visitor/AudioPlayer';
 import QrScannerModal from '../../components/visitor/QrScannerModal';
+import OutdoorMapView from '../../components/visitor/OutdoorMapView';
 
 const LANG_NAME = { vi: 'Tiếng Việt', en: 'English', ja: '日本語', ko: '한국어', zh: '中文' };
 const LANG_FLAG = { vi: '🇻🇳', en: '🇬🇧', ja: '🇯🇵', ko: '🇰🇷', zh: '🇨🇳' };
@@ -121,6 +122,7 @@ const MUSEUM_SLIDES = [
 
 const NAV_TEXT = {
   home: { vi: 'Trang Chủ', en: 'Home', ja: 'ホーム', ko: '홈', zh: '首页' },
+  map: { vi: 'Bản Đồ', en: 'Map', ja: '地図', ko: '지도', zh: '地图' },
   exhibits: { vi: 'Hiện Vật', en: 'Exhibits', ja: '展示品', ko: '전시품', zh: '展品' },
   scan: { vi: 'Quét QR', en: 'Scan QR', ja: 'QRスキャン', ko: 'QR 스캔', zh: '扫码' },
   guide: { vi: 'Thuyết Minh', en: 'Audio Guide', ja: '音声ガイド', ko: '오디오 가이드', zh: '语音导览' }
@@ -271,6 +273,11 @@ export default function VisitorMainPage() {
   const goToHome = () => {
     setActiveTab('home');
     navigate('/', { replace: true });
+    scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const goToMap = () => {
+    setActiveTab('map');
     scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -626,6 +633,16 @@ export default function VisitorMainPage() {
             </div>
           )}
 
+          {/* Action: View on Outdoor Map (GPS - UC-02) */}
+          <button
+            type="button"
+            onClick={goToMap}
+            className="w-full py-2.5 px-4 rounded-2xl bg-slate-900/90 hover:bg-slate-800 border border-slate-800 hover:border-amber-500/40 text-amber-400 font-bold text-xs flex items-center justify-center gap-2 transition-all active:scale-98 shadow-sm"
+          >
+            <MapIcon className="w-4 h-4" />
+            <span>Xem vị trí trên Bản Đồ Ngoài Trời (GPS)</span>
+          </button>
+
           {/* Language Switcher */}
           <div className="bg-slate-900/70 p-3 rounded-2xl border border-slate-800">
             <p className="text-[10px] uppercase tracking-widest font-bold text-slate-500 mb-2">{t('select_narration_lang')}</p>
@@ -731,16 +748,17 @@ export default function VisitorMainPage() {
 
       {/* ══════ MAIN CONTENT ══════ */}
       {activeTab === 'home' && renderHomeView()}
+      {activeTab === 'map' && <OutdoorMapView onSelectPoi={handleSelectPoi} initialPoiId={selectedPoiId} />}
       {activeTab === 'list' && renderListView()}
       {activeTab === 'guide' && renderGuideView()}
 
       {/* ══════ LOWER NAVBAR ══════ */}
       <nav className="fixed bottom-0 left-0 right-0 z-50 glass border-t border-slate-800/80">
-        <div className="max-w-lg mx-auto flex items-end justify-between px-6 pb-[env(safe-area-inset-bottom,8px)] pt-1.5">
+        <div className="max-w-lg mx-auto flex items-end justify-between px-3 sm:px-6 pb-[env(safe-area-inset-bottom,8px)] pt-1.5">
           {/* Home */}
           <button
             onClick={goToHome}
-            className={`flex flex-col items-center gap-0.5 py-1.5 px-3 rounded-xl transition-all active:scale-95 ${
+            className={`flex flex-col items-center gap-0.5 py-1.5 px-2.5 rounded-xl transition-all active:scale-95 ${
               activeTab === 'home'
                 ? 'text-amber-400'
                 : 'text-slate-500 hover:text-slate-300'
@@ -750,10 +768,34 @@ export default function VisitorMainPage() {
             <span className="text-[10px] font-bold">{NAV_TEXT.home[preferredLanguage] || NAV_TEXT.home.vi}</span>
           </button>
 
+          {/* Map (Outdoor GPS - UC-02) */}
+          <button
+            onClick={goToMap}
+            className={`flex flex-col items-center gap-0.5 py-1.5 px-2.5 rounded-xl transition-all active:scale-95 ${
+              activeTab === 'map'
+                ? 'text-amber-400'
+                : 'text-slate-500 hover:text-slate-300'
+            }`}
+          >
+            <MapIcon className="w-5 h-5" />
+            <span className="text-[10px] font-bold">{NAV_TEXT.map[preferredLanguage] || NAV_TEXT.map.vi}</span>
+          </button>
+
+          {/* Center: Scan QR (Floating Hero Button) */}
+          <button
+            onClick={() => setIsScannerOpen(true)}
+            className="relative -mt-5 flex flex-col items-center px-1"
+          >
+            <div className="w-13 h-13 sm:w-14 sm:h-14 rounded-full bg-gradient-to-br from-amber-400 via-amber-500 to-amber-600 shadow-xl shadow-amber-500/30 flex items-center justify-center border-4 border-[#090d16] active:scale-90 transition-transform hover:shadow-amber-500/40">
+              <QrCode className="w-6 h-6 text-slate-950" />
+            </div>
+            <span className="text-[10px] font-bold text-amber-400 mt-0.5">{NAV_TEXT.scan[preferredLanguage] || NAV_TEXT.scan.vi}</span>
+          </button>
+
           {/* Exhibits List */}
           <button
             onClick={goToList}
-            className={`flex flex-col items-center gap-0.5 py-1.5 px-3 rounded-xl transition-all active:scale-95 ${
+            className={`flex flex-col items-center gap-0.5 py-1.5 px-2.5 rounded-xl transition-all active:scale-95 ${
               activeTab === 'list'
                 ? 'text-amber-400'
                 : 'text-slate-500 hover:text-slate-300'
@@ -763,21 +805,10 @@ export default function VisitorMainPage() {
             <span className="text-[10px] font-bold">{NAV_TEXT.exhibits[preferredLanguage] || NAV_TEXT.exhibits.vi}</span>
           </button>
 
-          {/* Center: Scan QR (Floating Hero Button) */}
-          <button
-            onClick={() => setIsScannerOpen(true)}
-            className="relative -mt-5 flex flex-col items-center"
-          >
-            <div className="w-14 h-14 rounded-full bg-gradient-to-br from-amber-400 via-amber-500 to-amber-600 shadow-xl shadow-amber-500/30 flex items-center justify-center border-4 border-[#090d16] active:scale-90 transition-transform hover:shadow-amber-500/40">
-              <QrCode className="w-6 h-6 text-slate-950" />
-            </div>
-            <span className="text-[10px] font-bold text-amber-400 mt-0.5">{NAV_TEXT.scan[preferredLanguage] || NAV_TEXT.scan.vi}</span>
-          </button>
-
           {/* Audio Guide / Now Playing */}
           <button
             onClick={goToNowPlaying}
-            className={`flex flex-col items-center gap-0.5 py-1.5 px-3 rounded-xl transition-all active:scale-95 ${
+            className={`flex flex-col items-center gap-0.5 py-1.5 px-2.5 rounded-xl transition-all active:scale-95 ${
               activeTab === 'guide'
                 ? 'text-amber-400'
                 : 'text-slate-500 hover:text-slate-300'

@@ -95,6 +95,16 @@ def init_db():
         except Exception:
             pass
 
+        try:
+            cursor.execute("ALTER TABLE pois ADD COLUMN latitude REAL;")
+        except Exception:
+            pass
+
+        try:
+            cursor.execute("ALTER TABLE pois ADD COLUMN longitude REAL;")
+        except Exception:
+            pass
+
         # Populate short_description_vi nếu đang NULL
         cursor.execute("""
             UPDATE pois 
@@ -106,3 +116,32 @@ def init_db():
             SET short_description = SUBSTR(description, 1, 150)
             WHERE short_description IS NULL OR short_description = '';
         """)
+
+        # Tọa độ GPS mặc định xung quanh khuôn viên Dinh Độc Lập / Công viên 30/4
+        # (Khoảng cách đi bộ thực tế 30m - 150m)
+        default_coords = {
+            1: (10.77688, 106.69532),   # Cổng Chính & Đài Phun Nước
+            4: (10.77645, 106.69485),   # Xe Tăng Lịch Sử 390 & 843
+            5: (10.77735, 106.69470),   # Vườn Cây Cổ Thụ & Không Gian Sinh Thái
+            6: (10.77760, 106.69580),   # Khu Pháo Binh Ngoài Trời
+            7: (10.77620, 106.69575),   # Tượng Đài & Bia Tưởng Niệm
+            8: (10.77710, 106.69610),   # Gian Trưng Bày Chuyên Đề
+            9: (10.77600, 106.69450),   # Vườn Điêu Khắc Đá Cổ Điển
+            10: (10.77780, 106.69510),  # Điểm Toàn Cảnh & Nghỉ Chân
+        }
+        for poi_id, (lat, lng) in default_coords.items():
+            cursor.execute("""
+                UPDATE pois 
+                SET latitude = ?, longitude = ? 
+                WHERE id = ? AND (latitude IS NULL OR longitude IS NULL);
+            """, (lat, lng, poi_id))
+
+        # Nếu có POI nào chưa có tọa độ, tính offset từ DEFAULT_MAP_LAT / DEFAULT_MAP_LNG
+        from config import DEFAULT_MAP_LAT, DEFAULT_MAP_LNG
+        cursor.execute("""
+            UPDATE pois 
+            SET latitude = ? + ((COALESCE(y_coord, 200.0) - 200.0) * 0.0006 / 200.0),
+                longitude = ? + ((COALESCE(x_coord, 300.0) - 300.0) * 0.0006 / 300.0)
+            WHERE latitude IS NULL OR longitude IS NULL;
+        """, (DEFAULT_MAP_LAT, DEFAULT_MAP_LNG))
+

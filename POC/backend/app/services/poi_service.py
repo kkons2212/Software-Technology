@@ -62,6 +62,10 @@ class POIService:
         if not final_short or not final_short.strip():
             final_short = description_vi.split(".")[0].strip() + "." if "." in description_vi else description_vi[:140]
 
+        from config import DEFAULT_MAP_LAT, DEFAULT_MAP_LNG
+        lat = DEFAULT_MAP_LAT + ((y_coord - 200.0) * 0.0006 / 200.0)
+        lng = DEFAULT_MAP_LNG + ((x_coord - 300.0) * 0.0006 / 300.0)
+
         poi_id = POIRepository.create_poi(
             title_vi=title_vi,
             short_description_vi=final_short,
@@ -69,7 +73,9 @@ class POIService:
             image_url=image_url,
             x_coord=x_coord,
             y_coord=y_coord,
-            floor=floor
+            floor=floor,
+            latitude=lat,
+            longitude=lng
         )
         
         # Tự động sinh mã QR cho POI mới (UC-05)
@@ -118,6 +124,14 @@ class POIService:
         if image_file:
             image_url = await POIService.save_image_file(image_file)
             
+        from config import DEFAULT_MAP_LAT, DEFAULT_MAP_LNG
+        lat = None
+        lng = None
+        if y_coord is not None:
+            lat = DEFAULT_MAP_LAT + ((y_coord - 200.0) * 0.0006 / 200.0)
+        if x_coord is not None:
+            lng = DEFAULT_MAP_LNG + ((x_coord - 300.0) * 0.0006 / 300.0)
+
         POIRepository.update_poi(
             poi_id=poi_id,
             title_vi=title_vi,
@@ -126,7 +140,9 @@ class POIService:
             image_url=image_url,
             x_coord=x_coord,
             y_coord=y_coord,
-            floor=floor
+            floor=floor,
+            latitude=lat,
+            longitude=lng
         )
         
         # Nếu có thay đổi tiêu đề hoặc mô tả, cập nhật bản dịch tiếng Việt và chạy lại AI ngầm
