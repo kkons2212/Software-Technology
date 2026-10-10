@@ -40,20 +40,4 @@ export const adminApi = {
       method: 'DELETE',
     });
   },
-
-  // Tái tạo mã QR (UC-05 A2)
-  regenerateQrCode: async (poiId, baseUrl = null) => {
-    let url = `/api/admin/pois/${poiId}/qrcode`;
-    if (baseUrl) {
-      url += `?base_url=${encodeURIComponent(baseUrl)}`;
-    }
-    return await request(url, {
-      method: 'POST',
-    });
-  },
-
-  // Lấy link tải mã QR về máy (UC-05)
-  getQrDownloadUrl: (poiId) => {
-    return `/api/admin/pois/${poiId}/qrcode/download`;
-  }
 };

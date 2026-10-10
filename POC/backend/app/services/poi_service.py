@@ -5,9 +5,8 @@ from pathlib import Path
 from typing import Optional, List, Dict, Any
 from fastapi import UploadFile, BackgroundTasks
 
-from config import IMAGE_DIR, AUDIO_DIR, QR_DIR
+from config import IMAGE_DIR, AUDIO_DIR
 from app.repositories.poi_repository import POIRepository
-from app.services.qr_service import QRService
 from app.services.pipeline_coordinator import PipelineCoordinator
 
 class POIService:
@@ -54,7 +53,7 @@ class POIService:
     ) -> Dict[str, Any]:
         """
         Tạo mới hiện vật / POI (UC-04).
-        Tự động sinh mã QR (UC-05) và kích hoạt Background Tasks (UC-08, UC-09).
+        Kích hoạt Background Tasks dịch (UC-08) và sinh audio TTS (UC-09).
         """
         image_url = None
         if image_file:
@@ -79,9 +78,6 @@ class POIService:
             latitude=lat,
             longitude=lng
         )
-        
-        # Tự động sinh mã QR cho POI mới (UC-05)
-        QRService.generate_qr_code(poi_id)
         
         # Lưu bản dịch tiếng Việt gốc vào bảng translations
         POIRepository.upsert_translation(
@@ -200,14 +196,6 @@ class POIService:
         if not poi:
             return False
             
-        # Dọn dẹp file QR code
-        qr_file = QR_DIR / f"qr_poi_{poi_id}.png"
-        if qr_file.exists():
-            try:
-                os.remove(qr_file)
-            except Exception:
-                pass
-                
         # Dọn dẹp file audio .mp3
         if "audios" in poi:
             for audio in poi["audios"]:

@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { QrCode, Compass, Headphones, Globe2, Sparkles, ChevronRight, ArrowRight, Globe } from 'lucide-react';
+import { MapPin, Compass, Headphones, Globe2, Sparkles, ChevronRight, ArrowRight, Globe } from 'lucide-react';
 import { useVisitorSession } from '../../context/VisitorSessionContext';
-import QrScannerModal from '../../components/visitor/QrScannerModal';
 
 const LANGS = [
   { code: 'vi', label: 'Việt Nam', flag: '🇻🇳' },
@@ -22,11 +21,10 @@ export default function VisitorWelcomePage() {
     t,
   } = useVisitorSession();
   const canvasRef = useRef(null);
-  const [isScannerOpen, setIsScannerOpen] = useState(false);
 
   const STEPS = [
     {
-      icon: <QrCode className="w-6 h-6" />,
+      icon: <MapPin className="w-6 h-6" />,
       title: t('step1_title'),
       desc: t('step1_desc'),
       color: 'from-violet-500 to-violet-700',
@@ -153,17 +151,17 @@ export default function VisitorWelcomePage() {
           </div>
         </div>
 
-        {/* ── Main Action: Scan QR & Resume ── */}
+        {/* ── Main Action: Start Exploring ── */}
         <div className="space-y-3 mb-8">
           <button
             type="button"
-            onClick={() => setIsScannerOpen(true)}
+            onClick={() => navigate('/poi')}
             className="w-full flex items-center justify-center gap-3.5 p-4 rounded-3xl bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 text-slate-950 font-black text-base shadow-xl shadow-amber-500/20 active:scale-[0.98] hover:brightness-105 transition-all cursor-pointer group border border-amber-300/40"
           >
             <div className="w-9 h-9 rounded-2xl bg-slate-950/20 flex items-center justify-center text-slate-950 group-hover:scale-110 transition-transform">
-              <QrCode className="w-5 h-5" />
+              <Compass className="w-5 h-5" />
             </div>
-            <span>{t('scan_qr')}</span>
+            <span>{t('start_exploring')}</span>
             <ChevronRight className="w-5 h-5 text-slate-950/70 ml-auto" />
           </button>
 
@@ -193,7 +191,7 @@ export default function VisitorWelcomePage() {
             {STEPS.map((step, i) => (
               <div
                 key={i}
-                onClick={i === 0 ? () => setIsScannerOpen(true) : undefined}
+              onClick={() => navigate('/poi')}
                 className={`flex items-start gap-3.5 p-4 rounded-2xl bg-slate-900/80 border border-slate-800/80 transition-all ${
                   i === 0 ? 'hover:border-violet-500/40 cursor-pointer group active:scale-[0.99]' : ''
                 }`}
@@ -209,7 +207,7 @@ export default function VisitorWelcomePage() {
                     </p>
                     {i === 0 && (
                       <span className="text-[10px] font-bold text-violet-400 bg-violet-500/10 px-2 py-0.5 rounded-full border border-violet-500/20">
-                        {t('scan_qr')}
+                        {t('start_exploring')}
                       </span>
                     )}
                   </div>
@@ -225,12 +223,6 @@ export default function VisitorWelcomePage() {
           Powered by <span className="text-amber-500 font-semibold">Microsoft Edge Neural TTS</span> · FastAPI · React
         </p>
       </div>
-
-      {/* QR Scanner Camera Modal */}
-      <QrScannerModal
-        isOpen={isScannerOpen}
-        onClose={() => setIsScannerOpen(false)}
-      />
     </div>
   );
 }

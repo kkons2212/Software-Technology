@@ -12,7 +12,6 @@ sys.path.append(str(Path(__file__).resolve().parent / "app"))
 from config import STATIC_DIR
 from app.database import init_db
 from app.routers.admin_poi_router import router as admin_poi_router
-from app.routers.admin_qr_router import router as admin_qr_router
 from app.routers.visitor_poi_router import router as visitor_poi_router
 from app.routers.visitor_map_router import router as visitor_map_router
 
@@ -25,7 +24,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="Smart Museum Multilingual Audio Guide POC",
-    description="Backend API phục vụ tự động hóa thuyết minh đa ngôn ngữ, QR code và AI Text-to-Speech.",
+    description="Backend API phục vụ tự động hóa thuyết minh đa ngôn ngữ và AI Text-to-Speech.",
     version="1.0.0",
     lifespan=lifespan
 )
@@ -39,12 +38,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Mount thư mục static phục vụ file âm thanh (.mp3), ảnh QR (.png) và hình ảnh hiện vật
+# Mount thư mục static phục vụ file âm thanh (.mp3) và hình ảnh hiện vật
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 # Đăng ký các Router Admin
 app.include_router(admin_poi_router)
-app.include_router(admin_qr_router)
 
 # Đăng ký các Router Khách Tham Quan (Visitor - UC-01, UC-02)
 app.include_router(visitor_poi_router)

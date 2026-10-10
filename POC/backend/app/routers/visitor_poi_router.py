@@ -50,17 +50,17 @@ def get_visitor_poi_list(
 def get_visitor_poi_detail(
     poi_id: int,
     lang: str = Query("vi", description="Mã ngôn ngữ: vi, en, ja, ko, zh"),
-    unlocked: bool = Query(True, description="Trạng thái đã quét QR mở khoá thuyết minh đầy đủ")
+    unlocked: bool = Query(True, description="Trạng thái đã mở khoá thuyết minh đầy đủ (GPS tự động)")
 ):
     """
     Lấy thông tin hiện vật: mô tả ngắn (short_description) hoặc thuyết minh đầy đủ (description + audio)
-    khi khách quét mã QR (UC-01).
+    khi GPS tự động phát hiện khách tiếp cận hiện vật (UC-01).
     """
     poi = POIRepository.get_poi_by_id(poi_id)
     if not poi:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, 
-            detail="Không tìm thấy hiện vật tương ứng với mã QR này (E1)."
+            detail="Không tìm thấy hiện vật tương ứng (E1)."
         )
 
     # 1. Tìm bản dịch tương ứng với ngôn ngữ yêu cầu (hoặc fallback tiếng Việt)

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Landmark, MapPin, QrCode, Shield, Compass } from 'lucide-react';
+import { Landmark, MapPin, Shield, Compass } from 'lucide-react';
 
 export default function Navbar() {
   const location = useLocation();
@@ -26,26 +26,28 @@ export default function Navbar() {
           </div>
         </Link>
 
-        <nav className="flex items-center gap-2">
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = location.pathname.startsWith(item.path);
-            return (
-              <Link
-                key={item.path}
-                to={item.path}
-                className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  isActive
-                    ? 'bg-amber-500/10 text-amber-400 border border-amber-500/30'
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
-                }`}
-              >
-                <Icon className="w-4 h-4" />
-                <span className="hidden sm:inline">{item.label}</span>
-              </Link>
-            );
-          })}
-        </nav>
+        {!location.pathname.startsWith('/admin') && (
+          <nav className="flex items-center gap-2">
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = location.pathname.startsWith(item.path);
+              return (
+                <Link
+                  key={item.path}
+                  to={item.path}
+                  className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    isActive
+                      ? 'bg-amber-500/10 text-amber-400 border border-amber-500/30'
+                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+                  }`}
+                >
+                  <Icon className="w-4 h-4" />
+                  <span className="hidden sm:inline">{item.label}</span>
+                </Link>
+              );
+            })}
+          </nav>
+        )}
       </div>
     </header>
   );

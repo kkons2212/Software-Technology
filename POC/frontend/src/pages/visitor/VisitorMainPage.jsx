@@ -1,17 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  QrCode, Globe, ArrowLeft, Landmark, RefreshCw,
+  Globe, ArrowLeft, Landmark, RefreshCw,
   AlertCircle, Sparkles, Lock, CheckCircle2,
   ShieldCheck, Headphones, List, ChevronRight,
-  ChevronLeft, ChevronDown, Home, Map as MapIcon, MapPin
+  ChevronLeft, ChevronDown, Home, Map as MapIcon, MapPin, Compass, Navigation
 } from 'lucide-react';
 import { visitorApi } from '../../services/visitorApi';
 import { useVisitorSession } from '../../context/VisitorSessionContext';
 import LanguageSwitcher from '../../components/visitor/LanguageSwitcher';
 import AudioPlayer from '../../components/visitor/AudioPlayer';
 import FloatingAudioBar from '../../components/visitor/FloatingAudioBar';
-import QrScannerModal from '../../components/visitor/QrScannerModal';
 import OutdoorMapView from '../../components/visitor/OutdoorMapView';
 
 const LANG_NAME = { vi: 'Tiếng Việt', en: 'English', ja: '日本語', ko: '한국어', zh: '中文' };
@@ -125,7 +124,7 @@ const NAV_TEXT = {
   home: { vi: 'Trang Chủ', en: 'Home', ja: 'ホーム', ko: '홈', zh: '首页' },
   map: { vi: 'Bản Đồ', en: 'Map', ja: '地図', ko: '지도', zh: '地图' },
   exhibits: { vi: 'Hiện Vật', en: 'Exhibits', ja: '展示品', ko: '전시품', zh: '展品' },
-  scan: { vi: 'Quét QR', en: 'Scan QR', ja: 'QRスキャン', ko: 'QR 스캔', zh: '扫码' },
+  scan: { vi: 'Khám Phá', en: 'Explore', ja: '探索', ko: '탐험', zh: '探索' },
   guide: { vi: 'Thuyết Minh', en: 'Audio Guide', ja: '音声ガイド', ko: '오디오 가이드', zh: '语音导览' }
 };
 
@@ -146,7 +145,7 @@ export default function VisitorMainPage() {
 
   // Active tab: 'home' (default), 'list' (directory), or 'guide' (detail)
   const [activeTab, setActiveTab] = useState(routePoiId ? 'guide' : 'home');
-  const [isScannerOpen, setIsScannerOpen] = useState(false);
+
   const scrollRef = useRef(null);
 
   // === SLIDER STATE ===
@@ -190,16 +189,16 @@ export default function VisitorMainPage() {
     };
   }, [activeTab]);
 
-  // Check unlock from URL params (QR scan redirect)
+  // Check unlock from URL params (GPS auto-unlock or legacy QR redirect)
   useEffect(() => {
     if (routePoiId) {
-      const fromQr = searchParams.get('from_qr') === 'true' || searchParams.get('scanned') === '1';
+      const autoUnlock = searchParams.get('unlocked') === 'true' || searchParams.get('from_qr') === 'true' || searchParams.get('scanned') === '1';
       const unlockedStorage = JSON.parse(localStorage.getItem('unlocked_pois') || '{}');
 
       setSelectedPoiId(parseInt(routePoiId));
       setActiveTab('guide');
 
-      if (fromQr || unlockedStorage[routePoiId]) {
+      if (autoUnlock || unlockedStorage[routePoiId]) {
         setIsUnlocked(true);
         setLastScannedPoiId(parseInt(routePoiId));
         unlockedStorage[routePoiId] = true;
@@ -556,17 +555,17 @@ export default function VisitorMainPage() {
       return (
         <div className="flex-1 flex flex-col items-center justify-center gap-5 px-6 pb-28 page-enter">
           <div className="w-20 h-20 rounded-3xl bg-amber-500/10 border border-amber-500/30 text-amber-400 flex items-center justify-center shadow-xl shadow-amber-500/10">
-            <QrCode className="w-10 h-10" />
+            <Compass className="w-10 h-10" />
           </div>
           <div className="text-center">
             <h2 className="text-lg font-black text-white mb-1">{t('step1_title')}</h2>
             <p className="text-xs text-slate-400 max-w-xs">{t('step1_desc')}</p>
           </div>
           <button
-            onClick={() => setIsScannerOpen(true)}
+            onClick={goToMap}
             className="flex items-center gap-2.5 px-6 py-3 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 font-black text-sm shadow-lg shadow-amber-500/25 active:scale-95 transition-all"
           >
-            <QrCode className="w-5 h-5" /> {t('scan_qr')}
+            <MapPin className="w-5 h-5" /> {t('museum_map')}
           </button>
         </div>
       );
@@ -722,10 +721,10 @@ export default function VisitorMainPage() {
               <div className="flex flex-col gap-2">
                 <button
                   type="button"
-                  onClick={() => setIsScannerOpen(true)}
+                  onClick={handleSimulateScan}
                   className="w-full py-3 px-4 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 font-bold text-sm shadow-lg shadow-amber-500/25 active:scale-95 transition-all flex items-center justify-center gap-2"
                 >
-                  <QrCode className="w-4 h-4" /> {t('scan_to_unlock')}
+                  <Navigation className="w-4 h-4" /> {t('scan_to_unlock')}
                 </button>
                 <button
                   type="button"
@@ -843,13 +842,13 @@ export default function VisitorMainPage() {
             <span className="text-[10px] font-bold">{NAV_TEXT.map[preferredLanguage] || NAV_TEXT.map.vi}</span>
           </button>
 
-          {/* Center: Scan QR (Floating Hero Button) */}
+          {/* Center: Explore (Floating Hero Button) */}
           <button
-            onClick={() => setIsScannerOpen(true)}
+            onClick={goToMap}
             className="relative -mt-5 flex flex-col items-center px-1"
           >
             <div className="w-13 h-13 sm:w-14 sm:h-14 rounded-full bg-gradient-to-br from-amber-400 via-amber-500 to-amber-600 shadow-xl shadow-amber-500/30 flex items-center justify-center border-4 border-[#090d16] active:scale-90 transition-transform hover:shadow-amber-500/40">
-              <QrCode className="w-6 h-6 text-slate-950" />
+              <Compass className="w-6 h-6 text-slate-950" />
             </div>
             <span className="text-[10px] font-bold text-amber-400 mt-0.5">{NAV_TEXT.scan[preferredLanguage] || NAV_TEXT.scan.vi}</span>
           </button>
@@ -881,12 +880,6 @@ export default function VisitorMainPage() {
           </button>
         </div>
       </nav>
-
-      {/* QR Scanner Modal */}
-      <QrScannerModal
-        isOpen={isScannerOpen}
-        onClose={() => setIsScannerOpen(false)}
-      />
     </div>
   );
 }

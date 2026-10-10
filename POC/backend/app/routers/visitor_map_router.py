@@ -11,7 +11,7 @@ def get_map_markers(floor: Optional[int] = Query(None, description="Lọc theo p
 
 @router.get("/recommend")
 def get_route_recommendation(
-    current_poi_id: Optional[int] = Query(None, description="ID của POI vừa quét mã QR gần nhất"),
+    current_poi_id: Optional[int] = Query(None, description="ID của POI vừa tiếp cận gần nhất"),
     floor: Optional[int] = Query(None, description="Lọc phân khu nếu có"),
     visited_ids: Optional[str] = Query(None, description="Danh sách các ID POI đã nghe, phân cách bởi dấu phẩy"),
     user_lat: Optional[float] = Query(None, description="Vĩ độ GPS thời gian thực của khách"),

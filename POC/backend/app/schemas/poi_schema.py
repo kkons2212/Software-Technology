@@ -4,7 +4,7 @@ from typing import Optional, List, Dict
 # Schema tạo mới POI
 class POICreate(BaseModel):
     title_vi: str = Field(..., description="Tiêu đề tiếng Việt của hiện vật/POI")
-    short_description_vi: Optional[str] = Field(None, description="Mô tả tóm tắt tiếng Việt (hiển thị trước khi quét QR)")
+    short_description_vi: Optional[str] = Field(None, description="Mô tả tóm tắt tiếng Việt")
     description_vi: str = Field(..., description="Mô tả chi tiết đầy đủ tiếng Việt")
     x_coord: float = Field(default=0.0, description="Toạ độ X trên sơ đồ")
     y_coord: float = Field(default=0.0, description="Toạ độ Y trên sơ đồ")
@@ -43,7 +43,6 @@ class POIResponse(BaseModel):
     x_coord: float
     y_coord: float
     floor: int
-    qr_code_url: Optional[str] = None
     translation_status: str
     created_at: str
     updated_at: str

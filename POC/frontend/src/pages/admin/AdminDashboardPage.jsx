@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  Plus, Search, MapPin, QrCode, Volume2, Globe, Trash2, Edit, 
+  Plus, Search, MapPin, Volume2, Globe, Trash2, Edit, 
   RefreshCw, Sparkles, ChevronDown, ChevronUp, Play, Pause, AlertCircle, CheckCircle2 
 } from 'lucide-react';
 import Navbar from '../../components/common/Navbar';
 import PoiFormModal from './PoiFormModal';
-import QrCodeModal from './QrCodeModal';
 import { adminApi } from '../../services/adminApi';
 
 const LANGUAGE_LABELS = {
@@ -28,11 +27,8 @@ export default function AdminDashboardPage() {
   const [playingAudio, setPlayingAudio] = useState(null); // url
   const [audioElement, setAudioElement] = useState(null);
 
-  // Modal states
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingPoi, setEditingPoi] = useState(null);
-  const [isQrOpen, setIsQrOpen] = useState(false);
-  const [selectedPoiForQr, setSelectedPoiForQr] = useState(null);
 
   const fetchPois = async () => {
     try {
@@ -82,7 +78,7 @@ export default function AdminDashboardPage() {
 
   const handleDelete = async (poi, e) => {
     e?.stopPropagation();
-    if (window.confirm(`Bạn có chắc muốn xoá hiện vật "${poi.title_vi}" và toàn bộ tệp tin audio/QR liên quan?`)) {
+    if (window.confirm(`Bạn có chắc muốn xoá hiện vật "${poi.title_vi}" và toàn bộ tệp tin audio liên quan?`)) {
       try {
         await adminApi.deletePoi(poi.id);
         fetchPois();
@@ -101,12 +97,6 @@ export default function AdminDashboardPage() {
   const handleAdd = () => {
     setEditingPoi(null);
     setIsFormOpen(true);
-  };
-
-  const handleOpenQr = (poi, e) => {
-    e?.stopPropagation();
-    setSelectedPoiForQr(poi);
-    setIsQrOpen(true);
   };
 
   const toggleExpandRow = async (poiId) => {
@@ -239,7 +229,6 @@ export default function AdminDashboardPage() {
                 <tr>
                   <th className="px-6 py-4">Hiện Vật</th>
                   <th className="px-6 py-4">Khu Vực</th>
-                  <th className="px-6 py-4">Mã QR</th>
                   <th className="px-6 py-4">Pipeline AI (UC-08 & 09)</th>
                   <th className="px-6 py-4 text-right">Thao Tác</th>
                 </tr>
@@ -247,7 +236,7 @@ export default function AdminDashboardPage() {
               <tbody className="divide-y divide-slate-800/60">
                 {loading ? (
                   <tr>
-                    <td colSpan={5} className="px-6 py-12 text-center text-slate-400">
+                    <td colSpan={4} className="px-6 py-12 text-center text-slate-400">
                       <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-amber-400" />
                       Đang tải danh sách hiện vật...
                     </td>
@@ -309,17 +298,6 @@ export default function AdminDashboardPage() {
                                 </span>
                               )}
                             </div>
-                          </td>
-
-                          {/* QR Code */}
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <button
-                              onClick={(e) => handleOpenQr(poi, e)}
-                              className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-800 border border-slate-700 text-xs font-medium text-slate-200 hover:text-amber-400 transition-all"
-                            >
-                              <QrCode className="w-4 h-4 text-amber-400" />
-                              <span>Xem & In QR</span>
-                            </button>
                           </td>
 
                           {/* AI Pipeline Badges */}
@@ -464,12 +442,6 @@ export default function AdminDashboardPage() {
         onSuccess={fetchPois}
         editPoi={editingPoi}
         existingPois={pois}
-      />
-
-      <QrCodeModal
-        isOpen={isQrOpen}
-        onClose={() => setIsQrOpen(false)}
-        poi={selectedPoiForQr}
       />
     </div>
   );

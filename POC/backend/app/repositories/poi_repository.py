@@ -128,13 +128,6 @@ class POIRepository:
             return cursor.rowcount > 0
 
     @staticmethod
-    def update_qr_code_url(poi_id: int, qr_code_url: str):
-        """Cập nhật đường dẫn file QR code cho POI."""
-        with db_session() as conn:
-            cursor = conn.cursor()
-            cursor.execute("UPDATE pois SET qr_code_url = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", (qr_code_url, poi_id))
-
-    @staticmethod
     def delete_poi(poi_id: int) -> bool:
         """Xoá một POI và cascade xoá translations, audios."""
         with db_session() as conn:

@@ -3,13 +3,12 @@ import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom'
 import {
   MapPin, Compass, ArrowLeft, Landmark, RefreshCw,
   AlertCircle, Globe, ChevronRight, Sparkles, Share2,
-  Lock, Unlock, QrCode, CheckCircle2, ShieldCheck
+  Lock, Unlock, CheckCircle2, ShieldCheck, Navigation
 } from 'lucide-react';
 import { visitorApi } from '../../services/visitorApi';
 import { useVisitorSession } from '../../context/VisitorSessionContext';
 import LanguageSwitcher from '../../components/visitor/LanguageSwitcher';
 import AudioPlayer from '../../components/visitor/AudioPlayer';
-import QrScannerModal from '../../components/visitor/QrScannerModal';
 
 const LANG_NAME = { vi:'Tiếng Việt', en:'English', ja:'日本語', ko:'한국어', zh:'中文' };
 
@@ -33,15 +32,14 @@ export default function PoiDetailPage() {
   const [imgLoaded, setImgLoaded] = useState(false);
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
-  const [isScannerOpen, setIsScannerOpen] = useState(false);
   const scrollRef = useRef(null);
 
-  // Kiểm tra trạng thái đã quét QR từ URL hoặc localStorage
+  // Kiểm tra trạng thái mở khóa từ URL hoặc localStorage
   useEffect(() => {
-    const fromQr = searchParams.get('from_qr') === 'true' || searchParams.get('scanned') === '1';
+    const autoUnlock = searchParams.get('unlocked') === 'true' || searchParams.get('from_qr') === 'true' || searchParams.get('scanned') === '1';
     const unlockedStorage = JSON.parse(localStorage.getItem('unlocked_pois') || '{}');
     
-    if (fromQr || unlockedStorage[id]) {
+    if (autoUnlock || unlockedStorage[id]) {
       setIsUnlocked(true);
       if (id) {
         setLastScannedPoiId(parseInt(id));
@@ -283,7 +281,7 @@ export default function PoiDetailPage() {
             </div>
           </>
         ) : (
-          /* ── LOCKED STATE: QR Scan Call to Action ── */
+          /* ── LOCKED STATE: GPS Proximity Call to Action ── */
           <div className="bg-gradient-to-br from-slate-900 via-slate-900 to-amber-950/30 border border-amber-500/30 rounded-3xl p-6 text-center space-y-4 shadow-xl">
             <div className="w-16 h-16 rounded-3xl bg-amber-500/10 border border-amber-500/30 text-amber-400 flex items-center justify-center mx-auto shadow-inner">
               <Lock className="w-8 h-8" />
@@ -299,41 +297,34 @@ export default function PoiDetailPage() {
             <div className="flex flex-col gap-2">
               <button
                 type="button"
-                onClick={() => setIsScannerOpen(true)}
-                className="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold text-sm shadow-lg shadow-amber-500/25 active:scale-95 transition-all flex items-center justify-center gap-2"
-              >
-                <QrCode className="w-5 h-5" />
-                <span>{t('scan_to_unlock')}</span>
-              </button>
-
-              <button
-                type="button"
                 onClick={handleSimulateScan}
                 disabled={isScanning}
-                className="w-full py-1 text-center text-xs text-slate-500 hover:text-amber-400/80 transition-colors"
+                className="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold text-sm shadow-lg shadow-amber-500/25 active:scale-95 transition-all flex items-center justify-center gap-2"
               >
                 {isScanning ? (
-                  <span className="flex items-center justify-center gap-1.5 text-amber-400">
-                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                  <>
+                    <RefreshCw className="w-5 h-5 animate-spin" />
                     <span>{t('authenticating_scan')}</span>
-                  </span>
+                  </>
                 ) : (
-                  <span>(Mô phỏng mở khoá không cần quét)</span>
+                  <>
+                    <Navigation className="w-5 h-5" />
+                    <span>{t('scan_to_unlock')}</span>
+                  </>
                 )}
               </button>
             </div>
           </div>
         )}
 
-        {/* Next Action Buttons */}
         <div className="space-y-3 pt-2">
           <button
             type="button"
-            onClick={() => setIsScannerOpen(true)}
+            onClick={() => navigate('/map')}
             className="w-full py-4 px-4 rounded-3xl bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 text-slate-950 font-black text-sm shadow-xl shadow-amber-500/20 active:scale-[0.98] hover:brightness-105 transition-all flex items-center justify-center gap-2.5 border border-amber-300/40"
           >
-            <QrCode className="w-5 h-5 text-slate-950" />
-            <span>{t('scan_next_poi')}</span>
+            <Compass className="w-5 h-5 text-slate-950" />
+            <span>{t('museum_map')}</span>
           </button>
 
           <button
@@ -346,12 +337,6 @@ export default function PoiDetailPage() {
           </button>
         </div>
       </div>
-
-      {/* QR Scanner Camera Modal */}
-      <QrScannerModal
-        isOpen={isScannerOpen}
-        onClose={() => setIsScannerOpen(false)}
-      />
     </div>
   );
 }

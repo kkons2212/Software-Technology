@@ -161,7 +161,7 @@ export default function PoiFormModal({ isOpen, onClose, onSuccess, editPoi = nul
           <div>
             <div className="flex items-center justify-between mb-2">
               <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider">
-                Mô Tả Tóm Tắt (Hiển thị trước khi quét QR)
+                Mô Tả Tóm Tắt (Hiển thị trước khi mở khóa)
               </label>
               <span className="text-[11px] text-amber-400/80">Khách du lịch xem tự do</span>
             </div>
@@ -178,7 +178,7 @@ export default function PoiFormModal({ isOpen, onClose, onSuccess, editPoi = nul
           <div>
             <div className="flex items-center justify-between mb-2">
               <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider">
-                Mô Tả Chi Tiết & Thuyết Minh Đầy Đủ (Sau khi quét QR) *
+                Mô Tả Chi Tiết & Thuyết Minh Đầy Đủ (Sau khi mở khóa) *
               </label>
               <span className="text-[11px] text-slate-400">Dịch 4 thứ tiếng & sinh Audio Guide</span>
             </div>

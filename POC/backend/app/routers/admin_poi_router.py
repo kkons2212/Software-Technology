@@ -33,7 +33,7 @@ async def create_poi(
 ):
     """
     Tạo mới một hiện vật / POI (UC-04).
-    Tự động sinh mã QR (UC-05) và kích hoạt tiến trình dịch (UC-08) + sinh audio (UC-09) ngầm.
+    Tạo mới một hiện vật / POI (UC-04). Kích hoạt tiến trình dịch (UC-08) + sinh audio (UC-09) ngầm.
     """
     if not title_vi.strip():
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Tiêu đề không được để trống.")

@@ -15,7 +15,7 @@ export const visitorApi = {
     return await request(url);
   },
 
-  // Lấy chi tiết hiện vật theo ngôn ngữ & trạng thái quét QR (UC-01)
+  // Lấy chi tiết hiện vật theo ngôn ngữ & trạng thái mở khóa (UC-01)
   getPoiDetail: async (poiId, lang = 'vi', unlocked = true) => {
     return await request(`/api/visitor/pois/${poiId}?lang=${lang}&unlocked=${unlocked}`);
   },
