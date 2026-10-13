@@ -414,7 +414,14 @@ export default function OutdoorMapView({ onSelectPoi, onPlayAudio, initialPoiId 
 
     if (mapInstanceRef.current) {
       if (!userMarkerRef.current) {
-        userMarkerRef.current = L.marker([lat, lng], { icon: userGpsIcon }).addTo(mapInstanceRef.current);
+        userMarkerRef.current = L.marker([lat, lng], { icon: userGpsIcon })
+          .bindTooltip('📍 Bạn đang ở đây', {
+            permanent: true,
+            direction: 'top',
+            offset: [0, -16],
+            className: 'user-location-tooltip'
+          })
+          .addTo(mapInstanceRef.current);
       } else {
         userMarkerRef.current.setLatLng([lat, lng]);
       }
@@ -641,6 +648,10 @@ export default function OutdoorMapView({ onSelectPoi, onPlayAudio, initialPoiId 
   }, [simSpeed, isSimulatingWalk]);
 
   const activeTarget = selectedPoi || nextPoi;
+  const distanceToTarget = (userLocation && activeTarget?.latitude && activeTarget?.longitude)
+    ? getHaversineDist(userLocation.lat, userLocation.lng, activeTarget.latitude, activeTarget.longitude)
+    : null;
+  const isNearTarget = distanceToTarget !== null && distanceToTarget <= PROXIMITY_RADIUS_METERS;
   const walkingMins = Math.max(1, Math.round(routeInfo.distanceMeters / 70));
 
   return (
@@ -955,22 +966,39 @@ export default function OutdoorMapView({ onSelectPoi, onPlayAudio, initialPoiId 
               </div>
             </div>
 
-            {/* Action Button: Audio Guide */}
-            <div className="pt-1 border-t border-slate-800/80">
-              <button
-                type="button"
-                onClick={() => {
-                  if (onPlayAudio) {
-                    onPlayAudio(activeTarget.id, true);
-                  } else {
-                    onSelectPoi(activeTarget.id, true);
-                  }
-                }}
-                className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 text-xs font-black shadow-md shadow-amber-500/25 transition-all flex items-center justify-center gap-1.5 active:scale-95"
-              >
-                <Volume2 className="w-4 h-4" />
-                <span>Nghe Thuyết Minh Hiện Vật</span>
-              </button>
+            {/* Action Button: Proximity-Aware Audio Guide */}
+            <div className="pt-1 border-t border-slate-800/80 space-y-1.5">
+              {(isNearTarget || isPoiListened(activeTarget.id)) ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (onPlayAudio) {
+                      onPlayAudio(activeTarget.id, true);
+                    } else {
+                      onSelectPoi(activeTarget.id, true);
+                    }
+                  }}
+                  className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 text-xs font-black shadow-md shadow-amber-500/25 transition-all flex items-center justify-center gap-1.5 active:scale-95"
+                >
+                  <Volume2 className="w-4 h-4" />
+                  <span>{isPoiListened(activeTarget.id) ? 'Nghe Lại Thuyết Minh' : 'Nghe Thuyết Minh Hiện Vật'}</span>
+                </button>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={handleStartWalkingSimulation}
+                    className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-sky-500 to-sky-600 hover:from-sky-400 hover:to-sky-500 text-white text-xs font-black shadow-md shadow-sky-500/25 transition-all flex items-center justify-center gap-1.5 active:scale-95"
+                  >
+                    <Footprints className="w-4 h-4" />
+                    <span>Đi Bộ Đến Hiện Vật ({distanceToTarget !== null ? `${distanceToTarget}m` : '...'})</span>
+                  </button>
+                  <p className="text-center text-[10px] text-slate-500 flex items-center justify-center gap-1">
+                    <Navigation className="w-3 h-3" />
+                    <span>Hãy lại gần hiện vật (≤{PROXIMITY_RADIUS_METERS}m) để mở khóa thuyết minh</span>
+                  </p>
+                </>
+              )}
             </div>
           </div>
         </div>

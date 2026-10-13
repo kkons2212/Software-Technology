@@ -14,6 +14,7 @@ from app.database import init_db
 from app.routers.admin_poi_router import router as admin_poi_router
 from app.routers.visitor_poi_router import router as visitor_poi_router
 from app.routers.visitor_map_router import router as visitor_map_router
+from app.routers.qr_homepage_router import router as qr_homepage_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -47,6 +48,7 @@ app.include_router(admin_poi_router)
 # Đăng ký các Router Khách Tham Quan (Visitor - UC-01, UC-02)
 app.include_router(visitor_poi_router)
 app.include_router(visitor_map_router)
+app.include_router(qr_homepage_router)
 
 @app.get("/api/health")
 def health_check():

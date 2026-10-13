@@ -1,17 +1,19 @@
-# UC-04: Manage Exhibits / POIs (CRUD)
+
+# UC-04: Auto-translate POI Content
+
+<p align="center"> 
+    <img width="725" height="522" alt="Use Case Diagram1" src="https://github.com/user-attachments/assets/731c69e2-e23c-409b-85af-3f767e1b4cbe" />
+</p>
+
 
 ## Document Metadata
-  
-
-<p align="center">
-    <img width="765" height="286" alt="Use Case Diagram1" src="https://github.com/user-attachments/assets/376dc412-daec-4cc8-8290-37cf765279a3" />
-</p>
 
 | Field | Details |
 | :--- | :--- |
 | **Use Case ID** | UC-04 |
-| **Use Case Name** | Manage Exhibits / POIs (CRUD) |
-| **Primary Actor** | Admin / Museum Staff |
+| **Use Case Name** | Auto-translate POI Content |
+| **Primary Actor** | System (Automated Event) |
+| **Secondary / System Actors** | External Translation API (Deep-translator / Google Translate API), Centralized Database |
 | **Maturity** | Focused |
 | **Author(s)** | @Phatnguyen3003 |
 | **Date** | September 21, 2026 |
@@ -20,74 +22,61 @@
 
 ## Overview
 
-* **Summary:** Admin/Museum staff want to add, configure, and manage the exhibits and presentation of the museum.
-* **Triggers:** Actor wants to add, edit, or delete current exhibition and presentation details for the museum.
-* **Postconditions:** The updated exhibition information is saved into stored data.
+* **Summary:** The system automatically translates the primary text description of a Point of Interest (POI) into all configured target languages using an external translation service and stores the localized text in the database.
+* **Triggers:** Automated background event triggered by **UC-04 (Manage Exhibits / POIs)** whenever a new POI is created or an existing POI's primary description is modified.
+* **Preconditions:** 
+  1. UC-04 has successfully saved/updated the primary POI text in the database.
+  2. Target language list (e.g., English, Japanese, Korean, Chinese) is configured in system environment settings.
+* **Postconditions:**
+  1. Localized text descriptions for all target languages are stored in the database mapped to the POI ID.
+  2. Trigger event is dispatched to **UC-09: Auto-generate & Cache Audio Files** for the translated text.
 
 ---
 
 ## Flow of Events
 
-### 1. Main Event Scenario (Create POI)
+### 1. Main Event Scenario (Automated Pipeline)
 
-| Step | Actor Action | System Response |
+| Step | Actor / System Action | System Response |
 | :---: | :--- | :--- |
-| **1** | Perform `{Login Authentication}`. | — |
-| **2** | — | System displays welcome page with main features for actor to choose from. |
-| **3** | The use case begins when Admin/Museum staff actor selects to add, edit, or delete current exhibition and presentation. | — |
-| **4** | — | System queries the database and displays the POI Management table (list of existing POIs with thumbnail, title, coordinates, and action buttons). |
-| **5** | Admin/Museum staff chooses to add a new POI, or edit/delete an existing POI (`A1`, `A2`). | — |
-| **6** | Admin clicks **"Add New POI"**, enters required details (Title, primary text description in Vietnamese, map coordinates), uploads images, and clicks **Save**. | — |
-| **7** | — | Validate input data (required fields, image format/size, coordinate boundaries). `[E1]` |
-| **8** | — | Upload image to Storage Service and write new POI record to Centralized Database. |
-| **9** | — | Automatically trigger background processing pipelines:<br>1) Trigger **UC-08: Auto-translate POI Content** (translates content into target languages).<br>2) Trigger **UC-09: Auto-generate & Cache Audio Files** (generates `.mp3` audio files). |
-| **10** | — | Display success notification: *"POI created successfully. Background translation and audio generation initiated."* |
-| **11** | — | Refresh and display updated POI list view. Use case ends. |
+| **1** | System receives background trigger event from UC-04 containing POI ID, Title, and Primary Text (Vietnamese). | — |
+| **2** | — | Retrieve system target language configuration list (e.g., `['en', 'ja', 'ko', 'zh']`). |
+| **3** | — | Iterate through target languages and construct translation payload for each target language code. |
+| **4** | System sends asynchronous API requests containing primary text to External Translation API. | — |
+| **5** | External Translation API processes text and returns localized strings for each target language. | — |
+| **6** | — | Validate API response (checks for non-empty text strings and valid response codes). `[E1]` |
+| **7** | — | Write/Update localized POI text entries in the Centralized Database (mapped by POI ID and Language Code). |
+| **8** | — | Automatically trigger **UC-09: Auto-generate & Cache Audio Files** with the newly translated POI content. |
+| **9** | — | Log success event in System Log and set POI translation status flag to `COMPLETED`. Use case ends. |
 
 ---
 
 ### 2. Alternative Paths
 
-#### `A1: Edit POI`
+#### `A1: Individual Target Language Retry`
 
-| Step | Actor Action | System Response |
-| :---: | :--- | :--- |
-| **1** | Admin locates a POI in the list and clicks **Edit**. | — |
-| **2** | — | System retrieves current POI data and populates the edit form. |
-| **3** | Admin modifies content (Title, primary text description, coordinates, or uploads a new image) and clicks **Update**. | — |
-| **4** | — | System validates input data. `[E1]` |
-| **5** | — | System updates the POI record in the database and updates stored media files (if a new file was uploaded). |
-| **6** | — | System re-triggers **UC-08** and **UC-09** to regenerate localized translations and audio files for updated text. |
-| **7** | — | System displays success notification (*"POI updated successfully"*), then proceeds to **Step 11 of the Main Event**. |
-
-#### `A2: Delete POI`
-
-| Step | Actor Action | System Response |
-| :---: | :--- | :--- |
-| **1** | Admin locates a POI in the list and clicks **Delete**. | — |
-| **2** | — | System displays a confirmation dialog (*"Are you sure you want to delete this POI and its associated audio/translation files?"*). |
-| **3** | Admin clicks **Confirm**. | — |
-| **4** | — | System soft-deletes or removes the POI record from the database and updates related reference mappings. |
-| **5** | — | System displays success notification (*"POI deleted successfully"*), then proceeds to **Step 11 of the Main Event**. |
+* **A1.1:** Translation for a specific target language fails due to transient network error while other languages succeed.
+* **A1.2:** System retries translation request for the failed language up to 3 times with exponential backoff.
+* **A1.3:** If retry succeeds, system proceeds to **Step 7 of Main Event**.
+* **A1.4:** If retry fails after max attempts, system stores successful translations in Database, flags POI status as `PARTIAL_TRANSLATION_FAILED`, and logs error details for Admin review.
 
 ---
 
 ### 3. Exception Paths
 
-#### `E1: Input Validation Error`
+#### `E1: External Translation API Failure / Rate Limit Exceeded`
 
+* **Trigger:** API returns HTTP errors (e.g., `429 Too Many Requests`, `503 Service Unavailable`) or request times out.
 * **System Behavior:**
-  1. System highlights invalid or missing fields (e.g., missing description text, coordinates outside map boundaries, unsupported image format or oversized file).
-  2. System displays error message prompting Admin to correct the inputs.
-  3. System retains already entered form data and waits for Admin to resubmit (Returns to **Step 6** of Main Event or **Step 3** of A1).
-
+  1. System catches exception and logs failure stack trace.
+  2. System updates POI translation status flag in Database to `TRANSLATION_FAILED`.
+  3. System skips triggering UC-09 for missing translations to prevent cascading failures.
+  4. System notifies Admin Dashboard via system log alert so Admin can manually retry translation later.
 
 
 
 ### Activity Diagram
 
-<p align="center">
-    
-   <img width="726" height="907" alt="Activity Diagram1" src="https://github.com/user-attachments/assets/68c19f1b-4f4a-42be-8906-9d4f39d1e7a8" />
-
+<p align="center"> 
+   <img width="1155" height="931" alt="Activity Diagram1" src="https://github.com/user-attachments/assets/ac6c4ccb-6dda-4c59-bd26-a63514dafa2b" />
 </p>

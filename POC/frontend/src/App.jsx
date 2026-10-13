@@ -4,6 +4,7 @@ import { VisitorSessionProvider } from './context/VisitorSessionContext';
 import VisitorMainPage from './pages/visitor/VisitorMainPage';
 import AdminDashboardPage from './pages/admin/AdminDashboardPage';
 import LanguageSelectionModal from './components/visitor/LanguageSelectionModal';
+import QRAccessPage from './pages/visitor/QRAccessPage';
 
 function App() {
   return (
@@ -15,6 +16,7 @@ function App() {
             <Route path="/welcome" element={<Navigate to="/" replace />} />
             <Route path="/poi/:id" element={<VisitorMainPage />} />
             <Route path="/admin" element={<AdminDashboardPage />} />
+            <Route path="/qr" element={<QRAccessPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
           <LanguageSelectionModal />
