@@ -4,6 +4,42 @@ from app.database import get_db_connection, db_session
 
 class POIRepository:
     @staticmethod
+    def get_all_pois_with_translations() -> List[Dict[str, Any]]:
+        """Return POIs with their localized titles and summaries."""
+        with db_session() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT p.id, p.title_vi, p.short_description_vi, p.description_vi,
+                       p.image_url, p.x_coord, p.y_coord, p.floor, p.latitude,
+                       p.longitude, t.language_code,
+                       t.title AS translated_title,
+                       t.short_description AS translated_short_description
+                FROM pois AS p
+                LEFT JOIN poi_translations AS t ON t.poi_id = p.id
+                ORDER BY p.id DESC
+            """)
+
+            pois: Dict[int, Dict[str, Any]] = {}
+            for row in cursor.fetchall():
+                item = dict(row)
+                poi_id = item["id"]
+                poi = pois.setdefault(poi_id, {
+                    key: item[key]
+                    for key in (
+                        "id", "title_vi", "short_description_vi", "description_vi",
+                        "image_url", "x_coord", "y_coord", "floor", "latitude",
+                        "longitude"
+                    )
+                })
+                if item["language_code"]:
+                    poi.setdefault("translations", {})[item["language_code"]] = {
+                        "title": item["translated_title"],
+                        "short_description": item["translated_short_description"]
+                    }
+
+            return list(pois.values())
+
+    @staticmethod
     def get_all_pois() -> List[Dict[str, Any]]:
         """Lấy danh sách tất cả các POI kèm thông tin tóm tắt."""
         with db_session() as conn:

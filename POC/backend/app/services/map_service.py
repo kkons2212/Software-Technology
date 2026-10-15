@@ -16,18 +16,34 @@ def haversine_distance_meters(lat1: float, lon1: float, lat2: float, lon2: float
 
 class MapService:
     @staticmethod
-    def get_map_markers(floor: Optional[int] = None) -> List[Dict[str, Any]]:
+    def _localized_poi(poi: Dict[str, Any], language_code: str) -> Dict[str, Any]:
+        translation = poi.get("translations", {}).get(language_code, {})
+        localized = dict(poi)
+        localized["title"] = translation.get("title") or poi["title_vi"]
+        localized["short_description"] = (
+            translation.get("short_description")
+            or poi.get("short_description_vi")
+            or (poi["description_vi"][:140] if poi.get("description_vi") else "")
+        )
+        return localized
+
+    @staticmethod
+    def get_map_markers(
+        floor: Optional[int] = None,
+        language_code: str = "vi"
+    ) -> List[Dict[str, Any]]:
         """Lấy danh sách toạ độ GPS các hiện vật ngoài trời."""
-        pois = POIRepository.get_all_pois()
+        pois = POIRepository.get_all_pois_with_translations()
         markers = []
         for p in pois:
             if floor is None or p.get("floor") == floor:
+                localized = MapService._localized_poi(p, language_code)
                 lat = p.get("latitude") if p.get("latitude") is not None else DEFAULT_MAP_LAT
                 lng = p.get("longitude") if p.get("longitude") is not None else DEFAULT_MAP_LNG
                 markers.append({
                     "id": p["id"],
-                    "title": p["title_vi"],
-                    "short_description": p.get("short_description_vi") or (p["description_vi"][:140] if p.get("description_vi") else ""),
+                    "title": localized["title"],
+                    "short_description": localized["short_description"],
                     "latitude": lat,
                     "longitude": lng,
                     "x_coord": p.get("x_coord", 0),
@@ -44,6 +60,7 @@ class MapService:
         visited_ids: Optional[str] = None,
         user_lat: Optional[float] = None,
         user_lng: Optional[float] = None,
+        language_code: str = "vi",
     ) -> Dict[str, Any]:
         """
         Tính toán lộ trình GPS và gợi ý hiện vật ngoài trời tiếp theo (UC-02).
@@ -54,7 +71,7 @@ class MapService:
         - Tính khoảng cách Haversine (mét) đến các POI chưa nghe (chưa có trong visited_ids).
         - Gợi ý POI gần nhất kèm khoảng cách (mét) và thời gian đi bộ ước tính.
         """
-        all_pois = POIRepository.get_all_pois()
+        all_pois = POIRepository.get_all_pois_with_translations()
 
         # Parse danh sách ID đã nghe
         visited_set = set()
@@ -108,11 +125,12 @@ class MapService:
 
             # Thời gian đi bộ ước tính: ~1.2 m/s (khoảng 70m/phút)
             walking_mins = max(1, round(next_distance / 70))
+            localized = MapService._localized_poi(best_candidate, language_code)
 
             next_poi = {
                 "id": best_candidate["id"],
-                "title": best_candidate["title_vi"],
-                "short_description": best_candidate.get("short_description_vi") or (best_candidate["description_vi"][:140] if best_candidate.get("description_vi") else ""),
+                "title": localized["title"],
+                "short_description": localized["short_description"],
                 "latitude": best_lat,
                 "longitude": best_lng,
                 "floor": best_candidate.get("floor", 1),
@@ -128,10 +146,11 @@ class MapService:
             p_lat = p.get("latitude") if p.get("latitude") is not None else DEFAULT_MAP_LAT
             p_lng = p.get("longitude") if p.get("longitude") is not None else DEFAULT_MAP_LNG
             dist = haversine_distance_meters(origin_lat, origin_lng, p_lat, p_lng)
+            localized = MapService._localized_poi(p, language_code)
             all_markers.append({
                 "id": p["id"],
-                "title": p["title_vi"],
-                "short_description": p.get("short_description_vi") or (p["description_vi"][:140] if p.get("description_vi") else ""),
+                "title": localized["title"],
+                "short_description": localized["short_description"],
                 "latitude": p_lat,
                 "longitude": p_lng,
                 "floor": p.get("floor", 1),
@@ -143,6 +162,7 @@ class MapService:
 
         # Sắp xếp markers theo khoảng cách
         all_markers.sort(key=lambda m: m["distance_meters"])
+        localized_current_poi = MapService._localized_poi(current_poi, language_code) if current_poi else None
 
         return {
             "site_info": {
@@ -158,8 +178,8 @@ class MapService:
             },
             "current_poi": {
                 "id": current_poi["id"],
-                "title": current_poi["title_vi"],
-                "short_description": current_poi.get("short_description_vi") or (current_poi["description_vi"][:140] if current_poi.get("description_vi") else ""),
+                "title": localized_current_poi["title"],
+                "short_description": localized_current_poi["short_description"],
                 "latitude": current_poi.get("latitude") if current_poi.get("latitude") is not None else DEFAULT_MAP_LAT,
                 "longitude": current_poi.get("longitude") if current_poi.get("longitude") is not None else DEFAULT_MAP_LNG,
                 "floor": current_poi.get("floor", 1),

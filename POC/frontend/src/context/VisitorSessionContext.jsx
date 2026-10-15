@@ -80,9 +80,12 @@ export function VisitorSessionProvider({ children }) {
   };
 
   // Helper hàm dịch giao diện theo ngôn ngữ hiện tại
-  const t = (key) => {
+  const t = (key, params = {}) => {
     const dict = VISITOR_I18N[preferredLanguage] || VISITOR_I18N['vi'];
-    return dict[key] || VISITOR_I18N['vi'][key] || key;
+    const value = dict[key] || VISITOR_I18N['vi'][key] || key;
+    return value.replace(/\{(\w+)\}/g, (match, name) => (
+      params[name] === undefined ? match : String(params[name])
+    ));
   };
 
   return (

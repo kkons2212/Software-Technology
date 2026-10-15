@@ -38,6 +38,7 @@ class TranslationService:
 
         prompt = f"""Bạn là chuyên gia dịch thuật và thuyết minh di sản, bảo tàng lịch sử văn hóa.
 Nhiệm vụ: Dịch tiêu đề, tóm tắt và mô tả chi tiết của địa điểm sau từ tiếng Việt sang các ngôn ngữ: {', '.join(target_langs)}.
+Hãy dịch phần mô tả và phần mang tính mô tả trong tiêu đề, nhưng giữ nguyên chính tả gốc của tên riêng như tên người, địa danh, tên tác phẩm, sự kiện và tên gọi lịch sử; không dịch nghĩa, phiên âm hoặc tự ý chuẩn hóa các tên riêng này.
 
 Nội dung gốc (Tiếng Việt):
 - Tiêu đề: {title_vi}
@@ -53,7 +54,7 @@ Ví dụ định dạng mong muốn:
   "ko": {{ "title": "...", "short_description": "...", "description": "..." }},
   "zh": {{ "title": "...", "short_description": "...", "description": "..." }}
 }}
-Văn phong cần trang trọng, mượt mà, chính xác theo thuật ngữ bảo tàng du lịch."""
+Văn phong cần trang trọng, mượt mà, chính xác theo thuật ngữ bảo tàng du lịch. Không được bỏ sót hay thay đổi tên riêng trong nội dung gốc."""
 
         configured_model = get_gemini_model()
         candidate_models = [configured_model, "gemini-3.6-flash", "gemini-3.5-flash", "gemini-flash-latest"]

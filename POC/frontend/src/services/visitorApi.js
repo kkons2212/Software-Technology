@@ -21,17 +21,18 @@ export const visitorApi = {
   },
 
   // Lấy danh sách điểm đánh dấu GPS bản đồ (UC-02)
-  getMapMarkers: async (floor = null) => {
+  getMapMarkers: async (floor = null, lang = 'vi') => {
     let url = '/api/visitor/map/markers';
-    if (floor !== null && floor !== undefined) {
-      url += `?floor=${floor}`;
-    }
+    const params = new URLSearchParams({ lang });
+    if (floor !== null && floor !== undefined) params.append('floor', floor);
+    url += `?${params.toString()}`;
     return await request(url);
   },
 
   // Lấy lộ trình GPS và gợi ý điểm tiếp theo (UC-02)
-  getMapRecommendation: async ({ currentPoiId, floor, visitedIds, userLat, userLng } = {}) => {
+  getMapRecommendation: async ({ currentPoiId, floor, visitedIds, userLat, userLng, lang = 'vi' } = {}) => {
     const params = new URLSearchParams();
+    params.append('lang', lang);
     if (currentPoiId) params.append('current_poi_id', currentPoiId);
     if (floor) params.append('floor', floor);
     if (visitedIds) params.append('visited_ids', Array.isArray(visitedIds) ? visitedIds.join(',') : visitedIds);

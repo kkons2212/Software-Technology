@@ -17,6 +17,15 @@ import {
   SVG_HEIGHT
 } from '../../config/mapConfig';
 
+const ROOM_LABEL_KEYS = {
+  room1: 'room_prehistoric',
+  room2: 'room_dongson',
+  hall: 'room_main_hall',
+  art1: 'room_sculpture',
+  art2: 'room_ink_drum',
+  hall2: 'room_special'
+};
+
 function FloorPlan({
   floor,
   markers,
@@ -27,6 +36,7 @@ function FloorPlan({
   onSelectMarker,
   isPoiListened,
   onSelectStairs,
+  t,
 }) {
   const W = SVG_WIDTH;
   const H = SVG_HEIGHT;
@@ -129,7 +139,7 @@ function FloorPlan({
             fontWeight="600"
             textAnchor="middle"
           >
-            {r.label}
+            {t(ROOM_LABEL_KEYS[r.id] || r.label)}
           </text>
 
           {/* Ô cửa mở / Lối ra vào phòng */}
@@ -189,7 +199,7 @@ function FloorPlan({
           fontWeight="700"
           textAnchor="middle"
         >
-          {STAIRS_CONFIG.label}
+          {t('stairs_label')}
         </text>
       </g>
 
@@ -214,7 +224,7 @@ function FloorPlan({
             textAnchor="middle"
             opacity="0.8"
           >
-            {ENTRANCE_CONFIG.label}
+            {t('entrance')}
           </text>
         </g>
       )}
@@ -484,7 +494,7 @@ export default function InteractiveMapPage() {
                   : 'text-slate-400 hover:text-white'
               }`}
             >
-              {t('floor_label')} 1
+              {t('floor_number', { floor: 1 })}
             </button>
             <button
               onClick={() => setFloor(2)}
@@ -494,7 +504,7 @@ export default function InteractiveMapPage() {
                   : 'text-slate-400 hover:text-white'
               }`}
             >
-              {t('floor_label')} 2
+              {t('floor_number', { floor: 2 })}
             </button>
           </div>
         </div>
@@ -541,7 +551,7 @@ export default function InteractiveMapPage() {
         {customTargetPoi && !loading && (() => {
           const isTargetOnCurrentFloor = customTargetPoi.floor === floor;
           const targetFloor = customTargetPoi.floor;
-          const directionText = targetFloor > floor ? 'lên' : 'xuống';
+          const directionText = targetFloor > floor ? t('floor_up') : t('floor_down');
 
           return (
             <div className="bg-gradient-to-r from-sky-950/70 via-slate-900/90 to-slate-900 border border-sky-500/40 rounded-2xl px-4 py-3 flex items-center justify-between gap-3 shadow-lg">
@@ -552,7 +562,7 @@ export default function InteractiveMapPage() {
                 <div className="min-w-0">
                   <div className="flex items-center gap-1.5">
                     <p className="text-[10px] font-bold uppercase tracking-wider text-sky-400">
-                      {t('navigating_requested')} · Tầng {targetFloor}
+                      {t('navigating_requested')} · {t('floor_number', { floor: targetFloor })}
                     </p>
                     {isPoiListened(customTargetPoi.id) && (
                       <span className="text-[9px] text-emerald-400 bg-emerald-500/10 px-1 py-0.2 rounded border border-emerald-500/30">
@@ -563,10 +573,14 @@ export default function InteractiveMapPage() {
                   <p className="text-sm font-bold text-white truncate">{customTargetPoi.title}</p>
                   <p className="text-[11px] text-slate-300 mt-0.5">
                     {!isTargetOnCurrentFloor
-                      ? `Vui lòng di chuyển tới CẦU THANG để ${directionText} Tầng ${targetFloor}`
+                      ? t('cross_floor_to_stairs', {
+                          stairs: t('stairs_label'),
+                          direction: directionText,
+                          floor: targetFloor
+                        })
                       : (current?.floor !== floor
-                          ? `Từ Cầu Thang đi tới hiện vật trên Tầng ${floor}`
-                          : `Đi theo hành lang tới hiện vật`)
+                          ? t('cross_floor_from_stairs', { floor })
+                          : t('same_floor_route'))
                     }
                   </p>
                 </div>
@@ -575,7 +589,7 @@ export default function InteractiveMapPage() {
                 <button
                   onClick={handleClearCustomTarget}
                   className="text-[11px] text-slate-400 hover:text-white px-2.5 py-1.5 rounded-lg border border-slate-700 hover:bg-slate-800 transition-colors"
-                  title="Quay lại gợi ý tự động"
+                  title={t('auto_suggest')}
                 >
                   {t('auto_suggest')}
                 </button>
@@ -584,7 +598,7 @@ export default function InteractiveMapPage() {
                     onClick={() => setFloor(targetFloor)}
                     className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-amber-500 text-slate-950 text-xs font-bold shadow-md shadow-amber-500/20 active:scale-95 transition-transform"
                   >
-                    <span>{t('floor_label')} {targetFloor}</span>
+                    <span>{t('floor_number', { floor: targetFloor })}</span>
                     <ArrowRight className="w-3.5 h-3.5" />
                   </button>
                 ) : (
@@ -609,10 +623,13 @@ export default function InteractiveMapPage() {
               </div>
               <div className="min-w-0">
                 <p className="text-xs font-bold text-emerald-400 uppercase tracking-wider">
-                  Hoàn Thành Tầng {floor}
+                  {t('floor_completed', { floor })}
                 </p>
                 <p className="text-[11px] text-slate-300 mt-0.5 line-clamp-1">
-                  {rec.next_poi?.short_description || `Bạn đã nghe hết các hiện vật tại Tầng ${floor}! Hãy di chuyển tới Cầu Thang để sang Tầng ${rec.suggest_next_floor}.`}
+                  {rec.next_poi?.short_description || t('floor_completed_desc', {
+                    floor,
+                    nextFloor: rec.suggest_next_floor
+                  })}
                 </p>
               </div>
             </div>
@@ -620,7 +637,7 @@ export default function InteractiveMapPage() {
               onClick={() => setFloor(rec.suggest_next_floor)}
               className="flex-shrink-0 px-3.5 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold text-xs shadow-md shadow-amber-500/25 active:scale-95 transition-all flex items-center gap-1.5"
             >
-              <span>Sang Tầng {rec.suggest_next_floor}</span>
+              <span>{t('go_to_floor', { floor: rec.suggest_next_floor })}</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </div>
@@ -678,6 +695,7 @@ export default function InteractiveMapPage() {
                 onSelectMarker={handleSelectMarker}
                 isPoiListened={isPoiListened}
                 onSelectStairs={handleSelectStairs}
+                t={t}
               />
             )}
           </div>
@@ -715,7 +733,7 @@ export default function InteractiveMapPage() {
             <div className="flex items-center gap-2 min-w-0">
               <TrendingUp className="w-4 h-4 text-emerald-400 flex-shrink-0" />
               <span className="text-slate-300 font-medium truncate">
-                {t('tour_progress')} Tầng {floor}: <strong className="text-emerald-400">{listenedCount}/{totalExhibits}</strong> ({progressPercent}%)
+                {t('tour_progress')} {t('floor_number', { floor })}: <strong className="text-emerald-400">{listenedCount}/{totalExhibits}</strong> ({progressPercent}%)
               </span>
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
@@ -772,7 +790,7 @@ export default function InteractiveMapPage() {
                     )}
                     <span className="text-[11px] text-slate-400 flex items-center gap-1">
                       <MapPin className="w-3 h-3 text-amber-400" />
-                      {t('floor_label')} {selected.floor} &nbsp;·&nbsp; ({Math.round(selected.x_coord)}, {Math.round(selected.y_coord)})
+                      {t('floor_number', { floor: selected.floor })} &nbsp;·&nbsp; ({Math.round(selected.x_coord)}, {Math.round(selected.y_coord)})
                     </span>
                   </div>
 
@@ -822,7 +840,7 @@ export default function InteractiveMapPage() {
           <div className="space-y-2.5">
             <div className="flex items-center justify-between px-1">
               <p className="text-[10px] uppercase tracking-wider font-bold text-slate-500">
-                {t('all_exhibits')} — {t('floor_label')} {floor} ({markers.length} {t('items_count')})
+                {t('all_exhibits')} — {t('floor_number', { floor })} ({markers.length} {t('items_count')})
               </p>
               <span className="text-[10px] text-amber-400/80 font-medium">{t('click_to_view')}</span>
             </div>
@@ -903,7 +921,7 @@ export default function InteractiveMapPage() {
                         </p>
                       ) : (
                         <p className="text-[11px] text-slate-500">
-                          {t('floor_label')} {m.floor} · ({Math.round(m.x_coord)}, {Math.round(m.y_coord)})
+                          {t('floor_number', { floor: m.floor })} · ({Math.round(m.x_coord)}, {Math.round(m.y_coord)})
                         </p>
                       )}
                     </div>
@@ -941,7 +959,7 @@ export default function InteractiveMapPage() {
         {markers.length === 0 && !loading && !error && (
           <div className="text-center py-12 text-slate-500 space-y-3">
             <Layers className="w-10 h-10 mx-auto text-slate-700" />
-            <p className="text-sm">Tầng {floor} chưa có hiện vật nào được nhập.</p>
+            <p className="text-sm">{t('empty_floor', { floor })}</p>
           </div>
         )}
       </div>

@@ -10,6 +10,7 @@ import { visitorApi } from '../../services/visitorApi';
 import { useVisitorSession } from '../../context/VisitorSessionContext';
 
 const PROXIMITY_RADIUS_METERS = 30; // Bán kính tự động nhận diện hiện vật (30 mét)
+const ROUTING_TIMEOUT_MS = 8000;
 
 // Helper: Generate interpolated walking steps along route or straight line
 function generateWalkingSteps(start, end, polyline = []) {
@@ -72,7 +73,7 @@ const createPoiIcon = (item, isSelected = false, isVisited = false) => {
 
 // Custom User GPS Location Icon with Pulse Effect
 const userGpsIcon = L.divIcon({
-  html: '<div class="gps-pulse-marker" title="Vị trí của bạn"></div>',
+  html: '<div class="gps-pulse-marker"><svg class="gps-user-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="7" r="3" fill="#0f172a"/><path d="M5.5 20c.4-4 2.7-6 6.5-6s6.1 2 6.5 6" fill="none" stroke="#0f172a" stroke-width="3" stroke-linecap="round"/></svg></div>',
   className: 'user-gps-container',
   iconSize: [24, 24],
   iconAnchor: [12, 12]
@@ -97,10 +98,14 @@ export default function OutdoorMapView({ onSelectPoi, onPlayAudio, initialPoiId 
   const markersLayerRef = useRef(null);
   const geofenceLayerRef = useRef(null);
   const routeLayerRef = useRef(null);
+  const routeRequestIdRef = useRef(0);
+  const routeControllerRef = useRef(null);
+  const routeTargetIdRef = useRef(null);
   const userMarkerRef = useRef(null);
   const userAccuracyCircleRef = useRef(null);
   const watchIdRef = useRef(null);
   const triggeredPoiIdsRef = useRef(new Set()); // Ghi nhớ POI đã kích hoạt tự động
+  const mapLanguageRef = useRef(preferredLanguage);
 
   // States
   const [loading, setLoading] = useState(true);
@@ -138,6 +143,7 @@ export default function OutdoorMapView({ onSelectPoi, onPlayAudio, initialPoiId 
 
   // Turn-by-turn route state from OSRM
   const [routeInfo, setRouteInfo] = useState({
+    targetId: null,
     distanceMeters: 0,
     durationSeconds: 0,
     steps: [],
@@ -152,65 +158,130 @@ export default function OutdoorMapView({ onSelectPoi, onPlayAudio, initialPoiId 
       const res = await visitorApi.getMapRecommendation({
         currentPoiId: initialPoiId || lastScannedPoiId,
         userLat: currentLat,
-        userLng: currentLng
+        userLng: currentLng,
+        lang: preferredLanguage
       });
 
       if (res) {
         if (res.site_info) setSiteInfo(res.site_info);
         if (res.next_poi) setNextPoi(res.next_poi);
-        if (res.all_markers) setMarkersData(res.all_markers);
-
-        // Mặc định chọn next_poi hoặc current_poi nếu có
-        if (!selectedPoi && (res.next_poi || res.current_poi)) {
-          setSelectedPoi(res.next_poi || res.current_poi);
+        if (res.all_markers) {
+          setMarkersData(res.all_markers);
+          setSelectedPoi((current) => {
+            if (!current) return res.next_poi || res.current_poi;
+            return res.all_markers.find((marker) => marker.id === current.id) || current;
+          });
         }
+
       }
     } catch (err) {
       console.error('Failed to load outdoor map data:', err);
     } finally {
       setLoading(false);
     }
-  }, [initialPoiId, lastScannedPoiId, selectedPoi]);
+  }, [initialPoiId, lastScannedPoiId, preferredLanguage]);
 
   // 2. Fetch OSRM Walking Route
   const calculateWalkingRoute = useCallback(async (origin, target) => {
     if (!origin || !target || !target.latitude || !target.longitude) return;
 
+    const requestId = ++routeRequestIdRef.current;
+    routeControllerRef.current?.abort();
+    const controller = new AbortController();
+    routeControllerRef.current = controller;
+    const timeoutId = setTimeout(() => controller.abort(), ROUTING_TIMEOUT_MS);
+
+    if (routeTargetIdRef.current !== target.id) {
+      routeTargetIdRef.current = target.id;
+      routeLayerRef.current?.remove();
+      routeLayerRef.current = null;
+      setRouteInfo({
+        targetId: target.id,
+        distanceMeters: 0,
+        durationSeconds: 0,
+        steps: [],
+        polyline: []
+      });
+    }
+
     try {
       setRoutingLoading(true);
       const url = `https://router.project-osrm.org/route/v1/foot/${origin.lng},${origin.lat};${target.longitude},${target.latitude}?overview=full&geometries=geojson&steps=true`;
-      const res = await fetch(url, { headers: { Accept: 'application/json' } });
+      const res = await fetch(url, {
+        headers: { Accept: 'application/json' },
+        signal: controller.signal
+      });
       const data = await res.json();
+      if (requestId !== routeRequestIdRef.current) return;
 
       if (data.code === 'Ok' && data.routes && data.routes[0]) {
         const route = data.routes[0];
-        const latlngs = route.geometry.coordinates.map((coord) => [coord[1], coord[0]]);
+        const sourceWaypoint = data.waypoints?.[0];
+        const targetWaypoint = data.waypoints?.[1];
+        const sourceSnapDistance = sourceWaypoint?.distance || 0;
+        const targetSnapDistance = targetWaypoint?.distance || 0;
+        const actualStart = [origin.lat, origin.lng];
+        const actualTarget = [target.latitude, target.longitude];
+        const routeCoordinates = route.geometry.coordinates.map((coord) => [coord[1], coord[0]]);
+        const latlngs = [];
+        const appendCoordinate = (coordinate) => {
+          const previous = latlngs[latlngs.length - 1];
+          if (!previous || previous[0] !== coordinate[0] || previous[1] !== coordinate[1]) {
+            latlngs.push(coordinate);
+          }
+        };
+
+        appendCoordinate(actualStart);
+        if (sourceWaypoint?.location) {
+          appendCoordinate([sourceWaypoint.location[1], sourceWaypoint.location[0]]);
+        }
+        routeCoordinates.forEach(appendCoordinate);
+        if (targetWaypoint?.location) {
+          appendCoordinate([targetWaypoint.location[1], targetWaypoint.location[0]]);
+        }
+        appendCoordinate(actualTarget);
 
         const steps = route.legs[0]?.steps?.map((step) => {
-          let instruction = 'Đi thẳng';
+          let instructionKey = 'route_straight';
           const type = step.maneuver?.type;
           const modifier = step.maneuver?.modifier;
 
-          if (type === 'depart') instruction = 'Bắt đầu xuất phát';
-          else if (type === 'arrive') instruction = `Đã đến ${target.title}`;
-          else if (modifier === 'left') instruction = 'Rẽ trái';
-          else if (modifier === 'right') instruction = 'Rẽ phải';
-          else if (modifier === 'slight left') instruction = 'Chếch sang trái';
-          else if (modifier === 'slight right') instruction = 'Chếch sang phải';
-          else if (modifier === 'sharp left') instruction = 'Ngoặt gấp sang trái';
-          else if (modifier === 'sharp right') instruction = 'Ngoặt gấp sang phải';
-          else if (modifier === 'straight') instruction = 'Tiếp tục đi thẳng';
+          if (type === 'depart') instructionKey = 'route_depart';
+          else if (type === 'arrive') instructionKey = 'route_arrived';
+          else if (modifier === 'left') instructionKey = 'route_left';
+          else if (modifier === 'right') instructionKey = 'route_right';
+          else if (modifier === 'slight left') instructionKey = 'route_slight_left';
+          else if (modifier === 'slight right') instructionKey = 'route_slight_right';
+          else if (modifier === 'sharp left') instructionKey = 'route_sharp_left';
+          else if (modifier === 'sharp right') instructionKey = 'route_sharp_right';
+          else if (modifier === 'straight') instructionKey = 'route_straight';
 
-          const street = step.name ? ` vào ${step.name}` : '';
           return {
-            text: `${instruction}${street}`,
+            key: instructionKey,
+            name: type === 'arrive' ? target.title : '',
+            street: step.name || '',
             distance: Math.round(step.distance)
           };
         }) || [];
+        if (sourceSnapDistance > 5) {
+          steps.unshift({
+            key: 'route_to_walking_path',
+            distance: Math.round(sourceSnapDistance)
+          });
+        }
+        if (targetSnapDistance > 5) {
+          const arrivalIndex = steps.findIndex((step) => step.key === 'route_arrived');
+          const connectorStep = {
+            key: 'route_from_walking_path_to_target',
+            distance: Math.round(targetSnapDistance)
+          };
+          steps.splice(arrivalIndex >= 0 ? arrivalIndex : steps.length, 0, connectorStep);
+        }
 
         setRouteInfo({
-          distanceMeters: Math.round(route.distance),
-          durationSeconds: Math.round(route.duration),
+          targetId: target.id,
+          distanceMeters: Math.round(route.distance + sourceSnapDistance + targetSnapDistance),
+          durationSeconds: Math.round(route.duration + (sourceSnapDistance + targetSnapDistance) / 1.2),
           steps,
           polyline: latlngs
         });
@@ -234,10 +305,17 @@ export default function OutdoorMapView({ onSelectPoi, onPlayAudio, initialPoiId 
         drawFallbackStraightLine(origin, target);
       }
     } catch (err) {
+      if (requestId !== routeRequestIdRef.current) return;
       console.warn('OSRM routing request failed, using fallback:', err);
       drawFallbackStraightLine(origin, target);
     } finally {
-      setRoutingLoading(false);
+      clearTimeout(timeoutId);
+      if (routeControllerRef.current === controller) {
+        routeControllerRef.current = null;
+      }
+      if (requestId === routeRequestIdRef.current) {
+        setRoutingLoading(false);
+      }
     }
   }, []);
 
@@ -248,11 +326,12 @@ export default function OutdoorMapView({ onSelectPoi, onPlayAudio, initialPoiId 
     ];
     const dist = getHaversineDist(origin.lat, origin.lng, target.latitude, target.longitude);
     setRouteInfo({
+      targetId: target.id,
       distanceMeters: dist,
       durationSeconds: Math.round(dist / 1.2),
       steps: [
-        { text: 'Di chuyển theo hướng điểm tham quan', distance: dist },
-        { text: `Đã đến ${target.title}`, distance: 0 }
+        { key: 'route_toward_target', distance: dist },
+        { key: 'route_arrived', name: target.title, distance: 0 }
       ],
       polyline: latlngs
     });
@@ -395,7 +474,7 @@ export default function OutdoorMapView({ onSelectPoi, onPlayAudio, initialPoiId 
     // Allow user to click anywhere on map to set starting location in simulation mode
     map.on('click', (e) => {
       const { lat, lng } = e.latlng;
-      handleSetSimulatedStartLocation(lat, lng, 'Vị trí đã chọn trên bản đồ');
+      handleSetSimulatedStartLocation(lat, lng, 'map_selected_location');
     });
 
     // Default simulated location at entrance
@@ -414,6 +493,8 @@ export default function OutdoorMapView({ onSelectPoi, onPlayAudio, initialPoiId 
       if (countdownTimerRef.current) {
         clearInterval(countdownTimerRef.current);
       }
+      routeRequestIdRef.current += 1;
+      routeControllerRef.current?.abort();
       if (toastTimeoutRef.current) {
         clearTimeout(toastTimeoutRef.current);
       }
@@ -422,8 +503,14 @@ export default function OutdoorMapView({ onSelectPoi, onPlayAudio, initialPoiId 
     };
   }, []);
 
+  useEffect(() => {
+    if (mapLanguageRef.current === preferredLanguage) return;
+    mapLanguageRef.current = preferredLanguage;
+    fetchMapData(userLocation?.lat ?? null, userLocation?.lng ?? null);
+  }, [preferredLanguage]);
+
   // Set custom simulated starting location
-  const handleSetSimulatedStartLocation = (lat, lng, name = null) => {
+  const handleSetSimulatedStartLocation = (lat, lng, nameKey = null) => {
     if (watchIdRef.current) {
       navigator.geolocation?.clearWatch(watchIdRef.current);
       watchIdRef.current = null;
@@ -446,11 +533,12 @@ export default function OutdoorMapView({ onSelectPoi, onPlayAudio, initialPoiId 
 
     const target = selectedPoi || nextPoi;
     const dist = target && target.latitude ? getHaversineDist(lat, lng, target.latitude, target.longitude) : 0;
-    const msg = name 
-      ? `📍 Điểm xuất phát: ${name} (Cách #${target?.id || ''}: ~${dist}m)` 
-      : `📍 Đã đặt điểm xuất phát mới (Cách #${target?.id || ''}: ~${dist}m)`;
-    
-    setStartPointToast(msg);
+    setStartPointToast({
+      key: nameKey ? 'map_start_toast_named' : 'map_start_toast_default',
+      nameKey,
+      targetId: target?.id || '',
+      distance: dist
+    });
     if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
     toastTimeoutRef.current = setTimeout(() => setStartPointToast(null), 3500);
   };
@@ -462,40 +550,6 @@ export default function OutdoorMapView({ onSelectPoi, onPlayAudio, initialPoiId 
     setGpsAccuracy(accuracy);
     setLocationMode(isSimulated ? 'simulated' : 'real');
 
-    if (mapInstanceRef.current) {
-      if (!userMarkerRef.current) {
-        userMarkerRef.current = L.marker([lat, lng], { icon: userGpsIcon })
-          .bindTooltip('📍 Bạn đang ở đây', {
-            permanent: true,
-            direction: 'top',
-            offset: [0, -16],
-            className: 'user-location-tooltip'
-          })
-          .addTo(mapInstanceRef.current);
-      } else {
-        userMarkerRef.current.setLatLng([lat, lng]);
-      }
-
-      // Accuracy circle
-      if (accuracy && accuracy < 200 && !isSimulated) {
-        if (!userAccuracyCircleRef.current) {
-          userAccuracyCircleRef.current = L.circle([lat, lng], {
-            radius: accuracy,
-            color: '#38bdf8',
-            fillColor: '#38bdf8',
-            fillOpacity: 0.15,
-            weight: 1
-          }).addTo(mapInstanceRef.current);
-        } else {
-          userAccuracyCircleRef.current.setLatLng([lat, lng]);
-          userAccuracyCircleRef.current.setRadius(accuracy);
-        }
-      } else if (userAccuracyCircleRef.current) {
-        userAccuracyCircleRef.current.remove();
-        userAccuracyCircleRef.current = null;
-      }
-    }
-
     const target = selectedPoi || nextPoi;
     if (target) {
       calculateWalkingRoute(coords, target);
@@ -505,10 +559,52 @@ export default function OutdoorMapView({ onSelectPoi, onPlayAudio, initialPoiId 
     checkProximityTrigger(lat, lng, markersData);
   };
 
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!map || !userLocation) return;
+
+    if (!userMarkerRef.current) {
+      userMarkerRef.current = L.marker([userLocation.lat, userLocation.lng], { icon: userGpsIcon })
+        .bindTooltip(`👤 ${t('current_location')}`, {
+          permanent: true,
+          direction: 'top',
+          offset: [0, -16],
+          className: 'user-location-tooltip'
+        })
+        .addTo(map);
+    } else {
+      userMarkerRef.current.setLatLng([userLocation.lat, userLocation.lng]);
+    }
+
+    if (gpsAccuracy && gpsAccuracy < 200 && locationMode === 'real') {
+      if (!userAccuracyCircleRef.current) {
+        userAccuracyCircleRef.current = L.circle([userLocation.lat, userLocation.lng], {
+          radius: gpsAccuracy,
+          color: '#38bdf8',
+          fillColor: '#38bdf8',
+          fillOpacity: 0.15,
+          weight: 1
+        }).addTo(map);
+      } else {
+        userAccuracyCircleRef.current.setLatLng([userLocation.lat, userLocation.lng]);
+        userAccuracyCircleRef.current.setRadius(gpsAccuracy);
+      }
+    } else if (userAccuracyCircleRef.current) {
+      userAccuracyCircleRef.current.remove();
+      userAccuracyCircleRef.current = null;
+    }
+  }, [userLocation, gpsAccuracy, locationMode, preferredLanguage]);
+
+  useEffect(() => {
+    if (userMarkerRef.current) {
+      userMarkerRef.current.setTooltipContent(`👤 ${t('current_location')}`);
+    }
+  }, [preferredLanguage]);
+
   // 5. Trigger Real Phone GPS
   const handleEnableRealGps = () => {
     if (!('geolocation' in navigator)) {
-      setGpsErrorMsg('Trình duyệt hoặc thiết bị không hỗ trợ GPS.');
+      setGpsErrorMsg('gps_unsupported');
       return;
     }
 
@@ -537,13 +633,13 @@ export default function OutdoorMapView({ onSelectPoi, onPlayAudio, initialPoiId 
       },
       (error) => {
         setLoading(false);
-        let msg = 'Không thể lấy GPS điện thoại.';
+        let messageKey = 'gps_unavailable';
         if (error.code === 1) {
-          msg = 'Bạn đã từ chối quyền GPS. Hãy cho phép quyền vị trí trong cài đặt trình duyệt.';
+          messageKey = 'gps_permission_denied';
         } else if (error.code === 2) {
-          msg = 'Vị trí GPS không khả dụng (hãy bật GPS thiết bị).';
+          messageKey = 'gps_device_off';
         }
-        setGpsErrorMsg(msg);
+        setGpsErrorMsg(messageKey);
       },
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
     );
@@ -610,6 +706,20 @@ export default function OutdoorMapView({ onSelectPoi, onPlayAudio, initialPoiId 
     }
   };
 
+  const handleShowWalkingDirections = () => {
+    setShowSteps(true);
+    if (routingLoading) return;
+
+    const map = mapInstanceRef.current;
+    const bounds = routeLayerRef.current?.getBounds?.();
+    const target = selectedPoi || nextPoi;
+    if (map && bounds?.isValid()) {
+      map.fitBounds(bounds, { padding: [64, 64], maxZoom: 18 });
+    } else if (map && target?.latitude && target?.longitude) {
+      map.flyTo([target.latitude, target.longitude], 18, { duration: 0.8 });
+    }
+  };
+
   // ─── WALKING SIMULATION SYSTEM (TEST GPS GEOFENCE STEP-BY-STEP) ───
   const handleStartWalkingSimulation = () => {
     const target = selectedPoi || nextPoi;
@@ -619,7 +729,8 @@ export default function OutdoorMapView({ onSelectPoi, onPlayAudio, initialPoiId 
 
     // If starting fresh or reached the end, regenerate steps
     if (simStepsRef.current.length === 0 || simCurrentIndexRef.current >= simStepsRef.current.length) {
-      const steps = generateWalkingSteps(userLocation, target, routeInfo.polyline);
+      const routePolyline = routeInfo.targetId === target.id ? routeInfo.polyline : [];
+      const steps = generateWalkingSteps(userLocation, target, routePolyline);
       simStepsRef.current = steps;
       simCurrentIndexRef.current = 0;
     }
@@ -723,7 +834,7 @@ export default function OutdoorMapView({ onSelectPoi, onPlayAudio, initialPoiId 
           }`}
         >
           <Smartphone className={`w-3.5 h-3.5 ${locationMode === 'real' ? 'text-white' : 'text-sky-400'}`} />
-          <span>{locationMode === 'real' ? 'GPS Thật' : 'Bật GPS Điện Thoại'}</span>
+          <span>{locationMode === 'real' ? t('map_gps_real') : t('map_enable_phone_gps')}</span>
           {gpsAccuracy && <span className="text-[10px] opacity-80">(±{Math.round(gpsAccuracy)}m)</span>}
         </button>
 
@@ -738,7 +849,7 @@ export default function OutdoorMapView({ onSelectPoi, onPlayAudio, initialPoiId 
           }`}
         >
           <MapPin className="w-3.5 h-3.5 text-amber-400" />
-          <span>Mô Phỏng Cổng Di Tích</span>
+          <span>{t('map_simulate_entrance')}</span>
         </button>
 
         {/* Toggle Proximity Auto-Tour Mode */}
@@ -752,7 +863,7 @@ export default function OutdoorMapView({ onSelectPoi, onPlayAudio, initialPoiId 
           }`}
         >
           <Radio className={`w-3.5 h-3.5 ${autoTourEnabled ? 'text-amber-400 animate-pulse' : 'text-slate-500'}`} />
-          <span>Tự Động Phát GPS: {autoTourEnabled ? 'BẬT' : 'TẮT'}</span>
+          <span>{t('map_auto_audio')}: {autoTourEnabled ? t('state_on') : t('state_off')}</span>
         </button>
       </div>
 
@@ -760,7 +871,7 @@ export default function OutdoorMapView({ onSelectPoi, onPlayAudio, initialPoiId 
       <button
         type="button"
         onClick={handleCenterOnUser}
-        title="Vị trí của bạn"
+        title={t('current_location')}
         className="absolute top-3 right-3 z-10 w-10 h-10 rounded-2xl bg-slate-900/90 hover:bg-slate-800 border border-slate-700/80 text-sky-400 flex items-center justify-center shadow-xl backdrop-blur-md active:scale-90 transition-all"
       >
         <LocateFixed className="w-5 h-5" />
@@ -778,7 +889,7 @@ export default function OutdoorMapView({ onSelectPoi, onPlayAudio, initialPoiId 
             {/* Status badge */}
             {activeTarget && (
               <div className="flex items-center justify-between">
-                <span className="text-[10px] text-slate-500 font-bold">Mục tiêu:</span>
+                <span className="text-[10px] text-slate-500 font-bold">{t('map_target')}</span>
                 <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${
                   (routeInfo.distanceMeters || 0) <= PROXIMITY_RADIUS_METERS
                     ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-300 animate-pulse'
@@ -793,30 +904,30 @@ export default function OutdoorMapView({ onSelectPoi, onPlayAudio, initialPoiId 
 
             {/* Quick Start Location Presets */}
             <div className="flex flex-col gap-1 text-[10px]">
-              <span className="text-slate-500 font-bold">Xuất phát từ:</span>
+              <span className="text-slate-500 font-bold">{t('map_start_from')}</span>
               <div className="flex flex-wrap gap-1">
                 <button
                   type="button"
-                  onClick={() => handleSetSimulatedStartLocation(10.77688, 106.69532, 'Cổng Di Tích')}
+                  onClick={() => handleSetSimulatedStartLocation(10.77688, 106.69532, 'map_start_main_gate')}
                   className="px-1.5 py-0.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 whitespace-nowrap active:scale-95 transition-all"
                 >
-                  🏛️ Cổng Chính
+                  🏛️ {t('map_start_main_gate')}
                 </button>
                 <button
                   type="button"
-                  onClick={() => handleSetSimulatedStartLocation(10.77645, 106.69505, 'Sân Vườn Trước')}
+                  onClick={() => handleSetSimulatedStartLocation(10.77645, 106.69505, 'map_start_garden')}
                   className="px-1.5 py-0.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 whitespace-nowrap active:scale-95 transition-all"
                 >
-                  🌲 Sân Vườn
+                  🌲 {t('map_start_garden')}
                 </button>
                 <button
                   type="button"
-                  onClick={() => handleSetSimulatedStartLocation(10.77615, 106.69470, 'Bãi Đỗ Xe')}
+                  onClick={() => handleSetSimulatedStartLocation(10.77615, 106.69470, 'map_start_parking')}
                   className="px-1.5 py-0.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 whitespace-nowrap active:scale-95 transition-all"
                 >
-                  🅿️ Bãi Xe
+                  🅿️ {t('map_start_parking')}
                 </button>
-                <span className="text-amber-400/60 italic text-[9px] self-center">(click bản đồ)</span>
+                <span className="text-amber-400/60 italic text-[9px] self-center">{t('map_click_to_set_start')}</span>
               </div>
             </div>
 
@@ -837,7 +948,7 @@ export default function OutdoorMapView({ onSelectPoi, onPlayAudio, initialPoiId 
                   className="flex-1 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 text-[10px] font-black shadow-md flex items-center justify-center gap-1 active:scale-95 transition-all"
                 >
                   <Play className="w-3 h-3 fill-slate-950" />
-                  <span>{simProgress > 0 && simProgress < 100 ? 'Tiếp Tục' : 'Bắt Đầu'}</span>
+                  <span>{simProgress > 0 && simProgress < 100 ? t('map_continue') : t('map_start')}</span>
                 </button>
               ) : (
                 <button
@@ -846,7 +957,7 @@ export default function OutdoorMapView({ onSelectPoi, onPlayAudio, initialPoiId 
                   className="flex-1 py-1.5 rounded-xl bg-amber-500/20 border border-amber-500/50 text-amber-300 text-[10px] font-black shadow-md flex items-center justify-center gap-1 active:scale-95 transition-all"
                 >
                   <Pause className="w-3 h-3" />
-                  <span>Tạm Dừng</span>
+                  <span>{t('map_pause')}</span>
                 </button>
               )}
 
@@ -870,7 +981,7 @@ export default function OutdoorMapView({ onSelectPoi, onPlayAudio, initialPoiId 
               <button
                 type="button"
                 onClick={handleResetWalkingSimulation}
-                title="Đặt lại & xoá lịch sử kích hoạt"
+                title={t('map_reset_simulation')}
                 className="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 active:scale-95 transition-all"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
@@ -895,7 +1006,7 @@ export default function OutdoorMapView({ onSelectPoi, onPlayAudio, initialPoiId 
             className="text-[9px] font-black tracking-widest uppercase flex-shrink-0"
             style={{ writingMode: 'vertical-rl', textOrientation: 'mixed' }}
           >
-            {isSimulatingWalk ? `${simProgress}%` : 'TEST'}
+            {isSimulatingWalk ? `${simProgress}%` : t('map_test')}
           </span>
           {showSimPanel
             ? <ChevronDown className="w-3 h-3 flex-shrink-0 rotate-[-90deg]" />
@@ -910,7 +1021,10 @@ export default function OutdoorMapView({ onSelectPoi, onPlayAudio, initialPoiId 
           style={{ top: '3.5rem' }}
         >
           <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-          <span>{startPointToast}</span>
+          <span>{t(startPointToast.key, {
+            ...startPointToast,
+            name: startPointToast.nameKey ? t(startPointToast.nameKey) : ''
+          })}</span>
         </div>
       )}
 
@@ -927,7 +1041,7 @@ export default function OutdoorMapView({ onSelectPoi, onPlayAudio, initialPoiId 
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-1.5">
                 <span className="text-[10px] font-black uppercase tracking-wider bg-slate-950 text-amber-400 px-2 py-0.5 rounded-full">
-                  GPS Tự Động Nhận Diện
+                  {t('gps_auto_detected')}
                 </span>
                 <span className="text-xs font-black text-slate-900">
                   (~{proximityAlert.distance}m)
@@ -937,7 +1051,7 @@ export default function OutdoorMapView({ onSelectPoi, onPlayAudio, initialPoiId 
                 {proximityAlert.poi.title}
               </h4>
               <p className="text-[11px] font-semibold text-slate-900/90">
-                Tự động mở bài thuyết minh trong {proximityAlert.countdown}s...
+                {t('gps_auto_play_in', { seconds: proximityAlert.countdown })}
               </p>
             </div>
             <button
@@ -954,7 +1068,7 @@ export default function OutdoorMapView({ onSelectPoi, onPlayAudio, initialPoiId 
               className="py-2 px-3 rounded-xl bg-slate-950 hover:bg-slate-900 text-amber-400 font-black text-xs shadow-lg active:scale-95 flex items-center gap-1 flex-shrink-0"
             >
               <Play className="w-3.5 h-3.5 fill-amber-400" />
-              <span>Nghe Ngay</span>
+              <span>{t('play_now')}</span>
             </button>
           </div>
         </div>
@@ -967,7 +1081,7 @@ export default function OutdoorMapView({ onSelectPoi, onPlayAudio, initialPoiId 
         >
           <div className="flex items-center gap-2">
             <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0" />
-            <span>{gpsErrorMsg}</span>
+            <span>{t(gpsErrorMsg)}</span>
           </div>
           <button
             type="button"
@@ -988,13 +1102,13 @@ export default function OutdoorMapView({ onSelectPoi, onPlayAudio, initialPoiId 
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-sky-400">
                 <Footprints className="w-3.5 h-3.5" />
-                <span>Chỉ Đường Đi Bộ (OSRM)</span>
+                <span>{t('walking_route')}</span>
               </div>
               <div className="flex items-center gap-2">
                 <span className="px-2.5 py-0.5 rounded-full bg-sky-500/15 border border-sky-500/30 text-[11px] font-extrabold text-sky-300 flex items-center gap-1">
                   <span>~{routeInfo.distanceMeters || Math.round(activeTarget.distance_meters || 50)}m</span>
                   <span className="text-slate-500">•</span>
-                  <span>{walkingMins} phút đi bộ</span>
+                  <span>{t('walking_minutes', { minutes: walkingMins })}</span>
                 </span>
                 {routeInfo.steps?.length > 0 && (
                   <button
@@ -1009,14 +1123,17 @@ export default function OutdoorMapView({ onSelectPoi, onPlayAudio, initialPoiId 
             </div>
 
             {/* Turn-by-turn directions drawer (collapsible) */}
-            {showSteps && routeInfo.steps?.length > 0 && (
+            {showSteps && !routingLoading && routeInfo.steps?.length > 0 && (
               <div className="max-h-36 overflow-y-auto pr-1 py-1 space-y-1.5 border-y border-slate-800 text-xs">
                 {routeInfo.steps.map((st, i) => (
                   <div key={i} className="flex items-start gap-2 text-slate-300">
                     <span className="w-4 h-4 rounded-full bg-sky-500/20 text-sky-400 text-[10px] font-bold flex items-center justify-center flex-shrink-0 mt-0.5">
                       {i + 1}
                     </span>
-                    <span className="flex-1">{st.text}</span>
+                    <span className="flex-1">
+                      {t(st.key, { name: st.name || '' })}
+                      {st.street && t('route_on_street', { street: st.street })}
+                    </span>
                     {st.distance > 0 && <span className="text-[10px] text-slate-500">{st.distance}m</span>}
                   </div>
                 ))}
@@ -1037,11 +1154,11 @@ export default function OutdoorMapView({ onSelectPoi, onPlayAudio, initialPoiId 
                   #{activeTarget.id} · {activeTarget.title}
                 </h4>
                 <p className="text-xs text-slate-400 line-clamp-1 mt-0.5">
-                  {activeTarget.short_description || 'Xem chi tiết và nghe thuyết minh'}
+                  {activeTarget.short_description || t('details_and_audio')}
                 </p>
                 {isPoiListened(activeTarget.id) && (
                   <span className="inline-flex items-center gap-1 text-[10px] text-emerald-400 font-bold mt-0.5">
-                    <CheckCircle2 className="w-3 h-3" /> Đã nghe thuyết minh
+                    <CheckCircle2 className="w-3 h-3" /> {t('listened_guide')}
                   </span>
                 )}
               </div>
@@ -1050,20 +1167,37 @@ export default function OutdoorMapView({ onSelectPoi, onPlayAudio, initialPoiId 
             {/* Action Button: Proximity-Aware Audio Guide */}
             <div className="pt-1 border-t border-slate-800/80 space-y-1.5">
               {(isNearTarget || isPoiListened(activeTarget.id)) ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (onPlayAudio) {
-                      onPlayAudio(activeTarget.id, true);
-                    } else {
-                      onSelectPoi(activeTarget.id, true);
-                    }
-                  }}
-                  className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 text-xs font-black shadow-md shadow-amber-500/25 transition-all flex items-center justify-center gap-1.5 active:scale-95"
-                >
-                  <Volume2 className="w-4 h-4" />
-                  <span>{isPoiListened(activeTarget.id) ? 'Nghe Lại Thuyết Minh' : 'Nghe Thuyết Minh Hiện Vật'}</span>
-                </button>
+                <>
+                  {!isNearTarget && isPoiListened(activeTarget.id) && (
+                    <>
+                      <p className="text-center text-[10px] text-slate-400">
+                        {t('follow_route_to_revisit')}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={handleShowWalkingDirections}
+                        className="w-full py-2.5 px-4 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-black shadow-md shadow-sky-500/25 transition-all flex items-center justify-center gap-1.5 active:scale-95"
+                      >
+                        <Navigation className="w-4 h-4" />
+                        <span>{t('navigate_here')}</span>
+                      </button>
+                    </>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (onPlayAudio) {
+                        onPlayAudio(activeTarget.id, true);
+                      } else {
+                        onSelectPoi(activeTarget.id, true);
+                      }
+                    }}
+                    className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 text-xs font-black shadow-md shadow-amber-500/25 transition-all flex items-center justify-center gap-1.5 active:scale-95"
+                  >
+                    <Volume2 className="w-4 h-4" />
+                    <span>{isPoiListened(activeTarget.id) ? t('replay_guide') : t('play_guide')}</span>
+                  </button>
+                </>
               ) : (
                 <>
                   <button
@@ -1072,11 +1206,11 @@ export default function OutdoorMapView({ onSelectPoi, onPlayAudio, initialPoiId 
                     className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-sky-500 to-sky-600 hover:from-sky-400 hover:to-sky-500 text-white text-xs font-black shadow-md shadow-sky-500/25 transition-all flex items-center justify-center gap-1.5 active:scale-95"
                   >
                     <Footprints className="w-4 h-4" />
-                    <span>Đi Bộ Đến Hiện Vật ({distanceToTarget !== null ? `${distanceToTarget}m` : '...'})</span>
+                    <span>{t('walk_to_exhibit', { distance: distanceToTarget !== null ? distanceToTarget : '...' })}</span>
                   </button>
                   <p className="text-center text-[10px] text-slate-500 flex items-center justify-center gap-1">
                     <Navigation className="w-3 h-3" />
-                    <span>Hãy lại gần hiện vật (≤{PROXIMITY_RADIUS_METERS}m) để mở khóa thuyết minh</span>
+                    <span>{t('approach_to_unlock', { distance: PROXIMITY_RADIUS_METERS })}</span>
                   </p>
                 </>
               )}
@@ -1089,7 +1223,7 @@ export default function OutdoorMapView({ onSelectPoi, onPlayAudio, initialPoiId 
       {(loading || routingLoading) && (
         <div className="absolute top-14 left-1/2 -translate-x-1/2 z-30 glass px-3 py-1 rounded-full border border-sky-500/40 bg-slate-950/80 text-[10px] font-bold text-sky-300 flex items-center gap-1.5 shadow-lg">
           <RefreshCw className="w-3 h-3 animate-spin text-sky-400" />
-          <span>{routingLoading ? 'Đang vẽ đường đi bộ OSRM...' : 'Đang nạp dữ liệu...'}</span>
+          <span>{routingLoading ? t('loading_walking_route') : t('loading_map_data')}</span>
         </div>
       )}
     </div>
