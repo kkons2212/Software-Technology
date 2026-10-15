@@ -10,7 +10,7 @@
 /* Leaflet map styles */
 .leaflet-container {
   font-family: inherit;
-  background-color: #090d16;
+  background-color: #111827; /* fallback bg while tiles load - dark but not pitch black */
 }
 .leaflet-popup-content-wrapper {
   background-color: #0f172a !important;

@@ -2,12 +2,13 @@
 Router phục vụ sinh mã QR trang chủ để khách quét truy cập website.
 Tận dụng thư viện qrcode đã có trong QRService.
 """
+import io
+import base64
 import qrcode
-from PIL import Image
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 
-from config import QR_DIR, get_frontend_base_url
+from config import get_frontend_base_url
 
 router = APIRouter(prefix="/api/qr", tags=["QR Homepage"])
 
@@ -16,7 +17,8 @@ router = APIRouter(prefix="/api/qr", tags=["QR Homepage"])
 def generate_homepage_qr():
     """
     Sinh mã QR chứa link trang chủ (homepage) của website.
-    Trả về URL ảnh QR để frontend hiển thị.
+    Trả về ảnh QR dưới dạng base64 data URI để frontend hiển thị mà không
+    phụ thuộc vào static file serving (hoạt động qua Cloudflare tunnel).
     """
     base_url = get_frontend_base_url().rstrip("/")
     homepage_url = base_url  # QR dẫn thẳng về trang chủ "/"
@@ -33,18 +35,18 @@ def generate_homepage_qr():
     qr.add_data(homepage_url)
     qr.make(fit=True)
 
-    # Tạo ảnh QR sắc nét
+    # Tạo ảnh QR sắc nét và encode sang base64
     qr_image = qr.make_image(fill_color="#0f172a", back_color="#ffffff").convert("RGB")
 
-    # Lưu file
-    file_name = "qr_homepage.png"
-    file_path = QR_DIR / file_name
-    qr_image.save(str(file_path), format="PNG")
-
-    relative_url = f"/static/qr/{file_name}"
+    buffer = io.BytesIO()
+    qr_image.save(buffer, format="PNG")
+    buffer.seek(0)
+    b64 = base64.b64encode(buffer.read()).decode("utf-8")
+    data_uri = f"data:image/png;base64,{b64}"
 
     return JSONResponse(content={
-        "qr_image_url": relative_url,
+        "qr_image_url": data_uri,
         "target_url": homepage_url,
         "message": "Quét mã QR này để truy cập trang chủ Smart Museum"
     })
+

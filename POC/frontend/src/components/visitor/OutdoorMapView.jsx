@@ -129,7 +129,7 @@ export default function OutdoorMapView({ onSelectPoi, onPlayAudio, initialPoiId 
   const [isSimulatingWalk, setIsSimulatingWalk] = useState(false);
   const [simSpeed, setSimSpeed] = useState(1); // 1x | 2x | 4x
   const [simProgress, setSimProgress] = useState(0); // 0 -> 100%
-  const [showSimPanel, setShowSimPanel] = useState(true);
+  const [showSimPanel, setShowSimPanel] = useState(false);
   const [startPointToast, setStartPointToast] = useState(null);
   const toastTimeoutRef = useRef(null);
   const simIntervalRef = useRef(null);
@@ -324,15 +324,45 @@ export default function OutdoorMapView({ onSelectPoi, onPlayAudio, initialPoiId 
       minZoom: 5,
       maxZoom: 21,
       zoomControl: false,
-      attributionControl: false
+      attributionControl: false,
+      preferCanvas: true,  // Better performance on mobile
+      tap: true,           // Enable tap support on mobile
+      tapTolerance: 15
     });
 
-    // OpenStreetMap Tile Layer
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxNativeZoom: 19,
-      maxZoom: 22,
-      subdomains: ['a', 'b', 'c']
-    }).addTo(map);
+    // Primary tile: OpenStreetMap (free, no API key needed)
+    const primaryTile = L.tileLayer(
+      'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+      {
+        maxNativeZoom: 19,
+        maxZoom: 22,
+        subdomains: ['a', 'b', 'c'],
+        crossOrigin: true
+      }
+    );
+
+    // Fallback: OSM France mirror
+    const fallbackTile = L.tileLayer(
+      'https://{s}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png',
+      {
+        maxNativeZoom: 20,
+        maxZoom: 22,
+        subdomains: ['a', 'b', 'c'],
+        crossOrigin: true
+      }
+    );
+
+    // Try primary, fallback on tile error
+    let fallbackTriggered = false;
+    primaryTile.on('tileerror', () => {
+      if (!fallbackTriggered) {
+        fallbackTriggered = true;
+        console.warn('[Map] OSM primary failed, switching to OSM France mirror');
+        primaryTile.remove();
+        fallbackTile.addTo(map);
+      }
+    });
+    primaryTile.addTo(map);
 
     L.control.attribution({ position: 'bottomright', prefix: false })
       .addAttribution('&copy; <a href="https://www.openstreetmap.org/copyright" class="text-[10px] text-slate-500">OpenStreetMap</a>')
@@ -343,6 +373,24 @@ export default function OutdoorMapView({ onSelectPoi, onPlayAudio, initialPoiId 
     geofenceLayerRef.current = L.layerGroup().addTo(map);
     markersLayerRef.current = L.layerGroup().addTo(map);
     mapInstanceRef.current = map;
+
+    // CRITICAL for mobile: force map to recalculate its container size
+    // Container may not have final dimensions yet when map initializes
+    const invalidateTimer = setTimeout(() => {
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.invalidateSize({ animate: false });
+      }
+    }, 300);
+
+    // Also watch for container resize (orientation change, layout shift on mobile)
+    const resizeObserver = new ResizeObserver(() => {
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.invalidateSize({ animate: false });
+      }
+    });
+    if (mapContainerRef.current) {
+      resizeObserver.observe(mapContainerRef.current);
+    }
 
     // Allow user to click anywhere on map to set starting location in simulation mode
     map.on('click', (e) => {
@@ -358,6 +406,8 @@ export default function OutdoorMapView({ onSelectPoi, onPlayAudio, initialPoiId 
     fetchMapData(defaultEntrance.lat, defaultEntrance.lng);
 
     return () => {
+      clearTimeout(invalidateTimer);
+      resizeObserver.disconnect();
       if (watchIdRef.current) {
         navigator.geolocation?.clearWatch(watchIdRef.current);
       }
@@ -716,131 +766,160 @@ export default function OutdoorMapView({ onSelectPoi, onPlayAudio, initialPoiId 
         <LocateFixed className="w-5 h-5" />
       </button>
 
-      {/* ─── WALKING TEST SIMULATION BAR (THỬ NGHIỆM ĐI BỘ LẠI GẦN HIỆN VẬT) ─── */}
-      <div className="absolute top-14 left-3 right-3 z-20 max-w-md mx-auto">
-        <div className="bg-slate-900/95 border border-amber-500/40 rounded-2xl p-2.5 shadow-2xl backdrop-blur-xl flex flex-col gap-2">
-          {/* Header & Status */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1.5 text-xs font-black text-amber-400">
-              <Footprints className="w-4 h-4 animate-bounce-short" />
-              <span>Thử Nghiệm Đi Bộ GPS (Test Geofence)</span>
-            </div>
+      {/* ─── WALKING TEST SIMULATION PANEL (RIGHT-SIDE VERTICAL SIDEBAR) ─── */}
+      <div
+        className="absolute right-0 z-20 flex flex-row items-start"
+        style={{ top: '3.25rem' }}
+      >
+        {/* ── Expanded Panel (slides in from right) ── */}
+        {showSimPanel && (
+          <div className="w-64 bg-slate-900/97 border border-amber-500/40 border-r-0 rounded-l-2xl shadow-2xl backdrop-blur-xl flex flex-col gap-2 p-2.5 animate-fade-in">
+
+            {/* Status badge */}
             {activeTarget && (
-              <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${
-                (routeInfo.distanceMeters || 0) <= PROXIMITY_RADIUS_METERS
-                  ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-300 animate-pulse'
-                  : 'bg-slate-800 border-slate-700 text-slate-300'
-              }`}>
-                {(routeInfo.distanceMeters || 0) <= PROXIMITY_RADIUS_METERS
-                  ? '⚡ ĐÃ VÀO VÙNG PHÁT (≤30m)'
-                  : `Cách #${activeTarget.id}: ${routeInfo.distanceMeters || 50}m`}
-              </span>
-            )}
-          </div>
-
-          {/* Quick Start Location Presets */}
-          <div className="flex items-center gap-1 overflow-x-auto py-0.5 scrollbar-none text-[10px]">
-            <span className="text-slate-500 font-bold whitespace-nowrap">Xuất phát từ:</span>
-            <button
-              type="button"
-              onClick={() => handleSetSimulatedStartLocation(10.77688, 106.69532, 'Cổng Di Tích')}
-              className="px-2 py-0.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 whitespace-nowrap active:scale-95 transition-all"
-            >
-              🏛️ Cổng Chính
-            </button>
-            <button
-              type="button"
-              onClick={() => handleSetSimulatedStartLocation(10.77645, 106.69505, 'Sân Vườn Trước')}
-              className="px-2 py-0.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 whitespace-nowrap active:scale-95 transition-all"
-            >
-              🌲 Sân Vườn (~65m)
-            </button>
-            <button
-              type="button"
-              onClick={() => handleSetSimulatedStartLocation(10.77615, 106.69470, 'Bãi Đỗ Xe')}
-              className="px-2 py-0.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 whitespace-nowrap active:scale-95 transition-all"
-            >
-              🅿️ Bãi Xe (~110m)
-            </button>
-            <span className="text-amber-400/80 italic whitespace-nowrap text-[9px]">
-              (hoặc click bản đồ)
-            </span>
-          </div>
-
-          {/* Progress bar */}
-          <div className="w-full bg-slate-800/80 rounded-full h-1.5 overflow-hidden">
-            <div
-              className="bg-gradient-to-r from-amber-400 via-amber-500 to-emerald-400 h-full transition-all duration-200"
-              style={{ width: `${simProgress}%` }}
-            />
-          </div>
-
-          {/* Controls: Play/Pause, Speed, Reset */}
-          <div className="flex items-center justify-between gap-1.5">
-            {/* Play / Pause Walk */}
-            {!isSimulatingWalk ? (
-              <button
-                type="button"
-                onClick={handleStartWalkingSimulation}
-                className="flex-1 py-1.5 px-3 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 text-xs font-black shadow-md flex items-center justify-center gap-1.5 active:scale-95 transition-all"
-              >
-                <Play className="w-3.5 h-3.5 fill-slate-950" />
-                <span>{simProgress > 0 && simProgress < 100 ? 'Tiếp Tục Đi Bộ' : 'Bắt Đầu Đi Bộ Lại Gần'}</span>
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={handlePauseWalkingSimulation}
-                className="flex-1 py-1.5 px-3 rounded-xl bg-amber-500/20 border border-amber-500/50 text-amber-300 text-xs font-black shadow-md flex items-center justify-center gap-1.5 active:scale-95 transition-all"
-              >
-                <Pause className="w-3.5 h-3.5" />
-                <span>Tạm Dừng ({simProgress}%)</span>
-              </button>
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] text-slate-500 font-bold">Mục tiêu:</span>
+                <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${
+                  (routeInfo.distanceMeters || 0) <= PROXIMITY_RADIUS_METERS
+                    ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-300 animate-pulse'
+                    : 'bg-slate-800 border-slate-700 text-slate-300'
+                }`}>
+                  {(routeInfo.distanceMeters || 0) <= PROXIMITY_RADIUS_METERS
+                    ? '⚡ ≤30m'
+                    : `#${activeTarget.id}: ${routeInfo.distanceMeters || 50}m`}
+                </span>
+              </div>
             )}
 
-            {/* Speed Toggle: 1x, 2x, 4x */}
-            <div className="flex items-center bg-slate-800/80 border border-slate-700/80 rounded-xl p-0.5">
-              {[1, 2, 4].map((spd) => (
+            {/* Quick Start Location Presets */}
+            <div className="flex flex-col gap-1 text-[10px]">
+              <span className="text-slate-500 font-bold">Xuất phát từ:</span>
+              <div className="flex flex-wrap gap-1">
                 <button
-                  key={spd}
                   type="button"
-                  onClick={() => setSimSpeed(spd)}
-                  className={`px-2 py-1 rounded-lg text-[10px] font-black transition-all ${
-                    simSpeed === spd
-                      ? 'bg-amber-400 text-slate-950 shadow'
-                      : 'text-slate-400 hover:text-white'
-                  }`}
+                  onClick={() => handleSetSimulatedStartLocation(10.77688, 106.69532, 'Cổng Di Tích')}
+                  className="px-1.5 py-0.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 whitespace-nowrap active:scale-95 transition-all"
                 >
-                  {spd}x
+                  🏛️ Cổng Chính
                 </button>
-              ))}
+                <button
+                  type="button"
+                  onClick={() => handleSetSimulatedStartLocation(10.77645, 106.69505, 'Sân Vườn Trước')}
+                  className="px-1.5 py-0.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 whitespace-nowrap active:scale-95 transition-all"
+                >
+                  🌲 Sân Vườn
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSetSimulatedStartLocation(10.77615, 106.69470, 'Bãi Đỗ Xe')}
+                  className="px-1.5 py-0.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 whitespace-nowrap active:scale-95 transition-all"
+                >
+                  🅿️ Bãi Xe
+                </button>
+                <span className="text-amber-400/60 italic text-[9px] self-center">(click bản đồ)</span>
+              </div>
             </div>
 
-            {/* Reset */}
-            <button
-              type="button"
-              onClick={handleResetWalkingSimulation}
-              title="Đặt lại vị trí cổng & xoá lịch sử kích hoạt để test lại"
-              className="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 active:scale-95 transition-all flex items-center gap-1 text-[10px] font-bold"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-              <span>Reset</span>
-            </button>
+            {/* Progress bar */}
+            <div className="w-full bg-slate-800/80 rounded-full h-1.5 overflow-hidden">
+              <div
+                className="bg-gradient-to-r from-amber-400 via-amber-500 to-emerald-400 h-full transition-all duration-200"
+                style={{ width: `${simProgress}%` }}
+              />
+            </div>
+
+            {/* Controls: Play/Pause + Speed */}
+            <div className="flex items-center gap-1.5">
+              {!isSimulatingWalk ? (
+                <button
+                  type="button"
+                  onClick={handleStartWalkingSimulation}
+                  className="flex-1 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 text-[10px] font-black shadow-md flex items-center justify-center gap-1 active:scale-95 transition-all"
+                >
+                  <Play className="w-3 h-3 fill-slate-950" />
+                  <span>{simProgress > 0 && simProgress < 100 ? 'Tiếp Tục' : 'Bắt Đầu'}</span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handlePauseWalkingSimulation}
+                  className="flex-1 py-1.5 rounded-xl bg-amber-500/20 border border-amber-500/50 text-amber-300 text-[10px] font-black shadow-md flex items-center justify-center gap-1 active:scale-95 transition-all"
+                >
+                  <Pause className="w-3 h-3" />
+                  <span>Tạm Dừng</span>
+                </button>
+              )}
+
+              <div className="flex items-center bg-slate-800/80 border border-slate-700/80 rounded-xl p-0.5">
+                {[1, 2, 4].map((spd) => (
+                  <button
+                    key={spd}
+                    type="button"
+                    onClick={() => setSimSpeed(spd)}
+                    className={`px-1.5 py-1 rounded-lg text-[10px] font-black transition-all ${
+                      simSpeed === spd
+                        ? 'bg-amber-400 text-slate-950 shadow'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    {spd}x
+                  </button>
+                ))}
+              </div>
+
+              <button
+                type="button"
+                onClick={handleResetWalkingSimulation}
+                title="Đặt lại & xoá lịch sử kích hoạt"
+                className="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 active:scale-95 transition-all"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+              </button>
+            </div>
           </div>
-        </div>
+        )}
+
+        {/* ── Toggle Tab (always visible, vertical text on right edge) ── */}
+        <button
+          type="button"
+          onClick={() => setShowSimPanel((v) => !v)}
+          className={`flex flex-col items-center justify-center gap-1 px-1.5 py-3 rounded-l-xl border border-r-0 shadow-xl backdrop-blur-md active:scale-95 transition-all ${
+            showSimPanel
+              ? 'bg-amber-500/20 border-amber-500/50 text-amber-300'
+              : 'bg-slate-900/90 border-slate-700/80 text-amber-400/70 hover:text-amber-400 hover:border-amber-500/40'
+          }`}
+          style={{ minHeight: '64px' }}
+        >
+          <Footprints className={`w-3.5 h-3.5 flex-shrink-0 ${isSimulatingWalk ? 'animate-bounce-short text-amber-400' : ''}`} />
+          <span
+            className="text-[9px] font-black tracking-widest uppercase flex-shrink-0"
+            style={{ writingMode: 'vertical-rl', textOrientation: 'mixed' }}
+          >
+            {isSimulatingWalk ? `${simProgress}%` : 'TEST'}
+          </span>
+          {showSimPanel
+            ? <ChevronDown className="w-3 h-3 flex-shrink-0 rotate-[-90deg]" />
+            : <ChevronDown className="w-3 h-3 flex-shrink-0 rotate-90" />}
+        </button>
       </div>
 
       {/* ─── START POINT TOAST NOTIFICATION ─── */}
       {startPointToast && (
-        <div className="absolute top-44 left-1/2 -translate-x-1/2 z-30 glass px-3.5 py-1.5 rounded-full border border-sky-500/50 bg-slate-950/90 text-sky-300 text-xs font-bold shadow-xl animate-fade-in flex items-center gap-2 whitespace-nowrap">
+        <div
+          className="absolute left-1/2 -translate-x-1/2 z-30 glass px-3.5 py-1.5 rounded-full border border-sky-500/50 bg-slate-950/90 text-sky-300 text-xs font-bold shadow-xl animate-fade-in flex items-center gap-2 whitespace-nowrap"
+          style={{ top: '3.5rem' }}
+        >
           <Sparkles className="w-3.5 h-3.5 text-amber-400" />
           <span>{startPointToast}</span>
         </div>
       )}
 
+
       {/* ─── PROXIMITY GEOFENCE POPUP ALERT (KHI LẠI GẦN HIỆN VẬT) ─── */}
       {proximityAlert && (
-        <div className="absolute top-40 left-3 right-3 z-30 max-w-md mx-auto animate-bounce-short">
+        <div
+          className="absolute top-14 left-3 right-3 z-30 max-w-md mx-auto animate-bounce-short"
+        >
           <div className="bg-gradient-to-r from-amber-500 via-amber-600 to-amber-500 text-slate-950 p-4 rounded-3xl shadow-2xl border-2 border-white/40 flex items-center gap-3">
             <div className="w-12 h-12 rounded-2xl bg-slate-950 text-amber-400 flex items-center justify-center flex-shrink-0 shadow-lg">
               <Radio className="w-6 h-6 animate-ping" />
@@ -883,7 +962,9 @@ export default function OutdoorMapView({ onSelectPoi, onPlayAudio, initialPoiId 
 
       {/* ─── GPS ERROR BANNER ─── */}
       {gpsErrorMsg && (
-        <div className="absolute top-40 left-3 right-3 z-20 glass px-3.5 py-2 rounded-2xl border border-red-500/50 bg-red-950/90 text-red-200 text-xs font-medium flex items-center justify-between shadow-xl animate-fade-in">
+        <div
+          className="absolute top-14 left-3 right-3 z-20 glass px-3.5 py-2 rounded-2xl border border-red-500/50 bg-red-950/90 text-red-200 text-xs font-medium flex items-center justify-between shadow-xl animate-fade-in"
+        >
           <div className="flex items-center gap-2">
             <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0" />
             <span>{gpsErrorMsg}</span>
