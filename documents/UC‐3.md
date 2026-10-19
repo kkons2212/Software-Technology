@@ -13,16 +13,11 @@
 | **Use Case Name** | Manage Exhibits / POIs (CRUD) |
 | **Primary Actor** | Admin / Museum Staff |
 | **Maturity** | Focused |
+|**Summary:** | Admin/Museum staff want to add, configure, and manage the exhibits and presentation of the museum.|
+|**Triggers:** | Actor wants to add, edit, or delete current exhibition and presentation details for the museum.|
+|**Postconditions:** | The updated exhibition information is saved into stored data.|
 | **Author(s)** | @Phatnguyen3003 |
 | **Date** | September 21, 2026 |
-
----
-
-## Overview
-
-* **Summary:** Admin/Museum staff want to add, configure, and manage the exhibits and presentation of the museum.
-* **Triggers:** Actor wants to add, edit, or delete current exhibition and presentation details for the museum.
-* **Postconditions:** The updated exhibition information is saved into stored data.
 
 ---
 
