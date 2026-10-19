@@ -1,4 +1,4 @@
-# Use Case Specification: UC-02
+# Use Case Specification: UC-01
 
 <p align="center">
   <img src="https://github.com/user-attachments/assets/95f0af27-94cc-44ed-8805-af5d073d5d02" width="650" alt="UC-02 Use Case Diagram">
@@ -8,7 +8,7 @@
 
 | Field | Content |
 | :--- | :--- |
-| **Use Case Number:** | **UC-02** |
+| **Use Case Number:** | **UC-01** |
 | **Use Case Name:** | View Interactive Map & Recommended Routes |
 | **Actor(s):** | Visitor|
 | **Maturity:** | Focused |
