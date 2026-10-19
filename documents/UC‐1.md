@@ -13,7 +13,6 @@
 | **Actor(s):** | Visitor|
 | **Maturity:** | Focused |
 | **Summary:** | Visitors view the museum's interactive map and receive recommended routes based on their real-time GPS location or selected exhibit. |
-| **Reference: Business rule** | 3. |
 
 ---
 
