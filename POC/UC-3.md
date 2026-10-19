@@ -1,12 +1,12 @@
 
 
 
-# Use Case Specification: UC05 - View POI Details
+# Use Case Specification: UC03 - View POI Details
 <img width="897" height="288" alt="Ảnh chụp màn hình 2026-09-22 083007" src="https://github.com/user-attachments/assets/4b59f593-fea5-4971-b4e9-69c63ffa55fa" />
 
 | Field | Description |
 | :--- | :--- |
-| **Use Case ID** |  |
+| **Use Case ID** | UC03 |
 | **Use Case Name** | Generate & Manage QR Codes for POIs |
 | **Actor(s)** |Museum Staff / Administrator|
 | **Maturity**

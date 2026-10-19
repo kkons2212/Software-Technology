@@ -1,4 +1,4 @@
-# UC-04: Manage Exhibits / POIs (CRUD)
+# UC-02: Manage Exhibits / POIs (CRUD)
 
 ## Document Metadata
   
@@ -9,7 +9,7 @@
 
 | Field | Details |
 | :--- | :--- |
-| **Use Case ID** | UC-04 |
+| **Use Case ID** | UC-02 |
 | **Use Case Name** | Manage Exhibits / POIs (CRUD) |
 | **Primary Actor** | Admin / Museum Staff |
 | **Maturity** | Focused |

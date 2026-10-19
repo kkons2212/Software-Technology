@@ -12,7 +12,7 @@
 | **Use Case Name:** | View Interactive Map & Recommended Routes |
 | **Actor(s):** | Visitor|
 | **Maturity:** | Focused |
-| **Summary:** | Visitors view the museum's interactive map and receive recommended routes based on their last scanned QR code. |
+| **Summary:** | Visitors view the museum's interactive map and receive recommended routes based on their real-time GPS location or selected exhibit. |
 | **Reference: Business rule** | 3. |
 
 ---
@@ -21,10 +21,10 @@
 
 | Actor Action | System Response |
 | :--- | :--- |
-| **1.** Visitor accesses the Map section or completes a QR code scan. **[A1]** | |
-| | **2.** The system retrieves the location marker of the last scanned QR code. |
-| | **3.** The system loads the interactive map  and displays the Visitor's current marker. **[E1]** |
-| | **4.** The system calculates and displays the recommended route to the next POI/exhibit. |
+| **1.** Visitor accesses the Map section. **[A1]** | |
+| | **2.** The system retrieves the Visitor's current GPS location coordinates. |
+| | **3.** The system loads the interactive map and displays the Visitor's current marker. **[E1]** |
+| | **4.** The system calculates and displays the recommended route to the nearest or next POI/exhibit. |
 | **5.** Visitor interacts with the map (zoom, pan, or tap on other POIs). | |
 | | **6.** The system updates the map view and displays a preview card for the selected POI. |
 
@@ -32,10 +32,10 @@
 
 ### Alternative Paths
 
-#### **A1.**
+#### **A1. GPS Location Unavailable or Permission Denied**
 | Actor Action | System Response |
 | :--- | :--- |
-| **1.** Visitor opens the map without scanning any prior QR code. | |
+| **1.** Visitor opens the map without GPS enabled or denies location access. | |
 | | **2.** The system loads the default museum map centered at the Entrance location. |
 | | **3.** Return to step 5 of the Basic Course of Events. |
 
@@ -52,8 +52,8 @@
 | Field | Content |
 | :--- | :--- |
 | **Extension Points:** | None |
-| **Triggers:** | Visitor taps on the "Map" tab or scans an exhibit's QR code. |
-| **Assumptions:** | The museum indoor layout data is pre-configured and mapped accurately in the system database. |
+| **Triggers:** | Visitor taps on the "Map" tab or navigates to the map view. |
+| **Assumptions:** | The museum indoor/outdoor layout and POI GPS coordinates are pre-configured accurately in the system database. |
 | **Preconditions:** | The Web Application is active on the Visitor's mobile browser. |
 | **Post Conditions:** | The interactive map and recommended route are displayed to the Visitor. |
 | **Author(s):** | @kkons2212 (Thái Đặng Quốc Bảo) |
