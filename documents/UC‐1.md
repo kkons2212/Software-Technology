@@ -64,5 +64,7 @@
 ### Activity Diagram
 
 <p align="center">
-  <img src="https://github.com/user-attachments/assets/552b1ee1-fa46-4703-9952-33fbff66b481" width="600" alt="UC-02 Activity Diagram">
+  
+<img width="600" alt="Activity Diagram1" src="https://github.com/user-attachments/assets/0e2238db-17e4-49b2-a285-4bb36f0fcfec" />
+
 </p>
