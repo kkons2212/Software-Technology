@@ -1,0 +1,1 @@
+// PoiCatalogPage.jsx
