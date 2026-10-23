@@ -12,7 +12,6 @@ During the Proof of Concept (POC) phase, the system leverages **SQLite** configu
 ---
 
 ## 2. Entity Relationship Diagram (ERD)
-<img width="1534" height="1005" alt="Entity Relationship Diagram2" src="https://github.com/user-attachments/assets/2da83fdc-f695-41b1-a348-7365372a17ca" />
-
+<img width="1539" height="1005" alt="Entity Relationship Diagram2" src="https://github.com/user-attachments/assets/14da5256-ad8d-42ed-af82-c58fe00dfc09" />
 
 ## 3. Data Dictionary
