@@ -344,7 +344,7 @@ At the executive operational tier, the Visitor Telemetry & Infrastructure Health
 * Requests HTML5 browser geolocation permissions on mobile devices upon opening the map.
 * Renders the visitor's live GPS coordinates as a distinct animated location marker alongside POI markers on OpenStreetMap.
 * Supports fluid pinch-to-zoom and pan gestures.
-* If GPS is disabled or coordinates fall outside the museum grounds (>300m), notifies the visitor and centers the map view at the Main Entrance by default.
+* If GPS is disabled or coordinates fall outside the museum grounds (>30m), notifies the visitor and centers the map view at the Main Entrance by default.
 
 **Task List:**
 
