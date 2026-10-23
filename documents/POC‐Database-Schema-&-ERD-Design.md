@@ -1,4 +1,4 @@
-# Database Schema & ERD Design (Smart Museum POC)
+# Database Schema & ERD Design 
 
 > **Document:** Entity Relationship Diagram (ERD) and Database Specifications for the **Smart Museum — AI Audio Guide & Navigation (POC)** system.
 
