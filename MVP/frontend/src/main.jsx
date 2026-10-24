@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom';
 import App from './App.jsx';
 import { AuthProvider } from './contexts/AuthContext.jsx';
 import './index.css';
+import 'leaflet/dist/leaflet.css';
 
 const rootElement = document.getElementById('root');
 
