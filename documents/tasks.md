@@ -10,7 +10,7 @@
 |:---|:---|:---:|:---:|:---:|:---:|:---:|
 | [**US 01.1**](#-us-011-interactive-outdoor-map-header--real-time-gps-tracking) | Interactive Outdoor Map, Header & Real-Time GPS Tracking | UC-01 | Must Have | 5 SP | 5 Tasks | [ ] 0/5 |
 | [**US 01.2**](#-us-012-tap-map-marker-for-teaser-preview-bottom-sheet) | Tap Map Marker for Teaser Preview Bottom Sheet | UC-01 | Must Have | 3 SP | 3 Tasks | [ ] 0/3 |
-| [**US 01.3**](#-us-013-automated-voice-narration-on-gps-proximity--mini-audio-player) | Automated Voice Narration on GPS Proximity & Mini Audio Player | UC-01 | Must Have | 8 SP | 6 Tasks | [ ] 0/6 |
+| [**US 01.3**](#-us-013-automated-voice-narration-on-gps-proximity--mini-audio-player) | Automated Voice Narration on GPS Proximity & Mini Audio Player | UC-01 | Must Have | 8 SP | 6 Tasks | [ ] 4/6 |
 | [**US 01.4**](#-us-014-intelligent-recommended-walking-route-wayfinding) | Intelligent Recommended Walking Route Wayfinding | UC-01 | Should Have | 5 SP | 3 Tasks | [ ] 0/3 |
 | [**US 02.1**](#-us-021-administrator-authentication--portal-login) | Administrator Authentication & Portal Login | UC-02 | Must Have | 5 SP | 5 Tasks | [ ] 0/5 |
 | [**US 02.2**](#-us-022-brute-force-protection--account-lockout) | Brute-Force Protection & Account Lockout | UC-02 | Must Have | 3 SP | 4 Tasks | [ ] 0/4 |
@@ -110,29 +110,29 @@
 > **So that** I can seamlessly immerse myself in the history without having to constantly stare at my phone.
 >
 > * **Priority:** Must Have | **Estimate:** 8 SP
-> * **Progress:** [ ] 0/6 Tasks Completed
+> * **Progress:** [ ] 4/6 Tasks Completed (Frontend Complete)
 
 #### Acceptance Criteria:
-- [ ] **AC-01.3.1:** When distance between visitor and POI $\le$ POI's configured `trigger_radius` (10m–50m), automatically initiate audio guide playback for the selected language.
-- [ ] **AC-01.3.2:** 10-Minute Cooldown Trigger Lock: After an exhibit is triggered, apply a 600-second lockout per POI to prevent annoying repeated popups while lingering near boundary lines.
-- [ ] **AC-01.3.3:** Floating Mini Audio Player pinned to the viewport bottom: exhibit title, progress scrubber, Skip -10s, Play/Pause, Skip +10s, playback speed toggle (`0.8x | 1.0x | 1.2x`), and `Offline TTS` indicator.
-- [ ] **AC-01.3.4:** Singleton Audio Context: Exactly 1 audio stream active at any time. 3.5s Fallback Timeout: If MP3 stream buffering exceeds 3.5 seconds due to forest cell coverage drops, automatically abort and fallback to browser Web Speech API.
+- [x] **AC-01.3.1:** When distance between visitor and POI $\le$ POI's configured `trigger_radius` (10m–50m), automatically initiate audio guide playback for the selected language.
+- [x] **AC-01.3.2:** 10-Minute Cooldown Trigger Lock: After an exhibit is triggered, apply a 600-second lockout per POI to prevent annoying repeated popups while lingering near boundary lines.
+- [x] **AC-01.3.3:** Floating Mini Audio Player pinned to the viewport bottom: exhibit title, progress scrubber, Skip -10s, Play/Pause, Skip +10s, playback speed toggle (`0.8x | 1.0x | 1.2x`), and `Offline TTS` indicator.
+- [x] **AC-01.3.4:** Singleton Audio Context: Exactly 1 audio stream active at any time. 3.5s Fallback Timeout: If MP3 stream buffering exceeds 3.5 seconds due to forest cell coverage drops, automatically abort and fallback to browser Web Speech API.
 - [ ] **AC-01.3.5:** Automatically ingest trigger events into the backend `POITrigger` table to power telemetry heatmaps and dwell analytics.
 
 #### Task Checklist:
-- [ ] `TSK-01.3.1` `[Frontend]` **Geofence Proximity Detection Engine (`useGeofenceTrigger.js`)**
+- [x] `TSK-01.3.1` `[Frontend]` **Geofence Proximity Detection Engine (`useGeofenceTrigger.js`)**
   - **Scope:** Continuously calculate Haversine distance against each active POI's individual `trigger_radius` (10m–50m). Fire trigger callback upon entering zone.
   - **DoD:** Accurate detection without false positives; handles coordinate precision and rounding cleanly.
   - **Paired Unit Test:** `src/hooks/__tests__/useGeofenceTrigger.test.js`
-- [ ] `TSK-01.3.2` `[Frontend]` **10-Minute Cooldown Lockout Mechanism**
+- [x] `TSK-01.3.2` `[Frontend]` **10-Minute Cooldown Lockout Mechanism**
   - **Scope:** Store POI trigger timestamps in `localStorage`. Prevent re-triggering within 600 seconds unless manually initiated by the visitor.
   - **DoD:** Suppresses repeated auto-play events; automatically resets timer after 600s expires.
   - **Paired Unit Test:** `src/services/__tests__/cooldownService.test.js`
-- [ ] `TSK-01.3.3` `[Frontend]` **Floating Mini Audio Player Component (`MiniAudioPlayer.jsx`)**
+- [x] `TSK-01.3.3` `[Frontend]` **Floating Mini Audio Player Component (`MiniAudioPlayer.jsx`)**
   - **Scope:** Pinned bottom bar (68px height, positioned above bottom navigation) with scrolling title, large Play/Pause toggle, Skip -10s/+10s, speed toggles, and status badges.
   - **DoD:** Fluid touch interactions; does not obscure map navigation controls or critical CTA buttons.
   - **Paired Unit Test:** `src/components/__tests__/MiniAudioPlayer.test.jsx`
-- [ ] `TSK-01.3.4` `[Frontend]` **Singleton Audio Context & 3.5s Web Speech Fallback (`AudioPlayerContext.jsx`)**
+- [x] `TSK-01.3.4` `[Frontend]` **Singleton Audio Context & 3.5s Web Speech Fallback (`AudioPlayerContext.jsx`)**
   - **Scope:** Global `HTMLAudioElement` singleton. Set a 3500ms timeout on network stream loading: abort on timeout and seamlessly initiate `window.speechSynthesis` with native text.
   - **DoD:** Zero overlapping audio streams; verified fallback execution under simulated offline/packet-drop conditions.
   - **Paired Unit Test:** `src/context/__tests__/AudioPlayerContext.test.jsx`
