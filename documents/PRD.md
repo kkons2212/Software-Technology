@@ -14,7 +14,7 @@
 * **Text-to-Speech (TTS):** Python `edge-tts` library (Pre-rendered and cached MP3 static files)
 
 ### Infrastructure & Deployment
-* **Containerization:** Docker & Docker Compose (To be confirmed with Instructor)
+* **Containerization:** Docker & Docker Compose (`kocoten/smart-museum-db:v1`)
 * **Storage & Caching:** Local Static File Server / Caching for pre-generated audio
 
 ---
@@ -83,6 +83,10 @@ At the executive operational tier, the Visitor Telemetry & Infrastructure Health
 
 # Detailed System Business Requirements & User Story Specifications
 
+> [!TIP]
+> **Complete Engineering Task Breakdown & Matrix:**
+> For the standalone engineering Work Breakdown Structure (WBS), including layer assignments (Backend, Frontend, Database, DevOps), Story Points, priority rankings, interactive task checklists, and 1-to-1 Unit Test Definition of Done mappings, refer to [tasks.md](file:///c:/Users/ASUS/OneDrive/Desktop/Software-Technology/documents/tasks.md).
+
 ## Theme 1: System Governance, Security & Access Control
 
 ### Epic 01: Administrative Authentication & Session Security
@@ -101,12 +105,6 @@ At the executive operational tier, the Visitor Telemetry & Infrastructure Health
 * Upon valid credentials, the system establishes a secure session (JWT token transmitted via HttpOnly, SameSite=Strict cookie with a 60-minute lifespan and 30-minute idle timeout) and routes the Administrator to the unified Administrative Workspace (providing access to Exhibit Cataloging, Multilingual Curation, and Telemetry Dashboard).
 * If credentials fail, the system renders a generic error message: "Invalid username or password", retaining the entered username while clearing the password field to prevent user enumeration attacks.
 
-**Task List:**
-
-* Task 02.1.1 (Backend): Develop /api/v1/auth/login endpoint verifying Bcrypt hashed passwords, issuing JWT tokens, and attaching secure HttpOnly cookies.
-* Task 02.1.2 (Frontend): Build a responsive Admin Login page, handle authentication state persistence, and configure route guards protecting administrative views.
-* Task 02.1.3 (Database): Construct users table supporting multiple administrator accounts, generating database indexes on username and email columns for rapid authentication queries.
-
 #### User Story 02.2: Brute-Force Protection & Account Lockout (Account Lockout)
 
 * **Description:** As an Administrator, I need the system to automatically lock admin accounts upon consecutive failed login attempts to safeguard against automated brute-force credential stuffing.
@@ -119,12 +117,6 @@ At the executive operational tier, the Visitor Telemetry & Infrastructure Health
 * If an account incurs 5 consecutive failed attempts, the system automatically locks the account for 15 minutes, rejecting subsequent login requests and displaying: "Account temporarily locked due to 5 failed attempts. Please retry after 15 minutes."
 * All failed attempts and lockout events are automatically logged into system security audit trails with client IP addresses and timestamps.
 
-**Task List:**
-
-* Task 02.2.1 (Backend): Implement rate-limiting middleware tracking failed attempts (using Redis or database fields) and enforce lockout thresholds.
-* Task 02.2.2 (Frontend): Catch HTTP 423 (Locked) responses and present a countdown lockout alert modal.
-* Task 02.2.3 (Database): Add failed_attempts, locked_until, and is_active fields to users table, and design the login_audit_logs table.
-
 #### User Story 02.3: Secure Session Management & Logout (Session Management & Logout)
 
 * **Description:** As an Administrator, I need my session to automatically expire during inactivity and have the ability to explicitly log out to revoke active access tokens, ensuring security on administrative workstations.
@@ -135,11 +127,6 @@ At the executive operational tier, the Visitor Telemetry & Infrastructure Health
 
 * Sessions automatically expire after 60 minutes or after 30 minutes of continuous user inactivity.
 * Clicking "Log Out" clears session cookies, revokes the token server-side, and immediately redirects the user to the Login screen.
-
-**Task List:**
-
-* Task 02.3.1 (Backend): Construct /api/v1/auth/logout endpoint that purges authentication cookies and blacklists active tokens.
-* Task 02.3.2 (Frontend): Implement a Logout action button on the administrative navigation header, wiping all local user states upon exit.
 
 ## Theme 2: Exhibit Cataloging & Spatial Positioning
 
@@ -157,12 +144,6 @@ At the executive operational tier, the Visitor Telemetry & Infrastructure Health
 * Input validation: Required title and description fields must not be empty; uploaded images must strictly be JPG/PNG/WebP formats under 5MB.
 * Upon clicking "Save", the system creates a database record with translation_status = 'PENDING' and dispatches asynchronous background jobs for translation and audio synthesis.
 
-**Task List:**
-
-* Task 03.1.1 (Backend): Develop POST /api/v1/admin/pois endpoint accepting multipart form-data, persisting exhibit metadata, and saving images to /static/images.
-* Task 03.1.2 (Frontend): Build POI creation form with rich text editors, image previewers, and client-side validation rules.
-* Task 03.1.3 (Database): Construct pois table with constraints and timestamp fields (created_at, updated_at).
-
 #### User Story 03.2: Interactive GPS Geolocation & Geofence Calibration (GPS Geofence Calibration)
 
 * **Description:** As an Administrator, I need to visually pin or drag an exhibit's GPS coordinates across an interactive map (or manually input latitude and longitude) and calibrate a proximity trigger radius, so that the system automatically detects visitors approaching the physical exhibit.
@@ -175,11 +156,6 @@ At the executive operational tier, the Visitor Telemetry & Infrastructure Health
 * Latitude and longitude fields update dynamically as the map marker moves, and vice versa.
 * The Administrator can configure a proximity geofence radius (default: 30 meters; allowable range: 10m to 50m). The map renders a circular boundary (L.circle) representing the detection zone.
 * Boundary validation: If coordinates fall outside the Cu Chi Tunnels museum perimeter boundary, the system displays a boundary error notification and prevents submission.
-
-**Task List:**
-
-* Task 03.2.1 (Backend): Implement geographical bounding box validation and update endpoints for coordinates and radius_meters.
-* Task 03.2.2 (Frontend): Integrate Leaflet map picker in the admin view, supporting pin drag events and dynamic L.circle rendering synchronized with numeric radius inputs.
 
 #### User Story 03.3: Deactivate / Hide Exhibit & Invalidate Navigation Route Cache (Exhibit Visibility Toggle & Route Invalidation)
 
@@ -196,15 +172,37 @@ At the executive operational tier, the Visitor Telemetry & Infrastructure Health
 * The system automatically invalidates existing route calculation caches so that visitor navigation paths compute fresh waypoints immediately without routing through the hidden POI.
 * All underlying translation records, synthesized audio files, media assets, and historical telemetry audit logs remain preserved in the database for administrative auditing or future re-activation.
 
-**Task List:**
+#### User Story 03.4: Update Exhibit Details & Synchronize Translation Status (Update POI)
 
-* Task 03.3.1 (Backend): Implement PATCH /api/v1/admin/pois/{id}/visibility endpoint updating the is_active flag and triggering navigation route cache invalidation.
-* Task 03.3.2 (Frontend): Add visibility toggle switches, confirmation modals, and reactive table UI status badges (Active / Hidden) in the POI catalog.
-* Task 03.3.3 (Database): Ensure database query filters on visitor-facing POI listings, map rendering, and route calculation enforce the `is_active = TRUE` constraint.
+* **Description:** As an Administrator, I need to edit an existing exhibit's details (title, preview summary, narrative description, spatial coordinates, trigger radius, or cover photo), and have the system automatically flag affected translation records as "Needs Update" to ensure audio-text synchronization.
+* **Priority:** Must have
+* **Story Point:** 3
+
+**Acceptance Criteria:**
+
+* Provides an "Edit Exhibit" action within the POI management table opening a pre-populated edit form.
+* The Administrator can update: Vietnamese Title (`title_vi`), Pre-unlock Teaser (`short_description_vi`), Full Narrative (`description_vi`), Cover Photo upload, GPS Coordinates (`latitude`, `longitude`), and Trigger Radius (`radius` from 10m to 50m).
+* Coordinate and radius updates dynamically synchronize with the interactive Leaflet map picker (`AdminMapPicker.jsx`).
+* Coordinates are validated against the Cu Chi Tunnels perimeter bounding box.
+* Modifying narrative descriptions automatically updates the status of all associated translation records (`POITranslation.status = 'NEEDS_UPDATE'`) and disables public publication until audio is regenerated.
 
 ## Theme 3: Multilingual Content Review & Publishing
 
 ### Epic 03: Multilingual Translation Audit & Audio Publishing
+
+#### User Story 04.0: Automated AI Translation & Audio Synthesis Pipeline (Background Processing Engine)
+
+* **Description:** As the System, I need to automatically translate Vietnamese narratives into target foreign languages (`en`, `ja`, `ko`, `zh`) and synthesize neural voice audio guides in the background upon POI creation or primary narrative updates, so that draft translations and narrations are prepared without manual overhead.
+* **Priority:** Must have
+* **Story Point:** 8
+
+**Acceptance Criteria:**
+
+* Upon POI creation or narrative description update, the backend automatically dispatches asynchronous background worker jobs for all configured target languages (`en`, `ja`, `ko`, `zh`).
+* The translation worker processes source Vietnamese text using `deep-translator` with an exponential backoff retry mechanism (up to 3 attempts) to handle transient network errors.
+* Localized text strings are synthesized into high-quality MP3 audio files ($64\text{kbps}-96\text{kbps}$) using `edge-tts` with native neural voices.
+* An intelligent SHA-256 audio content hashing mechanism (`audio_hash = SHA256(title + text + lang + voice)`) checks existing files before synthesis: if identical audio exists, it is reused to conserve computation and storage.
+* Short-lived JIT database connections are strictly enforced: database sessions are never held open during long-running external translation or TTS network calls.
 
 #### User Story 04.1: Multilingual Translation Audit & Historical Terminology Refinement (Review & Filter Translations)
 
@@ -218,11 +216,6 @@ At the executive operational tier, the Visitor Telemetry & Infrastructure Health
 * Supports instant filtering by target language code, exhibit name, and approval status.
 * Administrators can edit translated titles and descriptions. Saving modifications automatically marks the audio guide status as "Needs Update" to avoid desynchronization between text and voice.
 
-**Task List:**
-
-* Task 04.1.1 (Backend): Build GET /api/v1/admin/translations supporting filter query parameters and PUT /api/v1/admin/translations/{id} for text updates.
-* Task 04.1.2 (Frontend): Develop translation management data tables with multi-filter dropdowns and inline editing forms.
-
 #### User Story 04.2: Audio Guide Preview & Dynamic Voice Re-generation (Audio Preview & TTS Re-synthesis)
 
 * **Description:** As an Administrator, I need to preview synthesized audio narrations and trigger re-synthesis via Neural TTS on demand, ensuring natural pronunciation and vocal cadence.
@@ -235,11 +228,6 @@ At the executive operational tier, the Visitor Telemetry & Infrastructure Health
 * Provides a "Regenerate Audio Guide" action: invoking the Microsoft Edge Neural TTS service to synthesize a new audio file matching the revised text string.
 * If external TTS synthesis fails, displays an explanatory error message: "Unable to generate Audio Guide, please try again later" and retains current data without crashing.
 
-**Task List:**
-
-* Task 04.2.1 (Backend): Develop POST /api/v1/admin/translations/{id}/regenerate-audio invoking the edge-tts service.
-* Task 04.2.2 (Frontend): Embed responsive audio preview players and attach loading state spinners to the regeneration action button.
-
 #### User Story 04.3: Administrative Approval & Live Mobile App Synchronization (Approve & Publish)
 
 * **Description:** As an Administrator, I need to grant final publication approval (Published) to verified translations and audio files so that they are immediately synchronized to the visitor mobile web application.
@@ -251,11 +239,6 @@ At the executive operational tier, the Visitor Telemetry & Infrastructure Health
 * The "Approve & Publish" button is enabled only when both valid translated text and a synthesized audio file are present.
 * Clicking "Approve & Publish" updates the record status to Published in poi_translations and poi_audios.
 * Content changes take effect in real time, making verified narratives and audio available on the visitor mobile web client.
-
-**Task List:**
-
-* Task 04.3.1 (Backend): Build POST /api/v1/admin/translations/{id}/publish updating database status flags and invalidating visitor content caches.
-* Task 04.3.2 (Frontend): Update publication status badges to Published with reactive UI state changes.
 
 ## Theme 4: Visitor Services, Digital Payment & On-Site Navigation
 
@@ -272,12 +255,7 @@ At the executive operational tier, the Visitor Telemetry & Infrastructure Health
 * Selecting "Unlock Audio Guide Service" presents the single fixed admission price and two payment options: Domestic VietQR and International Credit/Debit Card.
 * Selecting VietQR generates a dynamic VietQR code with order payload for domestic banking apps.
 * Selecting Card routes the visitor to a secure, PCI-DSS compliant payment gateway form (PayOS / Stripe).
-
-**Task List:**
-
-* Task 06.1.1 (Backend): Integrate PayOS / Stripe SDKs; develop POST /api/v1/payments/create-checkout returning payment URLs and QR payloads.
-* Task 06.1.2 (Frontend): Build a mobile-first checkout modal displaying dynamic QR codes and gateway redirects.
-* Task 06.1.3 (Database): Construct transactions table recording transaction_id, amount, payment_method, and status.
+* Client polling checks order status every 2.5 seconds while modal is active; on payment completion, tour access is automatically unlocked.
 
 #### User Story 06.2: Webhook-Driven 24-Hour Visiting Session Activation (24-Hour Visiting Session Activation)
 
@@ -291,12 +269,6 @@ At the executive operational tier, the Visitor Telemetry & Infrastructure Health
 * Updates transaction status to PAID and provisions a new VisitingSession valid for exactly 24 hours (expires_at = now() + 24 hours).
 * Issues a unique, cryptographically secure Session Code, stores the session token in the visitor's mobile localStorage, and unlocks all audio streaming buttons.
 
-**Task List:**
-
-* Task 06.2.1 (Backend): Construct POST /api/v1/payments/webhook handling signature verification and atomic session activation.
-* Task 06.2.2 (Frontend): Implement VisitorSessionContext to listen for payment confirmation, store session tokens, and refresh UI unlock states.
-* Task 06.2.3 (Database): Construct visiting_sessions table with session_code, device_fingerprint, and expires_at.
-
 #### User Story 06.3: Multi-Device Session Recovery via Session Code (Restore Visiting Session)
 
 * **Description:** As a Visitor, I want to use my Session Code to restore my active tour session if I switch devices, open an incognito tab, or refresh my browser, avoiding redundant pass purchases.
@@ -309,11 +281,6 @@ At the executive operational tier, the Visitor Telemetry & Infrastructure Health
 * Entering a valid, unexpired Session Code restores access and displays remaining session validity time.
 * If the code does not exist or has exceeded 24 hours, the system rejects restoration with: "Session code is invalid or has expired."
 
-**Task List:**
-
-* Task 06.3.1 (Backend): Develop POST /api/v1/sessions/restore validating code existence and expiration timestamps.
-* Task 06.3.2 (Frontend): Build Session Code restoration modal dialog with clear validation error handling.
-
 #### User Story 06.4: Content Protection & Narrative/Audio Decryption Access Control (Content Protection & Streaming Authorization)
 
 * **Description:** As a Museum Administrator, I need in-depth narratives and audio streams to remain strictly locked for unauthenticated visitors, protecting digitized cultural intellectual property and securing digital revenue.
@@ -325,11 +292,6 @@ At the executive operational tier, the Visitor Telemetry & Infrastructure Health
 * Pre-payment visitors can only access exhibit titles, thumbnail photos, and teaser preview snippets (short_description).
 * Full historical narratives and audio play buttons are locked with visual padlock indicators.
 * Audio streaming endpoints (/api/v1/audio/{poi_id}) enforce valid session token authorization, rejecting unauthorized requests with HTTP 403 Forbidden.
-
-**Task List:**
-
-* Task 06.4.1 (Backend): Enforce JWT/Session token validation middleware on audio streaming and full-content endpoints.
-* Task 06.4.2 (Frontend): Implement conditional rendering locking full narratives and audio controls when no valid session is present.
 
 ### Epic 05: Interactive Map, GPS Geofencing & Smart Wayfinding
 
@@ -345,11 +307,7 @@ At the executive operational tier, the Visitor Telemetry & Infrastructure Health
 * Renders the visitor's live GPS coordinates as a distinct animated location marker alongside POI markers on OpenStreetMap.
 * Supports fluid pinch-to-zoom and pan gestures.
 * If GPS is disabled or coordinates fall outside the museum grounds, notifies the visitor and centers the map view at the Main Entrance by default.
-
-**Task List:**
-
-* Task 01.1.1 (Frontend): Integrate Leaflet/OpenStreetMap inside OutdoorMapView.jsx, using navigator.geolocation.watchPosition.
-* Task 01.1.2 (Frontend): Build fallback default centering at Main Entrance when geolocation permission is denied.
+* Top header includes a dynamic language dropdown filtering strictly published languages.
 
 #### User Story 01.2: Tap Map Marker for Teaser Preview Card (POI Preview Card)
 
@@ -363,28 +321,19 @@ At the executive operational tier, the Visitor Telemetry & Infrastructure Health
 * Card displays: thumbnail image, exhibit title, short teaser description, an "Audio Guide" button, and a "Directions" button.
 * Tapping "Audio Guide" redirects the visitor to the audio player screen for that exhibit. Tapping empty map space dismisses the card.
 
-**Task List:**
-
-* Task 01.2.1 (Frontend): Develop PoiPreviewCard.jsx with mobile slide-up bottom sheet animations.
-* Task 01.2.2 (Frontend): Wire navigation click handlers connecting preview cards to the audio player route.
-
 #### User Story 01.3: Automated Voice Narration on GPS Proximity (GPS Geofence Proximity Trigger)
 
-* **Description:** As a Visitor with an active session, I want the audio guide in my selected language to automatically start playing when I walk within 30 meters of an exhibit, allowing hands-free historical immersion.
+* **Description:** As a Visitor with an active session, I want the audio guide in my selected language to automatically start playing when I walk within an exhibit's geofence radius, allowing hands-free historical immersion with a floating mini audio player.
 * **Priority:** Must have
 * **Story Point:** 8
 
 **Acceptance Criteria:**
 
-* Continuously computes the distance between the visitor's live GPS coordinates and all exhibit coordinates using the Haversine formula.
+* Continuously computes the distance between the visitor's live GPS coordinates and all exhibit coordinates using the Haversine formula against each POI's configured radius (10m–50m).
 * When the visitor enters an exhibit's configured geofence radius, the system automatically triggers audio playback in the visitor's chosen language.
-* Implements a cooldown trigger lock (debounce): avoids re-triggering the same exhibit narration within 10 minutes unless manually initiated by the visitor.
-* If the mobile network fails to stream the .mp3 file, automatically arms client-side Web Speech API fallback on the mobile browser.
-
-**Task List:**
-
-* Task 01.3.1 (Frontend): Implement GeofenceDetectionService.js calculating distances and handling proximity threshold events.
-* Task 01.3.2 (Frontend): Connect proximity events to the audio player controller with cooldown logic and Web Speech fallback.
+* Implements a 10-minute cooldown trigger lock (debounce): avoids re-triggering the same exhibit narration within 10 minutes unless manually initiated by the visitor.
+* If the mobile network fails to stream the .mp3 file within 3.5 seconds, automatically arms client-side Web Speech API fallback on the mobile browser.
+* Pinned mini audio player at the bottom allows play/pause, seek ±10s, and speed adjustment (`0.8x`, `1.0x`, `1.2x`).
 
 #### User Story 01.4: Intelligent Recommended Walking Route (Recommended Walking Route Calculation)
 
@@ -398,11 +347,6 @@ At the executive operational tier, the Visitor Telemetry & Infrastructure Health
 * Renders a prominent polyline route overlay connecting start and destination points on the map.
 * Displays the estimated walking distance in meters.
 * Provides a "Clear Route" button to remove the path overlay and return to standard map exploration.
-
-**Task List:**
-
-* Task 01.4.1 (Frontend/Backend): Implement waypoint path calculation routines based on outdoor trail nodes.
-* Task 01.4.2 (Frontend): Render animated dashed L.polyline route layers and distance info banners on the Leaflet map.
 
 ## Theme 5: Operational Analytics, Field Telemetry & System Health
 
@@ -420,11 +364,6 @@ At the executive operational tier, the Visitor Telemetry & Infrastructure Health
 * Heatmap gradient reflects visitor concentration derived from recent GPS telemetry pings (green = low density, red/orange = high congestion).
 * Allows filtering heatmap data by preset time ranges (Today, Past 7 Days, Peak Hours).
 
-**Task List:**
-
-* Task 05.1.1 (Backend): Develop GET /api/v1/admin/analytics/heatmap aggregating telemetry coordinates within specified time windows.
-* Task 05.1.2 (Frontend): Integrate leaflet.heat plugin on the admin dashboard with smooth re-rendering capabilities.
-
 #### User Story 05.2: Exhibit Ranking, Dwell Times & Language Demographics (Top POIs, Dwell Time & Language Demographics)
 
 * **Description:** As an Administrator, I need statistical rankings of top-visited exhibits, average dwell times, and language breakdowns to evaluate exhibition impact.
@@ -435,29 +374,20 @@ At the executive operational tier, the Visitor Telemetry & Infrastructure Health
 
 * Renders bar charts ranking Top 10 most visited POIs based on proximity trigger counts.
 * Calculates and displays average visitor dwell time (in minutes) within each exhibit's geofence boundary.
-* Displays pie charts breaking down visitor language distributions (vi, en, ja, ko, zh).
+* Displays ranked distributions of visitor language selections (vi, en, ja, ko, zh).
 
-**Task List:**
+#### User Story 05.3: Static Audio Storage Capacity Alert Thresholds (>85%) & Orphan Pruning
 
-* Task 05.2.1 (Backend): Develop GET /api/v1/admin/analytics/summary aggregating trigger events, session timestamps, and language codes.
-* Task 05.2.2 (Frontend): Build analytics dashboard charts using Recharts or Chart.js for rankings and demographic distributions.
-
-#### User Story 05.3: Static Audio Storage Capacity Alert Thresholds (>85%) (Audio Cache Storage Threshold Warning)
-
-* **Description:** As a System Administrator, I need automated alerts when static audio cache disk consumption exceeds 85% capacity, prompting timely pruning or storage expansion.
+* **Description:** As a System Administrator, I need automated alerts when static audio cache disk consumption exceeds 85% capacity, and an action to prune orphaned MP3 files, preventing disk exhaustion.
 * **Priority:** Must have
-* **Story Point:** 3
+* **Story Point:** 5
 
 **Acceptance Criteria:**
 
-* Monitors disk usage of the server partition holding /static/audio.
+* Monitors disk usage of the server partition holding `/static/audio`.
 * Flags status as WARNING (yellow) at ≥ 85% and CRITICAL (red) at ≥ 95%.
 * Triggers dashboard warning banners: "Audio cache capacity exceeds 85%. Please prune orphaned files or expand storage quota."
-
-**Task List:**
-
-* Task 05.3.1 (Backend): Use Python's shutil.disk_usage to compute disk space percentages inside GET /api/v1/admin/system/health.
-* Task 05.3.2 (Frontend): Create dynamic visual storage progress bars changing color based on utilization percentages.
+* Provides a "Clean Orphaned Audio" action that compares physical storage against active database records and removes unreferenced audio files.
 
 #### User Story 05.4: Telemetry Filtering & Structured Data Export (Telemetry Filtering & Data Export)
 
@@ -470,8 +400,3 @@ At the executive operational tier, the Visitor Telemetry & Infrastructure Health
 * Date filtering: Today, Last 7 Days, Last 30 Days, or custom Start Date - End Date.
 * Provides an "Export Report" button downloading structured .csv or .json files.
 * Output files include: Date, Exhibit Name, Trigger Count, Language Code, and Average Duration.
-
-**Task List:**
-
-* Task 05.4.1 (Backend): Build GET /api/v1/admin/analytics/export streaming file downloads.
-* Task 05.4.2 (Frontend): Add Date Range Pickers and download buttons to the analytics toolbar.
