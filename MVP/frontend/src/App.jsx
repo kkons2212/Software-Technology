@@ -12,8 +12,10 @@ import { MiniAudioPlayer } from './components/visitor/MiniAudioPlayer.jsx';
 
 const ADMIN_LOGIN_PATH = '/admin/login';
 const ADMIN_HOME_PATH = '/admin';
+const VISITOR_HOME_PATH = '/visitor';
 
 const AdminLoginView = lazy(() => import('./views/admin/AdminLoginView.jsx'));
+const VisitorTourPage = lazy(() => import('./views/visitor/VisitorTourPage.jsx'));
 
 // Temporary landing surface for authenticated Administrators. The exhibit catalog,
 // multilingual curation, and telemetry modules are delivered in later user stories.
@@ -42,6 +44,7 @@ export default function App() {
       >
         <Routes>
           <Route path="/" element={<Navigate to={ADMIN_HOME_PATH} replace />} />
+          <Route path={VISITOR_HOME_PATH} element={<VisitorTourPage />} />
           <Route path={ADMIN_LOGIN_PATH} element={<AdminLoginView />} />
           <Route
             path={ADMIN_HOME_PATH}
