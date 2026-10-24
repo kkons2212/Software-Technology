@@ -23,23 +23,20 @@
 
 ## 1. Business Context & Vision
 
-The Smart Museum System operates as a multidimensional digital interaction network that tightly integrates three primary groups of actors: Museum Visitors & International Tourists who consume digitized cultural heritage services, Museum Operational & Curatorial Personnel (System Admin / Curator / Operational Staff) who coordinate on-site resources and review exhibition assets, and Automated AI, Payment & Telemetry Infrastructure (VietQR / International Card Payment Gateway, Automated Translation Services, Neural Voice TTS Engine, Interactive Digital Mapping Platform, and Telemetry Logging Module) ensuring an automated end-to-end operational pipeline.
+The Smart Museum System operates as a multidimensional digital interaction network designed around two primary human actors: **Museum Visitors (Khách tham quan)** who consume digitized cultural heritage services via mobile devices, and **Museum Administrators (Quản trị viên / Admins)** who manage exhibits, spatial coordinates, multilingual translations, voice narration assets, and system telemetry. The system supports multiple Administrator accounts to allow collaborative management across the museum's administrative team. All human operations are supported by an automated AI, Payment & Telemetry Infrastructure (VietQR / International Card Payment Gateway, Automated Translation Services, Neural Voice TTS Engine, Interactive Digital Mapping Platform, and Telemetry Logging Module) ensuring an automated end-to-end operational pipeline.
 
 The central mission of the system is to transform static physical artifacts, heritage grounds, underground tunnel complexes, and scholarly historical documentation of the Cu Chi Tunnels Historical Site into vibrant, intuitive, and multilingual digital journeys. It commercializes digital services through frictionless online admission payments and time-limited visiting sessions, automatically triggers intelligent voice narrations based on outdoor GPS geofencing and interactive map navigation, coordinates optimal walking routes through historical waypoints, automates AI translation and neural voice dubbing workflows, and delivers real-time operational telemetry to empower business decision-making and facility governance.
 
-## 2. Platform Setup, Access Governance & Admission Pricing
+## 2. Platform Setup, Administrative Access Governance & Admission Pricing
 
-The business journey initiates with platform configuration, service pricing, identity governance, and role-based access control (RBAC). The System Administrator configures foundational operating parameters (fixed digital tour admission pricing, target supported languages, museum geographical site boundaries, infrastructure storage alert thresholds), while provisioning staff accounts with granular access privileges:
+The business journey initiates with platform configuration, service pricing, and administrative account governance. The system supports multiple Administrator accounts to enable collaborative management by the museum's administrative team. Administrators configure foundational operating parameters (fixed digital tour admission pricing, target supported languages, museum geographical site boundaries, infrastructure storage alert thresholds), while managing administrative credentials:
 
-* **Admin:** Possesses full authority over system configuration, user access, and comprehensive audit monitoring.
-* **Curator:** Specializes in academic curation, translation review, and voice narration regeneration.
-* **Staff:** Handles artifact data entry, GPS coordinate calibration, and proximity geofence radius configuration.
-
-All accounts are secured by industry-standard one-way cryptographic hashing (Bcrypt/Argon2id), an anti-brute-force rate limiter (automatic 15-minute account lockout upon 5 consecutive failed login attempts), and secure session tokens with a maximum lifetime of 60 minutes.
+* **Multiple Administrators:** The system supports multiple concurrent Administrator accounts. Each Administrator has full operational authority across the administrative portal: creating and updating exhibit profiles, calibrating GPS geofence boundaries, reviewing and refining machine translations, regenerating neural audio guides, publishing approved content, and monitoring facility telemetry.
+* **Security & Account Governance:** All administrator accounts are secured by industry-standard one-way cryptographic hashing (Bcrypt cost factor ≥ 12 or Argon2id), an anti-brute-force rate limiter (automatic 15-minute account lockout upon 5 consecutive failed login attempts), and secure session tokens (JWT transmitted via HttpOnly, SameSite=Strict cookies) with an automatic 30-minute idle timeout and a maximum lifetime of 60 minutes.
 
 ## 3. Exhibit Cataloging, Content Editing & GPS Geofence Positioning Workflow
 
-Whenever new exhibits are introduced or gallery zones are reconfigured, staff initiate the Exhibit Cataloging, Content Editing & GPS Geofence Positioning Workflow. Personnel enter core identification metadata: title, pre-payment preview teaser description, full detailed narrative in the source language (Vietnamese), and high-resolution imagery. Crucially, staff calibrate the precise spatial positioning of the outdoor exhibit by clicking or dragging a pin across the interactive map (or manually inputting latitude and longitude), while configuring a proximity geofence radius (e.g., default 30 meters) to facilitate automatic visitor detection. The system validates all inputs: coordinates must reside strictly within museum perimeter boundaries, and media formats must comply before persisting records to the central database and refreshing navigation routing caches. If an exhibit is decommissioned, foreign-key cascade deletion immediately cleans up associated translations, audio assets, and physical server files.
+Whenever new exhibits are introduced or outdoor zones are reconfigured, an Administrator initiates the Exhibit Cataloging, Content Editing & GPS Geofence Positioning Workflow. The Administrator enters core identification metadata: title, pre-payment preview teaser description, full detailed narrative in the source language (Vietnamese), and high-resolution imagery. Crucially, the Administrator calibrates the precise spatial positioning of the outdoor exhibit by clicking or dragging a pin across the interactive map (or manually inputting latitude and longitude), while configuring a proximity geofence radius (e.g., default 30 meters) to facilitate automatic visitor detection. The system validates all inputs: coordinates must reside strictly within museum perimeter boundaries, and media formats must comply before persisting records to the central database and refreshing navigation routing caches. If an exhibit is decommissioned, foreign-key cascade deletion immediately cleans up associated translations, audio assets, and physical server files.
 
 ## 4. Automated Multilingual Translation & AI Voice Synthesis Pipeline
 
@@ -48,9 +45,9 @@ Immediately following POI creation or primary description updates, the backend t
 * **Automated AI Translation:** The system extracts the source Vietnamese text and dispatches asynchronous translation requests across configured target languages (English, Japanese, Korean, Chinese). An exponential backoff retry mechanism (up to 3 attempts) is executed individually per language to overcome transient network drops.
 * **AI Voice Synthesis & Intelligent Audio Caching:** Following translation completion, localized text strings are forwarded to the Microsoft Edge Neural TTS voice engine to synthesize high-fidelity .mp3 narration files. An intelligent content hashing rule (Text Hashing) compares the hash of the text against stored cache records: if the text remains unchanged, existing cached audio is reused (Audio Cache Hit), preserving computational overhead and network bandwidth. If external synthesis services encounter prolonged outages, the system sets an operational error flag, automatically arming client-side Web Speech API fallback on the visitor's mobile browser.
 
-## 5. Curatorial Review, Linguistic Refinement & Publishing Workflow
+## 5. Multilingual Review, Linguistic Refinement & Publishing Workflow
 
-To ensure uncompromised accuracy regarding historical, cultural, and scholarly contexts of the resistance war, the Curatorial Review, Linguistic Refinement & Publishing Workflow acts as a mandatory operational checkpoint before content is released to the public. Curators access a dedicated management view with filters by language or exhibit, preview the synthesized audio guides, and inspect translated terminology. If linguistic inaccuracies or sensitive historical terms are detected, the Curator edits the text; this action immediately marks the corresponding audio file as "Pending Update" and requires audio regeneration matching the exact language code. Only translations and voice files explicitly marked as "Approved & Published" by the Curator are synchronized to the visitor-facing application.
+To ensure uncompromised accuracy regarding historical, cultural, and scholarly contexts of the resistance war, the Multilingual Review, Linguistic Refinement & Publishing Workflow acts as a mandatory operational checkpoint before content is released to the public. Administrators access a dedicated translation management interface with filters by language or exhibit, preview the synthesized audio guides, and inspect translated terminology. If linguistic inaccuracies or sensitive historical terms are detected, an Administrator edits the text; this action immediately marks the corresponding audio file as "Needs Update" and requires audio regeneration matching the exact language code. Only translations and voice files explicitly marked as "Approved & Published" by an Administrator are synchronized to the visitor-facing application.
 
 ## 6. Online Payment & Visiting Session Activation Workflow
 
@@ -76,9 +73,9 @@ At the executive operational tier, the Visitor Telemetry & Infrastructure Health
 
 ## 9. Core Business Workflow Summary (B1 → B5)
 
-* **B1 – Platform Setup, Access Governance & Admission Pricing:** Administrators configure fixed admission pricing, museum site boundaries, target language suites, and staff access privileges → Personnel log into the operational portal according to designated privilege tiers (Admin / Curator / Staff).
-* **B2 – Exhibit Cataloging, GPS Geofencing & Automated AI Pipeline:** Staff input exhibit metadata (source language: Vietnamese), upload media, and configure GPS coordinates with geofence trigger radii on the digital map → System triggers automated background processing: Multilingual translation across target languages with retry logic → Neural voice synthesis and audio caching utilizing text-hash validation.
-* **B3 – Curatorial Review & Content Publishing:** Curators preview audio, refine scholarly terminology, and approve content for publication → System publishes verified content, ready for real-time synchronization to mobile visitors.
+* **B1 – Platform Setup, Administrative Governance & Admission Pricing:** Administrators configure fixed admission pricing, museum site boundaries, target language suites, and manage administrative credentials → Multiple Administrators log into the unified administrative portal.
+* **B2 – Exhibit Cataloging, GPS Geofencing & Automated AI Pipeline:** An Administrator inputs exhibit metadata (source language: Vietnamese), uploads media, and configures GPS coordinates with geofence trigger radii on the digital map → System triggers automated background processing: Multilingual translation across target languages with retry logic → Neural voice synthesis and audio caching utilizing text-hash validation.
+* **B3 – Multilingual Content Review & Publishing:** Administrators preview audio, refine scholarly terminology, and approve content for publication → System publishes verified content, ready for real-time synchronization to mobile visitors.
 * **B4 – Digital Admission Payment & 24-Hour Visiting Session Activation:** Visitors open the mobile web application, choose their native language, and select "Unlock Tour" → Payment is processed via VietQR or International Card → System verifies transaction via Webhook, activates a 24-hour Visiting Session, issues a Session Code for session recovery, and unlocks all narrative content and audio streaming.
 * **B5 – GPS Geofence-Triggered Tour, Map Navigation & Operational Monitoring:** Visitors explore the museum grounds → Voice guide is automatically triggered upon entering an exhibit's GPS Geofence Radius or selecting on the digital map → Interactive map updates current waypoint and plots recommended walking routes → Administrative tier aggregates visitor density heatmaps, dwell times, monitors storage health (>85% alert), and exports operational reports.
 
@@ -88,30 +85,31 @@ At the executive operational tier, the Visitor Telemetry & Infrastructure Health
 
 ## Theme 1: System Governance, Security & Access Control
 
-### Epic 01: Identity Authentication & Role-Based Access Control
+### Epic 01: Administrative Authentication & Session Security
 
-#### User Story 02.1: Role-Based System Login (Role-Based Login)
+#### User Story 02.1: Administrator Authentication & Portal Login (Administrator Login)
 
-* **Description:** As a Staff member or Administrator (Admin / Curator / Staff), I need to log into the Administrative Portal using my Username and Password so that the system authenticates my identity and routes me directly to my role-specific workspace.
+* **Description:** As an Administrator, I need to log into the Administrative Portal using my Username/Email and Password so that the system authenticates my identity, establishes a secure session, and grants access to all administrative management modules.
 * **Priority:** Must have
 * **Story Point:** 5
 
 **Acceptance Criteria:**
 
-* Enables the user to input Username and Password. Upon clicking "Sign In", the system processes the authentication request in real time with a response latency < 1 second.
+* The system supports multiple Administrator accounts with unique credentials.
+* Enables an Administrator to input Username/Email and Password. Upon clicking "Sign In", the system processes the authentication request in real time with a response latency < 1 second.
 * Submitted passwords are authenticated against one-way cryptographic hashes using industry standards (Bcrypt cost factor ≥ 12 or Argon2id) stored in the database. Plaintext passwords must never be stored, cached, or logged.
-* Upon valid credentials, the system establishes a secure session (JWT token transmitted via HttpOnly, SameSite=Strict cookie with a 60-minute lifespan) and routes to the proper workspace: Admin to the Global Dashboard, Curator to Translation & Audio Management, and Staff to Exhibit Cataloging.
+* Upon valid credentials, the system establishes a secure session (JWT token transmitted via HttpOnly, SameSite=Strict cookie with a 60-minute lifespan and 30-minute idle timeout) and routes the Administrator to the unified Administrative Workspace (providing access to Exhibit Cataloging, Multilingual Curation, and Telemetry Dashboard).
 * If credentials fail, the system renders a generic error message: "Invalid username or password", retaining the entered username while clearing the password field to prevent user enumeration attacks.
 
 **Task List:**
 
-* Task 02.1.1 (Backend): Develop /api/v1/auth/login endpoint verifying Bcrypt hashed passwords, issuing JWT tokens with role claims, and attaching secure HttpOnly cookies.
-* Task 02.1.2 (Frontend): Build a responsive Admin Login page, handle authentication state persistence, and configure route guards based on user roles.
-* Task 02.1.3 (Database): Construct users table, generating database indexes on username and email columns for rapid authentication queries.
+* Task 02.1.1 (Backend): Develop /api/v1/auth/login endpoint verifying Bcrypt hashed passwords, issuing JWT tokens, and attaching secure HttpOnly cookies.
+* Task 02.1.2 (Frontend): Build a responsive Admin Login page, handle authentication state persistence, and configure route guards protecting administrative views.
+* Task 02.1.3 (Database): Construct users table supporting multiple administrator accounts, generating database indexes on username and email columns for rapid authentication queries.
 
 #### User Story 02.2: Brute-Force Protection & Account Lockout (Account Lockout)
 
-* **Description:** As a System Administrator, I need the system to automatically lock admin accounts upon consecutive failed login attempts to safeguard against automated brute-force credential stuffing.
+* **Description:** As an Administrator, I need the system to automatically lock admin accounts upon consecutive failed login attempts to safeguard against automated brute-force credential stuffing.
 * **Priority:** Must have
 * **Story Point:** 3
 
@@ -129,7 +127,7 @@ At the executive operational tier, the Visitor Telemetry & Infrastructure Health
 
 #### User Story 02.3: Secure Session Management & Logout (Session Management & Logout)
 
-* **Description:** As an Administrative Portal User, I need my session to automatically expire during inactivity and have the ability to explicitly log out to revoke active access tokens, ensuring security on shared workstations.
+* **Description:** As an Administrator, I need my session to automatically expire during inactivity and have the ability to explicitly log out to revoke active access tokens, ensuring security on administrative workstations.
 * **Priority:** Should have
 * **Story Point:** 2
 
@@ -149,13 +147,13 @@ At the executive operational tier, the Visitor Telemetry & Infrastructure Health
 
 #### User Story 03.1: Create Digitized Exhibit Profile (Create New POI)
 
-* **Description:** As Museum Staff, I need to create a new exhibit profile with Vietnamese title, teaser preview, primary Vietnamese narration, floor/zone level, and cover photos to digitize historical artifacts for public visitors.
+* **Description:** As an Administrator, I need to create a new exhibit profile with Vietnamese title, teaser preview, primary Vietnamese narration, outdoor zone, and cover photos to digitize historical artifacts for public visitors.
 * **Priority:** Must have
 * **Story Point:** 5
 
 **Acceptance Criteria:**
 
-* Provides an input form for: Vietnamese Title (title_vi), Pre-unlock Teaser (short_description_vi), Full Narrative (description_vi), Floor/Zone level (floor), and Cover Image upload (image_url).
+* Provides an input form for: Vietnamese Title (title_vi), Pre-unlock Teaser (short_description_vi), Full Narrative (description_vi), Outdoor Zone (zone), and Cover Image upload (image_url).
 * Input validation: Required title and description fields must not be empty; uploaded images must strictly be JPG/PNG/WebP formats under 5MB.
 * Upon clicking "Save", the system creates a database record with translation_status = 'PENDING' and dispatches asynchronous background jobs for translation and audio synthesis.
 
@@ -167,15 +165,15 @@ At the executive operational tier, the Visitor Telemetry & Infrastructure Health
 
 #### User Story 03.2: Interactive GPS Geolocation & Geofence Calibration (GPS Geofence Calibration)
 
-* **Description:** As Museum Staff, I need to visually pin or drag an exhibit's GPS coordinates across an interactive map (or manually input latitude and longitude) and calibrate a proximity trigger radius, so that the system automatically detects visitors approaching the physical exhibit.
+* **Description:** As an Administrator, I need to visually pin or drag an exhibit's GPS coordinates across an interactive map (or manually input latitude and longitude) and calibrate a proximity trigger radius, so that the system automatically detects visitors approaching the physical exhibit.
 * **Priority:** Must have
 * **Story Point:** 5
 
 **Acceptance Criteria:**
 
-* Renders an interactive map (OpenStreetMap / Leaflet) allowing staff to click or drag a marker to designate geographical coordinates.
+* Renders an interactive map (OpenStreetMap / Leaflet) allowing the Administrator to click or drag a marker to designate geographical coordinates.
 * Latitude and longitude fields update dynamically as the map marker moves, and vice versa.
-* Staff can configure a proximity geofence radius (default: 30 meters; allowable range: 10m to 50m). The map renders a circular boundary (L.circle) representing the detection zone.
+* The Administrator can configure a proximity geofence radius (default: 30 meters; allowable range: 10m to 50m). The map renders a circular boundary (L.circle) representing the detection zone.
 * Boundary validation: If coordinates fall outside the Cu Chi Tunnels museum perimeter boundary, the system displays a boundary error notification and prevents submission.
 
 **Task List:**
@@ -202,13 +200,13 @@ At the executive operational tier, the Visitor Telemetry & Infrastructure Health
 * Task 03.3.2 (Frontend): Add confirmation modals and table auto-refresh upon successful deletion.
 * Task 03.3.3 (Database): Configure foreign keys on poi_translations and poi_audios with ON DELETE CASCADE.
 
-## Theme 3: Multilingual Curatorial Review & Content Publishing
+## Theme 3: Multilingual Content Review & Publishing
 
-### Epic 03: Curatorial Review, Linguistic Curation & Publishing
+### Epic 03: Multilingual Translation Audit & Audio Publishing
 
 #### User Story 04.1: Multilingual Translation Audit & Historical Terminology Refinement (Review & Filter Translations)
 
-* **Description:** As a Curator, I need to inspect machine translations across target languages (en, ja, ko, zh) with multi-criteria filters, and edit historical terms so that international visitors receive culturally and scholarly accurate descriptions.
+* **Description:** As an Administrator, I need to inspect machine translations across target languages (en, ja, ko, zh) with multi-criteria filters, and edit historical terms so that international visitors receive culturally and scholarly accurate descriptions.
 * **Priority:** Must have
 * **Story Point:** 5
 
@@ -216,7 +214,7 @@ At the executive operational tier, the Visitor Telemetry & Infrastructure Health
 
 * Displays translations in a structured data table with POI name, target language, preview text, and publication status (Pending, Needs Update, Published).
 * Supports instant filtering by target language code, exhibit name, and approval status.
-* Curators can edit translated titles and descriptions. Saving modifications automatically marks the audio guide status as "Needs Update" to avoid desynchronization between text and voice.
+* Administrators can edit translated titles and descriptions. Saving modifications automatically marks the audio guide status as "Needs Update" to avoid desynchronization between text and voice.
 
 **Task List:**
 
@@ -225,13 +223,13 @@ At the executive operational tier, the Visitor Telemetry & Infrastructure Health
 
 #### User Story 04.2: Audio Guide Preview & Dynamic Voice Re-generation (Audio Preview & TTS Re-synthesis)
 
-* **Description:** As a Curator, I need to preview synthesized audio narrations and trigger re-synthesis via Neural TTS on demand, ensuring natural pronunciation and vocal cadence.
+* **Description:** As an Administrator, I need to preview synthesized audio narrations and trigger re-synthesis via Neural TTS on demand, ensuring natural pronunciation and vocal cadence.
 * **Priority:** Must have
 * **Story Point:** 3
 
 **Acceptance Criteria:**
 
-* Embeds an audio player inside the curatorial review view allowing instant playback of the .mp3 file for each language.
+* Embeds an audio player inside the translation review interface allowing instant playback of the .mp3 file for each language.
 * Provides a "Regenerate Audio Guide" action: invoking the Microsoft Edge Neural TTS service to synthesize a new audio file matching the revised text string.
 * If external TTS synthesis fails, displays an explanatory error message: "Unable to generate Audio Guide, please try again later" and retains current data without crashing.
 
@@ -240,9 +238,9 @@ At the executive operational tier, the Visitor Telemetry & Infrastructure Health
 * Task 04.2.1 (Backend): Develop POST /api/v1/admin/translations/{id}/regenerate-audio invoking the edge-tts service.
 * Task 04.2.2 (Frontend): Embed responsive audio preview players and attach loading state spinners to the regeneration action button.
 
-#### User Story 04.3: Curatorial Approval & Live Mobile App Synchronization (Approve & Publish)
+#### User Story 04.3: Administrative Approval & Live Mobile App Synchronization (Approve & Publish)
 
-* **Description:** As a Curator, I need to grant final publication approval (Published) to verified translations and audio files so that they are immediately synchronized to the visitor mobile web application.
+* **Description:** As an Administrator, I need to grant final publication approval (Published) to verified translations and audio files so that they are immediately synchronized to the visitor mobile web application.
 * **Priority:** Must have
 * **Story Point:** 3
 
@@ -255,7 +253,7 @@ At the executive operational tier, the Visitor Telemetry & Infrastructure Health
 **Task List:**
 
 * Task 04.3.1 (Backend): Build POST /api/v1/admin/translations/{id}/publish updating database status flags and invalidating visitor content caches.
-* Task 04.3.2 (Frontend): Update curatorial status badges to Published with reactive UI state changes.
+* Task 04.3.2 (Frontend): Update publication status badges to Published with reactive UI state changes.
 
 ## Theme 4: Visitor Services, Digital Payment & On-Site Navigation
 
@@ -410,7 +408,7 @@ At the executive operational tier, the Visitor Telemetry & Infrastructure Health
 
 #### User Story 05.1: Real-time Visitor Density Heatmap (Real-time Visitor Density Heatmap)
 
-* **Description:** As an Operations Manager, I need to view real-time visitor density heatmaps across museum grounds to identify crowded zones and deploy staff accordingly.
+* **Description:** As an Administrator, I need to view real-time visitor density heatmaps across museum grounds to identify crowded zones and optimize visitor flow management.
 * **Priority:** Should have
 * **Story Point:** 5
 
