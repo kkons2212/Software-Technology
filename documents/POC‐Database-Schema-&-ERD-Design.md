@@ -184,7 +184,7 @@ CREATE TABLE IF NOT EXISTS `Transaction` (
     `PaymentGateway` VARCHAR(255) NOT NULL,
     `PaymentMethod` VARCHAR(255) NULL,
     `Status` NVARCHAR(255) NOT NULL DEFAULT 'PENDING',
-    `GatewayTransactionID` VARCHAR(255) NULL, -- Corresponding to varchar(MAX) in ERD
+    `GatewayTransactionID` VARCHAR(255) NULL,
     `GatewayPayload` JSON NULL,
     `Paid_at` DATETIME NULL,
     `Create_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
