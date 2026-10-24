@@ -1,4 +1,4 @@
-import { getJson } from './apiClient.js';
+import { apiClient } from './apiClient.js';
 
 const LANGUAGES_ENDPOINT = '/api/v1/languages';
 
@@ -19,7 +19,7 @@ function unwrapLanguages(response) {
 }
 
 export async function getPublishedLanguages({ signal } = {}) {
-  const response = await getJson(LANGUAGES_ENDPOINT, { signal });
+  const response = await apiClient.get(LANGUAGES_ENDPOINT, { signal });
 
   return unwrapLanguages(response)
     .filter((language) => {

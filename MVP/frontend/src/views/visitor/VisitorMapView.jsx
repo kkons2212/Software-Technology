@@ -28,7 +28,7 @@ export default function VisitorMapView({
     }
 
     const map = L.map(mapElementRef.current, {
-      center: [location.lat, location.lng],
+      center: [MAIN_ENTRANCE.lat, MAIN_ENTRANCE.lng],
       zoom: DEFAULT_ZOOM,
       zoomControl: false,
       touchZoom: true,
@@ -65,7 +65,7 @@ export default function VisitorMapView({
     }
 
     previousLiveLocationRef.current = hasLiveLocation;
-  }, [hasLiveLocation, location?.lat, location?.lng]);
+  }, [hasLiveLocation, location]);
 
   const handleZoomIn = () => mapRef.current?.zoomIn();
   const handleZoomOut = () => mapRef.current?.zoomOut();

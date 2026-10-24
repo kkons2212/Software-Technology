@@ -22,29 +22,33 @@ export function createVisitorLocationIcon(isLiveLocation) {
 export default function VisitorLocationMarker({ map, location, accuracy, isLiveLocation }) {
   const markerRef = useRef(null);
   const accuracyCircleRef = useRef(null);
+  const currentPropsRef = useRef({ location, accuracy, isLiveLocation, map });
+  currentPropsRef.current = { location, accuracy, isLiveLocation, map };
 
   useEffect(() => {
-    if (!map || !location) {
+    const currentProps = currentPropsRef.current;
+    if (!currentProps.map || !currentProps.location) {
       return undefined;
     }
 
-    const marker = L.marker([location.lat, location.lng], {
-      icon: createVisitorLocationIcon(isLiveLocation),
+    const initialPosition = [currentProps.location.lat, currentProps.location.lng];
+    const marker = L.marker(initialPosition, {
+      icon: createVisitorLocationIcon(currentProps.isLiveLocation),
       keyboard: false,
       interactive: false,
       zIndexOffset: 1000,
-    }).addTo(map);
+    }).addTo(currentProps.map);
     markerRef.current = marker;
 
-    if (isLiveLocation && Number.isFinite(accuracy) && accuracy > 0) {
-      accuracyCircleRef.current = L.circle([location.lat, location.lng], {
-        radius: accuracy,
+    if (currentProps.isLiveLocation && Number.isFinite(currentProps.accuracy) && currentProps.accuracy > 0) {
+      accuracyCircleRef.current = L.circle(initialPosition, {
+        radius: currentProps.accuracy,
         className: 'visitor-accuracy-circle',
         color: '#1D4ED8',
         fillColor: '#1D4ED8',
         fillOpacity: 0.08,
         weight: 1,
-      }).addTo(map);
+      }).addTo(currentProps.map);
     }
 
     return () => {
@@ -53,14 +57,15 @@ export default function VisitorLocationMarker({ map, location, accuracy, isLiveL
       markerRef.current = null;
       accuracyCircleRef.current = null;
     };
-  }, [isLiveLocation, map]);
+  }, [map]);
 
   useEffect(() => {
-    if (!location || !markerRef.current) {
+    const currentLocation = location;
+    if (!currentLocation || !markerRef.current) {
       return;
     }
 
-    const nextPosition = [location.lat, location.lng];
+    const nextPosition = [currentLocation.lat, currentLocation.lng];
     markerRef.current.setLatLng(nextPosition);
 
     if (isLiveLocation && Number.isFinite(accuracy) && accuracy > 0) {
@@ -81,7 +86,7 @@ export default function VisitorLocationMarker({ map, location, accuracy, isLiveL
       accuracyCircleRef.current.remove();
       accuracyCircleRef.current = null;
     }
-  }, [accuracy, isLiveLocation, location?.lat, location?.lng, map]);
+  }, [accuracy, isLiveLocation, location, map]);
 
   return null;
 }
