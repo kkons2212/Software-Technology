@@ -1,20 +1,60 @@
-import React from 'react';
-import { describe, it, expect } from 'vitest';
+// =============================================================================
+// TIER 1 - APPLICATION SHELL TESTS
+// The Application shell is now a Router (see src/App.jsx): the root path
+// redirects into the protected Admin Portal, so every render needs a Router and
+// an AuthProvider (AdminLoginView consumes useAuth).
+// =============================================================================
+
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import App from '../App.jsx';
+import { AuthProvider } from '../contexts/AuthContext.jsx';
+
+function renderApp(initialPath = '/') {
+  return render(
+    <MemoryRouter initialEntries={[initialPath]}>
+      <AuthProvider>
+        <App />
+      </AuthProvider>
+    </MemoryRouter>,
+  );
+}
 
 describe('App Component', () => {
-  it('renders application header and title', () => {
-    render(<App />);
-    const heading = screen.getByRole('heading', { level: 1 });
-    expect(heading).toBeInTheDocument();
-    expect(heading).toHaveTextContent(/Cu Chi Tunnels - Smart Audio Guide/i);
+  beforeEach(() => {
+    // Anonymous bootstrap: the session probe finds no valid cookie session.
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 401,
+        headers: new Headers({ 'content-type': 'application/json' }),
+        json: async () => ({}),
+      }),
+    );
   });
 
-  it('renders main introduction text', () => {
-    render(<App />);
-    expect(
-      screen.getByText(/Interactive Map & Multilingual Audio Guide System initialized/i)
-    ).toBeInTheDocument();
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('redirects the root path into the protected admin route', async () => {
+    renderApp('/');
+    const heading = await screen.findByRole('heading', {
+      level: 1,
+      name: /administrator sign in/i,
+    });
+    expect(heading).toBeInTheDocument();
+  });
+
+  it('renders the administrator sign-in screen on the admin login route', async () => {
+    renderApp('/admin/login');
+    const heading = await screen.findByRole('heading', {
+      level: 1,
+      name: /administrator sign in/i,
+    });
+    expect(heading).toBeInTheDocument();
+    expect(screen.getByLabelText(/^password$/i)).toBeInTheDocument();
   });
 });
