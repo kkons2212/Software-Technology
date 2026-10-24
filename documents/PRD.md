@@ -190,20 +190,6 @@ At the executive operational tier, the Visitor Telemetry & Infrastructure Health
 
 ### Epic 03: Multilingual Translation Audit & Audio Publishing
 
-#### User Story 04.0: Automated AI Translation & Audio Synthesis Pipeline (Background Processing Engine)
-
-* **Description:** As the System, I need to automatically translate Vietnamese narratives into target foreign languages (`en`, `ja`, `ko`, `zh`) and synthesize neural voice audio guides in the background upon POI creation or primary narrative updates, so that draft translations and narrations are prepared without manual overhead.
-* **Priority:** Must have
-* **Story Point:** 8
-
-**Acceptance Criteria:**
-
-* Upon POI creation or narrative description update, the backend automatically dispatches asynchronous background worker jobs for all configured target languages (`en`, `ja`, `ko`, `zh`).
-* The translation worker processes source Vietnamese text using `deep-translator` with an exponential backoff retry mechanism (up to 3 attempts) to handle transient network errors.
-* Localized text strings are synthesized into high-quality MP3 audio files ($64\text{kbps}-96\text{kbps}$) using `edge-tts` with native neural voices.
-* An intelligent SHA-256 audio content hashing mechanism (`audio_hash = SHA256(title + text + lang + voice)`) checks existing files before synthesis: if identical audio exists, it is reused to conserve computation and storage.
-* Short-lived JIT database connections are strictly enforced: database sessions are never held open during long-running external translation or TTS network calls.
-
 #### User Story 04.1: Multilingual Translation Audit & Historical Terminology Refinement (Review & Filter Translations)
 
 * **Description:** As an Administrator, I need to inspect machine translations across target languages (en, ja, ko, zh) with multi-criteria filters, and edit historical terms so that international visitors receive culturally and scholarly accurate descriptions.
@@ -239,6 +225,20 @@ At the executive operational tier, the Visitor Telemetry & Infrastructure Health
 * The "Approve & Publish" button is enabled only when both valid translated text and a synthesized audio file are present.
 * Clicking "Approve & Publish" updates the record status to Published in poi_translations and poi_audios.
 * Content changes take effect in real time, making verified narratives and audio available on the visitor mobile web client.
+
+#### User Story 04.4: Automated AI Translation & Audio Synthesis Pipeline (Background Processing Engine)
+
+* **Description:** As the System, I need to automatically translate Vietnamese narratives into target foreign languages (`en`, `ja`, `ko`, `zh`) and synthesize neural voice audio guides in the background upon POI creation or primary narrative updates, so that draft translations and narrations are prepared without manual overhead.
+* **Priority:** Must have
+* **Story Point:** 8
+
+**Acceptance Criteria:**
+
+* Upon POI creation or narrative description update, the backend automatically dispatches asynchronous background worker jobs for all configured target languages (`en`, `ja`, `ko`, `zh`).
+* The translation worker processes source Vietnamese text using `deep-translator` with an exponential backoff retry mechanism (up to 3 attempts) to handle transient network errors.
+* Localized text strings are synthesized into high-quality MP3 audio files ($64\text{kbps}-96\text{kbps}$) using `edge-tts` with native neural voices.
+* An intelligent SHA-256 audio content hashing mechanism (`audio_hash = SHA256(title + text + lang + voice)`) checks existing files before synthesis: if identical audio exists, it is reused to conserve computation and storage.
+* Short-lived JIT database connections are strictly enforced: database sessions are never held open during long-running external translation or TTS network calls.
 
 ## Theme 4: Visitor Services, Digital Payment & On-Site Navigation
 
