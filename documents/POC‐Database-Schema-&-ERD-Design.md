@@ -32,7 +32,7 @@ CREATE DATABASE IF NOT EXISTS `smart_museum`
 USE `smart_museum`;
 
 -- ------------------------------------------------------------------------------
--- 1. BẢNG `User` (Tài khoản Quản trị & Nhân sự nội bộ)
+-- 1. TABLE `User` (Internal Administration & Staff Accounts)
 -- ------------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `User` (
     `UserName` VARCHAR(20) NOT NULL,
@@ -49,7 +49,7 @@ CREATE TABLE IF NOT EXISTS `User` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ------------------------------------------------------------------------------
--- 2. BẢNG `Audit` (Nhật ký Kiểm toán & Đăng nhập)
+-- 2. TABLE `Audit` (Audit Logs & Authentication Tracking)
 -- ------------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `Audit` (
     `AuditID` VARCHAR(20) NOT NULL,
@@ -65,7 +65,7 @@ CREATE TABLE IF NOT EXISTS `Audit` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ------------------------------------------------------------------------------
--- 3. BẢNG `LanguageCode` (Danh mục Ngôn ngữ hỗ trợ)
+-- 3. TABLE `LanguageCode` (Supported Languages Catalog)
 -- ------------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `LanguageCode` (
     `LanguageID` VARCHAR(20) NOT NULL, -- 'vi', 'en', 'ja', 'ko', 'zh'
@@ -74,7 +74,7 @@ CREATE TABLE IF NOT EXISTS `LanguageCode` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ------------------------------------------------------------------------------
--- 4. BẢNG `POI` (Điểm Di tích / Hiện vật Lịch sử Địa đạo)
+-- 4. TABLE `POI` (Historical Relic / Point of Interest)
 -- ------------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `POI` (
     `PoiID` VARCHAR(20) NOT NULL,
@@ -99,7 +99,7 @@ CREATE TABLE IF NOT EXISTS `POI` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ------------------------------------------------------------------------------
--- 5. BẢNG `POITranslation` (Bản dịch Đa ngôn ngữ của Di tích)
+-- 5. TABLE `POITranslation` (Multilingual POI Translations)
 -- ------------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `POITranslation` (
     `StranID` VARCHAR(20) NOT NULL,
@@ -132,7 +132,7 @@ CREATE TABLE IF NOT EXISTS `POITranslation` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ------------------------------------------------------------------------------
--- 6. BẢNG `POIAudio` (Tệp Âm thanh Thuyết minh AI - Neural TTS)
+-- 6. TABLE `POIAudio` (AI Narration Audio Files - Neural TTS)
 -- ------------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `POIAudio` (
     `AudioID` VARCHAR(20) NOT NULL,
@@ -151,7 +151,7 @@ CREATE TABLE IF NOT EXISTS `POIAudio` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ------------------------------------------------------------------------------
--- 7. BẢNG `VisitorSession` (Phiên Tham quan 24h & Khôi phục Đa thiết bị)
+-- 7. TABLE `VisitorSession` (24h Visitor Session & Cross-device Recovery)
 -- ------------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `VisitorSession` (
     `SessionID` VARCHAR(20) NOT NULL,
@@ -174,7 +174,7 @@ CREATE TABLE IF NOT EXISTS `VisitorSession` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ------------------------------------------------------------------------------
--- 8. BẢNG `Transaction` (Giao dịch Thanh toán Mua vé Số)
+-- 8. TABLE `Transaction` (Digital Ticket Payment Transactions)
 -- ------------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `Transaction` (
     `TransactionID` VARCHAR(20) NOT NULL,
@@ -183,7 +183,7 @@ CREATE TABLE IF NOT EXISTS `Transaction` (
     `PaymentGateway` VARCHAR(255) NOT NULL,
     `PaymentMethod` VARCHAR(255) NULL,
     `Status` NVARCHAR(255) NOT NULL DEFAULT 'PENDING',
-    `GatewayTransactionID` TEXT NULL, -- Tương ứng varchar(MAX) trên ERD
+    `GatewayTransactionID` TEXT NULL, -- Corresponding to varchar(MAX) in ERD
     `GatewayPayload` TEXT NULL,
     `Paid_at` DATETIME NULL,
     `Create_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -197,7 +197,7 @@ CREATE TABLE IF NOT EXISTS `Transaction` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ------------------------------------------------------------------------------
--- 9. BẢNG `POITrigger` (Sự kiện Kích hoạt Thuyết minh & Thời gian dừng chân)
+-- 9. TABLE `POITrigger` (Narration Trigger Events & Dwell Time)
 -- ------------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `POITrigger` (
     `TriggerID` VARCHAR(20) NOT NULL,
@@ -222,131 +222,131 @@ CREATE TABLE IF NOT EXISTS `POITrigger` (
 
 ## 3. Data Dictionary (MySQL 8.0+ Schema)
 
-Chi tiết mã nguồn DDL script MySQL khởi tạo CSDL đã được tích hợp tại mục [2.1. MySQL Schema DDL Script](#21-mysql-schema-ddl-script) ở trên.
+The full MySQL initialization DDL script is provided in section [2.1. MySQL Schema DDL Script](#21-mysql-schema-ddl-script) above.
 
-### 3.1. Bảng `users` (Tài khoản Quản trị & Nhân sự)
-| Tên cột | Kiểu dữ liệu | Ràng buộc | Mô tả |
+### 3.1. Table `users` (Administration & Staff Accounts)
+| Column Name | Data Type | Constraints | Description |
 |---|---|---|---|
-| `user_name` | `VARCHAR(255)` | `PRIMARY KEY` | Tên đăng nhập của tài khoản |
-| `email` | `VARCHAR(255)` | `NOT NULL, UNIQUE` | Địa chỉ email liên hệ |
-| `password_hash` | `VARCHAR(255)` | `NOT NULL` | Chuỗi băm mật khẩu (Bcrypt/Argon2id) |
-| `full_name` | `VARCHAR(255)` | `NULL` | Họ và tên nhân sự |
-| `is_active` | `BOOLEAN` | `DEFAULT TRUE` | Trạng thái hoạt động |
-| `failed_attempts` | `INTEGER` | `DEFAULT 0` | Số lần đăng nhập sai liên tiếp |
-| `locked_until` | `TIMESTAMPTZ` | `NULL` | Thời điểm mở khóa sau khi bị khóa 15p |
-| `create_at` | `TIMESTAMPTZ` | `DEFAULT CURRENT_TIMESTAMP` | Thời điểm tạo tài khoản |
-| `update_at` | `TIMESTAMPTZ` | `DEFAULT CURRENT_TIMESTAMP` | Thời điểm cập nhật thông tin |
+| `user_name` | `VARCHAR(255)` | `PRIMARY KEY` | Account username / unique login identifier |
+| `email` | `VARCHAR(255)` | `NOT NULL, UNIQUE` | Contact email address |
+| `password_hash` | `VARCHAR(255)` | `NOT NULL` | Password hash string (Bcrypt/Argon2id) |
+| `full_name` | `VARCHAR(255)` | `NULL` | Full name of staff member |
+| `is_active` | `BOOLEAN` | `DEFAULT TRUE` | Account active status |
+| `failed_attempts` | `INTEGER` | `DEFAULT 0` | Consecutive failed login attempts |
+| `locked_until` | `TIMESTAMPTZ` | `NULL` | Lockout expiration timestamp (after 15-min lockout) |
+| `create_at` | `TIMESTAMPTZ` | `DEFAULT CURRENT_TIMESTAMP` | Account creation timestamp |
+| `update_at` | `TIMESTAMPTZ` | `DEFAULT CURRENT_TIMESTAMP` | Last profile update timestamp |
 
 ---
 
-### 3.2. Bảng `audit` (Nhật ký Kiểm toán / Đăng nhập)
-| Tên cột | Kiểu dữ liệu | Ràng buộc | Mô tả |
+### 3.2. Table `audit` (Audit & Login Logs)
+| Column Name | Data Type | Constraints | Description |
 |---|---|---|---|
-| `audit_id` | `VARCHAR(20)` | `PRIMARY KEY` | Định danh bản ghi kiểm toán |
-| `user_name` | `VARCHAR(255)` | `NOT NULL, FK -> users(user_name)` | Tên đăng nhập tương ứng (ON DELETE CASCADE) |
-| `status` | `VARCHAR(255)` | `NOT NULL` | Trạng thái (SUCCESS, FAILED, LOCKED) |
-| `create_at` | `TIMESTAMPTZ` | `DEFAULT CURRENT_TIMESTAMP` | Thời điểm ghi nhận log |
+| `audit_id` | `VARCHAR(20)` | `PRIMARY KEY` | Unique audit record identifier |
+| `user_name` | `VARCHAR(255)` | `NOT NULL, FK -> users(user_name)` | Associated username (ON DELETE CASCADE) |
+| `status` | `VARCHAR(255)` | `NOT NULL` | Status (SUCCESS, FAILED, LOCKED) |
+| `create_at` | `TIMESTAMPTZ` | `DEFAULT CURRENT_TIMESTAMP` | Audit log entry timestamp |
 
 ---
 
-### 3.3. Bảng `language_code` (Danh mục Ngôn ngữ Hỗ trợ)
-| Tên cột | Kiểu dữ liệu | Ràng buộc | Mô tả |
+### 3.3. Table `language_code` (Supported Languages Catalog)
+| Column Name | Data Type | Constraints | Description |
 |---|---|---|---|
-| `language_id` | `VARCHAR(20)` | `PRIMARY KEY` | Mã ngôn ngữ (`vi`, `en`, `ja`, `ko`, `zh`) |
-| `language_name` | `VARCHAR(255)` | `NOT NULL` | Tên hiển thị của ngôn ngữ |
+| `language_id` | `VARCHAR(20)` | `PRIMARY KEY` | ISO language code (`vi`, `en`, `ja`, `ko`, `zh`) |
+| `language_name` | `VARCHAR(255)` | `NOT NULL` | Display name of the language |
 
 ---
 
-### 3.4. Bảng `pois` (Điểm Di tích Lịch sử Củ Chi)
-| Tên cột | Kiểu dữ liệu | Ràng buộc | Mô tả |
+### 3.4. Table `pois` (Cu Chi Historic Points of Interest)
+| Column Name | Data Type | Constraints | Description |
 |---|---|---|---|
-| `poi_id` | `VARCHAR(20)` | `PRIMARY KEY` | Mã định danh di tích |
-| `title` | `VARCHAR(255)` | `NOT NULL` | Tên di tích tiếng Việt gốc |
-| `short_description` | `VARCHAR(255)` | `NULL` | Đoạn tóm tắt xem trước trước khi mở khóa |
-| `description` | `TEXT` | `NOT NULL` | Nội dung thuyết minh chi tiết |
-| `image_url` | `VARCHAR(255)` | `NULL` | Đường dẫn ảnh bìa di tích |
-| `latitude` | `NUMERIC(10, 7)` | `NOT NULL, CHECK (-90..90)` | Vĩ độ GPS ngoài trời |
-| `longitude` | `NUMERIC(10, 7)` | `NOT NULL, CHECK (-180..180)` | Kinh độ GPS ngoài trời |
-| `radius` | `INTEGER` | `DEFAULT 30, CHECK (> 0)` | Bán kính Geofence tự động kích hoạt (m) |
-| `area_zone` | `VARCHAR(255)` | `DEFAULT 'GROUND'` | Khu vực địa hình / hầm địa đạo |
-| `is_active` | `BOOLEAN` | `DEFAULT TRUE` | Cờ kích hoạt hiển thị cho khách |
-| `create_by` | `VARCHAR(255)` | `FK -> users(user_name)` | Người tạo di tích (ON DELETE SET NULL) |
-| `create_at` | `TIMESTAMPTZ` | `DEFAULT CURRENT_TIMESTAMP` | Thời điểm tạo bản ghi |
-| `update_at` | `TIMESTAMPTZ` | `DEFAULT CURRENT_TIMESTAMP` | Thời điểm cập nhật gần nhất |
+| `poi_id` | `VARCHAR(20)` | `PRIMARY KEY` | Unique POI identifier |
+| `title` | `VARCHAR(255)` | `NOT NULL` | Original Vietnamese POI name |
+| `short_description` | `VARCHAR(255)` | `NULL` | Short preview summary before unlocking |
+| `description` | `TEXT` | `NOT NULL` | Detailed narration content |
+| `image_url` | `VARCHAR(255)` | `NULL` | POI cover image URL |
+| `latitude` | `NUMERIC(10, 7)` | `NOT NULL, CHECK (-90..90)` | Outdoor GPS latitude |
+| `longitude` | `NUMERIC(10, 7)` | `NOT NULL, CHECK (-180..180)` | Outdoor GPS longitude |
+| `radius` | `INTEGER` | `DEFAULT 30, CHECK (> 0)` | Automatic trigger geofence radius (meters) |
+| `area_zone` | `VARCHAR(255)` | `DEFAULT 'GROUND'` | Terrain zone / tunnel level classification |
+| `is_active` | `BOOLEAN` | `DEFAULT TRUE` | Visibility flag for visitors |
+| `create_by` | `VARCHAR(255)` | `FK -> users(user_name)` | POI creator username (ON DELETE SET NULL) |
+| `create_at` | `TIMESTAMPTZ` | `DEFAULT CURRENT_TIMESTAMP` | Record creation timestamp |
+| `update_at` | `TIMESTAMPTZ` | `DEFAULT CURRENT_TIMESTAMP` | Last update timestamp |
 
 ---
 
-### 3.5. Bảng `poi_translation` (Bản dịch Đa ngôn ngữ)
-| Tên cột | Kiểu dữ liệu | Ràng buộc | Mô tả |
+### 3.5. Table `poi_translation` (Multilingual POI Translations)
+| Column Name | Data Type | Constraints | Description |
 |---|---|---|---|
-| `stran_id` | `VARCHAR(20)` | `PRIMARY KEY` | Định danh bản dịch |
-| `poi_id` | `VARCHAR(20)` | `NOT NULL, FK -> pois(poi_id)` | Di tích được dịch (ON DELETE CASCADE) |
-| `language_id` | `VARCHAR(20)` | `NOT NULL, FK -> language_code(language_id)` | Mã ngôn ngữ dịch sang |
-| `user_name` | `VARCHAR(255)` | `FK -> users(user_name)` | Giám tuyển / người duyệt |
-| `title` | `VARCHAR(255)` | `NOT NULL` | Tiêu đề đã dịch |
-| `short_description` | `VARCHAR(255)` | `NULL` | Mô tả tóm tắt đã dịch |
-| `description` | `TEXT` | `NOT NULL` | Toàn văn thuyết minh đã dịch |
-| `status` | `VARCHAR(255)` | `DEFAULT 'PENDING'` | Trạng thái (`PENDING`, `APPROVED`, `PUBLISHED`) |
-| `review_by` | `VARCHAR(20)` | `NULL` | Người phê duyệt |
-| `review_at` | `TIMESTAMPTZ` | `NULL` | Thời điểm phê duyệt |
-| `create_at` | `TIMESTAMPTZ` | `DEFAULT CURRENT_TIMESTAMP` | Thời điểm tạo bản dịch |
-| `update_at` | `TIMESTAMPTZ` | `DEFAULT CURRENT_TIMESTAMP` | Thời điểm cập nhật bản dịch |
+| `stran_id` | `VARCHAR(20)` | `PRIMARY KEY` | Unique translation identifier |
+| `poi_id` | `VARCHAR(20)` | `NOT NULL, FK -> pois(poi_id)` | Associated POI (ON DELETE CASCADE) |
+| `language_id` | `VARCHAR(20)` | `NOT NULL, FK -> language_code(language_id)` | Target language code |
+| `user_name` | `VARCHAR(255)` | `FK -> users(user_name)` | Curator / reviewer username |
+| `title` | `VARCHAR(255)` | `NOT NULL` | Translated title |
+| `short_description` | `VARCHAR(255)` | `NULL` | Translated preview summary |
+| `description` | `TEXT` | `NOT NULL` | Translated full narration text |
+| `status` | `VARCHAR(255)` | `DEFAULT 'PENDING'` | Workflow status (`PENDING`, `APPROVED`, `PUBLISHED`) |
+| `review_by` | `VARCHAR(20)` | `NULL` | Reviewer identifier |
+| `review_at` | `TIMESTAMPTZ` | `NULL` | Review approval timestamp |
+| `create_at` | `TIMESTAMPTZ` | `DEFAULT CURRENT_TIMESTAMP` | Translation creation timestamp |
+| `update_at` | `TIMESTAMPTZ` | `DEFAULT CURRENT_TIMESTAMP` | Last translation update timestamp |
 
 * **Unique Constraint:** `UNIQUE (poi_id, language_id)`
 
 ---
 
-### 3.6. Bảng `poi_audio` (Tệp Âm thanh AI - Edge-TTS)
-| Tên cột | Kiểu dữ liệu | Ràng buộc | Mô tả |
+### 3.6. Table `poi_audio` (AI Narration Audio Files - Edge-TTS)
+| Column Name | Data Type | Constraints | Description |
 |---|---|---|---|
-| `audio_id` | `VARCHAR(20)` | `PRIMARY KEY` | Định danh tệp âm thanh |
-| `stran_id` | `VARCHAR(20)` | `NOT NULL, FK -> poi_translation(stran_id)` | Bản dịch tương ứng (ON DELETE CASCADE) |
-| `audio_url` | `TEXT` | `NOT NULL` | Đường dẫn file `.mp3` tĩnh trên server |
-| `duration_seconds` | `NUMERIC(6, 1)` | `NULL` | Thời lượng phát (giây) |
-| `file_size` | `BIGINT` | `NULL` | Dung lượng tệp (bytes) phục vụ cảnh báo >85% |
-| `status` | `VARCHAR(255)` | `DEFAULT 'READY'` | Trạng thái TTS (`GENERATING`, `READY`, `NEEDS_UPDATE`) |
-| `create_at` | `TIMESTAMPTZ` | `DEFAULT CURRENT_TIMESTAMP` | Thời điểm tạo file |
-| `update_at` | `TIMESTAMPTZ` | `DEFAULT CURRENT_TIMESTAMP` | Thời điểm tái tổng hợp gần nhất |
+| `audio_id` | `VARCHAR(20)` | `PRIMARY KEY` | Unique audio record identifier |
+| `stran_id` | `VARCHAR(20)` | `NOT NULL, FK -> poi_translation(stran_id)` | Associated translation (ON DELETE CASCADE) |
+| `audio_url` | `TEXT` | `NOT NULL` | Static `.mp3` file URL / path on server |
+| `duration_seconds` | `NUMERIC(6, 1)` | `NULL` | Playback duration (seconds) |
+| `file_size` | `BIGINT` | `NULL` | File size (bytes) for >85% storage warning |
+| `status` | `VARCHAR(255)` | `DEFAULT 'READY'` | TTS synthesis status (`GENERATING`, `READY`, `NEEDS_UPDATE`) |
+| `create_at` | `TIMESTAMPTZ` | `DEFAULT CURRENT_TIMESTAMP` | Audio record creation timestamp |
+| `update_at` | `TIMESTAMPTZ` | `DEFAULT CURRENT_TIMESTAMP` | Last re-synthesis timestamp |
 
 ---
 
-### 3.7. Bảng `visitor_session` (Phiên Tham quan Du khách 24h)
-| Tên cột | Kiểu dữ liệu | Ràng buộc | Mô tả |
+### 3.7. Table `visitor_session` (24-Hour Visitor Session)
+| Column Name | Data Type | Constraints | Description |
 |---|---|---|---|
-| `session_id` | `VARCHAR(20)` | `PRIMARY KEY` | Định danh phiên tham quan |
-| `session_code` | `VARCHAR(255)` | `NOT NULL, UNIQUE` | Mã khôi phục phiên (dùng đổi thiết bị) |
-| `session_token` | `VARCHAR(255)` | `NOT NULL, UNIQUE` | Token JWT/Bearer mở khóa nghe audio |
-| `device_fingerprint` | `VARCHAR(255)` | `NULL` | Dấu vân tay thiết bị du khách |
-| `preferred_language` | `VARCHAR(20)` | `NOT NULL, FK -> language_code` | Ngôn ngữ du khách đã chọn |
-| `status` | `VARCHAR(255)` | `DEFAULT 'ACTIVE'` | Trạng thái phiên (`ACTIVE`, `EXPIRED`) |
-| `activate_at` | `TIMESTAMPTZ` | `DEFAULT CURRENT_TIMESTAMP` | Thời điểm kích hoạt phiên |
-| `expire_at` | `TIMESTAMPTZ` | `NOT NULL` | Thời điểm hết hạn phiên (24 giờ) |
-| `create_at` | `TIMESTAMPTZ` | `DEFAULT CURRENT_TIMESTAMP` | Thời điểm tạo phiên ban đầu |
+| `session_id` | `VARCHAR(20)` | `PRIMARY KEY` | Unique visitor session identifier |
+| `session_code` | `VARCHAR(255)` | `NOT NULL, UNIQUE` | Session recovery code (for device switching) |
+| `session_token` | `VARCHAR(255)` | `NOT NULL, UNIQUE` | JWT/Bearer access token for audio playback |
+| `device_fingerprint` | `VARCHAR(255)` | `NULL` | Visitor device fingerprint |
+| `preferred_language` | `VARCHAR(20)` | `NOT NULL, FK -> language_code` | Selected preferred language |
+| `status` | `VARCHAR(255)` | `DEFAULT 'ACTIVE'` | Session status (`ACTIVE`, `EXPIRED`) |
+| `activate_at` | `TIMESTAMPTZ` | `DEFAULT CURRENT_TIMESTAMP` | Session activation timestamp |
+| `expire_at` | `TIMESTAMPTZ` | `NOT NULL` | Session expiration timestamp (24 hours) |
+| `create_at` | `TIMESTAMPTZ` | `DEFAULT CURRENT_TIMESTAMP` | Initial session creation timestamp |
 
 ---
 
-### 3.8. Bảng `transaction` (Giao dịch Thanh toán Vé Số)
-| Tên cột | Kiểu dữ liệu | Ràng buộc | Mô tả |
+### 3.8. Table `transaction` (Digital Ticket Payment Transactions)
+| Column Name | Data Type | Constraints | Description |
 |---|---|---|---|
-| `transaction_id` | `VARCHAR(20)` | `PRIMARY KEY` | Mã giao dịch nội bộ |
-| `session_id` | `VARCHAR(20)` | `FK -> visitor_session(session_id)` | Phiên du khách được mở khóa |
-| `pay_amount` | `INTEGER` | `NOT NULL, CHECK (pay_amount >= 0)` | Số tiền vé tham quan (VND) |
-| `currency` | `VARCHAR(20)` | `DEFAULT 'VND'` | Đơn vị tiền tệ |
-| `payment_gateway` | `VARCHAR(255)` | `NOT NULL` | Cổng thanh toán (`VIETQR`, `PAYOS`, `STRIPE`) |
-| `payment_method` | `VARCHAR(255)` | `NULL` | Phương thức thanh toán (QR, Thẻ, ATM) |
-| `status` | `VARCHAR(255)` | `DEFAULT 'PENDING'` | Trạng thái (`PENDING`, `PAID`, `FAILED`) |
-| `gateway_transaction_id` | `VARCHAR(255)` | `NULL` | Mã giao dịch phía cổng thanh toán cấp |
-| `gateway_payload` | `TEXT` | `NULL` | Dữ liệu phản hồi Webhook đối soát |
-| `paid_at` | `TIMESTAMPTZ` | `NULL` | Thời điểm thanh toán thành công |
-| `create_at` | `TIMESTAMPTZ` | `DEFAULT CURRENT_TIMESTAMP` | Thời điểm khởi tạo giao dịch |
+| `transaction_id` | `VARCHAR(20)` | `PRIMARY KEY` | Internal payment transaction identifier |
+| `session_id` | `VARCHAR(20)` | `FK -> visitor_session(session_id)` | Unlocked visitor session |
+| `pay_amount` | `INTEGER` | `NOT NULL, CHECK (pay_amount >= 0)` | Ticket payment amount (VND) |
+| `currency` | `VARCHAR(20)` | `DEFAULT 'VND'` | Currency code |
+| `payment_gateway` | `VARCHAR(255)` | `NOT NULL` | Payment gateway (`VIETQR`, `PAYOS`, `STRIPE`) |
+| `payment_method` | `VARCHAR(255)` | `NULL` | Payment method (QR, Card, ATM) |
+| `status` | `VARCHAR(255)` | `DEFAULT 'PENDING'` | Status (`PENDING`, `PAID`, `FAILED`) |
+| `gateway_transaction_id` | `VARCHAR(255)` | `NULL` | Transaction ID issued by payment gateway |
+| `gateway_payload` | `TEXT` | `NULL` | Webhook reconciliation response payload |
+| `paid_at` | `TIMESTAMPTZ` | `NULL` | Successful payment timestamp |
+| `create_at` | `TIMESTAMPTZ` | `DEFAULT CURRENT_TIMESTAMP` | Transaction initialization timestamp |
 
 ---
 
-### 3.9. Bảng `poi_trigger` (Sự kiện Kích hoạt Thuyết minh Geofence)
-| Tên cột | Kiểu dữ liệu | Ràng buộc | Mô tả |
+### 3.9. Table `poi_trigger` (Geofence Narration Trigger Events)
+| Column Name | Data Type | Constraints | Description |
 |---|---|---|---|
-| `trigger_id` | `VARCHAR(20)` | `PRIMARY KEY` | Định danh sự kiện kích hoạt |
-| `session_id` | `VARCHAR(20)` | `NOT NULL, FK -> visitor_session` | Phiên du khách (ON DELETE CASCADE) |
-| `poi_id` | `VARCHAR(20)` | `NOT NULL, FK -> pois` | Điểm di tích được nghe (ON DELETE CASCADE) |
-| `dwell_time` | `INTEGER` | `DEFAULT 0, CHECK (dwell_time >= 0)` | Thời gian dừng chân tại di tích (giây) |
-| `trigger_at` | `TIMESTAMPTZ` | `DEFAULT CURRENT_TIMESTAMP` | Mốc thời gian kích hoạt phát thuyết minh |
+| `trigger_id` | `VARCHAR(20)` | `PRIMARY KEY` | Unique trigger event identifier |
+| `session_id` | `VARCHAR(20)` | `NOT NULL, FK -> visitor_session` | Visitor session (ON DELETE CASCADE) |
+| `poi_id` | `VARCHAR(20)` | `NOT NULL, FK -> pois` | Triggered POI (ON DELETE CASCADE) |
+| `dwell_time` | `INTEGER` | `DEFAULT 0, CHECK (dwell_time >= 0)` | Dwell time at POI (seconds) |
+| `trigger_at` | `TIMESTAMPTZ` | `DEFAULT CURRENT_TIMESTAMP` | Narration playback trigger timestamp |
