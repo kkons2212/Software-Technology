@@ -49,6 +49,9 @@ To ensure the codebase is **readable, self-explanatory, and contextually clear a
 | **Backend Repository** | `snake_case.py` | `<domain>_repository.py` | `poi_repository.py`, `audit_repository.py`, `transaction_repository.py` |
 | **Backend Model (ORM)** | `snake_case.py` | `<domain>.py` | `poi.py`, `user.py`, `visitor_session.py`, `transaction.py` |
 | **Backend Schema** | `snake_case.py` | `<domain>_schema.py` | `poi_schema.py`, `auth_schema.py`, `audio_schema.py`, `payment_schema.py` |
+| **Backend Unit Test** | `snake_case.py` | `test_<module_name>.py` | `test_poi_service.py`, `test_audio_service.py`, `test_poi_repository.py`, `test_poi_controller.py` |
+| **Frontend Component Test** | `PascalCase.test.jsx` | `<ComponentName>.test.jsx` | `MiniAudioPlayer.test.jsx`, `VisitorMapView.test.jsx`, `POICardPreview.test.jsx` |
+| **Frontend Hook / Util Test** | `camelCase.test.js` | `<hook/util>.test.js` | `useGeolocation.test.js`, `useAudioSync.test.js`, `haversine.test.js` |
 
 #### 3. Class, Schema & Type Naming
 - **Classes & ORM Models (Python):** Use `PascalCase` entity nouns: `User`, `POI`, `POITranslation`, `POIAudio`, `VisitorSession`, `Transaction`.
@@ -587,6 +590,68 @@ def validate_coordinates_in_bounds(lat: float, lng: float):
 
 ## 7. TESTING STANDARDS & DEFINITION OF DONE (DOD)
 
+### 7.1. Mandatory 1-to-1 Module & UI Component Unit Test Rule
+To eliminate untested code and regression bugs, developers and AI Agents must follow the **Strict 1-to-1 Unit Testing Rule**:
+> **Every completed module, service, repository, utility, custom hook, or UI component MUST be paired with its dedicated Unit Test file upon completion.**
+> No module is considered "Done" without an accompanying unit test file containing comprehensive test coverage.
+
+#### 1. Unit Test File Placement & Naming Standard
+Unit test files must be explicitly named to match their target module 1-to-1:
+
+```text
+MVP/backend/
+├── app/
+│   ├── services/
+│   │   ├── poi_service.py              <── Target Backend Module
+│   │   └── audio_service.py
+│   └── repositories/
+│       └── poi_repository.py
+└── tests/
+    ├── conftest.py                      # Global fixtures (test DB session, mock clients)
+    └── unit/
+        ├── services/
+        │   ├── test_poi_service.py      <── Paired Unit Test (1-to-1)
+        │   └── test_audio_service.py    <── Paired Unit Test (1-to-1)
+        └── repositories/
+            └── test_poi_repository.py   <── Paired Unit Test (1-to-1)
+
+MVP/frontend/src/
+├── components/
+│   ├── visitor/
+│   │   ├── MiniAudioPlayer.jsx          <── Target UI Component Module
+│   │   └── __tests__/
+│   │       └── MiniAudioPlayer.test.jsx <── Paired UI Component Test (1-to-1)
+│   └── admin/
+│       ├── POIEditModal.jsx
+│       └── __tests__/
+│           └── POIEditModal.test.jsx
+├── hooks/
+│   ├── useGeolocation.js                <── Target Custom Hook Module
+│   └── __tests__/
+│       └── useGeolocation.test.js       <── Paired Hook Test (1-to-1)
+└── utils/
+    ├── haversine.js                     <── Target Utility Module
+    └── __tests__/
+        └── haversine.test.js            <── Paired Utility Test (1-to-1)
+```
+
+#### 2. Unit Test Acceptance Criteria
+Each unit test file must satisfy the following 4 engineering criteria:
+1. **Clear, Self-Explanatory Test Names:**
+   - Python: `def test_should_calculate_correct_distance_when_coordinates_valid():`
+   - Vitest: `it('renders locked paywall badge when visitor session is unpaid', () => {})`
+2. **Isolation & Strict Mocking of External I/O:**
+   - All external network calls (Deep-Translator API, Edge-TTS synthesis, Stripe/VietQR gateways) must be completely mocked using `pytest-mock` (`mocker.patch`) or Vitest mocks (`vi.fn()`, `vi.spyOn()`).
+   - Zero live HTTP requests or live third-party API calls permitted during unit test execution.
+3. **Triad Coverage (Happy Path, Boundary/Edge Case, Error Handling):**
+   - Each unit test file must test at least:
+     1. Positive scenario (Happy path).
+     2. Boundary condition (e.g., zero distance, coordinate at exact bounding edge, empty string).
+     3. Negative / Error handling (e.g., entity not found `404`, audio stream timeout after 3.5s, rate limit lock `423`).
+4. **Execution Speed:** Unit test suites must run in-memory or against mock objects, completing in under 5 seconds locally.
+
+### 7.2. Definition of Done (DoD) Checklist
+
 Before opening Pull Requests or marking any feature complete, developers must verify compliance with this checklist:
 
 | No. | Verification Item | Acceptance Criteria |
@@ -600,7 +665,7 @@ Before opening Pull Requests or marking any feature complete, developers must ve
 | 7 | **Authentication Security** | 5 consecutive failed logins return `HTTP 423 Locked` with `retry_after_seconds`. Idle timeout at 30 minutes. |
 | 8 | **Hybrid Safe Deletion** | POI deactivation sets `is_active = FALSE` while purging physical `.mp3` files. Endpoint `/storage/clean-orphans` supported. |
 | 9 | **Database Connection Lifecycle** | Open DB session only when querying and close immediately (`try...finally: db.close()` or `with SessionLocal()`). Never hold DB sessions open during external I/O (AI/TTS/Payment). |
-| 10 | **Automated Testing** | 100% passing Unit Tests (Pytest for Backend, Vitest for Frontend) with zero linter errors. |
+| 10 | **1-to-1 Module Unit Testing** | Every module/component has its paired unit test file (`test_<module>.py` or `<Component>.test.jsx`) with ≥ 80% code coverage, 0 mock leaks, and 0 linter errors. |
 
 ---
 

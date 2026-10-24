@@ -29,3 +29,10 @@ venv/
 **/__pycache__/
 **/.pytest_cache/
 
+# Agent skills & local configuration
+.agents/
+skills-lock.json
+
+# Local wiki clones
+Software-Technology.wiki/
+*.wiki/
