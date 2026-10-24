@@ -6,8 +6,12 @@
  * 3. Banned navigator.geolocation.getCurrentPosition() (Must use watchPosition)
  * 4. Banned location.reload() (Must use reactive state updates)
  */
-const fs = require('fs');
-const path = require('path');
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const srcDir = path.resolve(__dirname, '../src');
 const violations = [];
