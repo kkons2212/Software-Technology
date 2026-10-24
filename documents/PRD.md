@@ -7,7 +7,7 @@
 
 ### Backend & API
 * **Framework:** Python FastAPI (Structured using 3-Layer Architecture: Router -> Service -> Repository)
-* **Database:** SQLite (MVP / Initial phase) / PostgreSQL (Production ready)
+* **Database:** MYSQL 8.0 / SQLALCHEMY
 
 ### AI Services & Media Pipeline
 * **Text Translation:** `deep-translator` / Google Translate API integration
