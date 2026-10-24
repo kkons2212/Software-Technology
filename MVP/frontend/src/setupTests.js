@@ -1,4 +1,4 @@
-import '@testing-library/jest-dom';
+import '@testing-library/jest-dom/vitest';
 
 // Polyfill HTMLMediaElement methods in jsdom test environment
 if (typeof window !== 'undefined' && window.HTMLMediaElement) {
