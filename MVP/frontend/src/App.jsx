@@ -7,6 +7,8 @@
 import { lazy, Suspense } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import AdminRouteGuard from './components/admin/AdminRouteGuard.jsx';
+import { AudioPlayerProvider } from './contexts/AudioPlayerContext.jsx';
+import { MiniAudioPlayer } from './components/visitor/MiniAudioPlayer.jsx';
 
 const ADMIN_LOGIN_PATH = '/admin/login';
 const ADMIN_HOME_PATH = '/admin';
@@ -27,25 +29,28 @@ const ADMIN_WORKSPACE_PLACEHOLDER = (
 
 export default function App() {
   return (
-    <Suspense
-      fallback={
-        <div
-          role="status"
-          className="flex min-h-screen items-center justify-center text-sm text-slate-600"
-        >
-          Loading...
-        </div>
-      }
-    >
-      <Routes>
-        <Route path="/" element={<Navigate to={ADMIN_HOME_PATH} replace />} />
-        <Route path={ADMIN_LOGIN_PATH} element={<AdminLoginView />} />
-        <Route
-          path={ADMIN_HOME_PATH}
-          element={<AdminRouteGuard>{ADMIN_WORKSPACE_PLACEHOLDER}</AdminRouteGuard>}
-        />
-        <Route path="*" element={<Navigate to={ADMIN_HOME_PATH} replace />} />
-      </Routes>
-    </Suspense>
+    <AudioPlayerProvider>
+      <Suspense
+        fallback={
+          <div
+            role="status"
+            className="flex min-h-screen items-center justify-center text-sm text-slate-600"
+          >
+            Loading...
+          </div>
+        }
+      >
+        <Routes>
+          <Route path="/" element={<Navigate to={ADMIN_HOME_PATH} replace />} />
+          <Route path={ADMIN_LOGIN_PATH} element={<AdminLoginView />} />
+          <Route
+            path={ADMIN_HOME_PATH}
+            element={<AdminRouteGuard>{ADMIN_WORKSPACE_PLACEHOLDER}</AdminRouteGuard>}
+          />
+          <Route path="*" element={<Navigate to={ADMIN_HOME_PATH} replace />} />
+        </Routes>
+      </Suspense>
+      <MiniAudioPlayer />
+    </AudioPlayerProvider>
   );
 }
