@@ -135,9 +135,10 @@ jobs:
         env:
           DATABASE_URL: mysql+pymysql://museum_app_user:app_password_456@127.0.0.1:3306/smart_museum
           ENV: test
+          PYTHONPATH: .
         run: |
           if [ -d "tests" ]; then
-            pytest --cov=app --cov-report=term-missing --cov-fail-under=80
+            python -m pytest --cov=app --cov-report=term-missing --cov-fail-under=80
           else
             echo "ℹ️ No tests directory found yet. Unit tests will run as modules are developed."
           fi
