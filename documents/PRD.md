@@ -342,7 +342,7 @@ At the executive operational tier, the Visitor Telemetry & Infrastructure Health
 * Requests HTML5 browser geolocation permissions on mobile devices upon opening the map.
 * Renders the visitor's live GPS coordinates as a distinct animated location marker alongside POI markers on OpenStreetMap.
 * Supports fluid pinch-to-zoom and pan gestures.
-* If GPS is disabled or coordinates fall outside the museum grounds (>30m), notifies the visitor and centers the map view at the Main Entrance by default.
+* If GPS is disabled or coordinates fall outside the museum grounds, notifies the visitor and centers the map view at the Main Entrance by default.
 
 **Task List:**
 
@@ -375,7 +375,7 @@ At the executive operational tier, the Visitor Telemetry & Infrastructure Health
 **Acceptance Criteria:**
 
 * Continuously computes the distance between the visitor's live GPS coordinates and all exhibit coordinates using the Haversine formula.
-* When the visitor enters an exhibit's configured geofence radius (default 30m), the system automatically triggers audio playback in the visitor's chosen language.
+* When the visitor enters an exhibit's configured geofence radius, the system automatically triggers audio playback in the visitor's chosen language.
 * Implements a cooldown trigger lock (debounce): avoids re-triggering the same exhibit narration within 10 minutes unless manually initiated by the visitor.
 * If the mobile network fails to stream the .mp3 file, automatically arms client-side Web Speech API fallback on the mobile browser.
 
