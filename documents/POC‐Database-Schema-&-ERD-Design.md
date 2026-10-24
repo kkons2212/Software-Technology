@@ -13,7 +13,8 @@ During the Proof of Concept (POC) phase, the system leverages **SQLite** configu
 
 ## 2. Entity Relationship Diagram (ERD)
 
-<img width="2237" height="1595" alt="Untitled" src="https://github.com/user-attachments/assets/73e75e56-7e8f-4308-b3b0-ab32b30b8901" />
+<img width="2246" height="1563" alt="Untitled (2)" src="https://github.com/user-attachments/assets/c8c96762-d194-4539-a52a-4a6fc08b7aa8" />
+
 
 ### 2.1. MySQL Schema DDL Script
 
@@ -183,8 +184,8 @@ CREATE TABLE IF NOT EXISTS `Transaction` (
     `PaymentGateway` VARCHAR(255) NOT NULL,
     `PaymentMethod` VARCHAR(255) NULL,
     `Status` NVARCHAR(255) NOT NULL DEFAULT 'PENDING',
-    `GatewayTransactionID` TEXT NULL, -- Corresponding to varchar(MAX) in ERD
-    `GatewayPayload` TEXT NULL,
+    `GatewayTransactionID` VARCHAR(255) NULL, -- Corresponding to varchar(MAX) in ERD
+    `GatewayPayload` JSON NULL,
     `Paid_at` DATETIME NULL,
     `Create_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `SessionID` VARCHAR(20) NULL,
