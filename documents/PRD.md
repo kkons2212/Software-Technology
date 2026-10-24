@@ -153,7 +153,7 @@ At the executive operational tier, the Visitor Telemetry & Infrastructure Health
 
 **Acceptance Criteria:**
 
-* Provides an input form for: Vietnamese Title (title_vi), Pre-unlock Teaser (short_description_vi), Full Narrative (description_vi), Outdoor Zone (zone), and Cover Image upload (image_url).
+* Provides an input form for: Vietnamese Title (title_vi), Pre-unlock Teaser (short_description_vi), Full Narrative (description_vi) and Cover Image upload (image_url).
 * Input validation: Required title and description fields must not be empty; uploaded images must strictly be JPG/PNG/WebP formats under 5MB.
 * Upon clicking "Save", the system creates a database record with translation_status = 'PENDING' and dispatches asynchronous background jobs for translation and audio synthesis.
 
