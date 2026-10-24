@@ -3,6 +3,14 @@
 @tailwind utilities;
 
 :root {
+  /* Semantic palette shared by the Visitor Web App and the Admin Portal. */
+  --color-primary: #15803d;
+  --color-accent: #1d4ed8;
+  --color-warning: #d97706;
+  --color-danger: #b91c1c;
+  --color-bg: #f8fafc;
+  --color-surface: #ffffff;
+  --color-text: #0f172a;
   color-scheme: light;
 }
 
@@ -16,7 +24,13 @@ body {
   margin: 0;
   font-family: Inter, system-ui, -apple-system, 'Noto Sans', sans-serif;
   line-height: 1.5;
-  background-color: #f8fafc;
-  color: #0f172a;
+  background-color: var(--color-bg);
+  color: var(--color-text);
   -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
 }

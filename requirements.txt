@@ -1,0 +1,7 @@
+# ==============================================================================
+# SMART MUSEUM AUDIO GUIDE - PYTHON 3.10 REQUIREMENTS
+# Project: Cu Chi Tunnels Multilingual Audio Guide & Interactive Map
+# Target Runtime: Python 3.10.x (Locked for production stability & CI compatibility)
+# ==============================================================================
+
+-r MVP/backend/requirements.txt
