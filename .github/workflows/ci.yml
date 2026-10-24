@@ -99,13 +99,15 @@ jobs:
     runs-on: ubuntu-latest
     services:
       mysql:
-        image: mysql:8.0
+        image: kocoten/smart-museum-db:v1
         env:
-          MYSQL_ROOT_PASSWORD: rootpassword
+          MYSQL_ROOT_PASSWORD: root_secure_pass_123
+          MYSQL_USER: museum_app_user
+          MYSQL_PASSWORD: app_password_456
           MYSQL_DATABASE: smart_museum
         ports:
           - 3306:3306
-        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
+        options: --health-cmd="mysqladmin ping -u root -proot_secure_pass_123" --health-interval=10s --health-timeout=5s --health-retries=5
 
     defaults:
       run:
@@ -127,11 +129,11 @@ jobs:
 
       - name: Verify MySQL 8.0 DDL Schema
         run: |
-          mysql -h 127.0.0.1 -P 3306 -u root -prootpassword smart_museum < scripts/mysql_schema.sql
+          mysql -h 127.0.0.1 -P 3306 -u root -proot_secure_pass_123 smart_museum < scripts/mysql_schema.sql
 
       - name: Run Pytest (Coverage >= 80%)
         env:
-          DATABASE_URL: mysql+pymysql://root:rootpassword@127.0.0.1:3306/smart_museum
+          DATABASE_URL: mysql+pymysql://museum_app_user:app_password_456@127.0.0.1:3306/smart_museum
           ENV: test
         run: |
           if [ -d "tests" ]; then
