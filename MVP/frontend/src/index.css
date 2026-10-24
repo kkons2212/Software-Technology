@@ -1,5 +1,9 @@
-/* Global CSS for Smart Museum Audio Guide */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 :root {
+  /* Semantic palette shared by the Visitor Web App and the Admin Portal. */
   --color-primary: #15803d;
   --color-accent: #1d4ed8;
   --color-warning: #d97706;
@@ -7,19 +11,21 @@
   --color-bg: #f8fafc;
   --color-surface: #ffffff;
   --color-text: #0f172a;
+  color-scheme: light;
 }
 
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
+html,
+body,
+#root {
+  height: 100%;
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  margin: 0;
+  font-family: Inter, system-ui, -apple-system, 'Noto Sans', sans-serif;
+  line-height: 1.5;
   background-color: var(--color-bg);
   color: var(--color-text);
-  line-height: 1.5;
   -webkit-font-smoothing: antialiased;
 }
 

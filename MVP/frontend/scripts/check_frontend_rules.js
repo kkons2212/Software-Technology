@@ -6,14 +6,13 @@
  * 3. Banned navigator.geolocation.getCurrentPosition() (Must use watchPosition)
  * 4. Banned location.reload() (Must use reactive state updates)
  */
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-const srcDir = path.resolve(__dirname, '../src');
+const currentDir = path.dirname(fileURLToPath(import.meta.url));
+const projectDir = path.resolve(currentDir, '..');
+const srcDir = path.resolve(projectDir, 'src');
 const violations = [];
 
 function scanDir(dir) {
@@ -32,7 +31,7 @@ function scanDir(dir) {
 function validateFile(filePath) {
   const content = fs.readFileSync(filePath, 'utf-8');
   const lines = content.split('\n');
-  const relPath = path.relative(path.resolve(__dirname, '..'), filePath).replace(/\\/g, '/');
+  const relPath = path.relative(projectDir, filePath).replace(/\\/g, '/');
 
   const isPresentationLayer = relPath.startsWith('src/components/') || relPath.startsWith('src/views/');
   const isAudioSingleton = /AudioPlayerContext|audioService|audioSingleton/i.test(relPath);
@@ -42,7 +41,7 @@ function validateFile(filePath) {
 
     // 1. Presentation Layer Network Ban (axios / fetch)
     if (isPresentationLayer) {
-      if (/from\s+['"]axios['"]|require\(['"]axios['"]\)/.test(line) || /\baxios\s*[\.(]/.test(line)) {
+      if (/from\s+['"]axios['"]|require\(['"]axios['"]\)/.test(line) || /\baxios\s*[.(]/.test(line)) {
         violations.push(`${relPath}:${lineNum} -> [PRESENTATION LEAK] Banned direct 'axios' in components/views. Delegate to src/api/ or custom hooks.`);
       }
       if (/\bfetch\s*\(/.test(line)) {
