@@ -111,6 +111,38 @@ To keep code orderly and configurable, variables must follow a strict top-down s
 4. ❌ **BANNED: Ad-hoc variable declarations in the middle of files:**
    - Prohibited: defining configuration constants adrift between functions or at the bottom of files. All module constants must be hoisted to the top directly below imports.
 
+### 1.5. Git Branch Naming & Commit Message Conventions
+
+To ensure smooth CI integration, clear traceability to User Stories, and prevent file path length limitations on Windows systems, all developers and AI Agents must adhere strictly to the following Git standards:
+
+#### 1. Branch Naming Standard
+All feature branches must follow the standard hierarchical pattern:
+$$\text{<type>/<story-id>-<short-description>}$$
+
+* **Valid Types (`<type>`):**
+  * `feat/`: New feature implementation (e.g. `feat/us-01.3-audio-geofence`, `feat/us-02.1-admin-login`).
+  * `fix/`: Bug fix or patch (e.g. `fix/us-01.3-audio-timeout-fallback`, `fix/login-lockout-timer`).
+  * `test/`: Adding or updating test suites without business code change (e.g. `test/us-01.3-audio-context`).
+  * `refactor/`: Code refactoring without changing functionality (e.g. `refactor/frontend-singleton-audio`).
+  * `chore/`: Tooling, CI/CD, dependencies, or repository maintenance (e.g. `chore/ci-workflow-node20`).
+  * `docs/`: Documentation updates only (e.g. `docs/dev-rules-update`).
+* **Story Identifier (`<story-id>`):** Must reference the exact Agile User Story (e.g., `us-01.3`, `us-02.1`, `us-03.2`).
+* **Description (`<short-description>`):** 2 to 4 lowercase hyphen-separated words describing the core scope.
+* ❌ **STRICTLY BANNED:** Using full file paths as branch names (e.g., `feat/mvp/frontend/src/hooks/useGeofenceTrigger.js`). Long path names exceed the Windows 260-character path limit, break Git terminal ergonomics, and fail to convey the overall User Story domain.
+* ❌ **STRICTLY BANNED:** Generic or uninformative branch names (e.g., `update`, `patch`, `test1`, `my-branch`).
+
+#### 2. Commit Message Standard (Conventional Commits)
+All commit messages must follow the Conventional Commits format:
+$$\text{<type>(<scope>): <short imperative description>}$$
+
+* **Format Examples:**
+  * `feat(us-01.3): implement geofence trigger and floating mini audio player`
+  * `fix(us-01.3): resolve cooldown debounce edge case on component unmount`
+  * `test(us-01.3): add vitest suites for audio context 3.5s web speech fallback`
+  * `refactor(audio): clean up unused variables in audio player context`
+  * `chore(ci): enable strict eslint and frontend domain rules gate`
+* **Rules:** The description must be in the imperative mood ("add", "implement", "fix", not "added", "fixing"), concise (< 72 characters), and without a trailing period.
+
 ---
 
 ## 2. FRONTEND DEVELOPMENT STANDARDS (REACT / VITE / LEAFLET)
@@ -254,7 +286,24 @@ src/
   - Cards/Surfaces: `#F1F5F9`, border `1px solid #E2E8F0`.
   - Text primary: `#0F172A` (WCAG AAA contrast compliant).
   - Primary accent: `#1E293B` or `#1D4ED8`.
-  - Status colors: Active/Published: `#15803D`, Warning/Pending: `#B45309`, Danger/Locked: `#B91C1C`.
+### 2.7. Mandatory Route & Shell Registration Rule (Quy tắc khai báo giao diện bắt buộc)
+
+To ensure all frontend developments are immediately accessible, testable on localhost, and integrated into the user flow without leaving orphaned code, all developers and AI Agents must strictly adhere to the following registration protocol:
+
+1. **Mandatory Route Declaration in `App.jsx`:**
+   - Every newly created Page, Screen, or View (located in `src/views/`) **must be immediately registered in the central routing table** within [`App.jsx`](file:///c:/Users/ASUS/OneDrive/Desktop/Software-Technology/MVP/frontend/src/App.jsx) (or `AppRouter`).
+   - Each view must have an explicit route path:
+     - Visitor primary routes: `/` (Landing/Home), `/tour` (Interactive Map & Audio Guide), `/paywall` (Payment & Session Unlock).
+     - Admin routes: `/admin/login`, `/admin/dashboard`, `/admin/pois`, `/admin/translations`.
+     - User Story standalone preview routes: `/demo/<story-id>` (e.g., `/demo/us-01.3`) if full navigation flow is still pending integration.
+   - ❌ **STRICTLY BANNED: Orphaned Views:** Creating a view in `src/views/` without registering a route in `App.jsx` is strictly prohibited. Unrouted views are considered incomplete and violate the Definition of Done.
+
+2. **Persistent Widgets & Global Context Providers Mounting:**
+   - Shared persistent floating UI components (e.g., `MiniAudioPlayer`, `LanguageSelectorDropdown`, `GlobalToastContainer`, `OfflineAlertBanner`) must be mounted directly in the global application shell in `App.jsx` or layout wrappers.
+   - Associated state providers (e.g., `AudioPlayerProvider`, `LanguageProvider`, `VisitorSessionContext`) must wrap the route tree so state persists smoothly across route transitions.
+
+3. **Localhost Verification URL Transparency:**
+   - In every task handover, PR description, or completion report, the author/agent **must explicitly provide the exact localhost URL** (e.g., `http://localhost:5173/tour` or `http://localhost:5173/admin/login`) where the newly created screen and widgets can be immediately viewed and tested.
 
 ---
 
