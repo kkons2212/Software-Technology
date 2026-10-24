@@ -36,7 +36,7 @@ The business journey initiates with platform configuration, service pricing, and
 
 ## 3. Exhibit Cataloging, Content Editing & GPS Geofence Positioning Workflow
 
-Whenever new exhibits are introduced or outdoor zones are reconfigured, an Administrator initiates the Exhibit Cataloging, Content Editing & GPS Geofence Positioning Workflow. The Administrator enters core identification metadata: title, pre-payment preview teaser description, full detailed narrative in the source language (Vietnamese), and high-resolution imagery. Crucially, the Administrator calibrates the precise spatial positioning of the outdoor exhibit by clicking or dragging a pin across the interactive map (or manually inputting latitude and longitude), while configuring a proximity geofence radius (e.g., default 30 meters) to facilitate automatic visitor detection. The system validates all inputs: coordinates must reside strictly within museum perimeter boundaries, and media formats must comply before persisting records to the central database and refreshing navigation routing caches. If an exhibit is decommissioned, foreign-key cascade deletion immediately cleans up associated translations, audio assets, and physical server files.
+Whenever new exhibits are introduced or outdoor zones are reconfigured, an Administrator initiates the Exhibit Cataloging, Content Editing & GPS Geofence Positioning Workflow. The Administrator enters core identification metadata: title, pre-payment preview teaser description, full detailed narrative in the source language (Vietnamese), and high-resolution imagery. Crucially, the Administrator calibrates the precise spatial positioning of the outdoor exhibit by clicking or dragging a pin across the interactive map (or manually inputting latitude and longitude), while configuring a proximity geofence radius (e.g., default 30 meters) to facilitate automatic visitor detection. The system validates all inputs: coordinates must reside strictly within museum perimeter boundaries, and media formats must comply before persisting records to the central database and refreshing navigation routing caches. If an exhibit is decommissioned or temporarily closed, an Administrator can deactivate or hide the exhibit (toggling its active status to inactive), which immediately excludes it from visitor-facing maps, proximity triggers, and route calculations while preserving all translation assets, audio files, and historical telemetry logs.
 
 ## 4. Automated Multilingual Translation & AI Voice Synthesis Pipeline
 
@@ -181,24 +181,26 @@ At the executive operational tier, the Visitor Telemetry & Infrastructure Health
 * Task 03.2.1 (Backend): Implement geographical bounding box validation and update endpoints for coordinates and radius_meters.
 * Task 03.2.2 (Frontend): Integrate Leaflet map picker in the admin view, supporting pin drag events and dynamic L.circle rendering synchronized with numeric radius inputs.
 
-#### User Story 03.3: Delete Exhibit with Cascade Purging & Route Cache Invalidation (Cascade Purge & Cache Invalidation)
+#### User Story 03.3: Deactivate / Hide Exhibit & Invalidate Navigation Route Cache (Exhibit Visibility Toggle & Route Invalidation)
 
-* **Description:** As an Administrator, I need to remove decommissioned exhibits, and have the system cleanly purge all associated translation records, audio files, and cached navigation paths to maintain database integrity and release storage.
+* **Description:** As an Administrator, I need to deactivate or hide decommissioned or temporarily closed exhibits, so that the system immediately removes them from visitor maps, proximity triggers, and wayfinding routes without losing historical translation records or telemetry data.
 * **Priority:** Should have
 * **Story Point:** 3
 
 **Acceptance Criteria:**
 
-* Clicking "Delete" prompts a confirmation dialog: "Are you sure you want to delete this exhibit and its associated audio/translation files?"
-* Upon confirmation, deleting the record from pois automatically cascades deletions across poi_translations and poi_audios via foreign-key constraints (ON DELETE CASCADE).
-* Associated .mp3 audio files and cover image files are unlinked and purged from the server's local file storage.
-* The system invalidates existing route calculation caches so that visitor navigation paths compute fresh waypoints immediately.
+* Provides a visibility toggle switch or "Hide / Deactivate Exhibit" action in the POI management view.
+* Clicking "Deactivate / Hide" prompts a confirmation dialog: "Are you sure you want to hide this exhibit from visitor maps and active tour routes?"
+* Upon confirmation, the system updates the exhibit's visibility status (`is_active = FALSE`) in the database.
+* Deactivated exhibits are immediately filtered out from all visitor-facing endpoints: their markers disappear from the outdoor interactive map, automated GPS geofence triggers are disabled, and audio streaming becomes inaccessible to visitors.
+* The system automatically invalidates existing route calculation caches so that visitor navigation paths compute fresh waypoints immediately without routing through the hidden POI.
+* All underlying translation records, synthesized audio files, media assets, and historical telemetry audit logs remain preserved in the database for administrative auditing or future re-activation.
 
 **Task List:**
 
-* Task 03.3.1 (Backend): Implement DELETE /api/v1/admin/pois/{id} with file system unlinking utilities and route cache invalidation logic.
-* Task 03.3.2 (Frontend): Add confirmation modals and table auto-refresh upon successful deletion.
-* Task 03.3.3 (Database): Configure foreign keys on poi_translations and poi_audios with ON DELETE CASCADE.
+* Task 03.3.1 (Backend): Implement PATCH /api/v1/admin/pois/{id}/visibility endpoint updating the is_active flag and triggering navigation route cache invalidation.
+* Task 03.3.2 (Frontend): Add visibility toggle switches, confirmation modals, and reactive table UI status badges (Active / Hidden) in the POI catalog.
+* Task 03.3.3 (Database): Ensure database query filters on visitor-facing POI listings, map rendering, and route calculation enforce the `is_active = TRUE` constraint.
 
 ## Theme 3: Multilingual Content Review & Publishing
 
