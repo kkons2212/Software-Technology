@@ -5,7 +5,7 @@
  * automatically switching to browser Web Speech API if cellular stream fails or hangs for > 3.5s.
  */
 
-import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
+import { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 
 // Top-of-file module constants per dev_rules.md
 export const STREAM_TIMEOUT_MS = 3500;
@@ -73,7 +73,7 @@ export function AudioPlayerProvider({ children }) {
         setCurrentTime(0);
       };
 
-      const handleError = (audioEvent) => {
+      const handleError = (_audioEvent) => {
         setIsBuffering(false);
         // If streaming hasn't started yet, let fallback handle it
         if (!isStreamingStartedRef.current && currentPoiRef.current) {
@@ -107,6 +107,7 @@ export function AudioPlayerProvider({ children }) {
         audio.removeAttribute('src');
       };
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Web Speech Fallback trigger
@@ -123,8 +124,8 @@ export function AudioPlayerProvider({ children }) {
         if (typeof audioRef.current.load === 'function') {
           audioRef.current.load();
         }
-      } catch (err) {
-        console.warn('Error clearing audio element:', err);
+      } catch (loadError) {
+        console.warn('Error clearing audio element:', loadError);
       }
     }
 
@@ -154,7 +155,7 @@ export function AudioPlayerProvider({ children }) {
         };
 
         window.speechSynthesis.speak(utterance);
-      } catch (err) {
+      } catch {
         setIsPlaying(false);
         setError('Web Speech fallback unavailable.');
       }

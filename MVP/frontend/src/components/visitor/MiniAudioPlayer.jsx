@@ -5,7 +5,6 @@
  * progress scrubber, and 'Offline TTS' weak network fallback indicator badge.
  */
 
-import React from 'react';
 import { useAudioPlayer } from '../../contexts/AudioPlayerContext.jsx';
 
 // Top-of-file module constants per dev_rules.md
@@ -68,8 +67,6 @@ export function MiniAudioPlayer() {
   const handleSpeedSelect = (rate) => {
     setPlaybackRate(rate);
   };
-
-  const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0;
 
   return (
     <div

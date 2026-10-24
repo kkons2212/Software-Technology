@@ -4,7 +4,7 @@
 // the visitor payload stays minimal on outdoor mobile networks.
 // =============================================================================
 
-import React, { lazy, Suspense } from 'react';
+import { lazy, Suspense } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import AdminRouteGuard from './components/admin/AdminRouteGuard.jsx';
 import { AudioPlayerProvider } from './contexts/AudioPlayerContext.jsx';

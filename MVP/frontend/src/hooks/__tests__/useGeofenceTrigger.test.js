@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
+import { renderHook } from '@testing-library/react';
 import { useGeofenceTrigger } from '../useGeofenceTrigger.js';
 
 describe('useGeofenceTrigger (US 01.3.1 GPS Proximity Detection Engine)', () => {
