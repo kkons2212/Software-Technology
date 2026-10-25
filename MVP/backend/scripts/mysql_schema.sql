@@ -5,8 +5,8 @@
 -- Features:
 -- ==============================================================================
 
-CREATE DATABASE IF NOT EXISTS `smart_museum`
-    DEFAULT CHARACTER SET utf8mb4
+CREATE DATABASE IF NOT EXISTS `smart_museum` 
+    DEFAULT CHARACTER SET utf8mb4 
     DEFAULT COLLATE utf8mb4_unicode_ci;
 
 USE `smart_museum`;
@@ -193,5 +193,4 @@ CREATE TABLE IF NOT EXISTS `POITrigger` (
         ON DELETE CASCADE,
     CONSTRAINT `FK_POITrigger_POI` FOREIGN KEY (`PoiID`)
         REFERENCES `POI` (`PoiID`)
-        ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+        ON DELETE CASCADE)ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

@@ -116,6 +116,7 @@ To keep code orderly and configurable, variables must follow a strict top-down s
 To ensure smooth CI integration, clear traceability to User Stories, and prevent file path length limitations on Windows systems, all developers and AI Agents must adhere strictly to the following Git standards:
 
 #### 1. Branch Naming Standard
+
 All feature branches must follow the standard hierarchical pattern:
 $$\text{<type>/<story-id>-<short-description>}$$
 
