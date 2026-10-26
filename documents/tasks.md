@@ -12,7 +12,7 @@
 | [**US 01.2**](#-us-012-tap-map-marker-for-teaser-preview-bottom-sheet) | Tap Map Marker for Teaser Preview Bottom Sheet | UC-01 | Must Have | 3 SP | 3 Tasks | [ ] 0/3 |
 | [**US 01.3**](#-us-013-automated-voice-narration-on-gps-proximity--mini-audio-player) | Automated Voice Narration on GPS Proximity & Mini Audio Player | UC-01 | Must Have | 8 SP | 6 Tasks | [ ] 4/6 |
 | [**US 01.4**](#-us-014-intelligent-recommended-walking-route-wayfinding) | Intelligent Recommended Walking Route Wayfinding | UC-01 | Should Have | 5 SP | 3 Tasks | [ ] 0/3 |
-| [**US 02.1**](#-us-021-administrator-authentication--portal-login) | Administrator Authentication & Portal Login | UC-02 | Must Have | 5 SP | 5 Tasks | [ ] 0/5 |
+| [**US 02.1**](#-us-021-administrator-authentication--portal-login) | Administrator Authentication & Portal Login | UC-02 | Must Have | 5 SP | 5 Tasks | [x] 5/5 |
 | [**US 02.2**](#-us-022-brute-force-protection--account-lockout) | Brute-Force Protection & Account Lockout | UC-02 | Must Have | 3 SP | 4 Tasks | [ ] 0/4 |
 | [**US 02.3**](#-us-023-secure-session-management--inactivity-logout) | Secure Session Management & Inactivity Logout | UC-02 | Should Have | 2 SP | 3 Tasks | [ ] 0/3 |
 | [**US 03.1**](#-us-031-create-digitized-exhibit-profile--cover-image-upload) | Create Digitized Exhibit Profile & Cover Image Upload | UC-03 | Must Have | 5 SP | 5 Tasks | [ ] 0/5 |
@@ -31,7 +31,7 @@
 | [**US 06.2**](#-us-062-webhook-driven-24-hour-visiting-session-activation) | Webhook-Driven 24-Hour Visiting Session Activation | UC-06 | Must Have | 5 SP | 4 Tasks | [ ] 0/4 |
 | [**US 06.3**](#-us-063-multi-device-session-recovery-via-session-code) | Multi-Device Session Recovery via Session Code | UC-06 | Should Have | 3 SP | 3 Tasks | [ ] 0/3 |
 | [**US 06.4**](#-us-064-content-protection--narrativeaudio-decryption-access-control) | Content Protection & Narrative/Audio Decryption Access Control | UC-06 | Must Have | 5 SP | 4 Tasks | [ ] 0/4 |
-| **TOTAL** | **23 User Stories (All Units Tested)** | — | — | **100 SP** | **90 Tasks** | **[ ] 0/90 Tasks** |
+| **TOTAL** | **23 User Stories (All Units Tested)** | — | — | **100 SP** | **90 Tasks** | **[ ] 5/90 Tasks** |
 
 ---
 
@@ -183,32 +183,32 @@
 > **So that** the system authenticates my identity, establishes a secure session, and grants access to administrative modules.
 >
 > * **Priority:** Must Have | **Estimate:** 5 SP
-> * **Progress:** [ ] 0/5 Tasks Completed
+> * **Progress:** [x] 5/5 Tasks Completed
 
 #### Acceptance Criteria:
-- [ ] **AC-02.1.1:** Multiple Admin accounts supported via `User` table (no `role` column; all accounts in table are Admins).
-- [ ] **AC-02.1.2:** Passwords authenticated against one-way Bcrypt cryptographic hashes (cost factor $\ge 12$). Plaintext passwords must never be stored, cached, or logged.
-- [ ] **AC-02.1.3:** Valid login issues JWT token via HttpOnly, SameSite=Strict cookie (60-minute lifespan, 30-minute idle timeout), records event in `Audit`, and redirects to Dashboard.
-- [ ] **AC-02.1.4:** Invalid credentials yield generic error: "Invalid username or password", retaining entered username while wiping password field to prevent user enumeration.
+- [x] **AC-02.1.1:** Multiple Admin accounts supported via `User` table (no `role` column; all accounts in table are Admins).
+- [x] **AC-02.1.2:** Passwords authenticated against one-way Bcrypt cryptographic hashes (cost factor $\ge 12$). Plaintext passwords must never be stored, cached, or logged.
+- [x] **AC-02.1.3:** Valid login issues JWT token via HttpOnly, SameSite=Strict cookie (60-minute lifespan, 30-minute idle timeout), records event in `Audit`, and redirects to Dashboard.
+- [x] **AC-02.1.4:** Invalid credentials yield generic error: "Invalid username or password", retaining entered username while wiping password field to prevent user enumeration.
 
 #### Task Checklist:
-- [ ] `TSK-02.1.1` `[Database]` **Seed Initial Admin Accounts & `User` Table Schema**
+- [x] `TSK-02.1.1` `[Database]` **Seed Initial Admin Accounts & `User` Table Schema**
   - **Scope:** Ensure `User` table contains unique index on `Email` and `Username`, hash default administrator credentials with Bcrypt.
   - **DoD:** Schema migration passes cleanly in CI MySQL container.
   - **Paired Unit Test:** `tests/unit/repositories/test_user_repository.py`
-- [ ] `TSK-02.1.2` `[Backend]` **`UserRepository` Authentication Operations**
+- [x] `TSK-02.1.2` `[Backend]` **`UserRepository` Authentication Operations**
   - **Scope:** Implement `find_by_username()` and `find_by_email()`. Enforce strict JIT DB connection (open $\rightarrow$ query $\rightarrow$ close immediately).
   - **DoD:** Returns User entity or None; releases database connection immediately without connection leaks.
   - **Paired Unit Test:** `tests/unit/repositories/test_user_repository.py`
-- [ ] `TSK-02.1.3` `[Backend]` **`AuthService` & Secure Password Verification**
+- [x] `TSK-02.1.3` `[Backend]` **`AuthService` & Secure Password Verification**
   - **Scope:** Verify Bcrypt hashes, generate 60-minute JWT token, and record login action in `Audit` with client IP and timestamp.
   - **DoD:** Achieves 100% test coverage for valid login, invalid password, and nonexistent user.
   - **Paired Unit Test:** `tests/unit/services/test_auth_service.py`
-- [ ] `TSK-02.1.4` `[Frontend]` **Admin Login Page & Form Validation (`AdminLoginView.jsx`)**
-  - **Scope:** Desktop login view, client form validation, authentication state context, and route guards protecting `/admin/*`.
+- [x] `TSK-02.1.4` `[Frontend]` **Admin Login Page & Form Validation (`AdminLoginView.jsx`)**
+  - **Scope:** Desktop login view, client form validation, authentication state context, and route guards protecting `/admin/*`. Also wires the Vite dev-server `server.proxy` (`/api`, `/static` → `http://127.0.0.1:8000`) so the relative API paths issued by `apiClient.js` reach FastAPI on the same origin, which is required for the `SameSite=Strict` session cookie and for the DoD redirection to be observable in a browser.
   - **DoD:** Clean redirection on successful login; displays clear inline alerts on authentication errors.
   - **Paired Unit Test:** `src/views/__tests__/AdminLoginView.test.jsx`
-- [ ] `TSK-02.1.5` `[Test]` **Unit Test Suite for US 02.1 (`test_user_repository.py`, `test_auth_service.py`, `AdminLoginView.test.jsx`)**
+- [x] `TSK-02.1.5` `[Test]` **Unit Test Suite for US 02.1 (`test_user_repository.py`, `test_auth_service.py`, `AdminLoginView.test.jsx`)**
   - **Scope:** Test user queries in repository, Bcrypt password verification and JWT token generation in service, JIT DB lifecycle, and admin login form with route guards.
   - **DoD:** 100% test pass in Pytest and Vitest, $\ge 80\%$ line & branch code coverage.
   - **Execution:** `pytest tests/unit/repositories/test_user_repository.py tests/unit/services/test_auth_service.py` && `npm run test -- AdminLoginView`
