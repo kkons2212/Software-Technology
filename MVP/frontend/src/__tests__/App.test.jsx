@@ -77,4 +77,29 @@ describe('App', () => {
     ).toBeInTheDocument();
     expect(screen.getByRole('region', { name: /outdoor museum map/i })).toBeInTheDocument();
   });
+
+  it('redirects the /tour alias path to the visitor tour page', async () => {
+    renderApp('/tour');
+
+    expect(
+      await screen.findByRole('heading', { level: 1, name: /cu chi tunnels/i }),
+    ).toBeInTheDocument();
+  });
+
+  it('renders the checkout success page on the visitor checkout success route', async () => {
+    renderApp('/visitor/checkout/success');
+
+    expect(
+      await screen.findByRole('heading', { level: 1, name: /payment successful/i }),
+    ).toBeInTheDocument();
+  });
+
+  it('redirects unauthenticated access to /admin/pois into the login view', async () => {
+    renderApp('/admin/pois');
+
+    expect(
+      await screen.findByRole('heading', { level: 1, name: /administrator sign in/i }),
+    ).toBeInTheDocument();
+  });
 });
+

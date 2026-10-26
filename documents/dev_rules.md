@@ -287,24 +287,90 @@ src/
   - Cards/Surfaces: `#F1F5F9`, border `1px solid #E2E8F0`.
   - Text primary: `#0F172A` (WCAG AAA contrast compliant).
   - Primary accent: `#1E293B` or `#1D4ED8`.
-### 2.7. Mandatory Route & Shell Registration Rule (Quy tắc khai báo giao diện bắt buộc)
+### 2.7. Mandatory Route & Shell Registration Rule (Hierarchical Page & Route Tree)
 
-To ensure all frontend developments are immediately accessible, testable on localhost, and integrated into the user flow without leaving orphaned code, all developers and AI Agents must strictly adhere to the following registration protocol:
+To ensure all frontend developments are immediately accessible, testable on localhost, and integrated into the user flow without leaving orphaned code, all developers and AI Agents must strictly adhere to the central page tree and registration protocol:
 
-1. **Mandatory Route Declaration in `App.jsx`:**
-   - Every newly created Page, Screen, or View (located in `src/views/`) **must be immediately registered in the central routing table** within [`App.jsx`](file:///c:/Users/ASUS/OneDrive/Desktop/Software-Technology/MVP/frontend/src/App.jsx) (or `AppRouter`).
-   - Each view must have an explicit route path:
-     - Visitor primary routes: `/` (Landing/Home), `/tour` (Interactive Map & Audio Guide), `/paywall` (Payment & Session Unlock).
-     - Admin routes: `/admin/login`, `/admin/dashboard`, `/admin/pois`, `/admin/translations`.
-     - User Story standalone preview routes: `/demo/<story-id>` (e.g., `/demo/us-01.3`) if full navigation flow is still pending integration.
-   - ❌ **STRICTLY BANNED: Orphaned Views:** Creating a view in `src/views/` without registering a route in `App.jsx` is strictly prohibited. Unrouted views are considered incomplete and violate the Definition of Done.
+#### 1. Hierarchical Page & Route Tree Structure
 
-2. **Persistent Widgets & Global Context Providers Mounting:**
-   - Shared persistent floating UI components (e.g., `MiniAudioPlayer`, `LanguageSelectorDropdown`, `GlobalToastContainer`, `OfflineAlertBanner`) must be mounted directly in the global application shell in `App.jsx` or layout wrappers.
-   - Associated state providers (e.g., `AudioPlayerProvider`, `LanguageProvider`, `VisitorSessionContext`) must wrap the route tree so state persists smoothly across route transitions.
+The entire frontend routing system is organized under the following centralized hierarchy. When implementing any User Story, developers and AI Agents **must reference this tree to use the exact route path, view component file, and route guard**:
 
-3. **Localhost Verification URL Transparency:**
-   - In every task handover, PR description, or completion report, the author/agent **must explicitly provide the exact localhost URL** (e.g., `http://localhost:5173/tour` or `http://localhost:5173/admin/login`) where the newly created screen and widgets can be immediately viewed and tested.
+```text
+App Shell (Root: AuthProvider ──> AudioPlayerProvider ──> Suspense)
+│
+├── 🌐 VISITOR WEB APP (Mobile-First Viewport: 375px–430px, Public Access)
+│   ├── /                                ──> [Redirect] ──> /admin (MVP Dev) or /visitor (Production)
+│   ├── /visitor                         ──> VisitorTourPage [US 01.1 - 01.4]
+│   │   ├── [Header]                     ──> VisitorHeader (Language Selector & 24h Pass Status Badge)
+│   │   ├── [Interactive Map]            ──> VisitorMapView (Leaflet OSM, continuous GPS watchPosition, POI Markers)
+│   │   ├── [Dynamic Geofence Circles]   ──> L.circle according to individual trigger_radius (10m–50m)
+│   │   ├── [Teaser Preview Sheet]       ──> PoiPreviewCard (Thumbnail, Title, Distance, Free Summary, Play CTA)
+│   │   ├── [Unlock / Paywall Modal]     ──> PaymentModal (VietQR Transfer / Card Form, Session Restore) [US 06.1]
+│   │   └── [Session Recovery Modal]     ──> RestoreSessionModal (CCT-XXXXXX session recovery) [US 06.3]
+│   ├── /tour                            ──> [Alias Redirect] ──> /visitor
+│   ├── /visitor/checkout/success        ──> CheckoutSuccessPage (Payment verification & session pass) [US 06.1, 06.2]
+│   └── /checkout/success                ──> [Alias Redirect] ──> /visitor/checkout/success
+│
+├── 🛡️ ADMIN WEB PORTAL (Desktop-First Viewport: min-w-[1024px])
+│   ├── /admin/login                     ──> AdminLoginView (Public: Username/Password, Lockout 423 Countdown) [US 02.1, 02.2]
+│   └── /admin/*                         ──> [Protected Shell: Wrapped inside <AdminRouteGuard>]
+│       ├── /admin                       ──> AnalyticsDashboard (Executive Overview, Real-time telemetry) [US 05.1-05.4]
+│       ├── /admin/analytics             ──> AnalyticsDashboard (Visitor Density Heatmap, Dwell Time, Export) [US 05.1, 05.2, 05.4]
+│       ├── /admin/pois                  ──> PoiCatalogPage (POI Data Table, Create/Edit Form, Safe Deletion) [US 03.1, 03.3, 03.4]
+│       │   └── /admin/pois/:id/geofence ──> GeofenceCalibPage (Interactive GPS Geolocation & Geofence Calibration) [US 03.2]
+│       ├── /admin/geofence              ──> GeofenceCalibPage (Direct Geofence Calibration Map View) [US 03.2]
+│       ├── /admin/translations          ──> TranslationPage (Side-by-Side Audit, NEEDS_UPDATE status, Edge-TTS Regen) [US 04.1-04.4]
+│       └── /admin/health                ──> SystemHealthPage (Storage Meter 85%/95%, Clean Orphans, API Status) [US 05.3]
+│
+├── 🧪 DEMO & STANDALONE PREVIEWS (Isolated Sandbox for Story Development & Independent Testing)
+│   └── /demo/:storyId                   ──> Independent Story Preview (e.g., /demo/us-01.3)
+│
+├── 🔊 PERSISTENT SHELL WIDGETS (Mounted Globally at App Shell Outside <Routes>)
+│   ├── MiniAudioPlayer                  ──> Fixed bottom mini player (Play/Pause, Seek ±10s, Speed, 3.5s Fallback) [US 01.3]
+│   ├── StickyStorageBanner              ──> Storage warning banner on Admin Portal (≥85% Amber, ≥95% Red) [US 05.3]
+│   └── GlobalToastContainer             ──> Notification toast for network loss, GPS errors, session recovery
+│
+└── 🚫 CATCH-ALL WILDCARD
+    └── *                                ──> [Redirect] ──> /admin (or NotFound fallback)
+```
+
+#### 2. Master Route Registry Specifications Table
+
+All screens within the system must adhere strictly to the following central registry:
+
+| Route Path | Constant in `App.jsx` | View Component File | Subsystem Domain | Access Control | User Story | UI Description & Core Components |
+|:---|:---|:---|:---:|:---:|:---:|:---|
+| `/` | — | `Navigate to ADMIN_ROUTES.DASHBOARD` | Redirect | Public | — | Default initial redirect pointing to Administrative Workspace (or `/visitor` in production). |
+| `/visitor` | `VISITOR_ROUTES.HOME` | `src/views/visitor/VisitorTourPage.jsx` | Visitor | Public | US 01.1, 01.2, 01.3, 01.4 | Primary outdoor interactive digital map. Integrates `VisitorHeader`, `VisitorMapView`, `PoiPreviewCard`, `PaymentModal`. |
+| `/tour` | `VISITOR_ROUTES.TOUR` | `Navigate to VISITOR_ROUTES.HOME` | Visitor | Public | US 01.1 | Friendly alias path redirecting to `/visitor`. |
+| `/visitor/checkout/success` | `VISITOR_ROUTES.CHECKOUT_SUCCESS` | `src/views/visitor/CheckoutSuccessPage.jsx` | Visitor | Public | US 06.1, 06.2 | Digital admission checkout confirmation screen, issuing the 24-hour `session_code`. |
+| `/checkout/success` | — | `Navigate to VISITOR_ROUTES.CHECKOUT_SUCCESS` | Visitor | Public | US 06.1 | Webhook redirect compatibility alias from VietQR / PayOS payment gateways. |
+| `/admin/login` | `ADMIN_ROUTES.LOGIN` | `src/views/admin/AdminLoginView.jsx` | Admin | Public | US 02.1, 02.2 | Administrator authentication screen with credential form and 15-minute brute-force lockout countdown on `HTTP 423 Locked`. |
+| `/admin` | `ADMIN_ROUTES.DASHBOARD` | `src/views/admin/AnalyticsDashboard.jsx` | Admin | Protected (`AdminRouteGuard`) | US 05.1–05.4 | Executive administrative dashboard: KPI cards, live visitor density, and audio storage alerts. |
+| `/admin/analytics` | `ADMIN_ROUTES.ANALYTICS` | `src/views/admin/AnalyticsDashboard.jsx` | Admin | Protected (`AdminRouteGuard`) | US 05.1, 05.2, 05.4 | Detailed analytics: Visitor density heatmap (`Leaflet.heat`), exhibit rankings, dwell times, CSV/JSON export. |
+| `/admin/pois` | `ADMIN_ROUTES.POIS` | `src/views/admin/PoiCatalogPage.jsx` | Admin | Protected (`AdminRouteGuard`) | US 03.1, 03.3, 03.4 | Exhibit catalog table, POI creation/edit form, Dynamic Radius Slider (`10m–50m`), hybrid safe deletion. |
+| `/admin/pois/:id/geofence` | — | `src/views/admin/GeofenceCalibPage.jsx` | Admin | Protected (`AdminRouteGuard`) | US 03.2 | Exhibit-specific GPS coordinate calibration and dynamic trigger radius tuning on interactive Leaflet map. |
+| `/admin/geofence` | `ADMIN_ROUTES.GEOFENCE` | `src/views/admin/GeofenceCalibPage.jsx` | Admin | Protected (`AdminRouteGuard`) | US 03.2 | Direct geofence calibration view across all site points of interest. |
+| `/admin/translations` | `ADMIN_ROUTES.TRANSLATIONS` | `src/views/admin/TranslationPage.jsx` | Admin | Protected (`AdminRouteGuard`) | US 04.1–04.4 | Side-by-side multilingual translation audit, `NEEDS_UPDATE` status tracking, Edge-TTS audio regeneration. |
+| `/admin/health` | `ADMIN_ROUTES.HEALTH` | `src/views/admin/SystemHealthPage.jsx` | Admin | Protected (`AdminRouteGuard`) | US 05.3 | Disk storage meter for `/static/audio`, 3-tier capacity thresholds (85%/95%), orphan audio cleanup button. |
+| `/demo/:storyId` | — | Standalone Story View | Sandbox | Public | All Stories | Isolated sandbox environment for previewing and verifying individual User Stories independently. |
+| `*` | — | `Navigate to ADMIN_ROUTES.DASHBOARD` | Fallback | Public | — | Wildcard catch-all safely redirecting invalid routes back to the administrative dashboard. |
+
+#### 3. Standard 5-Step Page Registration Protocol for Tasks & AI Agents
+
+Whenever implementing new screens or features, all developers and AI Agents **must follow these 5 steps in order**:
+
+1. **Step 1 — Consult the Page Tree:** Check the Master Route Registry above against the current User Story to determine the exact `route path` and view component file name (never invent arbitrary URLs).
+2. **Step 2 — Implement View Component:** Create or refine the view component file in `src/views/visitor/` (for visitor UI) or `src/views/admin/` (for administrative UI). Adhere to Mobile-First or Desktop-First guidelines per [ui_rules.md](file:///c:/Users/ASUS/OneDrive/Desktop/Software-Technology/documents/ui_rules.md).
+3. **Step 3 — Declare Route Constant in [`App.jsx`](file:///c:/Users/ASUS/OneDrive/Desktop/Software-Technology/MVP/frontend/src/App.jsx):** Every URL must be declared as a constant in `VISITOR_ROUTES` or `ADMIN_ROUTES` at the top of [`App.jsx`](file:///c:/Users/ASUS/OneDrive/Desktop/Software-Technology/MVP/frontend/src/App.jsx). Scattering hardcoded route strings across files is strictly prohibited.
+4. **Step 4 — Register Code-Split Route:** Use `React.lazy()` to dynamically import the view component and declare the `<Route path={...} element={...} />`.
+   - If the route belongs to the Admin Portal: **It MUST be wrapped inside `<AdminRouteGuard>`** to enforce session authentication.
+   - If the view is still under active development: Provide a clean, valid placeholder component rather than leaving an orphaned view or breaking route resolution.
+5. **Step 5 — Update & Run Route Tests ([`App.test.jsx`](file:///c:/Users/ASUS/OneDrive/Desktop/Software-Technology/MVP/frontend/src/__tests__/App.test.jsx)):** Add test cases verifying that the new route mounts correctly without white-screen crashes, and verify that the full test suite passes via `npm test`.
+
+> [!CAUTION]
+> **Strict Prohibition on "Orphaned Views":**
+> Creating a view file in `src/views/` without registering a corresponding route in [`App.jsx`](file:///c:/Users/ASUS/OneDrive/Desktop/Software-Technology/MVP/frontend/src/App.jsx) is a critical violation of the Definition of Done (DoD). PRs containing unrouted views will be automatically rejected.
 
 ---
 
