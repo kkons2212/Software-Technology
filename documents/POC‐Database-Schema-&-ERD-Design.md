@@ -55,6 +55,8 @@ CREATE TABLE IF NOT EXISTS `User` (
 CREATE TABLE IF NOT EXISTS `Audit` (
     `AuditID` VARCHAR(20) NOT NULL,
     `Status` NVARCHAR(255) NOT NULL,
+    `Ip_address` VARCHAR(45) NULL,
+    `Details` NVARCHAR(255) NULL,
     `Create_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `UserName` VARCHAR(20) NOT NULL,
     PRIMARY KEY (`AuditID`),
@@ -245,6 +247,8 @@ The full MySQL initialization DDL script is provided in section [2.1. MySQL Sche
 | `audit_id` | `VARCHAR(20)` | `PRIMARY KEY` | Unique audit record identifier |
 | `user_name` | `VARCHAR(255)` | `NOT NULL, FK -> users(user_name)` | Associated username (ON DELETE CASCADE) |
 | `status` | `VARCHAR(255)` | `NOT NULL` | Status (SUCCESS, FAILED, LOCKED) |
+| `ip_address` | `VARCHAR(45)` | `NULL` | Client IP address (IPv4/IPv6) that produced the audited action |
+| `details` | `VARCHAR(255)` | `NULL` | Contextual payload describing the audited action (action name, target entity, JSON summary) |
 | `create_at` | `TIMESTAMPTZ` | `DEFAULT CURRENT_TIMESTAMP` | Audit log entry timestamp |
 
 ---
