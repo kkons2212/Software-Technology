@@ -2,6 +2,10 @@ import { useEffect, useState } from 'react';
 import VisitorMapView from './VisitorMapView.jsx';
 import VisitorHeader from '../../components/visitor/VisitorHeader.jsx';
 import { getPublishedLanguages } from '../../api/languageApi.js';
+import { getPois } from '../../api/poiApi.js';
+import { useAudioPlayer } from '../../contexts/AudioPlayerContext.jsx';
+import { useGeofenceTrigger } from '../../hooks/useGeofenceTrigger.js';
+import { reportPoiTrigger } from '../../api/telemetryApi.js';
 import useGeolocation from '../../hooks/useGeolocation.js';
 
 const PREFERRED_LANGUAGE_KEY = 'museum_preferred_lang';
@@ -17,6 +21,39 @@ export default function VisitorTourPage({
   const [selectedLanguage, setSelectedLanguage] = useState('');
   const [languageError, setLanguageError] = useState('');
   const [retryCount, setRetryCount] = useState(0);
+  const [pois, setPois] = useState([]);
+
+  const { play, currentPoi } = useAudioPlayer();
+
+  useEffect(() => {
+    getPois({ page: 1, size: 50 })
+      .then((data) => {
+        if (data?.items && Array.isArray(data.items)) {
+          setPois(data.items);
+        }
+      })
+      .catch((err) => {
+        console.warn('Unable to load exhibits:', err);
+      });
+  }, []);
+
+  const handleProximityTrigger = (poi) => {
+    if (play) {
+      play(poi);
+    }
+    reportPoiTrigger({
+      poiId: poi.poi_id || poi.id,
+      dwellTime: 10,
+      triggerType: 'AUTOMATIC_GEOFENCE',
+    });
+  };
+
+  useGeofenceTrigger({
+    userLocation: location,
+    pois,
+    onTrigger: handleProximityTrigger,
+    currentPlayingPoiId: currentPoi?.poi_id || currentPoi?.id,
+  });
 
   useEffect(() => {
     const controller = new AbortController();
@@ -85,7 +122,10 @@ export default function VisitorTourPage({
         location={location}
         accuracy={accuracy}
         hasLiveLocation={hasLiveLocation}
+        pois={pois}
+        onPoiSelect={play}
       />
     </main>
   );
 }
+

@@ -28,6 +28,10 @@ venv/
 # Generated media / cache
 **/__pycache__/
 **/.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+
 
 # Agent skills & local configuration
 .agents/
