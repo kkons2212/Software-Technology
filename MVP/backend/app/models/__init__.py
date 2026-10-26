@@ -10,12 +10,12 @@ from app.models.trigger import POITrigger
 from app.models.user import User
 
 __all__ = [
-    "User",
+    "POI",
     "Audit",
     "LanguageCode",
-    "POI",
-    "POITranslation",
     "POIAudio",
-    "VisitorSession",
+    "POITranslation",
     "POITrigger",
+    "User",
+    "VisitorSession",
 ]
