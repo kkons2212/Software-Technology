@@ -10,10 +10,10 @@ import { getPublishedLanguages } from '../languageApi.js';
 describe('getPublishedLanguages', () => {
   it('returns only published languages and normalizes language fields', async () => {
     apiClient.get.mockResolvedValue([
-        { language_id: 'vi', language_name: 'Tiếng Việt', status: 'PUBLISHED' },
-        { code: 'en', native_name: 'English', status: 'published' },
-        { language_id: 'ja', language_name: '日本語', status: 'DRAFT' },
-        { language_id: 'ko', language_name: '한국어', status: 'PENDING' },
+      { language_id: 'vi', language_name: 'Tiếng Việt', status: 'PUBLISHED' },
+      { code: 'en', native_name: 'English', status: 'published' },
+      { language_id: 'ja', language_name: '日本語', status: 'DRAFT' },
+      { language_id: 'ko', language_name: '한국어', status: 'PENDING' },
     ]);
 
     await expect(getPublishedLanguages()).resolves.toEqual([
@@ -21,6 +21,17 @@ describe('getPublishedLanguages', () => {
       { code: 'en', name: 'English' },
     ]);
     expect(apiClient.get).toHaveBeenCalledWith('/api/v1/languages', { signal: undefined });
+  });
+
+  it('does not expose a language with an unpublished status despite stale published flags', async () => {
+    apiClient.get.mockResolvedValue([
+      { code: 'vi', name: 'Tiếng Việt', status: 'DRAFT', is_published: true },
+      { code: 'en', name: 'English', has_published_content: true },
+    ]);
+
+    await expect(getPublishedLanguages()).resolves.toEqual([
+      { code: 'en', name: 'English' },
+    ]);
   });
 
   it('reports malformed language payloads instead of returning an empty list', async () => {

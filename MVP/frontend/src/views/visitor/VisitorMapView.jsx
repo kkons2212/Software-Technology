@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import { LocateFixed } from 'lucide-react';
 import VisitorLocationMarker from '../../components/visitor/VisitorLocationMarker.jsx';
+import VisitorPoiMarkers from '../../components/visitor/VisitorPoiMarkers.jsx';
 import { MAIN_ENTRANCE, MUSEUM_BOUNDS } from '../../hooks/useGeolocation.js';
 
 const DEFAULT_ZOOM = 17;
@@ -16,6 +17,7 @@ export default function VisitorMapView({
   location = MAIN_ENTRANCE,
   accuracy = null,
   hasLiveLocation = false,
+  pois = [],
 }) {
   const mapElementRef = useRef(null);
   const mapRef = useRef(null);
@@ -86,6 +88,7 @@ export default function VisitorMapView({
             accuracy={accuracy}
             isLiveLocation={hasLiveLocation}
           />
+          <VisitorPoiMarkers map={mapRef.current} pois={pois} />
           <div className="visitor-map-zoom-controls" aria-label="Map zoom controls">
             <button type="button" aria-label="Zoom in" onClick={handleZoomIn}>+</button>
             <button type="button" aria-label="Zoom out" onClick={handleZoomOut}>−</button>

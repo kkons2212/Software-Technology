@@ -44,6 +44,8 @@ describe('VisitorLocationMarker', () => {
     expect(leafletMocks.divIcon).toHaveBeenCalledWith(expect.objectContaining({
       className: 'visitor-location-icon',
       html: expect.stringContaining('visitor-location-pulse'),
+      iconSize: [28, 28],
+      iconAnchor: [14, 14],
     }));
     expect(leafletMocks.divIcon.mock.calls[0][0].html).toContain('visitor-location-dot');
   });
