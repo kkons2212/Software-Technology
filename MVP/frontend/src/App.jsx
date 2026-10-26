@@ -1,5 +1,6 @@
 // =============================================================================
-// TIER 1 - APPLICATION SHELL & ROUTING
+// TIER 1 - APPLICATION SHELL & CENTRAL ROUTING TABLE
+// Standardized in dev_rules.md Section 2.7 (Page & Route Tree Structure)
 // Code-splits the Admin Portal bundle away from the Visitor Web App bundle so
 // the visitor payload stays minimal on outdoor mobile networks.
 // =============================================================================
@@ -10,24 +11,40 @@ import AdminRouteGuard from './components/admin/AdminRouteGuard.jsx';
 import { AudioPlayerProvider } from './contexts/AudioPlayerContext.jsx';
 import { MiniAudioPlayer } from './components/visitor/MiniAudioPlayer.jsx';
 
-const ADMIN_LOGIN_PATH = '/admin/login';
-const ADMIN_HOME_PATH = '/admin';
-const VISITOR_HOME_PATH = '/visitor';
+// -----------------------------------------------------------------------------
+// CENTRAL ROUTE PATH REGISTRY
+// Developers and AI Agents must reference these standardized constants.
+// -----------------------------------------------------------------------------
+export const VISITOR_ROUTES = {
+  HOME: '/visitor',
+  TOUR: '/tour',
+  CHECKOUT_SUCCESS: '/visitor/checkout/success',
+};
 
-const AdminLoginView = lazy(() => import('./views/admin/AdminLoginView.jsx'));
+export const ADMIN_ROUTES = {
+  LOGIN: '/admin/login',
+  DASHBOARD: '/admin',
+  ANALYTICS: '/admin/analytics',
+  POIS: '/admin/pois',
+  GEOFENCE: '/admin/geofence',
+  TRANSLATIONS: '/admin/translations',
+  HEALTH: '/admin/health',
+};
+
+// -----------------------------------------------------------------------------
+// LAZY-LOADED PAGE VIEWS (CODE-SPLIT BUNDLES)
+// -----------------------------------------------------------------------------
+// Visitor Domain (Mobile-First)
 const VisitorTourPage = lazy(() => import('./views/visitor/VisitorTourPage.jsx'));
+const CheckoutSuccessPage = lazy(() => import('./views/visitor/CheckoutSuccessPage.jsx'));
 
-// Temporary landing surface for authenticated Administrators. The exhibit catalog,
-// multilingual curation, and telemetry modules are delivered in later user stories.
-const ADMIN_WORKSPACE_PLACEHOLDER = (
-  <div className="mx-auto w-full max-w-4xl px-6 py-10">
-    <h1 className="text-xl font-semibold text-slate-900">Administrative Workspace</h1>
-    <p className="mt-2 text-sm text-slate-600">
-      You are signed in. Exhibit catalog, multilingual curation, and telemetry modules arrive in
-      later user stories.
-    </p>
-  </div>
-);
+// Admin Domain (Desktop-First)
+const AdminLoginView = lazy(() => import('./views/admin/AdminLoginView.jsx'));
+const AnalyticsDashboard = lazy(() => import('./views/admin/AnalyticsDashboard.jsx'));
+const PoiCatalogPage = lazy(() => import('./views/admin/PoiCatalogPage.jsx'));
+const GeofenceCalibPage = lazy(() => import('./views/admin/GeofenceCalibPage.jsx'));
+const TranslationPage = lazy(() => import('./views/admin/TranslationPage.jsx'));
+const SystemHealthPage = lazy(() => import('./views/admin/SystemHealthPage.jsx'));
 
 export default function App() {
   return (
@@ -43,14 +60,76 @@ export default function App() {
         }
       >
         <Routes>
-          <Route path="/" element={<Navigate to={ADMIN_HOME_PATH} replace />} />
-          <Route path={VISITOR_HOME_PATH} element={<VisitorTourPage />} />
-          <Route path={ADMIN_LOGIN_PATH} element={<AdminLoginView />} />
+          {/* Default Root Redirect: Points to Admin during active dev/MVP */}
+          <Route path="/" element={<Navigate to={ADMIN_ROUTES.DASHBOARD} replace />} />
+
+          {/* Visitor Web App Routes (Mobile-First, Public) */}
+          <Route path={VISITOR_ROUTES.HOME} element={<VisitorTourPage />} />
+          <Route path={VISITOR_ROUTES.TOUR} element={<Navigate to={VISITOR_ROUTES.HOME} replace />} />
+          <Route path={VISITOR_ROUTES.CHECKOUT_SUCCESS} element={<CheckoutSuccessPage />} />
+          <Route path="/checkout/success" element={<Navigate to={VISITOR_ROUTES.CHECKOUT_SUCCESS} replace />} />
+
+          {/* Admin Web Portal Routes (Desktop-First) */}
+          <Route path={ADMIN_ROUTES.LOGIN} element={<AdminLoginView />} />
           <Route
-            path={ADMIN_HOME_PATH}
-            element={<AdminRouteGuard>{ADMIN_WORKSPACE_PLACEHOLDER}</AdminRouteGuard>}
+            path={ADMIN_ROUTES.DASHBOARD}
+            element={
+              <AdminRouteGuard>
+                <AnalyticsDashboard />
+              </AdminRouteGuard>
+            }
           />
-          <Route path="*" element={<Navigate to={ADMIN_HOME_PATH} replace />} />
+          <Route
+            path={ADMIN_ROUTES.ANALYTICS}
+            element={
+              <AdminRouteGuard>
+                <AnalyticsDashboard />
+              </AdminRouteGuard>
+            }
+          />
+          <Route
+            path={ADMIN_ROUTES.POIS}
+            element={
+              <AdminRouteGuard>
+                <PoiCatalogPage />
+              </AdminRouteGuard>
+            }
+          />
+          <Route
+            path={`${ADMIN_ROUTES.POIS}/:id/geofence`}
+            element={
+              <AdminRouteGuard>
+                <GeofenceCalibPage />
+              </AdminRouteGuard>
+            }
+          />
+          <Route
+            path={ADMIN_ROUTES.GEOFENCE}
+            element={
+              <AdminRouteGuard>
+                <GeofenceCalibPage />
+              </AdminRouteGuard>
+            }
+          />
+          <Route
+            path={ADMIN_ROUTES.TRANSLATIONS}
+            element={
+              <AdminRouteGuard>
+                <TranslationPage />
+              </AdminRouteGuard>
+            }
+          />
+          <Route
+            path={ADMIN_ROUTES.HEALTH}
+            element={
+              <AdminRouteGuard>
+                <SystemHealthPage />
+              </AdminRouteGuard>
+            }
+          />
+
+          {/* Catch-all Wildcard Route */}
+          <Route path="*" element={<Navigate to={ADMIN_ROUTES.DASHBOARD} replace />} />
         </Routes>
       </Suspense>
       <MiniAudioPlayer />

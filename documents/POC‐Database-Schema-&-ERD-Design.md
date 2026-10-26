@@ -5,13 +5,13 @@
 
 ## 1. Database Architecture Overview
 
-During the Proof of Concept (POC) phase, the system leverages **SQLite** configured in **WAL (Write-Ahead Logging)** mode with `PRAGMA foreign_keys = ON;` to ensure:
+During the Proof of Concept (POC) phase, the system leverages **SQLite** configured in **WAL (Write-Ahead Logging)** mode with `PRAGMA foreign_keys = ON;` to ensure, after that we switch to MySQL 8.0+ (InnoDB) for production use:
 - **High Performance & Non-blocking Concurrency:** Mobile visitor reads can occur simultaneously without being locked by backend write jobs (Google Translation & Edge-TTS synthesis background tasks).
 - **Data Integrity:** Cascade deletion automatically cleans up related translations and audio records when a POI is deleted.
 
 ---
 
-## 2. Entity Relationship Diagram (ERD)
+## 2. Entity Relationship Diagram now with MYSQL (ERD)
 
 <img width="2246" height="1563" alt="Untitled (2)" src="https://github.com/user-attachments/assets/c8c96762-d194-4539-a52a-4a6fc08b7aa8" />
 
@@ -55,6 +55,8 @@ CREATE TABLE IF NOT EXISTS `User` (
 CREATE TABLE IF NOT EXISTS `Audit` (
     `AuditID` VARCHAR(20) NOT NULL,
     `Status` NVARCHAR(255) NOT NULL,
+    `Ip_address` VARCHAR(45) NULL,
+    `Details` NVARCHAR(255) NULL,
     `Create_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `UserName` VARCHAR(20) NOT NULL,
     PRIMARY KEY (`AuditID`),
