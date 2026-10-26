@@ -23,10 +23,12 @@ export async function getPublishedLanguages({ signal } = {}) {
 
   return unwrapLanguages(response)
     .filter((language) => {
-      const status = String(language.status ?? language.translation_status ?? '').toUpperCase();
-      return status === 'PUBLISHED'
-        || language.is_published === true
-        || language.has_published_content === true;
+      const status = language.status ?? language.translation_status;
+      if (status !== undefined && status !== null) {
+        return String(status).toUpperCase() === 'PUBLISHED';
+      }
+
+      return language.is_published === true || language.has_published_content === true;
     })
     .map((language) => ({
       code: language.code ?? language.language_id ?? language.language_code,
