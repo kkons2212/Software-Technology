@@ -1,8 +1,12 @@
 """TelemetryController: Ingestion endpoint for visitor POI proximity triggers (TSK-01.3.5)."""
 
 from fastapi import APIRouter, Depends, HTTPException, status
+
 from app.core.dependencies import get_telemetry_service
-from app.schemas.telemetry_schema import TelemetryTriggerCreate, TelemetryTriggerResponse
+from app.schemas.telemetry_schema import (
+    TelemetryTriggerCreate,
+    TelemetryTriggerResponse,
+)
 from app.services.telemetry_service import TelemetryService
 
 router = APIRouter(prefix="/api/v1/telemetry", tags=["Telemetry"])
@@ -25,4 +29,4 @@ def record_telemetry_trigger(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(exc),
-        )
+        ) from exc

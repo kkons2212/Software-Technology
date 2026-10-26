@@ -2,13 +2,14 @@
 
 import os
 import uuid
-from typing import Optional
+
 from fastapi import BackgroundTasks, HTTPException, UploadFile, status
+
 from app.core.config import settings
 from app.models.poi import POI
 from app.models.translation import POITranslation
-from app.repositories.poi_repository import POIRepository
 from app.repositories.audit_repository import AuditRepository
+from app.repositories.poi_repository import POIRepository
 from app.schemas.poi_schema import (
     POICreateRequest,
     POIListResponse,
@@ -22,7 +23,10 @@ TARGET_FOREIGN_LANGUAGES = ["en", "ja", "ko", "zh"]
 def validate_coordinates_in_bounds(lat: float, lng: float) -> None:
     """Enforce boundary guardrail ensuring POI is within Cu Chi Tunnels complex."""
     bounds = settings.CU_CHI_BOUNDS
-    if not (bounds["min_lat"] <= lat <= bounds["max_lat"] and bounds["min_lng"] <= lng <= bounds["max_lng"]):
+    if not (
+        bounds["min_lat"] <= lat <= bounds["max_lat"]
+        and bounds["min_lng"] <= lng <= bounds["max_lng"]
+    ):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail={
@@ -31,9 +35,9 @@ def validate_coordinates_in_bounds(lat: float, lng: float) -> None:
                 "details": {
                     "latitude": lat,
                     "longitude": lng,
-                    "allowed_bounds": bounds
-                }
-            }
+                    "allowed_bounds": bounds,
+                },
+            },
         )
 
 
@@ -42,12 +46,12 @@ def validate_image_file(file: UploadFile, content_bytes: bytes) -> None:
     if file.content_type not in settings.ALLOWED_IMAGE_TYPES:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid image type '{file.content_type}'. Only JPG, PNG, and WebP are allowed."
+            detail=f"Invalid image type '{file.content_type}'. Only JPG, PNG, and WebP are allowed.",
         )
     if len(content_bytes) > settings.MAX_IMAGE_SIZE_BYTES:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Cover image file size exceeds the maximum permitted limit of 5MB."
+            detail="Cover image file size exceeds the maximum permitted limit of 5MB.",
         )
 
 
@@ -77,8 +81,8 @@ class POIService:
         self,
         payload: POICreateRequest,
         admin_username: str,
-        background_tasks: Optional[BackgroundTasks] = None,
-        ip_address: Optional[str] = None
+        background_tasks: BackgroundTasks | None = None,
+        ip_address: str | None = None,
     ) -> POIResponse:
         """Execute full business flow: validation, creation, translation seeding, and audit logging."""
         # 1. Spatial perimeter validation
@@ -96,7 +100,7 @@ class POIService:
             Longitude=payload.longitude,
             Radius=payload.radius,
             Is_Active=True,
-            Create_by=admin_username
+            Create_by=admin_username,
         )
         created_poi = self.poi_repo.create(poi_entity)
 
@@ -109,13 +113,15 @@ class POIService:
             Status="PUBLISHED",
             PoiID=created_poi.PoiID,
             LanguageID="vi",
-            UserName=admin_username
+            UserName=admin_username,
         )
         self.poi_repo.create_translation(vi_trans)
 
         # 4. Dispatch background foreign language translation pipeline (Status = PENDING)
         translation_responses = [
-            POITranslationStatusResponse(language_id="vi", status="PUBLISHED", title=payload.title)
+            POITranslationStatusResponse(
+                language_id="vi", status="PUBLISHED", title=payload.title
+            )
         ]
         for lang in TARGET_FOREIGN_LANGUAGES:
             foreign_trans = POITranslation(
@@ -126,7 +132,7 @@ class POIService:
                 Status="PENDING",
                 PoiID=created_poi.PoiID,
                 LanguageID=lang,
-                UserName=admin_username
+                UserName=admin_username,
             )
             self.poi_repo.create_translation(foreign_trans)
             translation_responses.append(
@@ -142,17 +148,14 @@ class POIService:
                 "poi_id": created_poi.PoiID,
                 "title": payload.title,
                 "radius": payload.radius,
-                "coordinates": [float(payload.latitude), float(payload.longitude)]
-            }
+                "coordinates": [float(payload.latitude), float(payload.longitude)],
+            },
         )
 
         return self._build_poi_response(created_poi, translation_responses)
 
     def list_pois(
-        self,
-        page: int = 1,
-        size: int = 50,
-        search: Optional[str] = None
+        self, page: int = 1, size: int = 50, search: str | None = None
     ) -> POIListResponse:
         """Retrieve paginated POIs with translation status summaries."""
         if page < 1:
@@ -165,19 +168,13 @@ class POIService:
             translations = self.poi_repo.get_translations_by_poi_id(poi.PoiID)
             status_list = [
                 POITranslationStatusResponse(
-                    language_id=t.LanguageID,
-                    status=t.Status,
-                    title=t.Title
-                ) for t in translations
+                    language_id=t.LanguageID, status=t.Status, title=t.Title
+                )
+                for t in translations
             ]
             response_items.append(self._build_poi_response(poi, status_list))
 
-        return POIListResponse(
-            items=response_items,
-            total=total,
-            page=page,
-            size=size
-        )
+        return POIListResponse(items=response_items, total=total, page=page, size=size)
 
     def get_poi_details(self, poi_id: str) -> POIResponse:
         """Fetch full POI details including all translation statuses."""
@@ -185,22 +182,20 @@ class POIService:
         if not poi:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"POI exhibit with id '{poi_id}' was not found."
+                detail=f"POI exhibit with id '{poi_id}' was not found.",
             )
         translations = self.poi_repo.get_translations_by_poi_id(poi.PoiID)
         status_list = [
             POITranslationStatusResponse(
-                language_id=t.LanguageID,
-                status=t.Status,
-                title=t.Title
-            ) for t in translations
+                language_id=t.LanguageID, status=t.Status, title=t.Title
+            )
+            for t in translations
         ]
         return self._build_poi_response(poi, status_list)
 
     @staticmethod
     def _build_poi_response(
-        poi: POI,
-        translations: list[POITranslationStatusResponse]
+        poi: POI, translations: list[POITranslationStatusResponse]
     ) -> POIResponse:
         return POIResponse(
             poi_id=poi.PoiID,
@@ -215,5 +210,5 @@ class POIService:
             create_at=poi.Create_at,
             update_at=poi.Update_at,
             create_by=poi.Create_by,
-            translations=translations
+            translations=translations,
         )

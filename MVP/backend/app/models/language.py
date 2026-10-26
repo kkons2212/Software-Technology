@@ -1,6 +1,7 @@
 """SQLAlchemy model for LanguageCode catalog table."""
 
 from sqlalchemy import Column, String
+
 from app.core.database import Base
 
 

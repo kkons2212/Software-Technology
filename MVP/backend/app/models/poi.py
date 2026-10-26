@@ -1,7 +1,18 @@
 """SQLAlchemy model for POI (Points of Interest / Exhibition Points) table."""
 
-from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, Numeric, String, Text, func
+from sqlalchemy import (
+    Boolean,
+    Column,
+    DateTime,
+    ForeignKey,
+    Integer,
+    Numeric,
+    String,
+    Text,
+    func,
+)
 from sqlalchemy.orm import relationship
+
 from app.core.database import Base
 
 
@@ -18,8 +29,17 @@ class POI(Base):
     Radius = Column(Integer, nullable=False, default=30)
     Is_Active = Column(Boolean, nullable=False, default=True)
     Create_at = Column(DateTime, nullable=False, default=func.now())
-    Update_at = Column(DateTime, nullable=False, default=func.now(), onupdate=func.now())
-    Create_by = Column(String(20), ForeignKey("User.UserName", ondelete="SET NULL"), nullable=True, index=True)
+    Update_at = Column(
+        DateTime, nullable=False, default=func.now(), onupdate=func.now()
+    )
+    Create_by = Column(
+        String(20),
+        ForeignKey("User.UserName", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
 
     creator = relationship("User")
-    translations = relationship("POITranslation", back_populates="poi", cascade="all, delete-orphan")
+    translations = relationship(
+        "POITranslation", back_populates="poi", cascade="all, delete-orphan"
+    )

@@ -1,8 +1,10 @@
 """Database engine and session management following JIT lifecycle."""
 
-from typing import Generator
+from collections.abc import Generator
+
 from sqlalchemy import create_engine
-from sqlalchemy.orm import declarative_base, sessionmaker, Session
+from sqlalchemy.orm import Session, declarative_base, sessionmaker
+
 from app.core.config import settings
 
 # Engine configuration with connection pooling for MySQL 8.0+
@@ -11,7 +13,7 @@ engine = create_engine(
     pool_size=10,
     max_overflow=20,
     pool_recycle=1800,
-    pool_pre_ping=True
+    pool_pre_ping=True,
 )
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

@@ -31,6 +31,8 @@ venv/
 .coverage
 .coverage.*
 htmlcov/
+MVP/backend/static/images/*
+!MVP/backend/static/images/.gitkeep
 
 
 # Agent skills & local configuration

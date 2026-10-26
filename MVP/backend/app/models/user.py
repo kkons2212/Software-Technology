@@ -1,6 +1,7 @@
 """SQLAlchemy model for User table (Strict 2-Actor Model: All accounts are Administrators)."""
 
 from sqlalchemy import Boolean, Column, DateTime, Integer, String, func
+
 from app.core.database import Base
 
 
@@ -15,4 +16,6 @@ class User(Base):
     FalsedAttempts = Column(Integer, nullable=False, default=0)
     Lockeduntil = Column(DateTime, nullable=True)
     Create_at = Column(DateTime, nullable=False, default=func.now())
-    Update_at = Column(DateTime, nullable=False, default=func.now(), onupdate=func.now())
+    Update_at = Column(
+        DateTime, nullable=False, default=func.now(), onupdate=func.now()
+    )

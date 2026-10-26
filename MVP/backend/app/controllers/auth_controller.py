@@ -1,6 +1,5 @@
 """Admin Authentication Controller (US 02.1)."""
 
-from typing import Optional
 from fastapi import APIRouter, HTTPException, Request, Response, status
 from pydantic import BaseModel
 

@@ -2,20 +2,21 @@
 
 import os
 import sys
+
 import pytest
+from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
-from fastapi.testclient import TestClient
 
 # Ensure backend root (MVP/backend) is always first in sys.path
 BACKEND_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if BACKEND_ROOT not in sys.path:
     sys.path.insert(0, BACKEND_ROOT)
 
-import app.models  # Ensure all SQLAlchemy models are registered with Base.metadata
-from app.core.database import Base, get_db
-from app.main import app
+import app.models  # noqa: E402
+from app.core.database import Base, get_db  # noqa: E402
+from app.main import app  # noqa: E402
 
 # In-memory SQLite engine with StaticPool so all connections share the same memory instance
 TEST_DATABASE_URL = "sqlite:///:memory:"
@@ -27,7 +28,7 @@ def db_session():
     engine = create_engine(
         TEST_DATABASE_URL,
         connect_args={"check_same_thread": False},
-        poolclass=StaticPool
+        poolclass=StaticPool,
     )
     Base.metadata.create_all(bind=engine)
     TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -42,6 +43,7 @@ def db_session():
 @pytest.fixture(scope="function")
 def client(db_session):
     """FastAPI TestClient with overridden get_db dependency."""
+
     def override_get_db():
         try:
             yield db_session

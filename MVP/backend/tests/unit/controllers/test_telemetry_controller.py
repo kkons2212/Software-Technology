@@ -1,7 +1,7 @@
 """Unit tests for TelemetryController (TSK-01.3.5 & TSK-01.3.6)."""
 
-from app.models.poi import POI
 from app.models.language import LanguageCode
+from app.models.poi import POI
 from app.models.session import VisitorSession
 
 
@@ -56,7 +56,9 @@ def test_should_ingest_telemetry_trigger_with_existing_session(client, db_sessio
     assert "trigger_at" in data
 
 
-def test_should_ingest_telemetry_and_auto_create_guest_session_when_omitted(client, db_session):
+def test_should_ingest_telemetry_and_auto_create_guest_session_when_omitted(
+    client, db_session
+):
     poi = setup_test_poi_and_language(db_session)
 
     payload = {
@@ -72,7 +74,9 @@ def test_should_ingest_telemetry_and_auto_create_guest_session_when_omitted(clie
     assert data["session_id"].startswith("guest_")
 
 
-def test_should_auto_provision_session_when_given_unrecognized_session_id(client, db_session):
+def test_should_auto_provision_session_when_given_unrecognized_session_id(
+    client, db_session
+):
     poi = setup_test_poi_and_language(db_session)
 
     payload = {

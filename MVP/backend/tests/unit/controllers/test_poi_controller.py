@@ -1,12 +1,18 @@
 """Unit tests for POIController (TSK-03.1.3 & TSK-03.1.5)."""
 
 import io
+
 from app.models.user import User
 
 
 def test_should_create_poi_via_json_payload(client, db_session):
     # Ensure admin user exists in DB
-    admin = User(UserName="admin", Email="admin@cuchi.gov.vn", Password_hash="hash", Is_Active=True)
+    admin = User(
+        UserName="admin",
+        Email="admin@cuchi.gov.vn",
+        Password_hash="hash",
+        Is_Active=True,
+    )
     db_session.add(admin)
     db_session.commit()
 
@@ -16,7 +22,7 @@ def test_should_create_poi_via_json_payload(client, db_session):
         "description": "Các loại hầm chông tre, chông sắt độc đáo của du kích Củ Chi.",
         "latitude": 11.1445,
         "longitude": 106.4625,
-        "radius": 25
+        "radius": 25,
     }
     response = client.post("/api/v1/admin/pois", json=payload)
     assert response.status_code == 201
@@ -30,21 +36,24 @@ def test_should_create_poi_via_json_payload(client, db_session):
 
 
 def test_should_create_poi_via_multipart_form_data_with_image(client, db_session):
-    admin = User(UserName="admin", Email="admin@cuchi.gov.vn", Password_hash="hash", Is_Active=True)
+    admin = User(
+        UserName="admin",
+        Email="admin@cuchi.gov.vn",
+        Password_hash="hash",
+        Is_Active=True,
+    )
     db_session.add(admin)
     db_session.commit()
 
     image_content = b"\xFF\xD8\xFF\xE0" + b"0" * 500  # Minimal valid JPG header bytes
-    files = {
-        "image": ("test_cover.jpg", io.BytesIO(image_content), "image/jpeg")
-    }
+    files = {"image": ("test_cover.jpg", io.BytesIO(image_content), "image/jpeg")}
     data = {
         "title": "Địa đạo Bến Dược",
         "short_description": "Căn cứ địa cách mạng",
         "description": "Trung tâm đầu não kháng chiến.",
         "latitude": "11.1432",
         "longitude": "106.4631",
-        "radius": "35"
+        "radius": "35",
     }
 
     response = client.post("/api/v1/admin/pois", data=data, files=files)
@@ -57,7 +66,12 @@ def test_should_create_poi_via_multipart_form_data_with_image(client, db_session
 
 
 def test_should_return_400_when_coordinates_out_of_bounds(client, db_session):
-    admin = User(UserName="admin", Email="admin@cuchi.gov.vn", Password_hash="hash", Is_Active=True)
+    admin = User(
+        UserName="admin",
+        Email="admin@cuchi.gov.vn",
+        Password_hash="hash",
+        Is_Active=True,
+    )
     db_session.add(admin)
     db_session.commit()
 
@@ -65,25 +79,40 @@ def test_should_return_400_when_coordinates_out_of_bounds(client, db_session):
         "title": "Out of Bounds POI",
         "latitude": 10.0000,  # Invalid: outside Cu Chi boundary
         "longitude": 106.4631,
-        "radius": 30
+        "radius": 30,
     }
     response = client.post("/api/v1/admin/pois", json=payload)
     assert response.status_code == 400
 
 
 def test_should_list_pois_with_pagination_and_search(client, db_session):
-    admin = User(UserName="admin", Email="admin@cuchi.gov.vn", Password_hash="hash", Is_Active=True)
+    admin = User(
+        UserName="admin",
+        Email="admin@cuchi.gov.vn",
+        Password_hash="hash",
+        Is_Active=True,
+    )
     db_session.add(admin)
     db_session.commit()
 
     # Create 2 POIs
     client.post(
         "/api/v1/admin/pois",
-        json={"title": "Hầm thông tin", "latitude": 11.1435, "longitude": 106.4635, "radius": 30}
+        json={
+            "title": "Hầm thông tin",
+            "latitude": 11.1435,
+            "longitude": 106.4635,
+            "radius": 30,
+        },
     )
     client.post(
         "/api/v1/admin/pois",
-        json={"title": "Hầm may quân trang", "latitude": 11.1440, "longitude": 106.4640, "radius": 30}
+        json={
+            "title": "Hầm may quân trang",
+            "latitude": 11.1440,
+            "longitude": 106.4640,
+            "radius": 30,
+        },
     )
 
     # List all
@@ -101,13 +130,23 @@ def test_should_list_pois_with_pagination_and_search(client, db_session):
 
 
 def test_should_get_poi_by_id_and_return_404_when_missing(client, db_session):
-    admin = User(UserName="admin", Email="admin@cuchi.gov.vn", Password_hash="hash", Is_Active=True)
+    admin = User(
+        UserName="admin",
+        Email="admin@cuchi.gov.vn",
+        Password_hash="hash",
+        Is_Active=True,
+    )
     db_session.add(admin)
     db_session.commit()
 
     create_res = client.post(
         "/api/v1/admin/pois",
-        json={"title": "Hầm họp", "latitude": 11.1438, "longitude": 106.4638, "radius": 20}
+        json={
+            "title": "Hầm họp",
+            "latitude": 11.1438,
+            "longitude": 106.4638,
+            "radius": 20,
+        },
     )
     poi_id = create_res.json()["poi_id"]
 

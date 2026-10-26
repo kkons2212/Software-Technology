@@ -1,6 +1,7 @@
 """Unit tests for backend main entry point and health probe."""
 
 from fastapi.testclient import TestClient
+
 import app.main
 
 

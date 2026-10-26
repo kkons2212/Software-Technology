@@ -15,7 +15,7 @@ def test_should_create_and_retrieve_poi_when_valid_data(db_session):
         Latitude=11.1432,
         Longitude=106.4631,
         Radius=30,
-        Is_Active=True
+        Is_Active=True,
     )
     created = repo.create(poi)
     assert created.PoiID == "POI_TEST_001"
@@ -38,7 +38,7 @@ def test_should_paginate_pois_and_return_accurate_total_count(db_session):
                 Latitude=11.1430 + (i * 0.001),
                 Longitude=106.4630 + (i * 0.001),
                 Radius=25,
-                Is_Active=True
+                Is_Active=True,
             )
         )
 
@@ -55,7 +55,7 @@ def test_should_filter_pois_by_title_search(db_session):
             Title="Hầm chỉ huy",
             Latitude=11.1432,
             Longitude=106.4631,
-            Radius=30
+            Radius=30,
         )
     )
     repo.create(
@@ -64,7 +64,7 @@ def test_should_filter_pois_by_title_search(db_session):
             Title="Bếp Hoàng Cầm",
             Latitude=11.1440,
             Longitude=106.4640,
-            Radius=20
+            Radius=20,
         )
     )
 
@@ -81,7 +81,7 @@ def test_should_create_and_fetch_translations_by_poi_id(db_session):
             Title="Hầm quân y",
             Latitude=11.1435,
             Longitude=106.4635,
-            Radius=30
+            Radius=30,
         )
     )
     trans = POITranslation(
@@ -91,7 +91,7 @@ def test_should_create_and_fetch_translations_by_poi_id(db_session):
         Description="Used to treat wounded soldiers.",
         Status="PENDING",
         PoiID=poi.PoiID,
-        LanguageID="en"
+        LanguageID="en",
     )
     repo.create_translation(trans)
 

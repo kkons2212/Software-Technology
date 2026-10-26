@@ -1,14 +1,19 @@
 """TelemetryService: Business logic layer for POI proximity trigger telemetry."""
 
 from app.repositories.telemetry_repository import TelemetryRepository
-from app.schemas.telemetry_schema import TelemetryTriggerCreate, TelemetryTriggerResponse
+from app.schemas.telemetry_schema import (
+    TelemetryTriggerCreate,
+    TelemetryTriggerResponse,
+)
 
 
 class TelemetryService:
     def __init__(self, telemetry_repo: TelemetryRepository):
         self.telemetry_repo = telemetry_repo
 
-    def ingest_trigger(self, payload: TelemetryTriggerCreate) -> TelemetryTriggerResponse:
+    def ingest_trigger(
+        self, payload: TelemetryTriggerCreate
+    ) -> TelemetryTriggerResponse:
         poi = self.telemetry_repo.get_poi(payload.poi_id)
         if not poi:
             raise ValueError(f"POI with ID '{payload.poi_id}' does not exist.")
@@ -17,7 +22,9 @@ class TelemetryService:
         if session_id:
             session = self.telemetry_repo.get_session(session_id)
             if not session:
-                session = self.telemetry_repo.create_guest_session(session_id=session_id)
+                session = self.telemetry_repo.create_guest_session(
+                    session_id=session_id
+                )
         else:
             session = self.telemetry_repo.create_guest_session()
 
