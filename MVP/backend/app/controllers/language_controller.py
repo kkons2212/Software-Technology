@@ -4,10 +4,11 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends
 
+from app.core.dependencies import get_language_service
 from app.schemas.poi_schema import APIResponse, PublishedLanguage
-from app.services.language_service import LanguageService, get_language_service
+from app.services.language_service import LanguageService
 
-router = APIRouter(prefix="/api/v1/languages", tags=["visitor"])
+router = APIRouter(prefix="/api/v1/languages", tags=["Languages"])
 
 
 @router.get("", response_model=APIResponse[list[PublishedLanguage]])

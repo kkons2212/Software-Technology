@@ -1,4 +1,4 @@
-"""Persistence queries for publicly available languages."""
+"""LanguageRepository: Data access layer for LanguageCode table."""
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -10,10 +10,17 @@ from app.models.translation import POITranslation
 
 
 class LanguageRepository:
+    """Repository for querying language catalog data."""
+
     def __init__(self, db: Session):
         self.db = db
 
+    def list_all(self) -> list[LanguageCode]:
+        """Return all language codes."""
+        return list(self.db.scalars(select(LanguageCode)))
+
     def list_published(self) -> list[LanguageCode]:
+        """Return languages that have at least one active, published POI translation with ready audio."""
         statement = (
             select(LanguageCode)
             .join(

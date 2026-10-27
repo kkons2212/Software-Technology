@@ -66,3 +66,14 @@ def read_current_admin(
 ) -> AdminSessionResponse:
     """Return the profile of the administrator owning the current session."""
     return AdminSessionResponse(data=AdminSessionDataResponse(admin=current_admin))
+
+
+@router.post("/logout", summary="Admin Logout")
+def logout(response: Response):
+    """Terminate administrator session and clear cookie."""
+    settings = get_settings()
+    response.delete_cookie(
+        key=settings.ADMIN_SESSION_COOKIE_NAME,
+        path=ADMIN_SESSION_COOKIE_PATH,
+    )
+    return {"message": "Logged out successfully"}

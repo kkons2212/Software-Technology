@@ -1,8 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useContext, useEffect, useState } from 'react';
 import VisitorMapView from './VisitorMapView.jsx';
 import VisitorHeader from '../../components/visitor/VisitorHeader.jsx';
 import { getPublishedLanguages } from '../../api/languageApi.js';
 import { getMapPois } from '../../api/poiApi.js';
+import AudioPlayerContext from '../../contexts/AudioPlayerContext.jsx';
+import { useGeofenceTrigger } from '../../hooks/useGeofenceTrigger.js';
+import { reportPoiTrigger } from '../../api/telemetryApi.js';
 import useGeolocation from '../../hooks/useGeolocation.js';
 
 const PREFERRED_LANGUAGE_KEY = 'museum_preferred_lang';
@@ -22,6 +25,28 @@ export default function VisitorTourPage({
   const [poiError, setPoiError] = useState('');
   const [poiRetryCount, setPoiRetryCount] = useState(0);
 
+  const audioContext = useContext(AudioPlayerContext);
+  const play = audioContext?.play;
+  const currentPoi = audioContext?.currentPoi;
+
+  const handleProximityTrigger = (poi) => {
+    if (play) {
+      play(poi);
+    }
+    reportPoiTrigger({
+      poiId: poi.poi_id || poi.id,
+      dwellTime: 10,
+      triggerType: 'AUTOMATIC_GEOFENCE',
+    });
+  };
+
+  useGeofenceTrigger({
+    userLocation: location,
+    pois,
+    onTrigger: handleProximityTrigger,
+    currentPlayingPoiId: currentPoi?.poi_id || currentPoi?.id,
+  });
+
   useEffect(() => {
     const controller = new AbortController();
 
@@ -39,14 +64,18 @@ export default function VisitorTourPage({
             return savedLanguage;
           }
 
-          return availableLanguages.find(({ code }) => code === DEFAULT_LANGUAGE)?.code
+          return (
+            availableLanguages.find(({ code }) => code === DEFAULT_LANGUAGE)?.code
             ?? availableLanguages[0]?.code
-            ?? '';
+            ?? ''
+          );
         });
       })
       .catch((error) => {
         if (error.name !== 'AbortError') {
-          setLanguageError('Unable to load available languages. Check your connection and try again.');
+          setLanguageError(
+            'Unable to load available languages. Check your connection and try again.'
+          );
         }
       });
 
@@ -69,7 +98,9 @@ export default function VisitorTourPage({
       })
       .catch((error) => {
         if (error.name !== 'AbortError') {
-          setPoiError('Unable to load map locations. Check your connection and try again.');
+          setPoiError(
+            'Unable to load map locations. Check your connection and try again.'
+          );
         }
       });
 
@@ -122,6 +153,7 @@ export default function VisitorTourPage({
         accuracy={accuracy}
         hasLiveLocation={hasLiveLocation}
         pois={pois}
+        onPoiSelect={play}
       />
     </main>
   );

@@ -16,13 +16,14 @@ class Base(DeclarativeBase):
     """Declarative base shared by every ORM model under `app/models`."""
 
 
-def create_database_engine(settings: Settings) -> Engine:
+def create_database_engine(settings: Settings | None = None) -> Engine:
     """Build the MySQL engine with the mandated connection-pool settings."""
+    cfg = settings or get_settings()
     return create_engine(
-        settings.DATABASE_URL,
-        pool_size=settings.DB_POOL_SIZE,
-        max_overflow=settings.DB_MAX_OVERFLOW,
-        pool_recycle=settings.DB_POOL_RECYCLE_SECONDS,
+        cfg.DATABASE_URL,
+        pool_size=cfg.DB_POOL_SIZE,
+        max_overflow=cfg.DB_MAX_OVERFLOW,
+        pool_recycle=cfg.DB_POOL_RECYCLE_SECONDS,
         pool_pre_ping=True,
     )
 

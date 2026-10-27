@@ -8,15 +8,6 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 5173,
-    // -------------------------------------------------------------------------
-    // DEV-ENVIRONMENT API PROXY (US 02.1 / AC-02.1.3)
-    // -------------------------------------------------------------------------
-    // apiClient.js issues RELATIVE paths (e.g. '/api/v1/auth/login') and the
-    // backend session cookie is SameSite=Strict. Both facts require the browser
-    // to reach FastAPI on the SAME origin it loaded the SPA from. Without this
-    // block the request stops at the Vite dev server (:5173), which answers
-    // with a non-JSON 404, so the login POST fails and AdminRouteGuard can never
-    // observe an authenticated session.
     proxy: {
       '/api': {
         target: 'http://127.0.0.1:8000',
