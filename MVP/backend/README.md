@@ -45,7 +45,7 @@ the MySQL schema in `scripts/mysql_schema.sql`.
 
 This starts the MySQL database in Docker, but runs the MVP backend and frontend
 as local development processes. The existing `POC/docker-compose.yml` belongs
-to the separate SQLite-based proof of concept and does not run the MVP stack.
+to the legacy proof-of-concept folder and does not run the MVP stack.
 
 Interactive API documentation is available at `http://localhost:8000/docs`.
 
@@ -76,4 +76,7 @@ Vietnamese, English, Japanese, and Korean. It only inserts or updates records
 whose IDs begin with `DEMO`; its audio URLs are placeholders, not playable
 narrations.
 
-Run the backend tests from this directory with `python -m pytest`.
+Run the backend tests from this directory with `python -m pytest`. The suite
+runs against the MySQL container above (`smart_museum`): each test opens its own
+transaction, which is always rolled back, so existing development data is never
+modified. Start the container before running the tests.
