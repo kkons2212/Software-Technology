@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from 'react';
 import { getTranslations, updateTranslation } from '../../api/translationApi.js';
 import { getPois } from '../../api/poiApi.js';
 import AudioSyncBadge from '../../components/admin/AudioSyncBadge.jsx';
+import AudioAuditPlayer from '../../components/admin/AudioAuditPlayer.jsx';
+import RegenerateAudioButton from '../../components/admin/RegenerateAudioButton.jsx';
 
 const DEFAULT_LANGUAGES = [
   { id: 'en', name: 'English (en)' },
@@ -142,6 +144,31 @@ export default function TranslationAuditView() {
     }
   };
 
+  const handleAudioRegenerated = (translationId, result) => {
+    setTranslations((prev) =>
+      prev.flatMap((item) => {
+        if (item.stran_id !== translationId) return [item];
+        if (selectedStatus && selectedStatus !== result.status) return [];
+        return [
+          {
+            ...item,
+            audio_url: result.audio_url,
+            audio_status: result.audio_status,
+            status: result.status,
+          },
+        ];
+      })
+    );
+    setNotification({
+      type: 'success',
+      message: 'Audio Guide regenerated successfully. Translation is ready for review.',
+    });
+  };
+
+  const handleAudioRegenerationError = (errorMessage) => {
+    setNotification({ type: 'error', message: errorMessage });
+  };
+
   return (
     <div className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
       {/* Header */}
@@ -150,8 +177,8 @@ export default function TranslationAuditView() {
           Multilingual Translation Audit & Historical Terminology Refinement
         </h1>
         <p className="mt-1 text-sm text-slate-600">
-          Side-by-side linguistic audit (US 04.1). Review machine translations against source Vietnamese,
-          refine historical terms, and maintain strict audio-text synchronization.
+          Review and refine translations against source Vietnamese, preview narrations,
+          and regenerate audio to maintain strict audio-text synchronization (US 04.1–04.2).
         </p>
       </div>
 
@@ -159,7 +186,9 @@ export default function TranslationAuditView() {
       {notification && (
         <div
           data-testid="audit-notification"
-          className={`mt-4 rounded-md border p-3 text-sm ${
+          role={notification.type === 'error' ? 'alert' : 'status'}
+          aria-live={notification.type === 'error' ? 'assertive' : 'polite'}
+          className={`fixed right-4 top-4 z-50 max-w-md rounded-md border p-3 text-sm shadow-lg ${
             notification.type === 'success'
               ? 'border-green-200 bg-green-50 text-green-800'
               : 'border-red-200 bg-red-50 text-red-800'
@@ -269,7 +298,10 @@ export default function TranslationAuditView() {
             };
             const isSaving = savingRows[item.stran_id] || false;
             const effectiveStatus = isModified ? 'NEEDS_UPDATE' : item.status;
-            const isPublishLocked = effectiveStatus === 'NEEDS_UPDATE' || effectiveStatus === 'PENDING';
+            const isPublishLocked =
+              effectiveStatus === 'NEEDS_UPDATE' ||
+              effectiveStatus === 'PENDING' ||
+              item.audio_status !== 'READY';
 
             return (
               <div
@@ -292,6 +324,7 @@ export default function TranslationAuditView() {
                   <div className="flex items-center gap-2">
                     <AudioSyncBadge
                       status={item.status}
+                      audioStatus={item.audio_status}
                       isEdited={isModified}
                       showLock={true}
                     />
@@ -395,6 +428,11 @@ export default function TranslationAuditView() {
                           className="mt-1 block w-full rounded-md border border-slate-300 bg-white p-2 text-xs text-slate-800 shadow-sm focus:border-slate-800 focus:outline-none"
                         />
                       </div>
+                      <AudioAuditPlayer
+                        key={`${item.stran_id}-${item.audio_url || 'missing'}`}
+                        translationId={item.stran_id}
+                        audioUrl={item.audio_url}
+                      />
                     </div>
                   </div>
                 </div>
@@ -406,6 +444,15 @@ export default function TranslationAuditView() {
                   </div>
 
                   <div className="flex items-center gap-3">
+                    <RegenerateAudioButton
+                      translationId={item.stran_id}
+                      status={effectiveStatus}
+                      hasAudio={Boolean(item.audio_url)}
+                      onRegenerated={(result) =>
+                        handleAudioRegenerated(item.stran_id, result)
+                      }
+                      onError={handleAudioRegenerationError}
+                    />
                     {/* Save Draft Button */}
                     <button
                       type="button"
@@ -421,7 +468,7 @@ export default function TranslationAuditView() {
                       {isSaving ? 'Saving...' : 'Save Draft'}
                     </button>
 
-                    {/* AC-04.1.3: Approve & Publish Button (Locked when NEEDS_UPDATE or isModified) */}
+                    {/* Publishing remains locked until the translation and audio are in sync. */}
                     <button
                       type="button"
                       data-testid={`publish-btn-${item.stran_id}`}

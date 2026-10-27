@@ -67,3 +67,17 @@ export async function getTranslationById(translationId, { signal } = {}) {
 export async function updateTranslation(translationId, payload, { signal } = {}) {
   return apiClient.put(`${TRANSLATION_ADMIN_BASE_PATH}/${translationId}`, payload, { signal });
 }
+
+/**
+ * Regenerate the audio guide for a translation that needs a new narration.
+ * @param {string} translationId
+ * @param {Object} [options]
+ * @param {AbortSignal} [options.signal]
+ */
+export async function regenerateTranslationAudio(translationId, { signal } = {}) {
+  return apiClient.post(
+    `${TRANSLATION_ADMIN_BASE_PATH}/${translationId}/regenerate-audio`,
+    {},
+    { signal }
+  );
+}

@@ -57,6 +57,12 @@ describe('TranslationAuditView (US 04.1 Multilingual Translation Audit)', () => 
       ...payload,
       status: 'NEEDS_UPDATE',
     }));
+    vi.spyOn(translationApi, 'regenerateTranslationAudio').mockResolvedValue({
+      stran_id: 'TR_002',
+      status: 'DRAFT',
+      audio_url: '/static/audio/regenerated.mp3',
+      audio_status: 'READY',
+    });
   });
 
   it('renders 3-tier filter bar with POI, Language, and Status selectors (AC-04.1.2)', async () => {
@@ -175,6 +181,95 @@ describe('TranslationAuditView (US 04.1 Multilingual Translation Audit)', () => 
     await waitFor(() => {
       expect(screen.getByTestId('empty-state')).toBeDefined();
       expect(screen.getByTestId('empty-state').textContent).toContain('No translations match');
+    });
+  });
+
+  it('accepts array responses from the POI and translation APIs', async () => {
+    vi.spyOn(poiApi, 'getPois').mockResolvedValueOnce(mockPois);
+    vi.spyOn(translationApi, 'getTranslations').mockResolvedValueOnce(mockTranslations);
+
+    render(<TranslationAuditView />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('translation-row-TR_001')).toBeDefined();
+    });
+    expect(screen.getByRole('option', { name: /Địa đạo Bến Dược/ })).toBeDefined();
+  });
+
+  it('displays the translation load error when the API request fails', async () => {
+    vi.spyOn(translationApi, 'getTranslations').mockRejectedValueOnce(
+      new Error('Backend unavailable')
+    );
+
+    render(<TranslationAuditView />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('error-state').textContent).toContain(
+        'Backend unavailable'
+      );
+    });
+  });
+
+  it('shows an error notification when saving edited text fails', async () => {
+    vi.spyOn(translationApi, 'updateTranslation').mockRejectedValueOnce(
+      new Error('Save failed')
+    );
+    render(<TranslationAuditView />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('target-title-input-TR_001')).toBeDefined();
+    });
+    fireEvent.change(screen.getByTestId('target-title-input-TR_001'), {
+      target: { value: 'Edited title' },
+    });
+    fireEvent.click(screen.getByTestId('save-btn-TR_001'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('audit-notification').textContent).toContain(
+        'Save failed'
+      );
+    });
+  });
+
+  it('refreshes row audio and unlocks publish after successful regeneration', async () => {
+    render(<TranslationAuditView />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('regenerate-audio-TR_002')).toBeDefined();
+    });
+    expect(screen.getByTestId('publish-btn-TR_002').disabled).toBe(true);
+
+    fireEvent.click(screen.getByTestId('regenerate-audio-TR_002'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('publish-btn-TR_002').disabled).toBe(false);
+    });
+    expect(screen.getByTestId('audio-player-TR_002')).toBeDefined();
+    expect(screen.getByTestId('audit-notification').textContent).toContain(
+      'Audio Guide regenerated successfully'
+    );
+    expect(translationApi.regenerateTranslationAudio).toHaveBeenCalledWith('TR_002');
+  });
+
+  it('removes a regenerated translation from the active status filter', async () => {
+    render(<TranslationAuditView />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('translation-row-TR_002')).toBeDefined();
+    });
+    fireEvent.change(screen.getByTestId('filter-status'), {
+      target: { value: 'NEEDS_UPDATE' },
+    });
+    await waitFor(() => {
+      expect(translationApi.getTranslations).toHaveBeenCalledWith(
+        expect.objectContaining({ status: 'NEEDS_UPDATE' })
+      );
+    });
+
+    fireEvent.click(screen.getByTestId('regenerate-audio-TR_002'));
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('translation-row-TR_002')).toBeNull();
     });
   });
 });

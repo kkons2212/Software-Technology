@@ -456,30 +456,30 @@
 > **So that** I can verify audio clarity and tone before publishing.
 >
 > * **Priority:** Must Have | **Estimate:** 3 SP
-> * **Progress:** [ ] 0/4 Tasks Completed
+> * **Progress:** [x] 4/4 Tasks Completed
 
 #### Acceptance Criteria:
-- [ ] **AC-04.2.1:** Compact HTML5 `.mp3` player embedded directly in each translation row for instant preview.
-- [ ] **AC-04.2.2:** "Regenerate Audio Guide" button highlighted when `Status == 'NEEDS_UPDATE'`, showing loading spinner during TTS generation.
-- [ ] **AC-04.2.3:** On completion, translation status resets to `DRAFT` and unlocks the publish action button.
+- [x] **AC-04.2.1:** Compact HTML5 `.mp3` player embedded directly in each translation row for instant preview.
+- [x] **AC-04.2.2:** "Regenerate Audio Guide" button highlighted when `Status == 'NEEDS_UPDATE'`, showing loading spinner during TTS generation.
+- [x] **AC-04.2.3:** On completion, translation status resets to `DRAFT` and unlocks the publish action button.
 
 #### Task Checklist:
-- [ ] `TSK-04.2.1` `[Backend]` **Regenerate Audio Endpoint (`POST /api/v1/admin/translations/{id}/regenerate-audio`)**
+- [x] `TSK-04.2.1` `[Backend]` **Regenerate Audio Endpoint (`POST /api/v1/admin/translations/{id}/regenerate-audio`)**
   - **Scope:** Re-synthesize audio via Edge-TTS for specific language, update `POIAudio`, reset translation status to `DRAFT`.
   - **DoD:** Returns new MP3 URL without blocking server threads.
   - **Paired Unit Test:** `tests/unit/controllers/test_audio_controller.py`
-- [ ] `TSK-04.2.2` `[Frontend]` **Single-Row Audio Audit Preview Player (`AudioAuditPlayer.jsx`)**
+- [x] `TSK-04.2.2` `[Frontend]` **Single-Row Audio Audit Preview Player (`AudioAuditPlayer.jsx`)**
   - **Scope:** Embedded player with Play/Pause, duration counter, and progress bar beneath translation textarea.
   - **DoD:** Plays audio clearly; auto-pauses when switching to a different row.
   - **Paired Unit Test:** `src/components/__tests__/AudioAuditPlayer.test.jsx`
-- [ ] `TSK-04.2.3` `[Frontend]` **"Regenerate Audio Guide" Button & Loading State**
+- [x] `TSK-04.2.3` `[Frontend]` **"Regenerate Audio Guide" Button & Loading State**
   - **Scope:** Button highlights in accent color when `NEEDS_UPDATE`; displays spinner and toast notification on completion.
   - **DoD:** Reloads audio player with new stream upon completion.
   - **Paired Unit Test:** `src/components/__tests__/RegenerateAudioButton.test.jsx`
-- [ ] `TSK-04.2.4` `[Test]` **Unit Test Suite for US 04.2 (`test_audio_controller.py`, `AudioAuditPlayer.test.jsx`, `RegenerateAudioButton.test.jsx`)**
-  - **Scope:** Test audio regeneration trigger, status reset to DRAFT, mini audio preview player, and loading spinner state during re-synthesis.
+- [x] `TSK-04.2.4` `[Test]` **Unit Test Suite for US 04.2 (`test_audio_controller.py`, `AudioAuditPlayer.test.jsx`, `RegenerateAudioButton.test.jsx`)**
+  - **Scope:** Test audio regeneration trigger, TTS adapter/service behavior, persistence and status reset to DRAFT, mini audio preview player, auto-pause, API wiring, and loading/error states.
   - **DoD:** 100% test pass in Pytest and Vitest, $\ge 80\%$ line & branch code coverage.
-  - **Execution:** `pytest tests/unit/controllers/test_audio_controller.py` && `npm run test -- AudioAuditPlayer RegenerateAudioButton`
+  - **Execution:** `pytest tests/unit/controllers/test_audio_controller.py tests/unit/services/test_tts_service.py tests/unit/repositories/test_audio_repository.py tests/unit/integrations/test_edge_tts_client.py` && `npm run test -- AudioAuditPlayer RegenerateAudioButton TranslationAuditView AudioSyncBadge translationApi`
 
 ---
 

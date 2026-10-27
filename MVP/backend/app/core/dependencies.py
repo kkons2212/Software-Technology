@@ -4,11 +4,13 @@ Lives outside `controllers/`, `services/` and `repositories/` so the
 AST boundary checker never mistakes it for a layer violation.
 """
 
+from pathlib import Path
+
 from fastapi import Depends, Header, Request
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
-from app.core.database import get_db
+from app.core.database import SessionLocal, get_db
 from app.repositories.audit_repository import AuditRepository
 from app.repositories.language_repository import LanguageRepository
 from app.repositories.poi_repository import POIRepository
@@ -19,6 +21,7 @@ from app.services.auth_service import AuthService
 from app.services.language_service import LanguageService
 from app.services.poi_service import POIService
 from app.services.translation_service import TranslationService
+from app.services.tts_service import TTSService
 
 
 def get_user_repository(db: Session = Depends(get_db)) -> UserRepository:
@@ -91,4 +94,12 @@ def get_translation_service(db: Session = Depends(get_db)) -> TranslationService
         translation_repo=translation_repo,
         audit_repo=audit_repo,
         poi_repo=poi_repo,
+    )
+
+
+def get_tts_service() -> TTSService:
+    """Build the audio service with short-lived sessions around database work."""
+    return TTSService(
+        session_factory=SessionLocal,
+        audio_dir=Path(get_settings().STATIC_DIR) / "audio",
     )
