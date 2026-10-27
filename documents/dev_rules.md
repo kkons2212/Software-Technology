@@ -146,6 +146,90 @@ $$\text{<type>(<scope>): <short imperative description>}$$
 
 ---
 
+### 1.6. Code Commenting Standards & AI-Guardrail Rules
+
+To keep the codebase maintainable, clear, and resilient against accidental regressions during AI-assisted development (Antigravity, Cursor, Copilot) or human pair-programming, all developers and AI Agents must adhere strictly to the following commenting standards:
+
+#### 1. Clean Code Philosophy: "Why over What"
+- **Self-Documenting Code:** Code must express intent through descriptive function, variable, and parameter names. Never write redundant comments that merely restate what the code clearly does.
+- **Explain the "Why":** Comments must only be used to document architectural decisions, subtle hardware/environment constraints, mathematical algorithms, or non-obvious business rules.
+- **Reference Table (Prohibited vs Required):**
+
+| Area | ❌ Strictly Prohibited ("WHAT" / Redundant) | ✅ Mandatory Standard ("WHY" / Invariants) |
+| :--- | :--- | :--- |
+| **Database Lifecycle** | `# query POI from database`<br>`# close database session` | `# JIT DB: Session closed immediately before Edge-TTS call to prevent pool exhaustion during external network latency (Rule 4.4)` |
+| **Geofence Calculation** | `# calculate distance between user and POI`<br>`# check if inside radius` | `# Haversine Great-Circle calculation: maps outdoor geodesic curvature at Cu Chi coordinates (lat ~11.14) to individual POI trigger_radius (Rule 2.3)` |
+| **Geofence Cooldown** | `# check if 600s has elapsed`<br>`# set cooldown timestamp` | `# 10-minute anti-spam cooldown: prevents repeated audio narration popups while visitors linger inside the same exhibit geofence (Rule 2.3)` |
+| **Audio Content Hash** | `# hash the audio metadata string` | `# Content-addressed hash (SHA-256): ensures identical narration text and voice ID reuse existing MP3 on disk without redundant TTS synthesis (Rule 5.2)` |
+
+#### 2. AI-Guardrail Annotation Tags
+When editing or refactoring code, AI Coding Assistants often inadvertently remove critical security checks, bypass performance optimizations, or flatten layered boundaries. All developers and AI Agents must use the following **4 standardized Annotation Tags**. Whenever an AI Agent encounters these tags, **it is strictly prohibited from removing, merging, or modifying their underlying structure**:
+
+1. **`# SECURITY-INVARIANT` (or `// SECURITY-INVARIANT`):**
+   - Marks non-negotiable security boundaries that must never be altered or relaxed.
+   - *Examples:*
+     ```python
+     # SECURITY-INVARIANT: PayOS/VietQR cryptographic webhook signature must be verified before activating 24h pass (US 06.2)
+     verify_webhook_signature(payload, signature, settings.PAYOS_CHECKSUM_KEY)
+     ```
+     ```python
+     # SECURITY-INVARIANT: Passwords must be cryptographically hashed (bcrypt/argon2). Plaintext passwords and logging credentials are strictly banned.
+     ```
+     ```python
+     # SECURITY-INVARIANT: Enforce 5-attempt brute-force threshold; return HTTP 423 Locked with retry_after_seconds (US 02.2)
+     ```
+
+2. **`# PERF-CRITICAL` (or `// PERF-CRITICAL`):**
+   - Marks performance-sensitive execution paths, memory boundaries, or re-render optimizations.
+   - *Examples:*
+     ```javascript
+     // PERF-CRITICAL: Update visitor marker coordinates via Leaflet layer ref (setLatLng) to prevent full-tree React re-render (Rule 2.2)
+     markerRef.current.setLatLng([newCoords.lat, newCoords.lng]);
+     ```
+     ```python
+     # PERF-CRITICAL: Open DB session only to query and close immediately. Never hold connections during third-party HTTP I/O (Rule 4.4)
+     ```
+
+3. **`# FALLBACK-LOGIC` (or `// FALLBACK-LOGIC`):**
+   - Marks graceful degradation mechanisms designed for the dense outdoor canopy at Cu Chi Tunnels.
+   - *Examples:*
+     ```javascript
+     // FALLBACK-LOGIC: Dense forest foliage stalls audio streaming. Abort stream after 3.5s timeout and fallback to Web Speech API (Rule 2.4)
+     const timeoutId = setTimeout(triggerWebSpeechFallback, 3500);
+     ```
+     ```javascript
+     // FALLBACK-LOGIC: When outdoor GPS is unavailable or denied, gracefully fallback to Cu Chi Main Entrance coordinates (Rule 2.3)
+     ```
+
+4. **`# ARCH-BOUNDARY` (or `// ARCH-BOUNDARY`):**
+   - Marks architectural layer separation to prevent boundary leaks.
+   - *Examples:*
+     ```python
+     # ARCH-BOUNDARY: Controller must delegate all persistence to Service layer. Direct Repository or Model imports are strictly prohibited.
+     ```
+     ```javascript
+     // ARCH-BOUNDARY: Presentation layer views/components must never call fetch/axios directly. Delegate to api/ or custom hooks.
+     ```
+
+#### 3. Language & Hygiene Rules
+1. **Primary Language (100% English):**
+   - All code comments, docstrings, variable names, commit messages, and log statements must be written in English for cross-tooling consistency.
+2. **Controlled Bilingual Context for Cultural Terms:**
+   - For historical terms unique to the Cu Chi Tunnels historical site or Vietnamese domestic services, developers may include Vietnamese terminology in brackets `[...]` to preserve cultural and historical fidelity:
+   - *Examples:*
+     ```python
+     # Target exhibit: "Bếp Hoàng Cầm" [Hoang Cam subterranean smokeless field stove invented during resistance war]
+     # Gateway integration: "VietQR" [NAPAS 24/7 domestic interbank QR transfer standard]
+     # Trap mechanism: "Hầm chông tre" [Punji stick bamboo trap mechanism]
+     ```
+3. **Zero Dead Code Discipline (No Commented-Out Code):**
+   - ❌ **STRICTLY BANNED:** Leaving legacy, unused, or commented-out code blocks in commits (e.g., `# old_code...` or `// console.log(...)`). Git history tracks past implementations.
+4. **Actionable TODO Discipline:**
+   - ❌ **STRICTLY BANNED:** Generic, untracked TODOs (e.g., `# TODO: fix this later`, `// TODO: refactor`).
+   - ✅ **Mandatory Format:** `# TODO(US-XX.X): <concise actionable description>` or `// TODO(US-XX.X): <concise actionable description>`.
+
+---
+
 ## 2. FRONTEND DEVELOPMENT STANDARDS (REACT / VITE / LEAFLET)
 
 ### 2.1. 3-Tier Layered Frontend Architecture (`MVP/frontend/src/`)
