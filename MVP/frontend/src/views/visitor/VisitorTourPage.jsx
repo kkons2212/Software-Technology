@@ -5,6 +5,8 @@ import PoiPreviewCard from '../../components/visitor/PoiPreviewCard.jsx';
 import { getPublishedLanguages } from '../../api/languageApi.js';
 import { getMapPois } from '../../api/poiApi.js';
 import { useAudioPlayer } from '../../contexts/AudioPlayerContext.jsx';
+import { useGeofenceTrigger } from '../../hooks/useGeofenceTrigger.js';
+import { reportPoiTrigger } from '../../api/telemetryApi.js';
 import useGeolocation from '../../hooks/useGeolocation.js';
 
 const PREFERRED_LANGUAGE_KEY = 'museum_preferred_lang';
@@ -26,6 +28,22 @@ export default function VisitorTourPage({
   const [selectedPoiId, setSelectedPoiId] = useState(null);
   const { currentPoi, isPlaying, completedPoiIds, play } = useAudioPlayer();
 
+  const handleProximityTrigger = useCallback((poi) => {
+    play(poi);
+    reportPoiTrigger({
+      poiId: poi.poi_id || poi.id,
+      dwellTime: 10,
+      triggerType: 'AUTOMATIC_GEOFENCE',
+    });
+  }, [play]);
+
+  useGeofenceTrigger({
+    userLocation: location,
+    pois,
+    onTrigger: handleProximityTrigger,
+    currentPlayingPoiId: currentPoi?.poi_id || currentPoi?.id,
+  });
+
   useEffect(() => {
     const controller = new AbortController();
 
@@ -43,14 +61,18 @@ export default function VisitorTourPage({
             return savedLanguage;
           }
 
-          return availableLanguages.find(({ code }) => code === DEFAULT_LANGUAGE)?.code
+          return (
+            availableLanguages.find(({ code }) => code === DEFAULT_LANGUAGE)?.code
             ?? availableLanguages[0]?.code
-            ?? '';
+            ?? ''
+          );
         });
       })
       .catch((error) => {
         if (error.name !== 'AbortError') {
-          setLanguageError('Unable to load available languages. Check your connection and try again.');
+          setLanguageError(
+            'Unable to load available languages. Check your connection and try again.'
+          );
         }
       });
 
@@ -75,7 +97,9 @@ export default function VisitorTourPage({
       })
       .catch((error) => {
         if (error.name !== 'AbortError') {
-          setPoiError('Unable to load map locations. Check your connection and try again.');
+          setPoiError(
+            'Unable to load map locations. Check your connection and try again.'
+          );
         }
       });
 

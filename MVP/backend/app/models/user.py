@@ -1,12 +1,9 @@
-"""SQLAlchemy ORM model for the `User` table (internal Administrator accounts).
-
-US 02.1 - AC-02.1.1: multiple administrator accounts, no `role` column.
-"""
+"""SQLAlchemy ORM model for the `User` table (internal Administrator accounts)."""
 
 from datetime import datetime
 
 from sqlalchemy import Boolean, DateTime, Integer, String, func
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, synonym
 
 from app.core.database import Base
 
@@ -22,10 +19,10 @@ class User(Base):
     __tablename__ = "User"
 
     user_name: Mapped[str] = mapped_column(
-        "UserName", String(USER_NAME_MAX_LENGTH), primary_key=True
+        "UserName", String(USER_NAME_MAX_LENGTH), primary_key=True, index=True
     )
     email: Mapped[str] = mapped_column(
-        "Email", String(EMAIL_MAX_LENGTH), nullable=False, unique=True
+        "Email", String(EMAIL_MAX_LENGTH), nullable=False, unique=True, index=True
     )
     password_hash: Mapped[str] = mapped_column(
         "Password_hash", String(PASSWORD_HASH_MAX_LENGTH), nullable=False
@@ -52,3 +49,13 @@ class User(Base):
         server_default=func.now(),
         onupdate=func.now(),
     )
+
+    UserName = synonym("user_name")
+    Email = synonym("email")
+    Password_hash = synonym("password_hash")
+    FullName = synonym("full_name")
+    Is_Active = synonym("is_active")
+    FalsedAttempts = synonym("falsed_attempts")
+    Lockeduntil = synonym("locked_until")
+    Create_at = synonym("create_at")
+    Update_at = synonym("update_at")
