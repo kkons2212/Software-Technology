@@ -5,13 +5,19 @@ Enables side-by-side historical audit and terminology refinement for multilingua
 
 from fastapi import APIRouter, Depends, Query, Request, status
 
-from app.core.dependencies import get_current_admin, get_translation_service
+from app.core.dependencies import (
+    get_current_admin,
+    get_translation_service,
+    get_tts_service,
+)
+from app.schemas.audio_schema import AudioRegenerationResponse
 from app.schemas.translation_schema import (
     TranslationListResponse,
     TranslationResponse,
     TranslationUpdateRequest,
 )
 from app.services.translation_service import TranslationService
+from app.services.tts_service import TTSService
 
 router = APIRouter(prefix="/api/v1/admin/translations", tags=["Translation Audit"])
 
@@ -67,3 +73,17 @@ def update_translation(
         admin_username=current_admin,
         ip_address=client_ip,
     )
+
+
+@router.post(
+    "/{id}/regenerate-audio",
+    response_model=AudioRegenerationResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def regenerate_translation_audio(
+    id: str,
+    tts_service: TTSService = Depends(get_tts_service),
+    current_admin: str = Depends(get_current_admin),
+) -> AudioRegenerationResponse:
+    """Regenerate narration asynchronously for an audited translation."""
+    return await tts_service.regenerate_audio(id)

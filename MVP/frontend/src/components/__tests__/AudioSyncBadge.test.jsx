@@ -53,4 +53,11 @@ describe('AudioSyncBadge (TSK-04.1.3 & AC-04.1.3)', () => {
     render(<AudioSyncBadge status="PUBLISHED" showLock={true} />);
     expect(screen.queryByTestId('publish-lock-indicator')).toBeNull();
   });
+
+  it('unlocks a DRAFT translation after its audio is ready', () => {
+    render(<AudioSyncBadge status="DRAFT" audioStatus="READY" showLock />);
+
+    expect(screen.getByTestId('audio-sync-badge').textContent).toContain('Audio In Sync');
+    expect(screen.queryByTestId('publish-lock-indicator')).toBeNull();
+  });
 });

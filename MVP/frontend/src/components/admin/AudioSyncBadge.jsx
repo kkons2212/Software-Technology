@@ -5,6 +5,7 @@
  */
 export default function AudioSyncBadge({
   status = 'DRAFT',
+  audioStatus,
   isEdited = false,
   showLock = false,
   className = '',
@@ -14,7 +15,7 @@ export default function AudioSyncBadge({
 
   let badgeStyles = 'bg-slate-100 text-slate-700 border-slate-200';
   let badgeLabel = 'Draft';
-  let isPublishLocked = false;
+  let isPublishLocked = audioStatus !== 'READY';
 
   switch (effectiveStatus) {
     case 'NEEDS_UPDATE':
@@ -40,9 +41,11 @@ export default function AudioSyncBadge({
       isPublishLocked = true;
       break;
     default:
-      badgeStyles = 'bg-slate-100 text-slate-700 border-slate-200';
-      badgeLabel = 'Draft';
-      isPublishLocked = true;
+      if (audioStatus === 'READY') {
+        badgeStyles = 'bg-green-50 text-green-700 border-green-200';
+        badgeLabel = 'Audio In Sync';
+        isPublishLocked = false;
+      }
       break;
   }
 

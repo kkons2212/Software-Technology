@@ -31,7 +31,7 @@ python-multipart==0.0.9
 # Text translation pipeline for en, ja, ko, zh
 deep-translator==1.11.4
 # High-fidelity Edge Neural TTS voice generation to MP3
-edge-tts==6.1.10
+edge-tts==7.3.1
 
 # --- 5. HTTP CLIENT & NETWORK INTEGRATIONS ---
 requests==2.31.0
