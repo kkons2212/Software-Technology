@@ -378,7 +378,7 @@ export default function PoiCatalogPage() {
                 )}
               </div>
 
-              <div className="sticky bottom-0 bg-white pt-3 pb-1 border-t border-slate-200 flex items-center justify-end space-x-2.5 z-10">
+              <div className="flex items-center justify-end space-x-2.5 pt-4 border-t border-slate-200">
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
