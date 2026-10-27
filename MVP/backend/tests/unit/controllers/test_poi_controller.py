@@ -2,6 +2,7 @@
 
 import io
 
+from app.models.language import LanguageCode
 from app.models.user import User
 
 
@@ -15,7 +16,17 @@ def _ensure_admin_user(db_session):
             Is_Active=True,
         )
         db_session.add(admin)
-        db_session.flush()
+    existing_langs = {lang.LanguageID for lang in db_session.query(LanguageCode).all()}
+    for code, name in [
+        ("vi", "Tiếng Việt"),
+        ("en", "English"),
+        ("ja", "Japanese"),
+        ("ko", "Korean"),
+        ("zh", "Chinese"),
+    ]:
+        if code not in existing_langs:
+            db_session.add(LanguageCode(LanguageID=code, LanguageName=name))
+    db_session.flush()
     return admin
 
 

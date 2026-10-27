@@ -1,5 +1,6 @@
 """Unit tests for POIRepository (TSK-03.1.2 & TSK-03.1.5)."""
 
+from app.models.language import LanguageCode
 from app.models.poi import POI
 from app.models.translation import POITranslation
 from app.repositories.poi_repository import POIRepository
@@ -74,6 +75,11 @@ def test_should_filter_pois_by_title_search(db_session):
 
 
 def test_should_create_and_fetch_translations_by_poi_id(db_session):
+    existing_langs = {lang.language_id for lang in db_session.query(LanguageCode).all()}
+    if "en" not in existing_langs:
+        db_session.add(LanguageCode(language_id="en", language_name="English"))
+        db_session.flush()
+
     repo = POIRepository(db_session)
     poi = repo.create(
         POI(

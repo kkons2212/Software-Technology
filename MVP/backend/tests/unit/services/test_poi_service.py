@@ -17,6 +17,7 @@ from app.services.poi_service import (
 
 @pytest.fixture
 def poi_service(db_session):
+    from app.models.language import LanguageCode
     from app.models.user import User
 
     admin = db_session.query(User).filter_by(user_name="admin").first()
@@ -28,7 +29,18 @@ def poi_service(db_session):
             is_active=True,
         )
         db_session.add(admin)
-        db_session.flush()
+
+    existing_langs = {lang.language_id for lang in db_session.query(LanguageCode).all()}
+    for code, name in [
+        ("vi", "Tiếng Việt"),
+        ("en", "English"),
+        ("ja", "Japanese"),
+        ("ko", "Korean"),
+        ("zh", "Chinese"),
+    ]:
+        if code not in existing_langs:
+            db_session.add(LanguageCode(language_id=code, language_name=name))
+    db_session.flush()
 
     poi_repo = POIRepository(db_session)
     audit_repo = AuditRepository(db_session)

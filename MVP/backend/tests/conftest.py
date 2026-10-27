@@ -18,7 +18,7 @@ from app.core.database import Base, create_database_engine, get_db  # noqa: E402
 from app.main import app  # noqa: E402
 from app.models.audio import POIAudio  # noqa: E402,F401
 from app.models.audit import Audit  # noqa: E402,F401
-from app.models.language import LanguageCode  # noqa: E402,F401
+from app.models.language import LanguageCode  # noqa: E402
 from app.models.poi import POI  # noqa: E402,F401
 from app.models.translation import POITranslation  # noqa: E402,F401
 from app.models.user import User  # noqa: E402,F401
@@ -31,6 +31,18 @@ def test_engine() -> Engine:
     """Build one MySQL engine per session and guarantee the tables exist."""
     engine = create_database_engine(settings)
     Base.metadata.create_all(bind=engine, checkfirst=True)
+    with Session(bind=engine) as session:
+        existing = {lang.language_id for lang in session.query(LanguageCode).all()}
+        for code, name in [
+            ("vi", "Tiếng Việt"),
+            ("en", "English"),
+            ("ja", "Japanese"),
+            ("ko", "Korean"),
+            ("zh", "Chinese"),
+        ]:
+            if code not in existing:
+                session.add(LanguageCode(language_id=code, language_name=name))
+        session.commit()
     yield engine
     engine.dispose()
 
