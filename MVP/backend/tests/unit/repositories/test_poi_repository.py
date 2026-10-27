@@ -111,3 +111,81 @@ def test_should_return_none_when_poi_not_found(db_session):
     repo = POIRepository(db_session)
     result = repo.get_by_id("NONEXISTENT_ID")
     assert result is None
+
+
+def test_should_update_poi_record_in_repository(db_session):
+    repo = POIRepository(db_session)
+    poi = repo.create(
+        POI(
+            PoiID="POI_REPO_UPD_1",
+            Title="Gốc cây thông tin",
+            Latitude=11.1440,
+            Longitude=106.4640,
+            Radius=20,
+        )
+    )
+
+    updated = repo.update(
+        poi,
+        title="Gốc cây thông tin cập nhật",
+        short_description="Mô tả mới",
+        description="Nội dung mới",
+        image_url="/static/images/tree.jpg",
+        latitude=11.1450,
+        longitude=106.4650,
+        radius=35,
+    )
+
+    assert updated.Title == "Gốc cây thông tin cập nhật"
+    assert updated.Short_Description == "Mô tả mới"
+    assert updated.Description == "Nội dung mới"
+    assert updated.Image_Url == "/static/images/tree.jpg"
+    assert float(updated.Latitude) == 11.1450
+    assert float(updated.Longitude) == 106.4650
+    assert updated.Radius == 35
+
+
+def test_should_sync_vi_and_invalidate_foreign_translations_in_repo(db_session):
+    repo = POIRepository(db_session)
+    poi = repo.create(
+        POI(
+            PoiID="POI_REPO_UPD_2",
+            Title="Hầm vũ khí",
+            Latitude=11.1442,
+            Longitude=106.4642,
+            Radius=30,
+        )
+    )
+
+    tr_vi = repo.create_translation(
+        POITranslation(
+            StranID="TR_VI_1",
+            PoiID=poi.PoiID,
+            LanguageID="vi",
+            Title="Hầm vũ khí",
+            Status="PUBLISHED",
+        )
+    )
+    tr_en = repo.create_translation(
+        POITranslation(
+            StranID="TR_EN_1",
+            PoiID=poi.PoiID,
+            LanguageID="en",
+            Title="Armory",
+            Status="PUBLISHED",
+        )
+    )
+
+    invalidated_count = repo.update_translation_narrative_and_invalidate_foreign(
+        poi_id=poi.PoiID,
+        title="Kho vũ khí bí mật",
+        short_description="Nơi cất giữ vũ khí",
+        description="Kho vũ khí ngầm dưới lòng đất",
+    )
+
+    assert invalidated_count == 1
+    db_session.refresh(tr_vi)
+    db_session.refresh(tr_en)
+    assert tr_vi.Title == "Kho vũ khí bí mật"
+    assert tr_vi.Status == "PUBLISHED"
+    assert tr_en.Status == "NEEDS_UPDATE"

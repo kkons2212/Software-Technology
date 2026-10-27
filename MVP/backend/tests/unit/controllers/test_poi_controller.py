@@ -147,3 +147,153 @@ def test_should_get_poi_by_id_and_return_404_when_missing(client, db_session):
 
     missing_res = client.get("/api/v1/admin/pois/NONEXISTENT_POI")
     assert missing_res.status_code == 404
+
+
+def _login_admin_client(client, db_session):
+    admin = _ensure_admin_user(db_session)
+    from app.core.config import get_settings
+    from app.core.security import create_admin_access_token
+
+    token = create_admin_access_token(admin_user_name=admin.user_name)
+    client.cookies.set(get_settings().ADMIN_SESSION_COOKIE_NAME, token)
+    return admin
+
+
+def test_should_update_poi_and_invalidate_foreign_translations(client, db_session):
+    _login_admin_client(client, db_session)
+
+    # 1. Create initial POI
+    create_res = client.post(
+        "/api/v1/admin/pois",
+        json={
+            "title": "Hầm giải phẫu ban đầu",
+            "short_description": "Mô tả ngắn ban đầu",
+            "description": "Nội dung lịch sử ban đầu",
+            "latitude": 11.1435,
+            "longitude": 106.4635,
+            "radius": 25,
+        },
+    )
+    assert create_res.status_code == 201
+    poi_id = create_res.json()["poi_id"]
+
+    # 2. Mark foreign translations as PUBLISHED to verify invalidation
+    from app.models.translation import POITranslation
+
+    foreign_trans = (
+        db_session.query(POITranslation)
+        .filter(POITranslation.poi_id == poi_id, POITranslation.language_id != "vi")
+        .all()
+    )
+    assert len(foreign_trans) == 4
+    for ft in foreign_trans:
+        ft.status = "PUBLISHED"
+    db_session.commit()
+
+    # 3. Update Vietnamese narrative via PUT /api/v1/admin/pois/{id}
+    update_res = client.put(
+        f"/api/v1/admin/pois/{poi_id}",
+        json={
+            "title": "Hầm giải phẫu dã chiến nâng cao",
+            "description": "Nội dung lịch sử đã được cập nhật chi tiết.",
+        },
+    )
+    assert update_res.status_code == 200
+    res_data = update_res.json()["data"]
+    assert res_data["title"] == "Hầm giải phẫu dã chiến nâng cao"
+
+    # 4. Verify primary Vietnamese translation was updated
+    vi_trans = (
+        db_session.query(POITranslation)
+        .filter(POITranslation.poi_id == poi_id, POITranslation.language_id == "vi")
+        .one()
+    )
+    assert vi_trans.title == "Hầm giải phẫu dã chiến nâng cao"
+    assert vi_trans.description == "Nội dung lịch sử đã được cập nhật chi tiết."
+
+    # 5. Verify all linked foreign translations are set to NEEDS_UPDATE (AC-03.4.2)
+    updated_foreign = (
+        db_session.query(POITranslation)
+        .filter(POITranslation.poi_id == poi_id, POITranslation.language_id != "vi")
+        .all()
+    )
+    assert len(updated_foreign) == 4
+    for ft in updated_foreign:
+        assert ft.status == "NEEDS_UPDATE"
+
+
+def test_should_update_coordinates_without_invalidating_foreign_translations(
+    client, db_session
+):
+    _login_admin_client(client, db_session)
+
+    create_res = client.post(
+        "/api/v1/admin/pois",
+        json={
+            "title": "Hầm chữ A",
+            "latitude": 11.1440,
+            "longitude": 106.4640,
+            "radius": 30,
+        },
+    )
+    poi_id = create_res.json()["poi_id"]
+
+    # Mark foreign translations as PUBLISHED
+    from app.models.translation import POITranslation
+
+    foreign_trans = (
+        db_session.query(POITranslation)
+        .filter(POITranslation.poi_id == poi_id, POITranslation.language_id != "vi")
+        .all()
+    )
+    for ft in foreign_trans:
+        ft.status = "PUBLISHED"
+    db_session.commit()
+
+    # Update only geofence
+    update_res = client.put(
+        f"/api/v1/admin/pois/{poi_id}",
+        json={
+            "latitude": 11.1450,
+            "radius": 40,
+        },
+    )
+    assert update_res.status_code == 200
+
+    # Foreign translations must still be PUBLISHED
+    refreshed_foreign = (
+        db_session.query(POITranslation)
+        .filter(POITranslation.poi_id == poi_id, POITranslation.language_id != "vi")
+        .all()
+    )
+    for ft in refreshed_foreign:
+        assert ft.status == "PUBLISHED"
+
+
+def test_should_return_400_when_updating_coordinates_out_of_bounds(client, db_session):
+    _login_admin_client(client, db_session)
+    create_res = client.post(
+        "/api/v1/admin/pois",
+        json={
+            "title": "Hầm rơm",
+            "latitude": 11.1440,
+            "longitude": 106.4640,
+            "radius": 30,
+        },
+    )
+    poi_id = create_res.json()["poi_id"]
+
+    res = client.put(
+        f"/api/v1/admin/pois/{poi_id}",
+        json={"latitude": 10.0000},
+    )
+    assert res.status_code == 400
+
+
+def test_should_return_404_when_updating_nonexistent_poi(client, db_session):
+    _login_admin_client(client, db_session)
+    res = client.put(
+        "/api/v1/admin/pois/NONEXISTENT_POI_ID",
+        json={"title": "Non-existent"},
+    )
+    assert res.status_code == 404
