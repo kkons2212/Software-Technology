@@ -433,3 +433,50 @@ def test_should_raise_404_when_poi_id_not_found(poi_catalog_service):
     with pytest.raises(HTTPException) as exc_info:
         poi_catalog_service.get_poi_details("NONEXISTENT_ID")
     assert exc_info.value.status_code == 404
+
+
+def test_should_update_poi_and_mark_foreign_translations_needs_update(
+    poi_service, seeded_admin, seeded_poi, db_session
+):
+    from app.models.translation import POITranslation
+
+    tr_vi = POITranslation(
+        stran_id="TR_SVC_VI",
+        poi_id=seeded_poi.poi_id,
+        language_id="vi",
+        title="Tunnel entrance",
+        status="PUBLISHED",
+    )
+    tr_en = POITranslation(
+        stran_id="TR_SVC_EN",
+        poi_id=seeded_poi.poi_id,
+        language_id="en",
+        title="Tunnel entrance EN",
+        status="PUBLISHED",
+    )
+    db_session.add_all([tr_vi, tr_en])
+    db_session.commit()
+
+    update_payload = POIUpdateRequest(
+        title="Tunnel entrance updated",
+        description="Detailed description updated",
+    )
+
+    result = poi_service.update_poi(
+        seeded_poi.poi_id,
+        update_payload,
+        admin_user_name=seeded_admin.user_name,
+        client_ip=CLIENT_IP,
+    )
+
+    assert result.title == "Tunnel entrance updated"
+    db_session.refresh(tr_vi)
+    db_session.refresh(tr_en)
+    assert tr_vi.title == "Tunnel entrance updated"
+    assert tr_en.status == "NEEDS_UPDATE"
+
+    # Verify audit entry was logged with ADMIN_POI_UPDATED
+    audit_row = (
+        db_session.query(Audit).filter(Audit.details == "ADMIN_POI_UPDATED").one()
+    )
+    assert audit_row.user_name == seeded_admin.user_name

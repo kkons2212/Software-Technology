@@ -95,3 +95,51 @@ export async function createPoi(poiData, imageFile = null, { signal } = {}) {
 
   return apiClient.post(POI_ADMIN_BASE_PATH, poiData, { signal });
 }
+
+/**
+ * Update an existing POI exhibit profile (Admin - US 03.4).
+ * @param {string} poiId
+ * @param {object} changes
+ * @param {object} [options]
+ * @param {AbortSignal} [options.signal]
+ * @returns {Promise<object>} updated exhibit item
+ */
+export async function updatePoi(poiId, changes, { signal } = {}) {
+  return apiClient.put(`${POI_ADMIN_BASE_PATH}/${encodeURIComponent(poiId)}`, changes, { signal });
+}
+
+/**
+ * Upload cover image for an exhibit (Admin).
+ * @param {File} file
+ * @param {object} [options]
+ * @param {AbortSignal} [options.signal]
+ * @returns {Promise<string>} static URL of uploaded image
+ */
+export async function uploadPoiImage(file, { signal } = {}) {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  try {
+    const response = await fetch(`${POI_ADMIN_BASE_PATH}/upload-image`, {
+      method: 'POST',
+      body: formData,
+      credentials: 'include',
+      signal,
+    });
+    const payload = await response.json().catch(() => null);
+    if (!response.ok) {
+      throw new ApiError({
+        status: response.status,
+        code: payload?.error?.code || 'IMAGE_UPLOAD_FAILED',
+        message: payload?.error?.message || payload?.detail || 'Failed to upload exhibit image',
+      });
+    }
+    return payload?.image_url;
+  } catch (error) {
+    if (error instanceof ApiError || error.name === 'AbortError') {
+      throw error;
+    }
+    throw new ApiError({ message: 'Network error while uploading exhibit image' });
+  }
+}
+

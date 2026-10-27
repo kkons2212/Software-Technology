@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import AdminHeader from '../../components/admin/AdminHeader.jsx';
 import { getPois, createPoi } from '../../api/poiApi.js';
+import POIFormModal from '../../components/admin/POIFormModal.jsx';
 
 const CU_CHI_BOUNDS = {
   minLat: 11.1350,
@@ -28,6 +29,7 @@ export default function PoiCatalogPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingPoi, setEditingPoi] = useState(null);
 
   // Form State
   const [title, setTitle] = useState('');
@@ -177,18 +179,19 @@ export default function PoiCatalogPage() {
                 <th scope="col" className="px-4 py-3">Trigger Radius</th>
                 <th scope="col" className="px-4 py-3">Coordinates (WGS84)</th>
                 <th scope="col" className="px-4 py-3">AI Multi-Language Status</th>
+                <th scope="col" className="px-4 py-3 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200">
               {isLoading ? (
                 <tr>
-                  <td colSpan={5} className="py-8 text-center text-slate-500">
+                  <td colSpan={6} className="py-8 text-center text-slate-500">
                     Loading exhibits catalog...
                   </td>
                 </tr>
               ) : pois.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="py-8 text-center text-slate-500">
+                  <td colSpan={6} className="py-8 text-center text-slate-500">
                     No exhibits found. Click "+ New Exhibit" to digitize the first historical point of interest.
                   </td>
                 </tr>
@@ -243,6 +246,15 @@ export default function PoiCatalogPage() {
                           <span className="text-slate-400">None</span>
                         )}
                       </div>
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <button
+                        type="button"
+                        onClick={() => setEditingPoi(poi)}
+                        className="rounded px-2.5 py-1 text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-300"
+                      >
+                        Edit
+                      </button>
                     </td>
                   </tr>
                 ))
@@ -424,6 +436,17 @@ export default function PoiCatalogPage() {
           </div>
         </div>
       )}
+
+      {/* POI Edit Form Modal (US 03.4) */}
+      <POIFormModal
+        isOpen={Boolean(editingPoi)}
+        poi={editingPoi}
+        onClose={() => setEditingPoi(null)}
+        onSuccess={() => {
+          setEditingPoi(null);
+          fetchCatalog(search);
+        }}
+      />
     </div>
   );
 }
