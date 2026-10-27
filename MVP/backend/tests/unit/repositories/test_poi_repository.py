@@ -42,7 +42,7 @@ def test_should_paginate_pois_and_return_accurate_total_count(db_session):
             )
         )
 
-    items, total = repo.get_all(skip=0, limit=3)
+    items, total = repo.get_all(skip=0, limit=3, search="Exhibit")
     assert total == 5
     assert len(items) == 3
 

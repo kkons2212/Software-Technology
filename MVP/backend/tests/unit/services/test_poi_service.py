@@ -121,7 +121,7 @@ async def test_should_paginate_pois_and_search_in_service(poi_service):
             admin_username="admin",
         )
 
-    res = poi_service.list_pois(page=1, size=2)
+    res = poi_service.list_pois(search="POI Point", page=1, size=2)
     assert res.total == 3
     assert len(res.items) == 2
 

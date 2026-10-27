@@ -4,10 +4,12 @@ from app.models.language import LanguageCode
 
 
 def test_should_return_published_languages(client, db_session):
-    vi = LanguageCode(LanguageID="vi", LanguageName="Tiếng Việt")
-    en = LanguageCode(LanguageID="en", LanguageName="English")
-    db_session.add_all([vi, en])
-    db_session.commit()
+    existing = {lang.LanguageID for lang in db_session.query(LanguageCode).all()}
+    if "vi" not in existing:
+        db_session.add(LanguageCode(LanguageID="vi", LanguageName="Tiếng Việt"))
+    if "en" not in existing:
+        db_session.add(LanguageCode(LanguageID="en", LanguageName="English"))
+    db_session.flush()
 
     response = client.get("/api/v1/languages")
     assert response.status_code == 200

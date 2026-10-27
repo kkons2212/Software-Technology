@@ -7,15 +7,20 @@ from sqlalchemy.orm import Session, declarative_base, sessionmaker
 
 from app.core.config import settings
 
-# Engine configuration with connection pooling for MySQL 8.0+
-engine = create_engine(
-    settings.DATABASE_URL,
-    pool_size=10,
-    max_overflow=20,
-    pool_recycle=1800,
-    pool_pre_ping=True,
-)
 
+def create_database_engine(cfg=settings):
+    """Build the MySQL engine with the connection-pool settings."""
+    return create_engine(
+        cfg.DATABASE_URL,
+        pool_size=10,
+        max_overflow=20,
+        pool_recycle=1800,
+        pool_pre_ping=True,
+    )
+
+
+# Engine configuration with connection pooling for MySQL 8.0+
+engine = create_database_engine(settings)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 

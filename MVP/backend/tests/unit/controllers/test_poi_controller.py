@@ -5,16 +5,22 @@ import io
 from app.models.user import User
 
 
+def _ensure_admin_user(db_session):
+    admin = db_session.query(User).filter_by(UserName="admin").first()
+    if not admin:
+        admin = User(
+            UserName="admin",
+            Email="admin@cuchi.gov.vn",
+            Password_hash="hash",
+            Is_Active=True,
+        )
+        db_session.add(admin)
+        db_session.flush()
+    return admin
+
+
 def test_should_create_poi_via_json_payload(client, db_session):
-    # Ensure admin user exists in DB
-    admin = User(
-        UserName="admin",
-        Email="admin@cuchi.gov.vn",
-        Password_hash="hash",
-        Is_Active=True,
-    )
-    db_session.add(admin)
-    db_session.commit()
+    _ensure_admin_user(db_session)
 
     payload = {
         "title": "Hầm chông tự tạo",
@@ -36,14 +42,7 @@ def test_should_create_poi_via_json_payload(client, db_session):
 
 
 def test_should_create_poi_via_multipart_form_data_with_image(client, db_session):
-    admin = User(
-        UserName="admin",
-        Email="admin@cuchi.gov.vn",
-        Password_hash="hash",
-        Is_Active=True,
-    )
-    db_session.add(admin)
-    db_session.commit()
+    _ensure_admin_user(db_session)
 
     image_content = b"\xFF\xD8\xFF\xE0" + b"0" * 500  # Minimal valid JPG header bytes
     files = {"image": ("test_cover.jpg", io.BytesIO(image_content), "image/jpeg")}
@@ -66,14 +65,7 @@ def test_should_create_poi_via_multipart_form_data_with_image(client, db_session
 
 
 def test_should_return_400_when_coordinates_out_of_bounds(client, db_session):
-    admin = User(
-        UserName="admin",
-        Email="admin@cuchi.gov.vn",
-        Password_hash="hash",
-        Is_Active=True,
-    )
-    db_session.add(admin)
-    db_session.commit()
+    _ensure_admin_user(db_session)
 
     payload = {
         "title": "Out of Bounds POI",
@@ -86,14 +78,9 @@ def test_should_return_400_when_coordinates_out_of_bounds(client, db_session):
 
 
 def test_should_list_pois_with_pagination_and_search(client, db_session):
-    admin = User(
-        UserName="admin",
-        Email="admin@cuchi.gov.vn",
-        Password_hash="hash",
-        Is_Active=True,
-    )
-    db_session.add(admin)
-    db_session.commit()
+    _ensure_admin_user(db_session)
+
+    initial_total = client.get("/api/v1/admin/pois").json()["total"]
 
     # Create 2 POIs
     client.post(
@@ -119,7 +106,7 @@ def test_should_list_pois_with_pagination_and_search(client, db_session):
     list_res = client.get("/api/v1/admin/pois?page=1&size=10")
     assert list_res.status_code == 200
     res_json = list_res.json()
-    assert res_json["total"] == 2
+    assert res_json["total"] == initial_total + 2
 
     # Search filter
     search_res = client.get("/api/v1/admin/pois?search=thông tin")
@@ -130,14 +117,7 @@ def test_should_list_pois_with_pagination_and_search(client, db_session):
 
 
 def test_should_get_poi_by_id_and_return_404_when_missing(client, db_session):
-    admin = User(
-        UserName="admin",
-        Email="admin@cuchi.gov.vn",
-        Password_hash="hash",
-        Is_Active=True,
-    )
-    db_session.add(admin)
-    db_session.commit()
+    _ensure_admin_user(db_session)
 
     create_res = client.post(
         "/api/v1/admin/pois",

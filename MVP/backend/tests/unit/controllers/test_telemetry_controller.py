@@ -80,7 +80,7 @@ def test_should_auto_provision_session_when_given_unrecognized_session_id(
     poi = setup_test_poi_and_language(db_session)
 
     payload = {
-        "SessionID": "sess_brand_new_visitor",
+        "SessionID": "sess_visitor_brand",
         "PoiID": poi.PoiID,
         "DwellTime": 60,
     }
@@ -88,7 +88,7 @@ def test_should_auto_provision_session_when_given_unrecognized_session_id(
     assert response.status_code == 201
 
     data = response.json()
-    assert data["session_id"] == "sess_brand_new_visitor"
+    assert data["session_id"] == "sess_visitor_brand"
     assert data["poi_id"] == poi.PoiID
 
 
