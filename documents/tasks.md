@@ -9,7 +9,7 @@
 | Story ID | User Story Title | Use Case | Priority | Story Points | Total Tasks | Progress Status |
 |:---|:---|:---:|:---:|:---:|:---:|:---:|
 | [**US 01.1**](#-us-011-interactive-outdoor-map-header--real-time-gps-tracking) | Interactive Outdoor Map, Header & Real-Time GPS Tracking | UC-01 | Must Have | 5 SP | 5 Tasks | [x] 5/5 |
-| [**US 01.2**](#-us-012-tap-map-marker-for-teaser-preview-bottom-sheet) | Tap Map Marker for Teaser Preview Bottom Sheet | UC-01 | Must Have | 3 SP | 3 Tasks | [ ] 0/3 |
+| [**US 01.2**](#-us-012-tap-map-marker-for-teaser-preview-bottom-sheet) | Tap Map Marker for Teaser Preview Bottom Sheet | UC-01 | Must Have | 3 SP | 3 Tasks | [x] 3/3 |
 | [**US 01.3**](#-us-013-automated-voice-narration-on-gps-proximity--mini-audio-player) | Automated Voice Narration on GPS Proximity & Mini Audio Player | UC-01 | Must Have | 8 SP | 6 Tasks | [x] 6/6 |
 | [**US 01.4**](#-us-014-intelligent-recommended-walking-route-wayfinding) | Intelligent Recommended Walking Route Wayfinding | UC-01 | Should Have | 5 SP | 3 Tasks | [ ] 0/3 |
 | [**US 02.1**](#-us-021-administrator-authentication--portal-login) | Administrator Authentication & Portal Login | UC-02 | Must Have | 5 SP | 5 Tasks | [x] 5/5 |
@@ -19,7 +19,7 @@
 | [**US 03.2**](#-us-032-interactive-gps-geolocation--geofence-calibration) | Interactive GPS Geolocation & Geofence Calibration | UC-03 | Must Have | 5 SP | 4 Tasks | [x] 4/4 |
 | [**US 03.3**](#-us-033-deactivate--hide-exhibit--invalidate-navigation-route) | Deactivate / Hide Exhibit & Invalidate Navigation Route | UC-03 | Should Have | 3 SP | 3 Tasks | [ ] 0/3 |
 | [**US 03.4**](#-us-034-update-exhibit-details--synchronize-translation-status) | Update Exhibit Details & Synchronize Translation Status | UC-03 | Must Have | 3 SP | 3 Tasks | [ ] 0/3 |
-| [**US 04.1**](#-us-041-multilingual-translation-audit--historical-terminology-refinement) | Multilingual Translation Audit & Historical Terminology Refinement | UC-04 | Must Have | 5 SP | 4 Tasks | [ ] 0/4 |
+| [**US 04.1**](#-us-041-multilingual-translation-audit--historical-terminology-refinement) | Multilingual Translation Audit & Historical Terminology Refinement | UC-04 | Must Have | 5 SP | 4 Tasks | [x] 4/4 |
 | [**US 04.2**](#-us-042-audio-guide-preview--dynamic-voice-re-generation) | Audio Guide Preview & Dynamic Voice Re-generation | UC-04 | Must Have | 3 SP | 4 Tasks | [ ] 0/4 |
 | [**US 04.3**](#-us-043-administrative-approval--live-mobile-app-synchronization) | Administrative Approval & Live Mobile App Synchronization | UC-04 | Must Have | 3 SP | 3 Tasks | [ ] 0/3 |
 | [**US 04.4**](#-us-044-automated-ai-translation--audio-synthesis-pipeline) | Automated AI Translation & Audio Synthesis Pipeline | UC-04 | Must Have | 8 SP | 5 Tasks | [ ] 0/5 |
@@ -31,7 +31,7 @@
 | [**US 06.2**](#-us-062-webhook-driven-24-hour-visiting-session-activation) | Webhook-Driven 24-Hour Visiting Session Activation | UC-06 | Must Have | 5 SP | 4 Tasks | [ ] 0/4 |
 | [**US 06.3**](#-us-063-multi-device-session-recovery-via-session-code) | Multi-Device Session Recovery via Session Code | UC-06 | Should Have | 3 SP | 3 Tasks | [ ] 0/3 |
 | [**US 06.4**](#-us-064-content-protection--narrativeaudio-decryption-access-control) | Content Protection & Narrative/Audio Decryption Access Control | UC-06 | Must Have | 5 SP | 4 Tasks | [ ] 0/4 |
-| **TOTAL** | **23 User Stories (5 Complete)** | — | — | **100 SP** | **92 Tasks** | **[x] 25/92 Tasks** |
+| **TOTAL** | **23 User Stories (7 Complete)** | — | — | **100 SP** | **92 Tasks** | **[x] 32/92 Tasks** |
 
 ---
 
