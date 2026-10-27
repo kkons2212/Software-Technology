@@ -1,5 +1,7 @@
 """Public POI application service."""
 
+from typing import Annotated
+
 from fastapi import Depends
 from sqlalchemy.orm import Session
 
@@ -8,7 +10,7 @@ from app.repositories.poi_repository import POIRepository
 from app.schemas.poi_schema import POIMapItem
 
 
-def get_poi_service(db: Session = Depends(get_db)) -> "POIService":
+def get_poi_service(db: Annotated[Session, Depends(get_db)]) -> "POIService":
     return POIService(POIRepository(db))
 
 

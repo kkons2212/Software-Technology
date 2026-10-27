@@ -1,5 +1,7 @@
 """Public language application service."""
 
+from typing import Annotated
+
 from fastapi import Depends
 from sqlalchemy.orm import Session
 
@@ -8,7 +10,7 @@ from app.repositories.language_repository import LanguageRepository
 from app.schemas.poi_schema import PublishedLanguage
 
 
-def get_language_service(db: Session = Depends(get_db)) -> "LanguageService":
+def get_language_service(db: Annotated[Session, Depends(get_db)]) -> "LanguageService":
     return LanguageService(LanguageRepository(db))
 
 
