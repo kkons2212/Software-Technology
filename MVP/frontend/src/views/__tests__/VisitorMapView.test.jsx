@@ -8,6 +8,8 @@ const leafletMocks = vi.hoisted(() => {
     zoomIn: vi.fn(),
     zoomOut: vi.fn(),
     remove: vi.fn(),
+    on: vi.fn(),
+    off: vi.fn(),
   };
   const tileLayer = { addTo: vi.fn() };
   return {
@@ -85,5 +87,16 @@ describe('VisitorMapView', () => {
       17,
       { animate: true },
     );
+  });
+
+  it('dismisses the POI preview when the visitor clicks empty map space', () => {
+    const onDismissPOIPreview = vi.fn();
+    render(<VisitorMapView onDismissPOIPreview={onDismissPOIPreview} />);
+
+    const mapClickHandler = leafletMocks.mapInstance.on.mock.calls
+      .find(([eventName]) => eventName === 'click')[1];
+    mapClickHandler();
+
+    expect(onDismissPOIPreview).toHaveBeenCalledOnce();
   });
 });

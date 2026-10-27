@@ -20,6 +20,7 @@ export function AudioPlayerProvider({ children }) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [completedPoiIds, setCompletedPoiIds] = useState([]);
   const [playbackRate, setPlaybackRateState] = useState(DEFAULT_PLAYBACK_RATE);
   const [isBuffering, setIsBuffering] = useState(false);
   const [isOfflineFallback, setIsOfflineFallback] = useState(false);
@@ -30,7 +31,19 @@ export function AudioPlayerProvider({ children }) {
   const streamTimeoutRef = useRef(null);
   const isStreamingStartedRef = useRef(false);
   const currentPoiRef = useRef(null);
+  const speechUtteranceRef = useRef(null);
   currentPoiRef.current = currentPoi;
+
+  const markPoiCompleted = useCallback((poi) => {
+    if (poi?.id === undefined || poi?.id === null) {
+      return;
+    }
+
+    const completedPoiId = String(poi.id);
+    setCompletedPoiIds((currentIds) => (
+      currentIds.includes(completedPoiId) ? currentIds : [...currentIds, completedPoiId]
+    ));
+  }, []);
 
   // Initialize singleton audio element on mount
   useEffect(() => {
@@ -71,6 +84,7 @@ export function AudioPlayerProvider({ children }) {
       const handleEnded = () => {
         setIsPlaying(false);
         setCurrentTime(0);
+        markPoiCompleted(currentPoiRef.current);
       };
 
       const handleError = (_audioEvent) => {
@@ -108,7 +122,7 @@ export function AudioPlayerProvider({ children }) {
       };
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [markPoiCompleted]);
 
   // Web Speech Fallback trigger
   const triggerWebSpeechFallback = useCallback((poi) => {
@@ -134,11 +148,13 @@ export function AudioPlayerProvider({ children }) {
 
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
       try {
+        speechUtteranceRef.current = null;
         window.speechSynthesis.cancel();
         const textToSpeak = poi.text || poi.description || poi.title || '';
         const utterance = new SpeechSynthesisUtterance(textToSpeak);
         utterance.lang = poi.bcp47Code || poi.lang || DEFAULT_BCP47_LANG;
         utterance.rate = playbackRate;
+        speechUtteranceRef.current = utterance;
 
         utterance.onstart = () => {
           setIsPlaying(true);
@@ -146,10 +162,19 @@ export function AudioPlayerProvider({ children }) {
         };
 
         utterance.onend = () => {
+          if (speechUtteranceRef.current !== utterance) {
+            return;
+          }
+          speechUtteranceRef.current = null;
           setIsPlaying(false);
+          markPoiCompleted(poi);
         };
 
         utterance.onerror = (event) => {
+          if (speechUtteranceRef.current !== utterance) {
+            return;
+          }
+          speechUtteranceRef.current = null;
           setIsPlaying(false);
           setError(event.error || 'Speech synthesis failed.');
         };
@@ -163,7 +188,7 @@ export function AudioPlayerProvider({ children }) {
       setIsPlaying(false);
       setError('Audio stream timed out and speech synthesis is not supported.');
     }
-  }, [playbackRate]);
+  }, [markPoiCompleted, playbackRate]);
 
   // Play a specific POI narration
   const play = useCallback((poi) => {
@@ -171,6 +196,7 @@ export function AudioPlayerProvider({ children }) {
 
     // Reset previous audio/speech states
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      speechUtteranceRef.current = null;
       window.speechSynthesis.cancel();
     }
 
@@ -297,6 +323,7 @@ export function AudioPlayerProvider({ children }) {
       streamTimeoutRef.current = null;
     }
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      speechUtteranceRef.current = null;
       window.speechSynthesis.cancel();
     }
     if (audioRef.current) {
@@ -317,6 +344,7 @@ export function AudioPlayerProvider({ children }) {
     isPlaying,
     currentTime,
     duration,
+    completedPoiIds,
     playbackRate,
     isBuffering,
     isOfflineFallback,

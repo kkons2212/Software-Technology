@@ -1,8 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import VisitorMapView from './VisitorMapView.jsx';
 import VisitorHeader from '../../components/visitor/VisitorHeader.jsx';
+import PoiPreviewCard from '../../components/visitor/PoiPreviewCard.jsx';
 import { getPublishedLanguages } from '../../api/languageApi.js';
 import { getMapPois } from '../../api/poiApi.js';
+import { useAudioPlayer } from '../../contexts/AudioPlayerContext.jsx';
 import useGeolocation from '../../hooks/useGeolocation.js';
 
 const PREFERRED_LANGUAGE_KEY = 'museum_preferred_lang';
@@ -21,6 +23,8 @@ export default function VisitorTourPage({
   const [pois, setPois] = useState([]);
   const [poiError, setPoiError] = useState('');
   const [poiRetryCount, setPoiRetryCount] = useState(0);
+  const [selectedPoiId, setSelectedPoiId] = useState(null);
+  const { currentPoi, isPlaying, completedPoiIds, play } = useAudioPlayer();
 
   useEffect(() => {
     const controller = new AbortController();
@@ -56,10 +60,12 @@ export default function VisitorTourPage({
   useEffect(() => {
     if (!selectedLanguage) {
       setPois([]);
+      setSelectedPoiId(null);
       return undefined;
     }
 
     setPois([]);
+    setSelectedPoiId(null);
     setPoiError('');
     const controller = new AbortController();
     getMapPois({ language: selectedLanguage, signal: controller.signal })
@@ -75,6 +81,36 @@ export default function VisitorTourPage({
 
     return () => controller.abort();
   }, [poiRetryCount, selectedLanguage]);
+
+  const selectedPoi = pois.find(({ id }) => String(id) === String(selectedPoiId));
+  const playingPoiId = isPlaying ? currentPoi?.id ?? null : null;
+
+  const directionsUrl = useMemo(() => {
+    if (!selectedPoi) {
+      return '';
+    }
+
+    const directions = new URL('https://www.google.com/maps/dir/');
+    directions.searchParams.set('api', '1');
+    directions.searchParams.set('destination', `${selectedPoi.latitude},${selectedPoi.longitude}`);
+    return directions.toString();
+  }, [selectedPoi]);
+
+  const handleDismissPOIPreview = useCallback(() => {
+    setSelectedPoiId(null);
+  }, []);
+
+  const handlePlayAudio = () => {
+    if (!selectedPoi) {
+      return;
+    }
+
+    play({
+      ...selectedPoi,
+      text: selectedPoi.short_description || selectedPoi.title,
+      lang: selectedLanguage,
+    });
+  };
 
   const handleLanguageChange = (languageCode) => {
     window.localStorage.setItem(PREFERRED_LANGUAGE_KEY, languageCode);
@@ -122,7 +158,20 @@ export default function VisitorTourPage({
         accuracy={accuracy}
         hasLiveLocation={hasLiveLocation}
         pois={pois}
+        onSelectPOI={setSelectedPoiId}
+        onDismissPOIPreview={handleDismissPOIPreview}
+        playingPoiId={playingPoiId}
+        visitedPoiIds={completedPoiIds}
       />
+      {selectedPoi && (
+        <PoiPreviewCard
+          poi={selectedPoi}
+          location={hasLiveLocation ? location : null}
+          directionsUrl={directionsUrl}
+          onPlayAudio={handlePlayAudio}
+          onDismiss={handleDismissPOIPreview}
+        />
+      )}
     </main>
   );
 }

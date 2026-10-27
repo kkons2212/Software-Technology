@@ -15,6 +15,8 @@ vi.mock('leaflet', () => ({
       zoomIn: vi.fn(),
       zoomOut: vi.fn(),
       remove: vi.fn(),
+      on: vi.fn(),
+      off: vi.fn(),
     })),
     latLngBounds: vi.fn(() => ({})),
     tileLayer: vi.fn(() => ({ addTo: vi.fn() })),

@@ -18,11 +18,17 @@ export default function VisitorMapView({
   accuracy = null,
   hasLiveLocation = false,
   pois = [],
+  onSelectPOI,
+  onDismissPOIPreview,
+  playingPoiId = null,
+  visitedPoiIds = [],
 }) {
   const mapElementRef = useRef(null);
   const mapRef = useRef(null);
   const previousLiveLocationRef = useRef(false);
+  const onDismissPOIPreviewRef = useRef(onDismissPOIPreview);
   const [mapReady, setMapReady] = useState(false);
+  onDismissPOIPreviewRef.current = onDismissPOIPreview;
 
   useEffect(() => {
     if (!mapElementRef.current || mapRef.current) {
@@ -54,6 +60,18 @@ export default function VisitorMapView({
       setMapReady(false);
     };
   }, []);
+
+  useEffect(() => {
+    if (!mapReady || !mapRef.current) {
+      return undefined;
+    }
+
+    const map = mapRef.current;
+    const handleMapClick = () => onDismissPOIPreviewRef.current?.();
+    map.on('click', handleMapClick);
+
+    return () => map.off('click', handleMapClick);
+  }, [mapReady]);
 
   useEffect(() => {
     if (!mapRef.current || !location) {
@@ -88,7 +106,13 @@ export default function VisitorMapView({
             accuracy={accuracy}
             isLiveLocation={hasLiveLocation}
           />
-          <VisitorPoiMarkers map={mapRef.current} pois={pois} />
+          <VisitorPoiMarkers
+            map={mapRef.current}
+            pois={pois}
+            onSelectPOI={onSelectPOI}
+            playingPoiId={playingPoiId}
+            visitedPoiIds={visitedPoiIds}
+          />
           <div className="visitor-map-zoom-controls" aria-label="Map zoom controls">
             <button type="button" aria-label="Zoom in" onClick={handleZoomIn}>+</button>
             <button type="button" aria-label="Zoom out" onClick={handleZoomOut}>−</button>
