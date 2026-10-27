@@ -9,6 +9,7 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.controllers.admin_poi_controller import router as admin_poi_router
 from app.controllers.auth_controller import router as auth_router
 from app.controllers.language_controller import router as language_router
 from app.controllers.poi_controller import router as poi_router
@@ -32,7 +33,7 @@ def create_app() -> FastAPI:
         CORSMiddleware,
         allow_origins=allowed_origins,
         allow_credentials=True,
-        allow_methods=["GET", "POST"],
+        allow_methods=["GET", "POST", "PUT"],
         allow_headers=["*"],
     )
 
@@ -40,6 +41,7 @@ def create_app() -> FastAPI:
     application.include_router(auth_router)
     application.include_router(language_router)
     application.include_router(poi_router)
+    application.include_router(admin_poi_router)
     return application
 
 

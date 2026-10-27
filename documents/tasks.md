@@ -16,7 +16,7 @@
 | [**US 02.2**](#-us-022-brute-force-protection--account-lockout) | Brute-Force Protection & Account Lockout | UC-02 | Must Have | 3 SP | 4 Tasks | [ ] 0/4 |
 | [**US 02.3**](#-us-023-secure-session-management--inactivity-logout) | Secure Session Management & Inactivity Logout | UC-02 | Should Have | 2 SP | 3 Tasks | [ ] 0/3 |
 | [**US 03.1**](#-us-031-create-digitized-exhibit-profile--cover-image-upload) | Create Digitized Exhibit Profile & Cover Image Upload | UC-03 | Must Have | 5 SP | 5 Tasks | [ ] 0/5 |
-| [**US 03.2**](#-us-032-interactive-gps-geolocation--geofence-calibration) | Interactive GPS Geolocation & Geofence Calibration | UC-03 | Must Have | 5 SP | 4 Tasks | [ ] 0/4 |
+| [**US 03.2**](#-us-032-interactive-gps-geolocation--geofence-calibration) | Interactive GPS Geolocation & Geofence Calibration | UC-03 | Must Have | 5 SP | 4 Tasks | [x] 4/4 |
 | [**US 03.3**](#-us-033-deactivate--hide-exhibit--invalidate-navigation-route) | Deactivate / Hide Exhibit & Invalidate Navigation Route | UC-03 | Should Have | 3 SP | 3 Tasks | [ ] 0/3 |
 | [**US 03.4**](#-us-034-update-exhibit-details--synchronize-translation-status) | Update Exhibit Details & Synchronize Translation Status | UC-03 | Must Have | 3 SP | 3 Tasks | [ ] 0/3 |
 | [**US 04.1**](#-us-041-multilingual-translation-audit--historical-terminology-refinement) | Multilingual Translation Audit & Historical Terminology Refinement | UC-04 | Must Have | 5 SP | 4 Tasks | [ ] 0/4 |
@@ -31,7 +31,7 @@
 | [**US 06.2**](#-us-062-webhook-driven-24-hour-visiting-session-activation) | Webhook-Driven 24-Hour Visiting Session Activation | UC-06 | Must Have | 5 SP | 4 Tasks | [ ] 0/4 |
 | [**US 06.3**](#-us-063-multi-device-session-recovery-via-session-code) | Multi-Device Session Recovery via Session Code | UC-06 | Should Have | 3 SP | 3 Tasks | [ ] 0/3 |
 | [**US 06.4**](#-us-064-content-protection--narrativeaudio-decryption-access-control) | Content Protection & Narrative/Audio Decryption Access Control | UC-06 | Must Have | 5 SP | 4 Tasks | [ ] 0/4 |
-| **TOTAL** | **23 User Stories (2 Complete)** | — | — | **100 SP** | **92 Tasks** | **[x] 16/92 Tasks** |
+| **TOTAL** | **23 User Stories (3 Complete)** | — | — | **100 SP** | **92 Tasks** | **[x] 20/92 Tasks** |
 
 ---
 
@@ -331,27 +331,27 @@
 > **So that** automated narration triggers accurately in physical field conditions.
 >
 > * **Priority:** Must Have | **Estimate:** 5 SP
-> * **Progress:** [ ] 0/4 Tasks Completed
+> * **Progress:** [x] 4/4 Tasks Completed
 
 #### Acceptance Criteria:
-- [ ] **AC-03.2.1:** Leaflet map allows draggable pin placement, dynamically populating numeric Latitude and Longitude input fields.
-- [ ] **AC-03.2.2:** Radius slider adjusts between 10m and 50m with 1m step increments; Geofence circle on map scales dynamically in real time.
-- [ ] **AC-03.2.3:** Coordinates must reside strictly within Cu Chi relic boundaries (`Lat: [11.1350, 11.1550]`, `Lng: [106.4500, 106.4750]`). Out-of-bounds pins highlight red `#B91C1C` and disable save action.
+- [x] **AC-03.2.1:** Leaflet map allows draggable pin placement, dynamically populating numeric Latitude and Longitude input fields.
+- [x] **AC-03.2.2:** Radius slider adjusts between 10m and 50m with 1m step increments; Geofence circle on map scales dynamically in real time.
+- [x] **AC-03.2.3:** Coordinates must reside strictly within Cu Chi relic boundaries (`Lat: [11.1350, 11.1550]`, `Lng: [106.4500, 106.4750]`). Out-of-bounds pins highlight red `#B91C1C` and disable save action.
 
 #### Task Checklist:
-- [ ] `TSK-03.2.1` `[Backend]` **Cu Chi Perimeter Bounding Box Validator**
+- [x] `TSK-03.2.1` `[Backend]` **Cu Chi Perimeter Bounding Box Validator**
   - **Scope:** Implement coordinate boundary validator in `poi_service.py`: Lat `[11.1350, 11.1550]`, Lng `[106.4500, 106.4750]`. Reject out-of-bounds coordinates with HTTP 400.
   - **DoD:** Rejects invalid coordinates server-side.
   - **Paired Unit Test:** `tests/unit/services/test_poi_service.py`
-- [ ] `TSK-03.2.2` `[Frontend]` **Interactive Leaflet Map Coordinate Picker (`AdminMapPicker.jsx`)**
+- [x] `TSK-03.2.2` `[Frontend]` **Interactive Leaflet Map Coordinate Picker (`AdminMapPicker.jsx`)**
   - **Scope:** Draggable pin (`draggable: true`), dynamic `L.circle` radius preview scaling in real time with slider, and dual numeric Lat/Lng input bindings.
   - **DoD:** Two-way data synchronization between map pin and numeric input fields.
-  - **Paired Unit Test:** `src/components/__tests__/AdminMapPicker.test.jsx`
-- [ ] `TSK-03.2.3` `[Frontend]` **Out-of-Bounds Error State & Save Lock**
+  - **Paired Unit Test:** `src/components/admin/__tests__/AdminMapPicker.test.jsx`
+- [x] `TSK-03.2.3` `[Frontend]` **Out-of-Bounds Error State & Save Lock**
   - **Scope:** Display red border `#B91C1C` on map container and disable submit button when coordinates fall outside Cu Chi complex boundaries.
   - **DoD:** Form submission strictly blocked on out-of-bounds coordinates.
-  - **Paired Unit Test:** `src/components/__tests__/AdminMapPicker.test.jsx`
-- [ ] `TSK-03.2.4` `[Test]` **Unit Test Suite for US 03.2 (`test_poi_service.py`, `AdminMapPicker.test.jsx`)**
+  - **Paired Unit Test:** `src/components/admin/__tests__/AdminMapPicker.test.jsx`
+- [x] `TSK-03.2.4` `[Test]` **Unit Test Suite for US 03.2 (`test_poi_service.py`, `AdminMapPicker.test.jsx`)**
   - **Scope:** Test bounding box coordinate validator (`[11.1350, 11.1550]`, `[106.4500, 106.4750]`), draggable pin events, radius circle sync, and red border error state.
   - **DoD:** 100% test pass in Pytest and Vitest, $\ge 80\%$ line & branch code coverage.
   - **Execution:** `pytest tests/unit/services/test_poi_service.py` && `npm run test -- AdminMapPicker`
