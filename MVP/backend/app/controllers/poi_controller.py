@@ -1,4 +1,4 @@
-"""POIController Layer 1: Receives HTTP requests, validates input, and delegates to POIService."""
+"""POIController: Handles HTTP requests for exhibit profiles and visitor map."""
 
 from fastapi import (
     APIRouter,
@@ -10,14 +10,35 @@ from fastapi import (
 )
 
 from app.core.dependencies import get_current_admin, get_poi_service
-from app.schemas.poi_schema import POICreateRequest, POIListResponse, POIResponse
+from app.schemas.poi_schema import (
+    APIResponse,
+    POICreateRequest,
+    POIListResponse,
+    POIMapItem,
+    POIResponse,
+)
 from app.services.poi_service import POIService
 
-router = APIRouter(prefix="/admin/pois", tags=["POI Management"])
+router = APIRouter(tags=["POI Management"])
+
+
+@router.get(
+    "/api/v1/pois",
+    response_model=APIResponse[list[POIMapItem]],
+    tags=["visitor"],
+    summary="Get active POIs for visitor map",
+)
+def get_map_pois(
+    language: str | None = Query(default=None, min_length=1, max_length=20),
+    service: POIService = Depends(get_poi_service),
+) -> APIResponse[list[POIMapItem]]:
+    """Return active exhibits for the visitor interactive map, optionally localized."""
+    pois = service.list_map_pois(language)
+    return APIResponse(data=pois)
 
 
 @router.post(
-    "",
+    "/api/v1/admin/pois",
     response_model=POIResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Create a new exhibit POI profile with optional cover image upload",
@@ -63,7 +84,7 @@ async def create_poi(
 
 
 @router.get(
-    "",
+    "/api/v1/admin/pois",
     response_model=POIListResponse,
     status_code=status.HTTP_200_OK,
     summary="List all exhibits with pagination and search by title",
@@ -80,7 +101,7 @@ def list_pois(
 
 
 @router.get(
-    "/{poi_id}",
+    "/api/v1/admin/pois/{poi_id}",
     response_model=POIResponse,
     status_code=status.HTTP_200_OK,
     summary="Get detailed exhibit profile by identifier",

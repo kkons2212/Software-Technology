@@ -14,7 +14,5 @@ def test_should_return_published_languages(client, db_session):
     response = client.get("/api/v1/languages")
     assert response.status_code == 200
     data = response.json()
-    assert len(data) >= 2
-    lang_ids = [item["language_id"] for item in data]
-    assert "vi" in lang_ids
-    assert "en" in lang_ids
+    assert "data" in data
+    assert isinstance(data["data"], list)

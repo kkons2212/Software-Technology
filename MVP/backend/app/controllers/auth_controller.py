@@ -1,64 +1,79 @@
-"""Admin Authentication Controller (US 02.1)."""
+"""HTTP endpoints for Administrator authentication (US 02.1).
 
-from fastapi import APIRouter, HTTPException, Request, Response, status
-from pydantic import BaseModel
+Presentation boundary only: the controller validates the request through
+Pydantic, delegates to `AuthService` and shapes the HTTP response. It never
+imports repositories or models (dev_rules Section 3.2).
+"""
 
-router = APIRouter(prefix="/api/v1/auth", tags=["Authentication"])
+from fastapi import APIRouter, Depends, Request, Response
+
+from app.core.config import get_settings
+from app.core.dependencies import get_auth_service, get_current_admin_profile
+from app.core.security import get_access_token_max_age_seconds
+from app.schemas.auth_schema import (
+    AdminLoginRequest,
+    AdminProfileResponse,
+    AdminSessionDataResponse,
+    AdminSessionResponse,
+)
+from app.services.auth_service import AuthService
+
+AUTH_ROUTE_PREFIX = "/api/v1/auth"
+ADMIN_SESSION_COOKIE_PATH = "/"
+X_FORWARDED_FOR_HEADER = "x-forwarded-for"
+
+router = APIRouter(prefix=AUTH_ROUTE_PREFIX, tags=["Administrator Authentication"])
 
 
-class LoginRequest(BaseModel):
-    username: str
-    password: str
+def resolve_client_ip(request: Request) -> str | None:
+    """Resolve the originating client IP, honouring a single proxy hop."""
+    forwarded_for = request.headers.get(X_FORWARDED_FOR_HEADER)
+    if forwarded_for:
+        return forwarded_for.split(",")[0].strip()
+    if request.client is not None:
+        return request.client.host
+    return None
 
 
-@router.post("/login", summary="Admin Login")
-def login(payload: LoginRequest, response: Response):
-    """Authenticate administrator credentials and issue HttpOnly session cookie."""
-    uname = payload.username.strip()
-    if not uname or not payload.password:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid username or password",
-        )
-
-    # Issue session cookie
-    response.set_cookie(
-        key="admin_session",
-        value=uname,
-        httponly=True,
-        samesite="lax",
-        max_age=3600 * 24,
+@router.post("/login", response_model=AdminSessionResponse)
+def login_admin(
+    payload: AdminLoginRequest,
+    request: Request,
+    response: Response,
+    auth_service: AuthService = Depends(get_auth_service),
+) -> AdminSessionResponse:
+    """Authenticate an administrator and plant the HttpOnly session cookie."""
+    session = auth_service.authenticate_admin(
+        payload, client_ip=resolve_client_ip(request)
     )
+    settings = get_settings()
+    # HttpOnly + SameSite=Strict: the JWT is unreachable from JavaScript.
+    response.set_cookie(
+        key=settings.ADMIN_SESSION_COOKIE_NAME,
+        value=session.access_token,
+        max_age=get_access_token_max_age_seconds(),
+        httponly=True,
+        samesite="strict",
+        secure=settings.IS_COOKIE_SECURE,
+        path=ADMIN_SESSION_COOKIE_PATH,
+    )
+    return AdminSessionResponse(data=AdminSessionDataResponse(admin=session.admin))
 
-    return {
-        "admin": {
-            "id": 1,
-            "username": uname,
-            "email": "admin@cuchi.gov.vn",
-        }
-    }
 
-
-@router.get("/me", summary="Get Current Admin Profile")
-def get_current_admin(request: Request):
-    """Retrieve authenticated admin profile from active session cookie."""
-    session = request.cookies.get("admin_session")
-    if not session:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated",
-        )
-    return {
-        "admin": {
-            "id": 1,
-            "username": session,
-            "email": "admin@cuchi.gov.vn",
-        }
-    }
+@router.get("/me", response_model=AdminSessionResponse)
+def read_current_admin(
+    current_admin: AdminProfileResponse = Depends(get_current_admin_profile),
+) -> AdminSessionResponse:
+    """Return the profile of the administrator owning the current session."""
+    return AdminSessionResponse(data=AdminSessionDataResponse(admin=current_admin))
 
 
 @router.post("/logout", summary="Admin Logout")
 def logout(response: Response):
     """Terminate administrator session and clear cookie."""
-    response.delete_cookie("admin_session")
+    settings = get_settings()
+    response.delete_cookie(
+        key=settings.ADMIN_SESSION_COOKIE_NAME,
+        path=ADMIN_SESSION_COOKIE_PATH,
+    )
     return {"message": "Logged out successfully"}

@@ -125,7 +125,7 @@ a:focus-visible {
 
 .visitor-header-actions select {
   max-width: 98px;
-  min-height: 40px;
+  min-height: 44px;
   padding: 0 22px 0 8px;
   border: 1px solid #cbd5e1;
   border-radius: 6px;
@@ -137,7 +137,7 @@ a:focus-visible {
 
 .visitor-unlock-button {
   display: inline-flex;
-  min-height: 40px;
+  min-height: 44px;
   align-items: center;
   justify-content: center;
   gap: 5px;
@@ -153,7 +153,7 @@ a:focus-visible {
 
 .visitor-session-badge {
   display: flex;
-  min-height: 36px;
+  min-height: 44px;
   align-items: center;
   gap: 4px;
   padding: 0 8px;
@@ -234,9 +234,22 @@ a:focus-visible {
 }
 
 .visitor-location-icon,
-.visitor-entrance-icon {
+.visitor-entrance-icon,
+.visitor-poi-icon {
   border: 0;
   background: transparent;
+}
+
+.visitor-poi-marker-dot {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  width: 16px;
+  height: 16px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: #b45309;
+  box-shadow: 0 1px 4px rgb(15 23 42 / 40%);
 }
 
 .visitor-location-pulse {
@@ -333,5 +346,54 @@ a:focus-visible {
 @media (min-width: 600px) {
   .visitor-tour-page {
     box-shadow: 0 0 0 1px #e2e8f0;
+  }
+}
+
+@media (max-width: 380px) {
+  .visitor-header {
+    gap: 6px;
+    padding: 0 8px;
+  }
+
+  .visitor-brand {
+    gap: 6px;
+  }
+
+  .visitor-brand-mark {
+    width: 30px;
+    height: 30px;
+    flex-basis: 30px;
+  }
+
+  .visitor-brand-copy h1 {
+    font-size: 12px;
+  }
+
+  .visitor-brand-copy > span {
+    display: none;
+  }
+
+  .visitor-header-actions {
+    gap: 4px;
+  }
+
+  .visitor-header-actions select {
+    width: 76px;
+    max-width: 76px;
+    padding-right: 16px;
+    padding-left: 6px;
+    font-size: 11px;
+  }
+
+  .visitor-unlock-button {
+    gap: 4px;
+    padding: 0 6px;
+    font-size: 10px;
+  }
+
+  .visitor-session-badge {
+    gap: 2px;
+    padding: 0 5px;
+    font-size: 9px;
   }
 }

@@ -1,11 +1,13 @@
-"""POIService encapsulating 100% business logic for POI catalog & spatial validation."""
+"""POIService encapsulating business logic for POI catalog & spatial validation."""
 
 import os
 import uuid
 
-from fastapi import BackgroundTasks, HTTPException, UploadFile, status
+from fastapi import BackgroundTasks, Depends, HTTPException, UploadFile, status
+from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.core.database import get_db
 from app.models.poi import POI
 from app.models.translation import POITranslation
 from app.repositories.audit_repository import AuditRepository
@@ -13,6 +15,7 @@ from app.repositories.poi_repository import POIRepository
 from app.schemas.poi_schema import (
     POICreateRequest,
     POIListResponse,
+    POIMapItem,
     POIResponse,
     POITranslationStatusResponse,
 )
@@ -55,9 +58,19 @@ def validate_image_file(file: UploadFile, content_bytes: bytes) -> None:
         )
 
 
+def get_poi_service(db: Session = Depends(get_db)) -> "POIService":
+    return POIService(poi_repo=POIRepository(db), audit_repo=AuditRepository(db))
+
+
 class POIService:
-    def __init__(self, poi_repo: POIRepository, audit_repo: AuditRepository):
-        self.poi_repo = poi_repo
+    def __init__(
+        self,
+        poi_repo: POIRepository | None = None,
+        audit_repo: AuditRepository | None = None,
+        repository: POIRepository | None = None,
+    ):
+        self.poi_repo = poi_repo or repository
+        self.repository = self.poi_repo
         self.audit_repo = audit_repo
 
     async def save_cover_image(self, file: UploadFile) -> str:
@@ -91,29 +104,29 @@ class POIService:
         # 2. Instantiate and persist POI entity via Repository
         poi_id = f"POI_{uuid.uuid4().hex[:12].upper()}"
         poi_entity = POI(
-            PoiID=poi_id,
-            Title=payload.title,
-            Short_Description=payload.short_description,
-            Description=payload.description,
-            Image_Url=payload.image_url,
-            Latitude=payload.latitude,
-            Longitude=payload.longitude,
-            Radius=payload.radius,
-            Is_Active=True,
-            Create_by=admin_username,
+            poi_id=poi_id,
+            title=payload.title,
+            short_description=payload.short_description,
+            description=payload.description,
+            image_url=payload.image_url,
+            latitude=payload.latitude,
+            longitude=payload.longitude,
+            radius=payload.radius,
+            is_active=True,
+            create_by=admin_username,
         )
         created_poi = self.poi_repo.create(poi_entity)
 
         # 3. Create primary Vietnamese source translation record (Status = PUBLISHED)
         vi_trans = POITranslation(
-            StranID=f"TR_{uuid.uuid4().hex[:12].upper()}",
-            Title=payload.title,
-            Short_Description=payload.short_description,
-            Description=payload.description,
-            Status="PUBLISHED",
-            PoiID=created_poi.PoiID,
-            LanguageID="vi",
-            UserName=admin_username,
+            stran_id=f"TR_{uuid.uuid4().hex[:12].upper()}",
+            title=payload.title,
+            short_description=payload.short_description,
+            description=payload.description,
+            status="PUBLISHED",
+            poi_id=created_poi.poi_id,
+            language_id="vi",
+            user_name=admin_username,
         )
         self.poi_repo.create_translation(vi_trans)
 
@@ -125,32 +138,33 @@ class POIService:
         ]
         for lang in TARGET_FOREIGN_LANGUAGES:
             foreign_trans = POITranslation(
-                StranID=f"TR_{uuid.uuid4().hex[:12].upper()}",
-                Title=f"[{lang.upper()}] {payload.title}",
-                Short_Description=payload.short_description,
-                Description=payload.description,
-                Status="PENDING",
-                PoiID=created_poi.PoiID,
-                LanguageID=lang,
-                UserName=admin_username,
+                stran_id=f"TR_{uuid.uuid4().hex[:12].upper()}",
+                title=f"[{lang.upper()}] {payload.title}",
+                short_description=payload.short_description,
+                description=payload.description,
+                status="PENDING",
+                poi_id=created_poi.poi_id,
+                language_id=lang,
+                user_name=admin_username,
             )
             self.poi_repo.create_translation(foreign_trans)
             translation_responses.append(
                 POITranslationStatusResponse(language_id=lang, status="PENDING")
             )
 
-        # 5. Log audit entry
-        self.audit_repo.log_action(
-            username=admin_username,
-            status="CREATE_POI",
-            ip_address=ip_address,
-            details={
-                "poi_id": created_poi.PoiID,
-                "title": payload.title,
-                "radius": payload.radius,
-                "coordinates": [float(payload.latitude), float(payload.longitude)],
-            },
-        )
+        # 5. Log audit entry if audit repository is available
+        if self.audit_repo:
+            self.audit_repo.log_action(
+                username=admin_username,
+                status="CREATE_POI",
+                ip_address=ip_address,
+                details={
+                    "poi_id": created_poi.poi_id,
+                    "title": payload.title,
+                    "radius": payload.radius,
+                    "coordinates": [float(payload.latitude), float(payload.longitude)],
+                },
+            )
 
         return self._build_poi_response(created_poi, translation_responses)
 
@@ -165,10 +179,10 @@ class POIService:
         items, total = self.poi_repo.get_all(skip=skip, limit=size, search=search)
         response_items = []
         for poi in items:
-            translations = self.poi_repo.get_translations_by_poi_id(poi.PoiID)
+            translations = self.poi_repo.get_translations_by_poi_id(poi.poi_id)
             status_list = [
                 POITranslationStatusResponse(
-                    language_id=t.LanguageID, status=t.Status, title=t.Title
+                    language_id=t.language_id, status=t.status, title=t.title
                 )
                 for t in translations
             ]
@@ -184,31 +198,52 @@ class POIService:
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"POI exhibit with id '{poi_id}' was not found.",
             )
-        translations = self.poi_repo.get_translations_by_poi_id(poi.PoiID)
+        translations = self.poi_repo.get_translations_by_poi_id(poi.poi_id)
         status_list = [
             POITranslationStatusResponse(
-                language_id=t.LanguageID, status=t.Status, title=t.Title
+                language_id=t.language_id, status=t.status, title=t.title
             )
             for t in translations
         ]
         return self._build_poi_response(poi, status_list)
+
+    def list_map_pois(self, language_code: str | None = None) -> list[POIMapItem]:
+        """List active POIs for visitor map, localized for the requested language."""
+        result = []
+        for poi, translation in self.repository.list_active_pois(language_code):
+            result.append(
+                POIMapItem(
+                    id=poi.poi_id,
+                    title=translation.title if translation else poi.title,
+                    short_description=(
+                        translation.short_description
+                        if translation
+                        else poi.short_description
+                    ),
+                    image_url=poi.image_url,
+                    latitude=float(poi.latitude),
+                    longitude=float(poi.longitude),
+                    trigger_radius=poi.radius,
+                )
+            )
+        return result
 
     @staticmethod
     def _build_poi_response(
         poi: POI, translations: list[POITranslationStatusResponse]
     ) -> POIResponse:
         return POIResponse(
-            poi_id=poi.PoiID,
-            title=poi.Title,
-            short_description=poi.Short_Description,
-            description=poi.Description,
-            image_url=poi.Image_Url,
-            latitude=float(poi.Latitude),
-            longitude=float(poi.Longitude),
-            radius=poi.Radius,
-            is_active=poi.Is_Active,
-            create_at=poi.Create_at,
-            update_at=poi.Update_at,
-            create_by=poi.Create_by,
+            poi_id=poi.poi_id,
+            title=poi.title,
+            short_description=poi.short_description,
+            description=poi.description,
+            image_url=poi.image_url,
+            latitude=float(poi.latitude),
+            longitude=float(poi.longitude),
+            radius=poi.radius,
+            is_active=poi.is_active,
+            create_at=poi.create_at,
+            update_at=poi.update_at,
+            create_by=poi.create_by,
             translations=translations,
         )

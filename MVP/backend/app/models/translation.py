@@ -1,7 +1,8 @@
 """SQLAlchemy model for POITranslation table."""
 
+from datetime import datetime
+
 from sqlalchemy import (
-    Column,
     DateTime,
     ForeignKey,
     String,
@@ -9,7 +10,7 @@ from sqlalchemy import (
     UniqueConstraint,
     func,
 )
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship, synonym
 
 from app.core.database import Base
 
@@ -17,35 +18,63 @@ from app.core.database import Base
 class POITranslation(Base):
     __tablename__ = "POITranslation"
 
-    StranID = Column(String(20), primary_key=True, index=True)
-    Title = Column(String(255), nullable=False)
-    Short_Description = Column(String(255), nullable=True)
-    Description = Column(Text, nullable=True)
-    Status = Column(String(255), nullable=False, default="PENDING", index=True)
-    Review_at = Column(DateTime, nullable=True)
-    Create_at = Column(DateTime, nullable=False, default=func.now())
-    Update_at = Column(
-        DateTime, nullable=False, default=func.now(), onupdate=func.now()
+    stran_id: Mapped[str] = mapped_column(
+        "StranID", String(20), primary_key=True, index=True
     )
-    Review_by = Column(String(20), nullable=True)
-    PoiID = Column(
+    title: Mapped[str] = mapped_column("Title", String(255), nullable=False)
+    short_description: Mapped[str | None] = mapped_column(
+        "Short_Description", String(255), nullable=True
+    )
+    description: Mapped[str | None] = mapped_column("Description", Text, nullable=True)
+    status: Mapped[str] = mapped_column(
+        "Status", String(255), nullable=False, default="PENDING", index=True
+    )
+    review_at: Mapped[datetime | None] = mapped_column(
+        "Review_at", DateTime, nullable=True
+    )
+    create_at: Mapped[datetime] = mapped_column(
+        "Create_at", DateTime, nullable=False, default=func.now()
+    )
+    update_at: Mapped[datetime] = mapped_column(
+        "Update_at", DateTime, nullable=False, default=func.now(), onupdate=func.now()
+    )
+    review_by: Mapped[str | None] = mapped_column(
+        "Review_by", String(20), nullable=True
+    )
+    poi_id: Mapped[str] = mapped_column(
+        "PoiID",
         String(20),
         ForeignKey("POI.PoiID", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
-    LanguageID = Column(
+    language_id: Mapped[str] = mapped_column(
+        "LanguageID",
         String(20),
         ForeignKey("LanguageCode.LanguageID", ondelete="RESTRICT"),
         nullable=False,
         index=True,
     )
-    UserName = Column(
+    user_name: Mapped[str | None] = mapped_column(
+        "UserName",
         String(20),
         ForeignKey("User.UserName", ondelete="SET NULL"),
         nullable=True,
         index=True,
     )
+
+    StranID = synonym("stran_id")
+    Title = synonym("title")
+    Short_Description = synonym("short_description")
+    Description = synonym("description")
+    Status = synonym("status")
+    Review_at = synonym("review_at")
+    Create_at = synonym("create_at")
+    Update_at = synonym("update_at")
+    Review_by = synonym("review_by")
+    PoiID = synonym("poi_id")
+    LanguageID = synonym("language_id")
+    UserName = synonym("user_name")
 
     __table_args__ = (
         UniqueConstraint(

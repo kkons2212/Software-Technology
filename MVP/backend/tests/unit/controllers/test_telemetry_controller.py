@@ -101,7 +101,7 @@ def test_should_return_404_when_poi_does_not_exist(client, db_session):
     }
     response = client.post("/api/v1/telemetry/trigger", json=payload)
     assert response.status_code == 404
-    assert "does not exist" in response.json()["detail"]
+    assert "does not exist" in str(response.json())
 
 
 def test_should_return_422_when_poi_id_is_missing(client, db_session):

@@ -1,4 +1,4 @@
-"""Pytest root configuration and fixtures for unit testing against MySQL."""
+"""Pytest root configuration and shared fixtures for unit testing against MySQL."""
 
 import os
 import sys
@@ -13,10 +13,17 @@ BACKEND_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if BACKEND_ROOT not in sys.path:
     sys.path.insert(0, BACKEND_ROOT)
 
-import app.models  # noqa: E402
-from app.core.config import settings  # noqa: E402
+from app.core.config import Settings, settings  # noqa: E402
 from app.core.database import Base, create_database_engine, get_db  # noqa: E402
 from app.main import app  # noqa: E402
+from app.models.audit import Audit  # noqa: E402,F401
+from app.models.audio import POIAudio  # noqa: E402,F401
+from app.models.language import LanguageCode  # noqa: E402,F401
+from app.models.poi import POI  # noqa: E402,F401
+from app.models.translation import POITranslation  # noqa: E402,F401
+from app.models.user import User  # noqa: E402,F401
+
+LOW_COST_BCRYPT_ROUNDS = 4
 
 
 @pytest.fixture(scope="session")
@@ -26,6 +33,15 @@ def test_engine() -> Engine:
     Base.metadata.create_all(bind=engine, checkfirst=True)
     yield engine
     engine.dispose()
+
+
+@pytest.fixture(autouse=True)
+def use_low_cost_bcrypt(mocker):
+    """Hash with a cheap Bcrypt cost so the unit suite stays fast."""
+    mocker.patch(
+        "app.core.security.get_settings",
+        return_value=Settings(BCRYPT_ROUNDS=LOW_COST_BCRYPT_ROUNDS),
+    )
 
 
 @pytest.fixture()

@@ -1,32 +1,39 @@
-"""Database engine and session management following JIT lifecycle."""
+"""SQLAlchemy engine, session factory and the Just-In-Time `get_db` dependency.
+
+US 02.1 / dev_rules Section 4.4: a session is opened only to run a query and is
+closed immediately afterwards - it is never held open across external I/O.
+"""
 
 from collections.abc import Generator
 
-from sqlalchemy import create_engine
-from sqlalchemy.orm import Session, declarative_base, sessionmaker
+from sqlalchemy import Engine, create_engine
+from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
-from app.core.config import settings
+from app.core.config import Settings, get_settings
 
 
-def create_database_engine(cfg=settings):
-    """Build the MySQL engine with the connection-pool settings."""
+class Base(DeclarativeBase):
+    """Declarative base shared by every ORM model under `app/models`."""
+
+
+def create_database_engine(settings: Settings | None = None) -> Engine:
+    """Build the MySQL engine with the mandated connection-pool settings."""
+    cfg = settings or get_settings()
     return create_engine(
         cfg.DATABASE_URL,
-        pool_size=10,
-        max_overflow=20,
-        pool_recycle=1800,
+        pool_size=cfg.DB_POOL_SIZE,
+        max_overflow=cfg.DB_MAX_OVERFLOW,
+        pool_recycle=cfg.DB_POOL_RECYCLE_SECONDS,
         pool_pre_ping=True,
     )
 
 
-# Engine configuration with connection pooling for MySQL 8.0+
-engine = create_database_engine(settings)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-Base = declarative_base()
+engine = create_database_engine(get_settings())
+SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
 
 
 def get_db() -> Generator[Session, None, None]:
-    """Dependency provider ensuring session is opened for query and closed immediately."""
+    """Yield a short-lived session and always close it, returning it to the pool."""
     db = SessionLocal()
     try:
         yield db

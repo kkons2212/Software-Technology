@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useContext, useEffect, useState } from 'react';
 import VisitorMapView from './VisitorMapView.jsx';
 import VisitorHeader from '../../components/visitor/VisitorHeader.jsx';
 import { getPublishedLanguages } from '../../api/languageApi.js';
-import { getPois } from '../../api/poiApi.js';
-import { useAudioPlayer } from '../../contexts/AudioPlayerContext.jsx';
+import { getMapPois } from '../../api/poiApi.js';
+import AudioPlayerContext from '../../contexts/AudioPlayerContext.jsx';
 import { useGeofenceTrigger } from '../../hooks/useGeofenceTrigger.js';
 import { reportPoiTrigger } from '../../api/telemetryApi.js';
 import useGeolocation from '../../hooks/useGeolocation.js';
@@ -22,20 +22,12 @@ export default function VisitorTourPage({
   const [languageError, setLanguageError] = useState('');
   const [retryCount, setRetryCount] = useState(0);
   const [pois, setPois] = useState([]);
+  const [poiError, setPoiError] = useState('');
+  const [poiRetryCount, setPoiRetryCount] = useState(0);
 
-  const { play, currentPoi } = useAudioPlayer();
-
-  useEffect(() => {
-    getPois({ page: 1, size: 50 })
-      .then((data) => {
-        if (data?.items && Array.isArray(data.items)) {
-          setPois(data.items);
-        }
-      })
-      .catch((err) => {
-        console.warn('Unable to load exhibits:', err);
-      });
-  }, []);
+  const audioContext = useContext(AudioPlayerContext);
+  const play = audioContext?.play;
+  const currentPoi = audioContext?.currentPoi;
 
   const handleProximityTrigger = (poi) => {
     if (play) {
@@ -72,19 +64,48 @@ export default function VisitorTourPage({
             return savedLanguage;
           }
 
-          return availableLanguages.find(({ code }) => code === DEFAULT_LANGUAGE)?.code
+          return (
+            availableLanguages.find(({ code }) => code === DEFAULT_LANGUAGE)?.code
             ?? availableLanguages[0]?.code
-            ?? '';
+            ?? ''
+          );
         });
       })
       .catch((error) => {
         if (error.name !== 'AbortError') {
-          setLanguageError('Unable to load available languages. Check your connection and try again.');
+          setLanguageError(
+            'Unable to load available languages. Check your connection and try again.'
+          );
         }
       });
 
     return () => controller.abort();
   }, [retryCount]);
+
+  useEffect(() => {
+    if (!selectedLanguage) {
+      setPois([]);
+      return undefined;
+    }
+
+    setPois([]);
+    setPoiError('');
+    const controller = new AbortController();
+    getMapPois({ language: selectedLanguage, signal: controller.signal })
+      .then((availablePois) => {
+        setPois(availablePois);
+        setPoiError('');
+      })
+      .catch((error) => {
+        if (error.name !== 'AbortError') {
+          setPoiError(
+            'Unable to load map locations. Check your connection and try again.'
+          );
+        }
+      });
+
+    return () => controller.abort();
+  }, [poiRetryCount, selectedLanguage]);
 
   const handleLanguageChange = (languageCode) => {
     window.localStorage.setItem(PREFERRED_LANGUAGE_KEY, languageCode);
@@ -111,6 +132,15 @@ export default function VisitorTourPage({
         </div>
       )}
 
+      {poiError && (
+        <div className="visitor-language-error" role="alert">
+          <span>{poiError}</span>
+          <button type="button" onClick={() => setPoiRetryCount((count) => count + 1)}>
+            Retry
+          </button>
+        </div>
+      )}
+
       {errorMessage && (
         <div className="visitor-location-banner" role="status">
           <span className="visitor-location-banner-dot" aria-hidden="true" />
@@ -128,4 +158,3 @@ export default function VisitorTourPage({
     </main>
   );
 }
-

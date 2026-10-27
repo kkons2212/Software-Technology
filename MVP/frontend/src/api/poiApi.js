@@ -6,9 +6,27 @@
 import { apiClient, ApiError } from './apiClient.js';
 
 const POI_ADMIN_BASE_PATH = '/api/v1/admin/pois';
+const POIS_ENDPOINT = '/api/v1/pois';
 
 /**
- * Fetch paginated POI exhibits with optional title substring filter.
+ * Public visitor API: Load POIs configured for the map.
+ */
+export async function getMapPois({ language, signal } = {}) {
+  const query = language ? `?language=${encodeURIComponent(language)}` : '';
+  const response = await apiClient.get(`${POIS_ENDPOINT}${query}`, { signal });
+
+  if (Array.isArray(response)) {
+    return response;
+  }
+  if (Array.isArray(response?.data)) {
+    return response.data;
+  }
+
+  throw new Error('The map POIs response has an invalid format.');
+}
+
+/**
+ * Fetch paginated POI exhibits with optional title substring filter (Admin).
  */
 export async function getPois({ page = 1, size = 50, search = '', signal } = {}) {
   const queryParams = new URLSearchParams({
@@ -24,14 +42,14 @@ export async function getPois({ page = 1, size = 50, search = '', signal } = {})
 }
 
 /**
- * Fetch detailed exhibit profile by identifier.
+ * Fetch detailed exhibit profile by identifier (Admin).
  */
 export async function getPoiById(poiId, { signal } = {}) {
   return apiClient.get(`${POI_ADMIN_BASE_PATH}/${poiId}`, { signal });
 }
 
 /**
- * Create a new POI profile. Supports both JSON and multipart form data with image file.
+ * Create a new POI profile. Supports both JSON and multipart form data with image file (Admin).
  */
 export async function createPoi(poiData, imageFile = null, { signal } = {}) {
   if (imageFile) {

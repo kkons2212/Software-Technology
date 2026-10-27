@@ -17,6 +17,19 @@ from app.services.poi_service import (
 
 @pytest.fixture
 def poi_service(db_session):
+    from app.models.user import User
+
+    admin = db_session.query(User).filter_by(user_name="admin").first()
+    if not admin:
+        admin = User(
+            user_name="admin",
+            email="admin@cuchi.gov.vn",
+            password_hash="hash",
+            is_active=True,
+        )
+        db_session.add(admin)
+        db_session.flush()
+
     poi_repo = POIRepository(db_session)
     audit_repo = AuditRepository(db_session)
     return POIService(poi_repo=poi_repo, audit_repo=audit_repo)
