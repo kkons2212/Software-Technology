@@ -423,27 +423,27 @@
 > **So that** cultural, historical, and linguistic accuracy is preserved.
 >
 > * **Priority:** Must Have | **Estimate:** 5 SP
-> * **Progress:** [ ] 0/4 Tasks Completed
+> * **Progress:** [x] 4/4 Tasks Completed
 
 #### Acceptance Criteria:
-- [ ] **AC-04.1.1:** 2-column comparison layout: Read-only source Vietnamese on left (background `#F8FAFC`), editable target textarea on right (background `#FFFFFF`).
-- [ ] **AC-04.1.2:** 3-tier filter bar: Filter by POI, Target Language, and Review Status (`DRAFT`, `NEEDS_UPDATE`, `PUBLISHED`).
-- [ ] **AC-04.1.3:** Any edits to the translation text immediately update status badge to amber `"Audio Needs Update"` and lock the publish button.
+- [x] **AC-04.1.1:** 2-column comparison layout: Read-only source Vietnamese on left (background `#F8FAFC`), editable target textarea on right (background `#FFFFFF`).
+- [x] **AC-04.1.2:** 3-tier filter bar: Filter by POI, Target Language, and Review Status (`DRAFT`, `NEEDS_UPDATE`, `PUBLISHED`).
+- [x] **AC-04.1.3:** Any edits to the translation text immediately update status badge to amber `"Audio Needs Update"` and lock the publish button.
 
 #### Task Checklist:
-- [ ] `TSK-04.1.1` `[Backend]` **Translation Retrieval & Update Endpoints**
+- [x] `TSK-04.1.1` `[Backend]` **Translation Retrieval & Update Endpoints**
   - **Scope:** Build `GET /api/v1/admin/translations` with query filters (`poi_id`, `language_id`, `status`) and `PUT /api/v1/admin/translations/{id}` that sets `Status = 'NEEDS_UPDATE'` on text update.
   - **DoD:** Returns filtered results accurately; updates text and status atomically.
   - **Paired Unit Test:** `tests/unit/controllers/test_translation_controller.py`
-- [ ] `TSK-04.1.2` `[Frontend]` **Side-by-Side Translation Audit View (`TranslationAuditView.jsx`)**
+- [x] `TSK-04.1.2` `[Frontend]` **Side-by-Side Translation Audit View (`TranslationAuditView.jsx`)**
   - **Scope:** 2-column comparison interface with auto-resizing textareas and multi-parameter filter header.
   - **DoD:** Allows rapid auditing without data loss on tab navigation.
   - **Paired Unit Test:** `src/views/__tests__/TranslationAuditView.test.jsx`
-- [ ] `TSK-04.1.3` `[Frontend]` **Audio Sync Badge & Lock Indicator Component**
+- [x] `TSK-04.1.3` `[Frontend]` **Audio Sync Badge & Lock Indicator Component**
   - **Scope:** Render green `"Audio In Sync"` badge when text matches audio, or amber `"Audio Needs Update"` badge immediately when text is edited.
   - **DoD:** Real-time visual feedback on keystrokes.
   - **Paired Unit Test:** `src/components/__tests__/AudioSyncBadge.test.jsx`
-- [ ] `TSK-04.1.4` `[Test]` **Unit Test Suite for US 04.1 (`test_translation_controller.py`, `TranslationAuditView.test.jsx`, `AudioSyncBadge.test.jsx`)**
+- [x] `TSK-04.1.4` `[Test]` **Unit Test Suite for US 04.1 (`test_translation_controller.py`, `TranslationAuditView.test.jsx`, `AudioSyncBadge.test.jsx`)**
   - **Scope:** Test translation filtering endpoints, text editing payload handling, side-by-side view layout, and real-time audio sync badge indicator.
   - **DoD:** 100% test pass in Pytest and Vitest, $\ge 80\%$ line & branch code coverage.
   - **Execution:** `pytest tests/unit/controllers/test_translation_controller.py` && `npm run test -- TranslationAuditView AudioSyncBadge`
