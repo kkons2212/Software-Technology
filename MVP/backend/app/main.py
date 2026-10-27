@@ -14,6 +14,7 @@ from app.controllers.auth_controller import router as auth_router
 from app.controllers.language_controller import router as language_router
 from app.controllers.poi_controller import router as poi_router
 from app.controllers.telemetry_controller import router as telemetry_router
+from app.controllers.translation_controller import router as translation_router
 from app.core.config import settings
 from app.core.exceptions import register_error_handlers
 
@@ -57,6 +58,7 @@ def create_app() -> FastAPI:
     application.include_router(language_router)
     application.include_router(poi_router)
     application.include_router(telemetry_router)
+    application.include_router(translation_router)
 
     @application.get("/health", tags=["System Health"])
     def health_check():
