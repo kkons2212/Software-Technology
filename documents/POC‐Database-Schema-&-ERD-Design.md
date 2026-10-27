@@ -5,7 +5,7 @@
 
 ## 1. Database Architecture Overview
 
-During the Proof of Concept (POC) phase, the system leverages **SQLite** configured in **WAL (Write-Ahead Logging)** mode with `PRAGMA foreign_keys = ON;` to ensure, after that we switch to MySQL 8.0+ (InnoDB) for production use:
+The system runs exclusively on **MySQL 8.0+ (InnoDB)** for local development, testing, and production. The Docker database image documented in `DatabaseSetup.md` (`kocoten/smart-museum-db:v1`) provisions this schema:
 - **High Performance & Non-blocking Concurrency:** Mobile visitor reads can occur simultaneously without being locked by backend write jobs (Google Translation & Edge-TTS synthesis background tasks).
 - **Data Integrity:** Cascade deletion automatically cleans up related translations and audio records when a POI is deleted.
 
@@ -247,6 +247,8 @@ The full MySQL initialization DDL script is provided in section [2.1. MySQL Sche
 | `audit_id` | `VARCHAR(20)` | `PRIMARY KEY` | Unique audit record identifier |
 | `user_name` | `VARCHAR(255)` | `NOT NULL, FK -> users(user_name)` | Associated username (ON DELETE CASCADE) |
 | `status` | `VARCHAR(255)` | `NOT NULL` | Status (SUCCESS, FAILED, LOCKED) |
+| `ip_address` | `VARCHAR(45)` | `NULL` | Client IP address (IPv4/IPv6) that produced the audited action |
+| `details` | `VARCHAR(255)` | `NULL` | Contextual payload describing the audited action (action name, target entity, JSON summary) |
 | `create_at` | `TIMESTAMPTZ` | `DEFAULT CURRENT_TIMESTAMP` | Audit log entry timestamp |
 
 ---

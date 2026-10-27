@@ -45,7 +45,7 @@ the MySQL schema in `scripts/mysql_schema.sql`.
 
 This starts the MySQL database in Docker, but runs the MVP backend and frontend
 as local development processes. The existing `POC/docker-compose.yml` belongs
-to the separate SQLite-based proof of concept and does not run the MVP stack.
+to the legacy proof-of-concept folder and does not run the MVP stack.
 
 Interactive API documentation is available at `http://localhost:8000/docs`.
 
@@ -71,5 +71,7 @@ $env:DATABASE_URL = "mysql+pymysql://<user>:<password>@127.0.0.1:3306/smart_muse
 python -m pytest
 ```
 
-The public map API tests insert uniquely identified temporary rows and remove
-only those rows after each test; they do not recreate or drop the MySQL schema.
+The test suite runs against the MySQL container above (`smart_museum`). Each
+test uses an isolated transaction that is rolled back, so test data is not
+retained and existing development data is not modified. Start the container
+before running tests.

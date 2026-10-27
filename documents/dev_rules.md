@@ -764,7 +764,7 @@ Each unit test file must satisfy the following 4 engineering criteria:
      1. Positive scenario (Happy path).
      2. Boundary condition (e.g., zero distance, coordinate at exact bounding edge, empty string).
      3. Negative / Error handling (e.g., entity not found `404`, audio stream timeout after 3.5s, rate limit lock `423`).
-4. **Execution Speed:** Unit test suites must run in-memory or against mock objects, completing in under 5 seconds locally.
+4. **Execution Speed:** Unit test suites must run against an isolated database (or mock objects) with automatic rollback, completing in under 15 seconds locally.
 
 ### 7.2. Definition of Done (DoD) Checklist
 
