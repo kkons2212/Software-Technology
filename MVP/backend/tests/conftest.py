@@ -16,8 +16,8 @@ if BACKEND_ROOT not in sys.path:
 from app.core.config import Settings, settings  # noqa: E402
 from app.core.database import Base, create_database_engine, get_db  # noqa: E402
 from app.main import app  # noqa: E402
-from app.models.audit import Audit  # noqa: E402,F401
 from app.models.audio import POIAudio  # noqa: E402,F401
+from app.models.audit import Audit  # noqa: E402,F401
 from app.models.language import LanguageCode  # noqa: E402,F401
 from app.models.poi import POI  # noqa: E402,F401
 from app.models.translation import POITranslation  # noqa: E402,F401

@@ -2,6 +2,7 @@
 
 import os
 import uuid
+from typing import Annotated
 
 from fastapi import BackgroundTasks, Depends, HTTPException, UploadFile, status
 from sqlalchemy.orm import Session
@@ -58,7 +59,9 @@ def validate_image_file(file: UploadFile, content_bytes: bytes) -> None:
         )
 
 
-def get_poi_service(db: Session = Depends(get_db)) -> "POIService":
+def get_poi_service(
+    db: Annotated[Session, Depends(get_db)],
+) -> "POIService":
     return POIService(poi_repo=POIRepository(db), audit_repo=AuditRepository(db))
 
 

@@ -1,5 +1,7 @@
 """POIController: Handles HTTP requests for exhibit profiles and visitor map."""
 
+from typing import Annotated
+
 from fastapi import (
     APIRouter,
     BackgroundTasks,
@@ -29,8 +31,8 @@ router = APIRouter(tags=["POI Management"])
     summary="Get active POIs for visitor map",
 )
 def get_map_pois(
-    language: str | None = Query(default=None, min_length=1, max_length=20),
-    service: POIService = Depends(get_poi_service),
+    service: Annotated[POIService, Depends(get_poi_service)],
+    language: Annotated[str | None, Query(min_length=1, max_length=20)] = None,
 ) -> APIResponse[list[POIMapItem]]:
     """Return active exhibits for the visitor interactive map, optionally localized."""
     pois = service.list_map_pois(language)
