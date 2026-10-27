@@ -12,11 +12,13 @@ from app.core.database import get_db
 from app.repositories.audit_repository import AuditRepository
 from app.repositories.language_repository import LanguageRepository
 from app.repositories.poi_repository import POIRepository
+from app.repositories.translation_repository import TranslationRepository
 from app.repositories.user_repository import UserRepository
 from app.schemas.auth_schema import AdminProfileResponse
 from app.services.auth_service import AuthService
 from app.services.language_service import LanguageService
 from app.services.poi_service import POIService
+from app.services.translation_service import TranslationService
 
 
 def get_user_repository(db: Session = Depends(get_db)) -> UserRepository:
@@ -78,3 +80,15 @@ def get_language_service(db: Session = Depends(get_db)) -> LanguageService:
     """Dependency provider injecting LanguageRepository into LanguageService."""
     language_repo = LanguageRepository(db)
     return LanguageService(repository=language_repo)
+
+
+def get_translation_service(db: Session = Depends(get_db)) -> TranslationService:
+    """Dependency provider injecting TranslationRepository & AuditRepository into TranslationService."""
+    translation_repo = TranslationRepository(db)
+    audit_repo = AuditRepository(db)
+    poi_repo = POIRepository(db)
+    return TranslationService(
+        translation_repo=translation_repo,
+        audit_repo=audit_repo,
+        poi_repo=poi_repo,
+    )

@@ -1,9 +1,10 @@
-import { useContext, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import VisitorMapView from './VisitorMapView.jsx';
 import VisitorHeader from '../../components/visitor/VisitorHeader.jsx';
+import PoiPreviewCard from '../../components/visitor/PoiPreviewCard.jsx';
 import { getPublishedLanguages } from '../../api/languageApi.js';
 import { getMapPois } from '../../api/poiApi.js';
-import AudioPlayerContext from '../../contexts/AudioPlayerContext.jsx';
+import { useAudioPlayer } from '../../contexts/AudioPlayerContext.jsx';
 import { useGeofenceTrigger } from '../../hooks/useGeofenceTrigger.js';
 import { reportPoiTrigger } from '../../api/telemetryApi.js';
 import useGeolocation from '../../hooks/useGeolocation.js';
@@ -24,21 +25,17 @@ export default function VisitorTourPage({
   const [pois, setPois] = useState([]);
   const [poiError, setPoiError] = useState('');
   const [poiRetryCount, setPoiRetryCount] = useState(0);
+  const [selectedPoiId, setSelectedPoiId] = useState(null);
+  const { currentPoi, isPlaying, completedPoiIds, play } = useAudioPlayer();
 
-  const audioContext = useContext(AudioPlayerContext);
-  const play = audioContext?.play;
-  const currentPoi = audioContext?.currentPoi;
-
-  const handleProximityTrigger = (poi) => {
-    if (play) {
-      play(poi);
-    }
+  const handleProximityTrigger = useCallback((poi) => {
+    play(poi);
     reportPoiTrigger({
       poiId: poi.poi_id || poi.id,
       dwellTime: 10,
       triggerType: 'AUTOMATIC_GEOFENCE',
     });
-  };
+  }, [play]);
 
   useGeofenceTrigger({
     userLocation: location,
@@ -85,10 +82,12 @@ export default function VisitorTourPage({
   useEffect(() => {
     if (!selectedLanguage) {
       setPois([]);
+      setSelectedPoiId(null);
       return undefined;
     }
 
     setPois([]);
+    setSelectedPoiId(null);
     setPoiError('');
     const controller = new AbortController();
     getMapPois({ language: selectedLanguage, signal: controller.signal })
@@ -106,6 +105,36 @@ export default function VisitorTourPage({
 
     return () => controller.abort();
   }, [poiRetryCount, selectedLanguage]);
+
+  const selectedPoi = pois.find(({ id }) => String(id) === String(selectedPoiId));
+  const playingPoiId = isPlaying ? currentPoi?.id ?? null : null;
+
+  const directionsUrl = useMemo(() => {
+    if (!selectedPoi) {
+      return '';
+    }
+
+    const directions = new URL('https://www.google.com/maps/dir/');
+    directions.searchParams.set('api', '1');
+    directions.searchParams.set('destination', `${selectedPoi.latitude},${selectedPoi.longitude}`);
+    return directions.toString();
+  }, [selectedPoi]);
+
+  const handleDismissPOIPreview = useCallback(() => {
+    setSelectedPoiId(null);
+  }, []);
+
+  const handlePlayAudio = () => {
+    if (!selectedPoi) {
+      return;
+    }
+
+    play({
+      ...selectedPoi,
+      text: selectedPoi.short_description || selectedPoi.title,
+      lang: selectedLanguage,
+    });
+  };
 
   const handleLanguageChange = (languageCode) => {
     window.localStorage.setItem(PREFERRED_LANGUAGE_KEY, languageCode);
@@ -153,8 +182,20 @@ export default function VisitorTourPage({
         accuracy={accuracy}
         hasLiveLocation={hasLiveLocation}
         pois={pois}
-        onPoiSelect={play}
+        onSelectPOI={setSelectedPoiId}
+        onDismissPOIPreview={handleDismissPOIPreview}
+        playingPoiId={playingPoiId}
+        visitedPoiIds={completedPoiIds}
       />
+      {selectedPoi && (
+        <PoiPreviewCard
+          poi={selectedPoi}
+          location={hasLiveLocation ? location : null}
+          directionsUrl={directionsUrl}
+          onPlayAudio={handlePlayAudio}
+          onDismiss={handleDismissPOIPreview}
+        />
+      )}
     </main>
   );
 }

@@ -17,6 +17,7 @@ function TestPlayerConsumer() {
       <div data-testid="is-offline">{player.isOfflineFallback ? 'OFFLINE' : 'ONLINE'}</div>
       <div data-testid="current-time">{player.currentTime}</div>
       <div data-testid="duration">{player.duration}</div>
+      <div data-testid="completed-pois">{player.completedPoiIds.join(',')}</div>
       <div data-testid="playback-rate">{player.playbackRate}</div>
       <button
         onClick={() =>
@@ -165,6 +166,42 @@ describe('AudioPlayerContext (US 01.3.4 Singleton Audio & 3.5s Fallback)', () =>
     expect(screen.getByTestId('is-playing').textContent).toBe('PLAYING');
     expect(screen.getByTestId('is-buffering').textContent).toBe('IDLE');
     expect(screen.getByTestId('duration').textContent).toBe('120');
+    expect(screen.getByTestId('completed-pois').textContent).toBe('');
+
+    act(() => audioEventListeners.ended());
+    expect(screen.getByTestId('completed-pois').textContent).toBe('1');
+  });
+
+  it('marks a Web Speech narration listened only after speech finishes', async () => {
+    render(
+      <AudioPlayerProvider>
+        <TestPlayerConsumer />
+      </AudioPlayerProvider>
+    );
+
+    await act(async () => screen.getByText('Play Without URL').click());
+    expect(screen.getByTestId('completed-pois').textContent).toBe('');
+
+    act(() => {
+      const utterance = window.SpeechSynthesisUtterance.mock.results[0].value;
+      utterance.onend();
+    });
+    expect(screen.getByTestId('completed-pois').textContent).toBe('3');
+  });
+
+  it('does not mark a cancelled Web Speech narration as listened', async () => {
+    render(
+      <AudioPlayerProvider>
+        <TestPlayerConsumer />
+      </AudioPlayerProvider>
+    );
+
+    await act(async () => screen.getByText('Play Without URL').click());
+    const utterance = window.SpeechSynthesisUtterance.mock.results[0].value;
+    act(() => screen.getByText('Stop').click());
+    act(() => utterance.onend());
+
+    expect(screen.getByTestId('completed-pois').textContent).toBe('');
   });
 
   it('falls back to Web Speech API when stream hangs for > 3.5 seconds', async () => {

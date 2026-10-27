@@ -18,8 +18,23 @@ vi.mock('../../../hooks/useGeolocation.js', () => ({
   }),
 }));
 
+const audioPlayerMock = vi.hoisted(() => ({
+  play: vi.fn(),
+  currentPoi: null,
+  isPlaying: false,
+  completedPoiIds: [],
+}));
+
+vi.mock('../../../contexts/AudioPlayerContext.jsx', () => ({
+  useAudioPlayer: () => audioPlayerMock,
+}));
+
 vi.mock('../VisitorMapView.jsx', () => ({
-  default: () => <div aria-label="Interactive map" />,
+  default: ({ onSelectPOI }) => (
+    <div aria-label="Interactive map">
+      <button type="button" onClick={() => onSelectPOI('poi-1')}>Select map POI</button>
+    </div>
+  ),
 }));
 
 import { getPublishedLanguages } from '../../../api/languageApi.js';
@@ -33,6 +48,7 @@ beforeEach(() => {
     { code: 'en', name: 'English' },
   ]);
   getMapPois.mockResolvedValue([]);
+  audioPlayerMock.play.mockClear();
 });
 
 afterEach(() => {
@@ -78,5 +94,38 @@ describe('VisitorTourPage', () => {
       .toBeInTheDocument();
     fireEvent.click(screen.getAllByRole('button', { name: 'Retry' })[0]);
     await waitFor(() => expect(getMapPois).toHaveBeenCalledTimes(2));
+  });
+
+  it('opens the selected POI preview and plays its free summary through the audio context', async () => {
+    getMapPois.mockResolvedValue([
+      {
+        id: 'poi-1',
+        title: 'Cu Chi Tunnel',
+        short_description: 'Explore the underground tunnel system.',
+        image_url: 'https://example.test/tunnel.jpg',
+        latitude: 11.14,
+        longitude: 106.46,
+        trigger_radius: 20,
+      },
+    ]);
+    render(<VisitorTourPage />);
+
+    await screen.findByRole('combobox', { name: 'Choose language' });
+    await waitFor(() => expect(getMapPois).toHaveBeenCalled());
+    fireEvent.click(await screen.findByRole('button', { name: 'Select map POI' }));
+
+    expect(await screen.findByRole('dialog')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Cu Chi Tunnel' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Directions' })).toHaveAttribute(
+      'href',
+      'https://www.google.com/maps/dir/?api=1&destination=11.14%2C106.46',
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Play Narration' }));
+
+    expect(audioPlayerMock.play).toHaveBeenCalledWith(expect.objectContaining({
+      id: 'poi-1',
+      text: 'Explore the underground tunnel system.',
+      lang: 'vi',
+    }));
   });
 });
