@@ -62,18 +62,4 @@ it does not expose full narration or audio URLs. The API does not create tables
 or sample content automatically: apply the project schema and populate it with
 published content before testing against MySQL.
 
-To add repeatable visitor-map demo content to the running project database, run
-this from the repository root in PowerShell:
-
-```powershell
-$OutputEncoding = [Console]::OutputEncoding = New-Object System.Text.UTF8Encoding($false)
-Get-Content -Raw -Encoding UTF8 MVP\backend\scripts\seed_demo.sql |
-  docker exec -i smart_museum_db mysql --default-character-set=utf8mb4 -umuseum_app_user -papp_password_456 smart_museum
-```
-
-The seed script adds four demo POIs and published, audio-ready demo entries for
-Vietnamese, English, Japanese, and Korean. It only inserts or updates records
-whose IDs begin with `DEMO`; its audio URLs are placeholders, not playable
-narrations.
-
 Run the backend tests from this directory with `python -m pytest`.
