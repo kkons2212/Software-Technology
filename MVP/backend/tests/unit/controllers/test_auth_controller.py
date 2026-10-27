@@ -1,8 +1,9 @@
 """Paired unit tests for `app.controllers.auth_controller` (US 02.1 - TSK-02.1.4 BE).
 
 The controller is exercised through a real `TestClient` with the JIT `get_db`
-dependency overridden by the in-memory SQLite fixture, so every assertion
-covers the HTTP contract (status codes, HttpOnly cookie flags, error envelope).
+dependency overridden by the rollback-isolated MySQL `db_session` fixture, so
+every assertion covers the HTTP contract (status codes, HttpOnly cookie flags,
+error envelope).
 """
 
 import pytest

@@ -5,7 +5,7 @@
 
 ## 1. Database Architecture Overview
 
-During the Proof of Concept (POC) phase, the system leverages **SQLite** configured in **WAL (Write-Ahead Logging)** mode with `PRAGMA foreign_keys = ON;` to ensure, after that we switch to MySQL 8.0+ (InnoDB) for production use:
+The system runs exclusively on **MySQL 8.0+ (InnoDB)** for local development, testing, and production. The Docker database image documented in `DatabaseSetup.md` (`kocoten/smart-museum-db:v1`) provisions this schema:
 - **High Performance & Non-blocking Concurrency:** Mobile visitor reads can occur simultaneously without being locked by backend write jobs (Google Translation & Edge-TTS synthesis background tasks).
 - **Data Integrity:** Cascade deletion automatically cleans up related translations and audio records when a POI is deleted.
 

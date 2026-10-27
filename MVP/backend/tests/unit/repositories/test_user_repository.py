@@ -1,8 +1,8 @@
 """Paired unit tests for `app.repositories.user_repository`.
 
 US 02.1 - TSK-02.1.1 / TSK-02.1.2: `find_by_username()`, `find_by_email()` and
-the JIT session lifecycle. Every test runs against an in-memory SQLite engine
-(`db_session` fixture), so there is zero external I/O and the suite stays < 5s.
+the JIT session lifecycle. Every test runs against the rollback-isolated MySQL
+session (`db_session` fixture), so no row ever reaches the shared schema.
 """
 
 import pytest
@@ -23,7 +23,7 @@ UNKNOWN_IDENTIFIER = "ghost-admin"
 
 @pytest.fixture()
 def repository(db_session: Session) -> UserRepository:
-    """Repository bound to the throwaway in-memory session."""
+    """Repository bound to the rollback-isolated MySQL session."""
     return UserRepository(db_session)
 
 
@@ -114,7 +114,7 @@ def test_should_raise_integrity_error_when_username_already_exists(
     with pytest.raises(IntegrityError):
         repository.create_admin(_build_admin(email="second-admin@cuchi.vn"))
 
-    # Roll back so the shared in-memory session stays usable for later tests.
+    # Roll back so the shared MySQL session stays usable for later tests.
     db_session.rollback()
     assert repository.find_by_email("second-admin@cuchi.vn") is None
 

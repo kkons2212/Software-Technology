@@ -2,8 +2,8 @@
 
 DoD of TSK-02.1.3 requires 100% coverage of the three decisive branches:
 valid login, invalid password and nonexistent user. The service is exercised
-through the real in-memory repositories (zero external I/O) with a low-cost
-Bcrypt override injected by the autouse `use_low_cost_bcrypt` fixture.
+through the real repositories against the rollback-isolated MySQL session, with
+a low-cost Bcrypt override injected by the autouse `use_low_cost_bcrypt` fixture.
 """
 
 from datetime import datetime, timedelta, timezone
