@@ -275,9 +275,9 @@ export default function PoiCatalogPage() {
           role="dialog"
           aria-modal="true"
           aria-labelledby="modal-headline"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-3 sm:p-4 overflow-y-auto"
         >
-          <div className="w-full max-w-xl rounded-lg border border-slate-200 bg-white p-6 shadow-xl">
+          <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-lg border border-slate-200 bg-white p-5 sm:p-6 shadow-xl">
             <h2 id="modal-headline" className="text-base font-bold text-slate-900">
               Create Digitized Exhibit Profile
             </h2>
@@ -378,7 +378,7 @@ export default function PoiCatalogPage() {
                 )}
               </div>
 
-              <div className="flex items-center justify-end space-x-2.5 pt-2 border-t border-slate-200">
+              <div className="sticky bottom-0 bg-white pt-3 pb-1 border-t border-slate-200 flex items-center justify-end space-x-2.5 z-10">
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}

@@ -22,7 +22,7 @@ const DEFAULT_MAP_BORDER_COLOR = '#CBD5E1';
 const DEFAULT_ZOOM = 17;
 const MIN_ZOOM = 15;
 const MAX_ZOOM = 19;
-const MAP_HEIGHT_PX = 320;
+const DEFAULT_MAP_HEIGHT_PX = 260;
 const TILE_LAYER_URL = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
 const TILE_ATTRIBUTION = '&copy; OpenStreetMap contributors';
 
@@ -65,6 +65,7 @@ export default function AdminMapPicker({
   longitudeLabel = 'Longitude',
   radiusLabel = 'Trigger Radius',
   outOfBoundsMessage = OUT_OF_BOUNDS_MESSAGE,
+  mapHeight = DEFAULT_MAP_HEIGHT_PX,
 }) {
   const [latitude, setLatitude] = useState(initialLatitude);
   const [longitude, setLongitude] = useState(initialLongitude);
@@ -222,13 +223,13 @@ export default function AdminMapPicker({
         data-testid="admin-map-picker-canvas"
         className="w-full rounded-md border bg-slate-100"
         style={{
-          height: `${MAP_HEIGHT_PX}px`,
+          height: `${mapHeight}px`,
           borderColor: isOutOfBounds ? OUT_OF_BOUNDS_COLOR : DEFAULT_MAP_BORDER_COLOR,
           borderWidth: isOutOfBounds ? '2px' : '1px',
         }}
       />
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
         <label className="flex flex-col gap-1 text-sm font-medium text-slate-700">
           {latitudeLabel}
           <input
