@@ -393,22 +393,22 @@
 > **So that** the system automatically flags affected foreign translations as "Needs Update" to ensure audio-text synchronization.
 >
 > * **Priority:** Must Have | **Estimate:** 3 SP
-> * **Progress:** [ ] 0/3 Tasks Completed
+> * **Progress:** [x] 3/3 Tasks Completed
 
 #### Acceptance Criteria:
-- [ ] **AC-03.4.1:** Exhibit metadata, coordinates, and radius update successfully.
-- [ ] **AC-03.4.2:** Modifying the Vietnamese narrative automatically marks all related foreign language translations as `POITranslation.Status = 'NEEDS_UPDATE'`.
+- [x] **AC-03.4.1:** Exhibit metadata, coordinates, and radius update successfully.
+- [x] **AC-03.4.2:** Modifying the Vietnamese narrative automatically marks all related foreign language translations as `POITranslation.Status = 'NEEDS_UPDATE'`.
 
 #### Task Checklist:
-- [ ] `TSK-03.4.1` `[Backend]` **Update POI & Invalidate Translations (`PUT /api/v1/admin/pois/{id}`)**
+- [x] `TSK-03.4.1` `[Backend]` **Update POI & Invalidate Translations (`PUT /api/v1/admin/pois/{id}`)**
   - **Scope:** Update POI record. If narrative text changes, automatically update `POITranslation.Status = 'NEEDS_UPDATE'` for all linked foreign languages.
   - **DoD:** Foreign language translations marked `NEEDS_UPDATE`; prevents desynchronized audio playback.
   - **Paired Unit Test:** `tests/unit/controllers/test_poi_controller.py`
-- [ ] `TSK-03.4.2` `[Frontend]` **POI Edit Form Modal (`POIFormModal.jsx`)**
+- [x] `TSK-03.4.2` `[Frontend]` **POI Edit Form Modal (`POIFormModal.jsx`)**
   - **Scope:** Pre-fill existing exhibit data, pin coordinates, radius slider, and cover image preview for immediate update.
   - **DoD:** Strict form validation and clear success notification toast.
   - **Paired Unit Test:** `src/components/__tests__/POIFormModal.test.jsx`
-- [ ] `TSK-03.4.3` `[Test]` **Unit Test Suite for US 03.4 (`test_poi_controller.py`, `POIFormModal.test.jsx`)**
+- [x] `TSK-03.4.3` `[Test]` **Unit Test Suite for US 03.4 (`test_poi_controller.py`, `POIFormModal.test.jsx`)**
   - **Scope:** Test POI metadata updates, automatic setting of `POITranslation.Status = 'NEEDS_UPDATE'` on description change, and edit modal pre-filling and validation.
   - **DoD:** 100% test pass in Pytest and Vitest, $\ge 80\%$ line & branch code coverage.
   - **Execution:** `pytest tests/unit/controllers/test_poi_controller.py` && `npm run test -- POIFormModal`

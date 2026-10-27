@@ -60,6 +60,7 @@ export default function AdminMapPicker({
   initialRadius,
   isSaving = false,
   onSave,
+  onChange,
 }) {
   const mapElementRef = useRef(null);
   const mapRef = useRef(null);
@@ -146,6 +147,13 @@ export default function AdminMapPicker({
   useEffect(() => {
     circleRef.current?.setRadius(radius);
   }, [radius]);
+
+  // Report changes to parent container if onChange listener provided
+  useEffect(() => {
+    if (onChange && Number.isFinite(latitude) && Number.isFinite(longitude)) {
+      onChange({ latitude, longitude, radius, isOutOfBounds });
+    }
+  }, [latitude, longitude, radius, isOutOfBounds, onChange]);
 
   // AC-03.2.3: an out-of-bounds pin turns the circle red as an extra cue.
   useEffect(() => {

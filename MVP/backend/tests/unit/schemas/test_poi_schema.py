@@ -119,3 +119,21 @@ def test_should_reject_latitude_beyond_pydantic_limits(latitude):
 def test_should_reject_longitude_beyond_pydantic_limits(longitude):
     with pytest.raises(ValidationError):
         POIUpdateRequest(longitude=longitude)
+
+
+def test_should_accept_metadata_fields_in_poi_update_request():
+    req = POIUpdateRequest(
+        title="Bếp Hoàng Cầm",
+        short_description="Bếp không khói",
+        description="Chi tiết bếp Hoàng Cầm",
+        image_url="/static/images/bep.jpg",
+    )
+    assert req.title == "Bếp Hoàng Cầm"
+    assert req.short_description == "Bếp không khói"
+    assert req.description == "Chi tiết bếp Hoàng Cầm"
+    assert req.image_url == "/static/images/bep.jpg"
+
+
+def test_should_reject_blank_title_in_poi_update_request():
+    with pytest.raises(ValidationError):
+        POIUpdateRequest(title="")
