@@ -62,4 +62,14 @@ it does not expose full narration or audio URLs. The API does not create tables
 or sample content automatically: apply the project schema and populate it with
 published content before testing against MySQL.
 
-Run the backend tests from this directory with `python -m pytest`.
+The backend tests use the MySQL database configured by `DATABASE_URL`. Set it
+to the `smart_museum` connection from `DatabaseSetup.md` in the same PowerShell
+window, then run the test suite:
+
+```powershell
+$env:DATABASE_URL = "mysql+pymysql://<user>:<password>@127.0.0.1:3306/smart_museum"
+python -m pytest
+```
+
+The public map API tests insert uniquely identified temporary rows and remove
+only those rows after each test; they do not recreate or drop the MySQL schema.
