@@ -90,26 +90,26 @@
 > **So that** I can plan my route and decide whether to visit that exhibit.
 >
 > * **Priority:** Must Have | **Estimate:** 3 SP
-> * **Progress:** [ ] 0/3 Tasks Completed
+> * **Progress:** [x] 3/3 Tasks Completed
 
 #### Acceptance Criteria:
-- [ ] **AC-01.2.1:** Exhibit pins display sequential numbers. Active playing pin turns blue `#1D4ED8`, while completed/listened pins turn green `#15803D`.
-- [ ] **AC-01.2.2:** Tapping a pin slides up a mobile Bottom Sheet ($<40\text{vh}$) displaying: 72x72px thumbnail, exhibit title, calculated walking distance, free preview summary, "Directions" button, and "Play Narration" button.
-- [ ] **AC-01.2.3:** Tapping empty map space or swiping down dismisses the Bottom Sheet.
+- [x] **AC-01.2.1:** Exhibit pins display sequential numbers. Active playing pin turns blue `#1D4ED8`, while completed/listened pins turn green `#15803D`.
+- [x] **AC-01.2.2:** Tapping a pin slides up a mobile Bottom Sheet ($<40\text{vh}$) displaying: 72x72px thumbnail, exhibit title, calculated walking distance, free preview summary, "Directions" button, and "Play Narration" button.
+- [x] **AC-01.2.3:** Tapping empty map space or swiping down dismisses the Bottom Sheet.
 
 #### Task Checklist:
-- [ ] `TSK-01.2.1` `[Frontend]` **POI Marker Rendering & Dynamic Geofence Circles**
+- [x] `TSK-01.2.1` `[Frontend]` **POI Marker Rendering & Dynamic Geofence Circles**
   - **Scope:** Query active exhibits and render numbered pins. Overlay individual configured `trigger_radius` (10m–50m) as dashed circles (`L.circle`).
   - **DoD:** Pins trigger `onSelectPOI(id)`; pin styling dynamically reflects state (`default`, `playing`, `visited`).
-  - **Paired Unit Test:** `src/components/__tests__/POIMarkersLayer.test.jsx`
-- [ ] `TSK-01.2.2` `[Frontend]` **POI Teaser Bottom Sheet Component (`POICardPreview.jsx`)**
+  - **Paired Unit Test:** `src/components/visitor/__tests__/VisitorPoiMarkers.test.jsx`
+- [x] `TSK-01.2.2` `[Frontend]` **POI Teaser Bottom Sheet Component (`PoiPreviewCard.jsx`)**
   - **Scope:** Mobile slide-up preview card containing thumbnail, title, Haversine distance, free introductory text, "Directions" CTA, and "Play Audio" CTA.
   - **DoD:** Opens with smooth transition; dismisses cleanly on backdrop click or downward swipe gesture.
-  - **Paired Unit Test:** `src/components/__tests__/POICardPreview.test.jsx`
-- [ ] `TSK-01.2.3` `[Test]` **Unit Test Suite for US 01.2 (`POIMarkersLayer.test.jsx`, `POICardPreview.test.jsx`)**
+  - **Paired Unit Test:** `src/components/visitor/__tests__/PoiPreviewCard.test.jsx`
+- [x] `TSK-01.2.3` `[Test]` **Unit Test Suite for US 01.2 (`VisitorPoiMarkers.test.jsx`, `PoiPreviewCard.test.jsx`)**
   - **Scope:** Test marker click triggers, pin color updates (playing/visited), bottom sheet opening, thumbnail render, distance display, and dismissal.
   - **DoD:** 100% test pass in Vitest, $\ge 80\%$ line & branch code coverage.
-  - **Execution:** `npm run test -- POIMarkersLayer POICardPreview`
+  - **Execution:** `npm run test -- src/components/visitor/__tests__/VisitorPoiMarkers.test.jsx src/components/visitor/__tests__/PoiPreviewCard.test.jsx`
 
 ---
 
