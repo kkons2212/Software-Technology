@@ -1,5 +1,7 @@
 """POIRepository encapsulating SQLAlchemy ORM data access operations for POI."""
 
+from decimal import Decimal
+
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -18,10 +20,6 @@ class POIRepository:
         self.db.commit()
         self.db.refresh(poi)
         return poi
-
-    def get_by_id(self, poi_id: str) -> POI | None:
-        """Query a single POI by its primary key identifier."""
-        return self.db.query(POI).filter(POI.poi_id == poi_id).first()
 
     def get_all(
         self,
@@ -76,3 +74,30 @@ class POIRepository:
             .order_by(POI.poi_id)
         )
         return list(self.db.execute(statement).all())
+
+    def get_by_id(self, poi_id: str) -> POI | None:
+        """Fetch a single POI by primary key, or `None` when it is absent."""
+        return self.db.get(POI, poi_id)
+
+    def update_geofence(
+        self,
+        poi: POI,
+        latitude: float | None = None,
+        longitude: float | None = None,
+        radius: int | None = None,
+    ) -> POI:
+        """Persist only the supplied geofence fields and return the POI.
+
+        Coordinates are stored as `Decimal` to match the `Numeric(10, 7)`
+        column, so the float coming from the map never introduces binary
+        rounding drift on the stored value.
+        """
+        if latitude is not None:
+            poi.latitude = Decimal(str(latitude))
+        if longitude is not None:
+            poi.longitude = Decimal(str(longitude))
+        if radius is not None:
+            poi.radius = radius
+        self.db.commit()
+        self.db.refresh(poi)
+        return poi

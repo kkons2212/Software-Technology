@@ -1,4 +1,6 @@
-"""POIService encapsulating business logic for POI catalog & spatial validation."""
+"""POIService encapsulating business logic for POI catalog, spatial validation
+and Admin geofence writes.
+"""
 
 import os
 import uuid
@@ -9,6 +11,8 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.database import get_db
+from app.core.exceptions import ApiError
+from app.models.audit import AUDIT_STATUS_SUCCESS
 from app.models.poi import POI
 from app.models.translation import POITranslation
 from app.repositories.audit_repository import AuditRepository
@@ -19,27 +23,49 @@ from app.schemas.poi_schema import (
     POIMapItem,
     POIResponse,
     POITranslationStatusResponse,
+    POIUpdateRequest,
 )
+
+GEO_OUT_OF_BOUNDS_ERROR_CODE = "GEO_OUT_OF_BOUNDS"
+GEO_OUT_OF_BOUNDS_ERROR_MESSAGE = (
+    "Coordinates must fall inside the Cu Chi Tunnels boundary."
+)
+POI_NOT_FOUND_ERROR_CODE = "POI_NOT_FOUND"
+POI_NOT_FOUND_ERROR_MESSAGE = "The requested exhibit does not exist."
+POI_GEOFENCE_UPDATED_DETAILS = "ADMIN_POI_GEOFENCE_UPDATED"
 
 TARGET_FOREIGN_LANGUAGES = ["en", "ja", "ko", "zh"]
 
 
-def validate_coordinates_in_bounds(lat: float, lng: float) -> None:
-    """Enforce boundary guardrail ensuring POI is within Cu Chi Tunnels complex."""
+def _is_within_cu_chi_bounds(latitude: float, longitude: float) -> bool:
+    """Single perimeter predicate shared by the create and geofence flows.
+
+    The bounds live in `settings.CU_CHI_BOUNDS` and are kept in sync with the
+    frontend constant in `src/utils/museumBounds.js`.
+    """
     bounds = settings.CU_CHI_BOUNDS
-    if not (
-        bounds["min_lat"] <= lat <= bounds["max_lat"]
-        and bounds["min_lng"] <= lng <= bounds["max_lng"]
-    ):
+    return (
+        bounds["min_lat"] <= latitude <= bounds["max_lat"]
+        and bounds["min_lng"] <= longitude <= bounds["max_lng"]
+    )
+
+
+def validate_coordinates_in_bounds(lat: float, lng: float) -> None:
+    """Enforce boundary guardrail ensuring POI is within Cu Chi Tunnels complex.
+
+    Used by the exhibit creation flow, which reports the rejected position and
+    the permitted perimeter back to the caller.
+    """
+    if not _is_within_cu_chi_bounds(lat, lng):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail={
-                "code": "GEO_OUT_OF_BOUNDS",
+                "code": GEO_OUT_OF_BOUNDS_ERROR_CODE,
                 "message": "Coordinates fall outside the permitted perimeter of Cu Chi Tunnels.",
                 "details": {
                     "latitude": lat,
                     "longitude": lng,
-                    "allowed_bounds": bounds,
+                    "allowed_bounds": settings.CU_CHI_BOUNDS,
                 },
             },
         )
@@ -71,10 +97,16 @@ class POIService:
         poi_repo: POIRepository | None = None,
         audit_repo: AuditRepository | None = None,
         repository: POIRepository | None = None,
+        audit_repository: AuditRepository | None = None,
     ):
+        # `poi_repo`/`audit_repo` are the dependency-injection names, while
+        # `repository`/`audit_repository` are the explicit constructor names
+        # used by the geofence calibration suite. Both are accepted so no
+        # caller has to know which convention the other one picked.
         self.poi_repo = poi_repo or repository
         self.repository = self.poi_repo
-        self.audit_repo = audit_repo
+        self.audit_repo = audit_repo or audit_repository
+        self.audit_repository = self.audit_repo
 
     async def save_cover_image(self, file: UploadFile) -> str:
         """Validate and write uploaded image to disk."""
@@ -212,24 +244,80 @@ class POIService:
 
     def list_map_pois(self, language_code: str | None = None) -> list[POIMapItem]:
         """List active POIs for visitor map, localized for the requested language."""
-        result = []
-        for poi, translation in self.repository.list_active_pois(language_code):
-            result.append(
-                POIMapItem(
-                    id=poi.poi_id,
-                    title=translation.title if translation else poi.title,
-                    short_description=(
-                        translation.short_description
-                        if translation
-                        else poi.short_description
-                    ),
-                    image_url=poi.image_url,
-                    latitude=float(poi.latitude),
-                    longitude=float(poi.longitude),
-                    trigger_radius=poi.radius,
-                )
+        return [
+            self._to_map_item(poi, translation)
+            for poi, translation in self.repository.list_active_pois(language_code)
+        ]
+
+    def update_poi_geofence(
+        self,
+        poi_id: str,
+        payload: POIUpdateRequest,
+        admin_user_name: str,
+        client_ip: str | None = None,
+    ) -> POIMapItem:
+        """Validate and persist new coordinates and/or radius for one exhibit."""
+        poi = self.repository.get_by_id(poi_id)
+        if poi is None:
+            raise ApiError(
+                status_code=status.HTTP_404_NOT_FOUND,
+                code=POI_NOT_FOUND_ERROR_CODE,
+                message=POI_NOT_FOUND_ERROR_MESSAGE,
             )
-        return result
+
+        # Validate the resulting position while keeping the untouched axis when
+        # the payload changes only one of latitude/longitude.
+        target_latitude = (
+            payload.latitude if payload.latitude is not None else float(poi.latitude)
+        )
+        target_longitude = (
+            payload.longitude if payload.longitude is not None else float(poi.longitude)
+        )
+        self.validate_coordinates_in_bounds(target_latitude, target_longitude)
+
+        self.repository.update_geofence(
+            poi,
+            latitude=payload.latitude,
+            longitude=payload.longitude,
+            radius=payload.radius,
+        )
+        # dev_rules Section 3.3: every mutating Admin action is audited.
+        self.audit_repository.create_log_entry(
+            user_name=admin_user_name,
+            status=AUDIT_STATUS_SUCCESS,
+            ip_address=client_ip,
+            details=POI_GEOFENCE_UPDATED_DETAILS,
+        )
+        return self._to_map_item(poi)
+
+    @staticmethod
+    def validate_coordinates_in_bounds(latitude: float, longitude: float) -> None:
+        """Reject coordinates outside the perimeter with the Admin error envelope.
+
+        Unlike the module-level helper (used by exhibit creation, which returns
+        the permitted bounds), this one raises the standardized `ApiError` the
+        Admin Portal renders for a rejected geofence write.
+        """
+        if not _is_within_cu_chi_bounds(latitude, longitude):
+            raise ApiError(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                code=GEO_OUT_OF_BOUNDS_ERROR_CODE,
+                message=GEO_OUT_OF_BOUNDS_ERROR_MESSAGE,
+            )
+
+    @staticmethod
+    def _to_map_item(poi: POI, translation: POITranslation | None = None) -> POIMapItem:
+        return POIMapItem(
+            id=poi.poi_id,
+            title=translation.title if translation else poi.title,
+            short_description=(
+                translation.short_description if translation else poi.short_description
+            ),
+            image_url=poi.image_url,
+            latitude=float(poi.latitude),
+            longitude=float(poi.longitude),
+            trigger_radius=poi.radius,
+        )
 
     @staticmethod
     def _build_poi_response(

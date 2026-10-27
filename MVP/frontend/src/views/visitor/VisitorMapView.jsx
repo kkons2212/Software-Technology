@@ -3,7 +3,7 @@ import L from 'leaflet';
 import { LocateFixed } from 'lucide-react';
 import VisitorLocationMarker from '../../components/visitor/VisitorLocationMarker.jsx';
 import VisitorPoiMarkers from '../../components/visitor/VisitorPoiMarkers.jsx';
-import { MAIN_ENTRANCE, MUSEUM_BOUNDS } from '../../hooks/useGeolocation.js';
+import { MAIN_ENTRANCE, MUSEUM_BOUNDS } from '../../utils/museumBounds.js';
 
 const DEFAULT_ZOOM = 17;
 const TILE_LAYER_URL = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';

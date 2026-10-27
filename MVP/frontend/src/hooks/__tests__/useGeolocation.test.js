@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, renderHook, act } from '@testing-library/react';
-import useGeolocation, { MAIN_ENTRANCE } from '../useGeolocation.js';
+import useGeolocation from '../useGeolocation.js';
+import { MAIN_ENTRANCE } from '../../utils/museumBounds.js';
 
 const GEOLOCATION_OPTIONS = {
   enableHighAccuracy: true,

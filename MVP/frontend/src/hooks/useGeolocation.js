@@ -1,25 +1,14 @@
 import { useEffect, useState } from 'react';
-
-export const MAIN_ENTRANCE = { lat: 11.1432, lng: 106.4631 };
-export const MUSEUM_BOUNDS = {
-  minLat: 11.135,
-  maxLat: 11.155,
-  minLng: 106.45,
-  maxLng: 106.475,
-};
+import {
+  MAIN_ENTRANCE,
+  isWithinMuseumBounds,
+} from '../utils/museumBounds.js';
 
 const GEOLOCATION_OPTIONS = {
   enableHighAccuracy: true,
   timeout: 5000,
   maximumAge: 0,
 };
-
-function isWithinMuseumBounds(latitude, longitude) {
-  return latitude >= MUSEUM_BOUNDS.minLat
-    && latitude <= MUSEUM_BOUNDS.maxLat
-    && longitude >= MUSEUM_BOUNDS.minLng
-    && longitude <= MUSEUM_BOUNDS.maxLng;
-}
 
 function getGeolocationErrorMessage(error) {
   if (error?.code === 1) {
