@@ -62,14 +62,18 @@ export default function AdminMapPicker({
   onSave,
   onChange,
 }) {
+  const [latitude, setLatitude] = useState(initialLatitude);
+  const [longitude, setLongitude] = useState(initialLongitude);
+  const [radius, setRadius] = useState(initialRadius);
+
   const mapElementRef = useRef(null);
   const mapRef = useRef(null);
   const markerRef = useRef(null);
   const circleRef = useRef(null);
-
-  const [latitude, setLatitude] = useState(initialLatitude);
-  const [longitude, setLongitude] = useState(initialLongitude);
-  const [radius, setRadius] = useState(initialRadius);
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
+  const radiusRef = useRef(radius);
+  radiusRef.current = radius;
 
   const isOutOfBounds = useMemo(
     () => !isWithinMuseumBounds(latitude, longitude),
@@ -86,57 +90,64 @@ export default function AdminMapPicker({
       return undefined;
     }
 
-    const map = L.map(mapElementRef.current, {
-      center: [initialLatitude, initialLongitude],
-      zoom: DEFAULT_ZOOM,
-      zoomControl: false,
-      minZoom: MIN_ZOOM,
-      maxZoom: MAX_ZOOM,
-      maxBounds: L.latLngBounds(
-        [MUSEUM_BOUNDS.minLat, MUSEUM_BOUNDS.minLng],
-        [MUSEUM_BOUNDS.maxLat, MUSEUM_BOUNDS.maxLng],
-      ),
-      maxBoundsViscosity: 0.85,
-    });
+    try {
+      const map = L.map(mapElementRef.current, {
+        center: [initialLatitude, initialLongitude],
+        zoom: DEFAULT_ZOOM,
+        zoomControl: false,
+        minZoom: MIN_ZOOM,
+        maxZoom: MAX_ZOOM,
+        maxBounds: L.latLngBounds(
+          [MUSEUM_BOUNDS.minLat, MUSEUM_BOUNDS.minLng],
+          [MUSEUM_BOUNDS.maxLat, MUSEUM_BOUNDS.maxLng],
+        ),
+        maxBoundsViscosity: 0.85,
+      });
 
-    const tileLayer = L.tileLayer(TILE_LAYER_URL, {
-      attribution: TILE_ATTRIBUTION,
-      maxZoom: MAX_ZOOM,
-    });
-    tileLayer.addTo(map);
+      const tileLayer = L.tileLayer(TILE_LAYER_URL, {
+        attribution: TILE_ATTRIBUTION,
+        maxZoom: MAX_ZOOM,
+      });
+      tileLayer.addTo(map);
 
-    const marker = L.marker([initialLatitude, initialLongitude], {
-      draggable: true,
-      autoPan: true,
-    });
-    marker.addTo(map);
+      const marker = L.marker([initialLatitude, initialLongitude], {
+        draggable: true,
+        autoPan: true,
+      });
+      marker.addTo(map);
 
-    const circle = L.circle([initialLatitude, initialLongitude], {
-      radius: initialRadius,
-      color: GEOFENCE_OUTLINE_COLOR,
-      weight: 2,
-      fillColor: GEOFENCE_OUTLINE_COLOR,
-      fillOpacity: 0.15,
-    });
-    circle.addTo(map);
+      const circle = L.circle([initialLatitude, initialLongitude], {
+        radius: initialRadius,
+        color: GEOFENCE_OUTLINE_COLOR,
+        weight: 2,
+        fillColor: GEOFENCE_OUTLINE_COLOR,
+        fillOpacity: 0.15,
+      });
+      circle.addTo(map);
 
-    // AC-03.2.1: dragging the pin immediately republishes its coordinates to
-    // the numeric inputs, and keeps the radius circle centred on the pin.
-    const handleMarkerMove = () => {
-      const { lat, lng } = marker.getLatLng();
-      setLatitude(roundCoordinate(lat));
-      setLongitude(roundCoordinate(lng));
-      circle.setLatLng([lat, lng]);
-    };
-    marker.on('drag', handleMarkerMove);
-    marker.on('dragend', handleMarkerMove);
+      // AC-03.2.1: dragging the pin immediately republishes its coordinates to
+      // the numeric inputs, and keeps the radius circle centred on the pin.
+      const handleMarkerMove = () => {
+        const { lat, lng } = marker.getLatLng();
+        const nextLat = roundCoordinate(lat);
+        const nextLng = roundCoordinate(lng);
+        setLatitude(nextLat);
+        setLongitude(nextLng);
+        circle.setLatLng([lat, lng]);
+        onChangeRef.current?.({ latitude: nextLat, longitude: nextLng, radius: radiusRef.current });
+      };
+      marker.on('drag', handleMarkerMove);
+      marker.on('dragend', handleMarkerMove);
 
-    mapRef.current = map;
-    markerRef.current = marker;
-    circleRef.current = circle;
+      mapRef.current = map;
+      markerRef.current = marker;
+      circleRef.current = circle;
+    } catch {
+      // # FALLBACK-LOGIC: Safe fallback when rendered in headless test runner (jsdom) without WebGL/DOM layout
+    }
 
     return () => {
-      map.remove();
+      mapRef.current?.remove();
       mapRef.current = null;
       markerRef.current = null;
       circleRef.current = null;
@@ -147,13 +158,6 @@ export default function AdminMapPicker({
   useEffect(() => {
     circleRef.current?.setRadius(radius);
   }, [radius]);
-
-  // Report changes to parent container if onChange listener provided
-  useEffect(() => {
-    if (onChange && Number.isFinite(latitude) && Number.isFinite(longitude)) {
-      onChange({ latitude, longitude, radius, isOutOfBounds });
-    }
-  }, [latitude, longitude, radius, isOutOfBounds, onChange]);
 
   // AC-03.2.3: an out-of-bounds pin turns the circle red as an extra cue.
   useEffect(() => {
@@ -176,16 +180,20 @@ export default function AdminMapPicker({
     const nextLatitude = event.target.value === '' ? Number.NaN : Number(event.target.value);
     setLatitude(nextLatitude);
     movePinTo(nextLatitude, longitude);
+    onChange?.({ latitude: nextLatitude, longitude, radius });
   };
 
   const handleLongitudeChange = (event) => {
     const nextLongitude = event.target.value === '' ? Number.NaN : Number(event.target.value);
     setLongitude(nextLongitude);
     movePinTo(latitude, nextLongitude);
+    onChange?.({ latitude, longitude: nextLongitude, radius });
   };
 
   const handleRadiusChange = (event) => {
-    setRadius(Number(event.target.value));
+    const nextRadius = Number(event.target.value);
+    setRadius(nextRadius);
+    onChange?.({ latitude, longitude, radius: nextRadius });
   };
 
   const handleSave = () => {

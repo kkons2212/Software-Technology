@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import AdminHeader from '../../components/admin/AdminHeader.jsx';
 import { getPois, createPoi } from '../../api/poiApi.js';
+import AdminMapPicker from '../../components/admin/AdminMapPicker.jsx';
 import POIFormModal from '../../components/admin/POIFormModal.jsx';
 
 const CU_CHI_BOUNDS = {
@@ -331,6 +332,23 @@ export default function PoiCatalogPage() {
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder="Full historical chronicle used for AI translation and audio synthesis..."
                   className="mt-1 w-full rounded-md border border-slate-300 px-3 py-1.5 text-xs text-slate-900 focus:border-slate-800 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <span className="block text-xs font-medium text-slate-700 mb-1">
+                  Interactive Geofence Calibration (Pin & Radius: 10m–50m)
+                </span>
+                <AdminMapPicker
+                  poiId="new-exhibit-picker"
+                  initialLatitude={parseFloat(latitude) || 11.1432}
+                  initialLongitude={parseFloat(longitude) || 106.4631}
+                  initialRadius={radius}
+                  onChange={({ latitude: nextLat, longitude: nextLng, radius: nextRad }) => {
+                    setLatitude(String(nextLat));
+                    setLongitude(String(nextLng));
+                    setRadius(nextRad);
+                  }}
                 />
               </div>
 
