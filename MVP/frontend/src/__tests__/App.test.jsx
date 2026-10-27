@@ -102,4 +102,3 @@ describe('App', () => {
     ).toBeInTheDocument();
   });
 });
-

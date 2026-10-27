@@ -31,6 +31,10 @@ vi.mock('../../components/visitor/VisitorLocationMarker.jsx', () => ({
   default: () => null,
 }));
 
+vi.mock('../../components/visitor/VisitorPoiMarkers.jsx', () => ({
+  default: () => null,
+}));
+
 import VisitorMapView from '../visitor/VisitorMapView.jsx';
 
 beforeEach(() => {

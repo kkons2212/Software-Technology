@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import VisitorMapView from './VisitorMapView.jsx';
 import VisitorHeader from '../../components/visitor/VisitorHeader.jsx';
 import { getPublishedLanguages } from '../../api/languageApi.js';
+import { getMapPois } from '../../api/poiApi.js';
 import useGeolocation from '../../hooks/useGeolocation.js';
 
 const PREFERRED_LANGUAGE_KEY = 'museum_preferred_lang';
@@ -17,6 +18,9 @@ export default function VisitorTourPage({
   const [selectedLanguage, setSelectedLanguage] = useState('');
   const [languageError, setLanguageError] = useState('');
   const [retryCount, setRetryCount] = useState(0);
+  const [pois, setPois] = useState([]);
+  const [poiError, setPoiError] = useState('');
+  const [poiRetryCount, setPoiRetryCount] = useState(0);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -49,6 +53,29 @@ export default function VisitorTourPage({
     return () => controller.abort();
   }, [retryCount]);
 
+  useEffect(() => {
+    if (!selectedLanguage) {
+      setPois([]);
+      return undefined;
+    }
+
+    setPois([]);
+    setPoiError('');
+    const controller = new AbortController();
+    getMapPois({ language: selectedLanguage, signal: controller.signal })
+      .then((availablePois) => {
+        setPois(availablePois);
+        setPoiError('');
+      })
+      .catch((error) => {
+        if (error.name !== 'AbortError') {
+          setPoiError('Unable to load map locations. Check your connection and try again.');
+        }
+      });
+
+    return () => controller.abort();
+  }, [poiRetryCount, selectedLanguage]);
+
   const handleLanguageChange = (languageCode) => {
     window.localStorage.setItem(PREFERRED_LANGUAGE_KEY, languageCode);
     setSelectedLanguage(languageCode);
@@ -74,6 +101,15 @@ export default function VisitorTourPage({
         </div>
       )}
 
+      {poiError && (
+        <div className="visitor-language-error" role="alert">
+          <span>{poiError}</span>
+          <button type="button" onClick={() => setPoiRetryCount((count) => count + 1)}>
+            Retry
+          </button>
+        </div>
+      )}
+
       {errorMessage && (
         <div className="visitor-location-banner" role="status">
           <span className="visitor-location-banner-dot" aria-hidden="true" />
@@ -85,6 +121,7 @@ export default function VisitorTourPage({
         location={location}
         accuracy={accuracy}
         hasLiveLocation={hasLiveLocation}
+        pois={pois}
       />
     </main>
   );

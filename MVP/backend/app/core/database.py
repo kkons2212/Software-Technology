@@ -17,7 +17,17 @@ class Base(DeclarativeBase):
 
 
 def create_database_engine(settings: Settings) -> Engine:
-    """Build the MySQL engine with the mandated connection-pool settings."""
+    """Build the engine with the mandated connection-pool settings.
+
+    SQLite (used by the unit-test suite) needs the thread-sharing connect arg
+    instead of the MySQL connection-pool tuning.
+    """
+    if settings.DATABASE_URL.startswith("sqlite"):
+        return create_engine(
+            settings.DATABASE_URL,
+            connect_args={"check_same_thread": False},
+            pool_pre_ping=True,
+        )
     return create_engine(
         settings.DATABASE_URL,
         pool_size=settings.DB_POOL_SIZE,
@@ -28,7 +38,6 @@ def create_database_engine(settings: Settings) -> Engine:
 
 
 engine = create_database_engine(get_settings())
-
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
 
 

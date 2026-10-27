@@ -13,6 +13,9 @@ BACKEND_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if BACKEND_ROOT not in sys.path:
     sys.path.insert(0, BACKEND_ROOT)
 
+# Keep module-level engine creation isolated from the local MySQL configuration.
+os.environ.setdefault("DATABASE_URL", "sqlite:///./test-default.db")
+
 from app.core.config import Settings  # noqa: E402
 from app.core.database import Base  # noqa: E402
 from app.models.audit import Audit  # noqa: E402,F401  (registers the `Audit` table)

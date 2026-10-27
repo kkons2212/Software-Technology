@@ -8,7 +8,7 @@
 
 | Story ID | User Story Title | Use Case | Priority | Story Points | Total Tasks | Progress Status |
 |:---|:---|:---:|:---:|:---:|:---:|:---:|
-| [**US 01.1**](#-us-011-interactive-outdoor-map-header--real-time-gps-tracking) | Interactive Outdoor Map, Header & Real-Time GPS Tracking | UC-01 | Must Have | 5 SP | 5 Tasks | [ ] 0/5 |
+| [**US 01.1**](#-us-011-interactive-outdoor-map-header--real-time-gps-tracking) | Interactive Outdoor Map, Header & Real-Time GPS Tracking | UC-01 | Must Have | 5 SP | 5 Tasks | [x] 5/5 |
 | [**US 01.2**](#-us-012-tap-map-marker-for-teaser-preview-bottom-sheet) | Tap Map Marker for Teaser Preview Bottom Sheet | UC-01 | Must Have | 3 SP | 3 Tasks | [ ] 0/3 |
 | [**US 01.3**](#-us-013-automated-voice-narration-on-gps-proximity--mini-audio-player) | Automated Voice Narration on GPS Proximity & Mini Audio Player | UC-01 | Must Have | 8 SP | 6 Tasks | [ ] 4/6 |
 | [**US 01.4**](#-us-014-intelligent-recommended-walking-route-wayfinding) | Intelligent Recommended Walking Route Wayfinding | UC-01 | Should Have | 5 SP | 3 Tasks | [ ] 0/3 |
@@ -31,7 +31,7 @@
 | [**US 06.2**](#-us-062-webhook-driven-24-hour-visiting-session-activation) | Webhook-Driven 24-Hour Visiting Session Activation | UC-06 | Must Have | 5 SP | 4 Tasks | [ ] 0/4 |
 | [**US 06.3**](#-us-063-multi-device-session-recovery-via-session-code) | Multi-Device Session Recovery via Session Code | UC-06 | Should Have | 3 SP | 3 Tasks | [ ] 0/3 |
 | [**US 06.4**](#-us-064-content-protection--narrativeaudio-decryption-access-control) | Content Protection & Narrative/Audio Decryption Access Control | UC-06 | Must Have | 5 SP | 4 Tasks | [ ] 0/4 |
-| **TOTAL** | **23 User Stories (All Units Tested)** | — | — | **100 SP** | **90 Tasks** | **[ ] 5/90 Tasks** |
+| **TOTAL** | **23 User Stories (2 Complete)** | — | — | **100 SP** | **92 Tasks** | **[x] 16/92 Tasks** |
 
 ---
 
@@ -43,35 +43,44 @@
 > **So that** I can easily orient myself on the historic relic grounds and identify nearby exhibits.
 >
 > * **Priority:** Must Have | **Estimate:** 5 SP
-> * **Progress:** [ ] 0/5 Tasks Completed
+> * **Progress:** [x] 7/7 Tasks Completed
 
 #### Acceptance Criteria:
-- [ ] **AC-01.1.1:** Fullscreen Leaflet map renders smoothly across mobile viewports (360px–430px), supporting pinch-to-zoom and pan interactions across Cu Chi complex boundaries.
-- [ ] **AC-01.1.2:** System queries location via standard HTML5 Geolocation API. If location permission is denied or GPS is disabled, gracefully default map viewport to Main Entrance (`11.1432, 106.4631`) and prompt an informative banner.
-- [ ] **AC-01.1.3:** Fixed 56px top header features a Dynamic Language Selector **filtering strictly `PUBLISHED` languages**, accompanied by an active 24-hour session countdown badge.
-- [ ] **AC-01.1.4:** Visitor location is represented by a 14x14px `#1D4ED8` blue dot with a white stroke and a subtle GPS accuracy radius buffer.
+- [x] **AC-01.1.1:** Fullscreen Leaflet map renders smoothly across mobile viewports (360px–430px), supporting pinch-to-zoom and pan interactions across Cu Chi complex boundaries.
+- [x] **AC-01.1.2:** System queries location via standard HTML5 Geolocation API. If location permission is denied or GPS is disabled, gracefully default map viewport to Main Entrance (`11.1432, 106.4631`) and prompt an informative banner.
+- [x] **AC-01.1.3:** Fixed 56px top header features a Dynamic Language Selector **filtering strictly `PUBLISHED` languages**, accompanied by an active 24-hour session countdown badge.
+- [x] **AC-01.1.4:** Visitor location is represented by a 14x14px `#1D4ED8` blue dot with a white stroke and a subtle GPS accuracy radius buffer.
+- [x] **AC-01.1.5:** Active POIs are loaded from the public API and displayed as map markers; language-specific markers require published translations and ready audio.
 
 #### Task Checklist:
-- [ ] `TSK-01.1.1` `[Frontend]` **Fullscreen Leaflet Map Container (`VisitorMapView.jsx`)**
+- [x] `TSK-01.1.1` `[Frontend]` **Fullscreen Leaflet Map Container (`VisitorMapView.jsx`)**
   - **Scope:** Initialize Leaflet with OpenStreetMap tiles, custom zoom (+/-) controls, and a dedicated 44x44px circular "Locate Me" button at the bottom-right viewport.
   - **DoD:** Map renders without tile seams or flickering; zoom/pan gestures are touch-optimized.
   - **Paired Unit Test:** `src/views/__tests__/VisitorMapView.test.jsx`
-- [ ] `TSK-01.1.2` `[Frontend]` **Real-Time GPS Tracking Hook (`useGeolocation.js`)**
+- [x] `TSK-01.1.2` `[Frontend]` **Real-Time GPS Tracking Hook (`useGeolocation.js`)**
   - **Scope:** Continuous geolocation listener using `navigator.geolocation.watchPosition` with options `{ enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }`. Invoke `clearWatch` on unmount. Implement fallback to Main Entrance on errors.
   - **DoD:** State updates coordinates accurately; gracefully handles `PERMISSION_DENIED`, `POSITION_UNAVAILABLE`, and `TIMEOUT` error codes.
   - **Paired Unit Test:** `src/hooks/__tests__/useGeolocation.test.js`
-- [ ] `TSK-01.1.3` `[Frontend]` **Mobile Header & Dynamic Language Switcher (`VisitorHeader.jsx`)**
+- [x] `TSK-01.1.3` `[Frontend]` **Mobile Header & Dynamic Language Switcher (`VisitorHeader.jsx`)**
   - **Scope:** Fixed 56px navbar querying active languages (`GET /api/v1/languages`). Render native language labels. Show 24h countdown badge for active sessions.
   - **DoD:** Filter out unapproved/draft languages; language switch updates audio/text context without triggering a full page reload.
-  - **Paired Unit Test:** `src/components/__tests__/VisitorHeader.test.jsx`
-- [ ] `TSK-01.1.4` `[Frontend]` **Visitor GPS Blue Dot & Accuracy Overlay**
+  - **Paired Unit Test:** `src/components/visitor/__tests__/VisitorHeader.test.jsx`
+- [x] `TSK-01.1.4` `[Frontend]` **Visitor GPS Blue Dot & Accuracy Overlay**
   - **Scope:** Implement custom Leaflet `L.divIcon` representing the visitor's physical walking position with a subtle pulsating ring effect.
   - **DoD:** Smooth marker transitions on position updates; marker remains centered when "Locate Me" is tapped.
-  - **Paired Unit Test:** `src/components/__tests__/VisitorLocationMarker.test.jsx`
-- [ ] `TSK-01.1.5` `[Test]` **Unit Test Suite for US 01.1 (`VisitorMapView.test.jsx`, `useGeolocation.test.js`, `VisitorHeader.test.jsx`)**
-  - **Scope:** Validate map rendering, geolocation watch/error/timeout fallbacks, dynamic language selector filtering only `PUBLISHED` languages, and blue dot marker transitions.
+  - **Paired Unit Test:** `src/components/visitor/__tests__/VisitorLocationMarker.test.jsx`
+- [x] `TSK-01.1.5` `[Test]` **Unit Test Suite for US 01.1**
+  - **Scope:** Validate map rendering, geolocation watch/error/timeout fallbacks, published-language loading and persistence, active session countdown, and visitor/POI marker behavior.
   - **DoD:** 100% test pass in Vitest, $\ge 80\%$ line & branch code coverage, zero unhandled rejections.
-  - **Execution:** `npm run test -- VisitorMapView useGeolocation VisitorHeader`
+  - **Execution:** `npm run test`
+- [x] `TSK-01.1.6` `[Backend]` **Public Published-Language and Map-POI APIs**
+  - **Scope:** Implement `GET /api/v1/languages` and `GET /api/v1/pois` through Controller → Service → Repository, filtering map data to active POIs and published translations with ready audio when a language is selected.
+  - **DoD:** Responses match the visitor API contract and expose only map summaries, coordinates, image URLs, and trigger radii.
+  - **Paired Unit Test:** `tests/unit/test_public_map_api.py`
+- [x] `TSK-01.1.7` `[Frontend]` **Load and Render Public Map POIs**
+  - **Scope:** Load POIs for the selected published language and render markers alongside the visitor's location, with visible retry feedback when the API is unavailable.
+  - **DoD:** Language changes refresh the map markers and markers are removed cleanly when the map unmounts.
+  - **Paired Unit Tests:** `src/api/__tests__/poiApi.test.js`, `src/components/visitor/__tests__/VisitorPoiMarkers.test.jsx`
 
 ---
 
@@ -207,7 +216,7 @@
 - [x] `TSK-02.1.4` `[Frontend]` **Admin Login Page & Form Validation (`AdminLoginView.jsx`)**
   - **Scope:** Desktop login view, client form validation, authentication state context, and route guards protecting `/admin/*`. Also wires the Vite dev-server `server.proxy` (`/api`, `/static` → `http://127.0.0.1:8000`) so the relative API paths issued by `apiClient.js` reach FastAPI on the same origin, which is required for the `SameSite=Strict` session cookie and for the DoD redirection to be observable in a browser.
   - **DoD:** Clean redirection on successful login; displays clear inline alerts on authentication errors.
-  - **Paired Unit Test:** `src/views/__tests__/AdminLoginView.test.jsx`
+  - **Paired Unit Test:** `src/views/admin/__tests__/AdminLoginView.test.jsx`
 - [x] `TSK-02.1.5` `[Test]` **Unit Test Suite for US 02.1 (`test_user_repository.py`, `test_auth_service.py`, `AdminLoginView.test.jsx`)**
   - **Scope:** Test user queries in repository, Bcrypt password verification and JWT token generation in service, JIT DB lifecycle, and admin login form with route guards.
   - **DoD:** 100% test pass in Pytest and Vitest, $\ge 80\%$ line & branch code coverage.
