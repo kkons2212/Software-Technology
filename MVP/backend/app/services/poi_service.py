@@ -6,6 +6,7 @@ and Admin geofence writes.
 
 import os
 import uuid
+from decimal import Decimal
 from typing import Annotated
 
 from fastapi import BackgroundTasks, Depends, HTTPException, UploadFile, status
@@ -187,8 +188,8 @@ class POIService:
             short_description=payload.short_description,
             description=payload.description,
             image_url=payload.image_url,
-            latitude=payload.latitude,
-            longitude=payload.longitude,
+            latitude=Decimal(str(payload.latitude)),
+            longitude=Decimal(str(payload.longitude)),
             radius=payload.radius,
             is_active=True,
             create_by=admin_username,
