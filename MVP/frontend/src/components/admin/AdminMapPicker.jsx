@@ -61,6 +61,10 @@ export default function AdminMapPicker({
   isSaving = false,
   onSave,
   onChange,
+  latitudeLabel = 'Latitude',
+  longitudeLabel = 'Longitude',
+  radiusLabel = 'Trigger Radius',
+  outOfBoundsMessage = OUT_OF_BOUNDS_MESSAGE,
 }) {
   const [latitude, setLatitude] = useState(initialLatitude);
   const [longitude, setLongitude] = useState(initialLongitude);
@@ -226,12 +230,13 @@ export default function AdminMapPicker({
 
       <div className="grid grid-cols-2 gap-4">
         <label className="flex flex-col gap-1 text-sm font-medium text-slate-700">
-          Latitude
+          {latitudeLabel}
           <input
+            id="poi-latitude"
             type="number"
             inputMode="decimal"
             step="0.0000001"
-            aria-label="Latitude"
+            aria-label={latitudeLabel}
             aria-invalid={isOutOfBounds}
             value={Number.isNaN(latitude) ? '' : latitude}
             onChange={handleLatitudeChange}
@@ -239,12 +244,13 @@ export default function AdminMapPicker({
           />
         </label>
         <label className="flex flex-col gap-1 text-sm font-medium text-slate-700">
-          Longitude
+          {longitudeLabel}
           <input
+            id="poi-longitude"
             type="number"
             inputMode="decimal"
             step="0.0000001"
-            aria-label="Longitude"
+            aria-label={longitudeLabel}
             aria-invalid={isOutOfBounds}
             value={Number.isNaN(longitude) ? '' : longitude}
             onChange={handleLongitudeChange}
@@ -255,7 +261,7 @@ export default function AdminMapPicker({
 
       <div className="flex flex-col gap-1">
         <div className="flex items-center justify-between text-sm font-medium text-slate-700">
-          <label htmlFor="geofence-radius-slider">Trigger Radius</label>
+          <label htmlFor="geofence-radius-slider">{radiusLabel}</label>
           <span className="font-mono text-sm text-slate-900">{radius}m</span>
         </div>
         <input
@@ -266,14 +272,14 @@ export default function AdminMapPicker({
           step={RADIUS_STEP}
           value={radius}
           onChange={handleRadiusChange}
-          aria-label="Trigger Radius"
+          aria-label={radiusLabel}
           className="w-full accent-blue-700"
         />
       </div>
 
       {isOutOfBounds && (
         <p role="alert" className="text-sm font-medium text-[#B91C1C]">
-          {OUT_OF_BOUNDS_MESSAGE}
+          {outOfBoundsMessage}
         </p>
       )}
 

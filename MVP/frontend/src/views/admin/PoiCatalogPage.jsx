@@ -344,71 +344,15 @@ export default function PoiCatalogPage() {
                   initialLatitude={parseFloat(latitude) || 11.1432}
                   initialLongitude={parseFloat(longitude) || 106.4631}
                   initialRadius={radius}
+                  latitudeLabel="Latitude (WGS84) *"
+                  longitudeLabel="Longitude (WGS84) *"
+                  radiusLabel="Proximity Trigger Radius"
+                  outOfBoundsMessage="Warning: Coordinates must reside within Cu Chi site boundary (Lat: [11.1350, 11.1550], Lng: [106.4500, 106.4750])."
                   onChange={({ latitude: nextLat, longitude: nextLng, radius: nextRad }) => {
                     setLatitude(String(nextLat));
                     setLongitude(String(nextLng));
                     setRadius(nextRad);
                   }}
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label htmlFor="poi-latitude" className="block text-xs font-medium text-slate-700">
-                    Latitude (WGS84) *
-                  </label>
-                  <input
-                    id="poi-latitude"
-                    type="number"
-                    step="0.0001"
-                    required
-                    value={latitude}
-                    onChange={(e) => setLatitude(e.target.value)}
-                    className={`mt-1 w-full rounded-md border px-3 py-1.5 font-mono text-xs text-slate-900 focus:outline-none ${
-                      coordinateInvalid ? 'border-red-500 bg-red-50' : 'border-slate-300 focus:border-slate-800'
-                    }`}
-                  />
-                </div>
-                <div>
-                  <label htmlFor="poi-longitude" className="block text-xs font-medium text-slate-700">
-                    Longitude (WGS84) *
-                  </label>
-                  <input
-                    id="poi-longitude"
-                    type="number"
-                    step="0.0001"
-                    required
-                    value={longitude}
-                    onChange={(e) => setLongitude(e.target.value)}
-                    className={`mt-1 w-full rounded-md border px-3 py-1.5 font-mono text-xs text-slate-900 focus:outline-none ${
-                      coordinateInvalid ? 'border-red-500 bg-red-50' : 'border-slate-300 focus:border-slate-800'
-                    }`}
-                  />
-                </div>
-              </div>
-
-              {coordinateInvalid && (
-                <p className="text-[11px] text-red-600">
-                  Warning: Coordinates must reside within Cu Chi site boundary (Lat: 11.1350–11.1550, Lng: 106.4500–106.4750).
-                </p>
-              )}
-
-              <div>
-                <div className="flex items-center justify-between text-xs">
-                  <label htmlFor="poi-radius" className="font-medium text-slate-700">
-                    Proximity Trigger Radius
-                  </label>
-                  <span className="font-mono font-semibold text-slate-900">{radius} meters</span>
-                </div>
-                <input
-                  id="poi-radius"
-                  type="range"
-                  min="10"
-                  max="50"
-                  step="1"
-                  value={radius}
-                  onChange={(e) => setRadius(parseInt(e.target.value, 10))}
-                  className="mt-1 w-full accent-slate-800"
                 />
               </div>
 
