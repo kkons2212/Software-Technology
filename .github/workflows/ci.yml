@@ -78,8 +78,8 @@ jobs:
       - name: Fast Python Bytecode Compilation Check (< 2s)
         run: python -m compileall app -q
 
-      - name: Install Linting & Formatting Tools
-        run: pip install ruff black
+      - name: Install Dependencies (versions pinned in requirements.txt)
+        run: pip install -r requirements.txt
 
       - name: Run Ruff & Black Check
         run: |
@@ -123,9 +123,7 @@ jobs:
           cache-dependency-path: MVP/backend/requirements.txt
 
       - name: Install Dependencies
-        run: |
-          pip install -r requirements.txt
-          pip install pytest pytest-cov pytest-mock
+        run: pip install -r requirements.txt
 
       - name: Verify MySQL 8.0 DDL Schema
         run: |
