@@ -1,28 +1,34 @@
-"""Paired unit tests for `app.services.poi_service` (US 03.2 - TSK-03.2.1).
+"""Paired unit tests for `app.services.poi_service`.
 
-The Cu Chi bounding-box validator and the audited geofence write are exercised
-through the real repositories against the rollback-isolated MySQL session, so
-every assertion also proves that the persistence path (Decimal coordinates,
-radius column, `Audit` row) behaves as specified.
+Covers US 03.2 — the Cu Chi bounding-box validator and the audited geofence
+write, exercised through the real repositories against the rollback-isolated
+MySQL session (so every assertion also proves that the persistence path:
+Decimal coordinates, radius column, `Audit` row) — and TSK-03.1.2 / TSK-03.1.5:
+exhibit creation, foreign translation seeding, image validation and listing.
 """
 
+import io
 from decimal import Decimal
 
 import pytest
+from fastapi import HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import ApiError
 from app.models.audit import AUDIT_STATUS_SUCCESS, Audit
+from app.models.language import LanguageCode
 from app.models.poi import POI
 from app.models.user import User
 from app.repositories.audit_repository import AuditRepository
 from app.repositories.poi_repository import POIRepository
-from app.schemas.poi_schema import POIUpdateRequest
+from app.schemas.poi_schema import POICreateRequest, POIUpdateRequest
 from app.services.poi_service import (
     GEO_OUT_OF_BOUNDS_ERROR_CODE,
     POI_GEOFENCE_UPDATED_DETAILS,
     POI_NOT_FOUND_ERROR_CODE,
     POIService,
+    validate_coordinates_in_bounds,
+    validate_image_file,
 )
 
 ADMIN_USER_NAME = "admin"
@@ -76,10 +82,41 @@ def seeded_poi(db_session: Session) -> POI:
 
 @pytest.fixture()
 def poi_service(db_session: Session) -> POIService:
+    """Geofence-calibration service built with the explicit constructor names."""
     return POIService(
         repository=POIRepository(db_session),
         audit_repository=AuditRepository(db_session),
     )
+
+
+@pytest.fixture
+def poi_catalog_service(db_session):
+    """Exhibit-authoring service, seeded with the admin and the language codes."""
+    admin = db_session.query(User).filter_by(user_name="admin").first()
+    if not admin:
+        admin = User(
+            user_name="admin",
+            email="admin@cuchi.gov.vn",
+            password_hash="hash",
+            is_active=True,
+        )
+        db_session.add(admin)
+
+    existing_langs = {lang.language_id for lang in db_session.query(LanguageCode).all()}
+    for code, name in [
+        ("vi", "Tiếng Việt"),
+        ("en", "English"),
+        ("ja", "Japanese"),
+        ("ko", "Korean"),
+        ("zh", "Chinese"),
+    ]:
+        if code not in existing_langs:
+            db_session.add(LanguageCode(language_id=code, language_name=name))
+    db_session.flush()
+
+    poi_repo = POIRepository(db_session)
+    audit_repo = AuditRepository(db_session)
+    return POIService(poi_repo=poi_repo, audit_repo=audit_repo)
 
 
 def _count_success_audits(db_session: Session) -> int:
@@ -281,3 +318,118 @@ def test_should_reject_far_away_coordinates_in_the_static_validator(
         POIService.validate_coordinates_in_bounds(latitude, longitude)
 
     assert raised_error.value.status_code == 400
+
+
+# ---------------------------------------------------------------------------
+# EXHIBIT AUTHORING (TSK-03.1.2 / TSK-03.1.5)
+# ---------------------------------------------------------------------------
+@pytest.mark.asyncio
+async def test_should_create_poi_and_seed_foreign_translations_with_pending_status(
+    poi_catalog_service,
+):
+    payload = POICreateRequest(
+        title="Bếp Hoàng Cầm",
+        short_description="Bếp dã chiến không khói",
+        description="Sáng chế bếp dã chiến giấu khói dưới lòng đất.",
+        latitude=11.1440,
+        longitude=106.4635,
+        radius=30,
+    )
+    result = await poi_catalog_service.create_new_poi(payload, admin_username="admin")
+
+    assert result.title == "Bếp Hoàng Cầm"
+    assert result.radius == 30
+    assert float(result.latitude) == 11.1440
+    assert float(result.longitude) == 106.4635
+
+    # Verify translations: 1 Vietnamese (PUBLISHED) + 4 foreign languages (PENDING)
+    lang_statuses = {t.language_id: t.status for t in result.translations}
+    assert lang_statuses.get("vi") == "PUBLISHED"
+    assert lang_statuses.get("en") == "PENDING"
+    assert lang_statuses.get("ja") == "PENDING"
+    assert lang_statuses.get("ko") == "PENDING"
+    assert lang_statuses.get("zh") == "PENDING"
+
+
+def test_should_raise_400_when_coordinates_outside_cu_chi_bounds():
+    # Outside latitude boundary
+    with pytest.raises(HTTPException) as exc_info:
+        validate_coordinates_in_bounds(10.5000, 106.4631)
+    assert exc_info.value.status_code == 400
+
+    # Outside longitude boundary
+    with pytest.raises(HTTPException) as exc_info:
+        validate_coordinates_in_bounds(11.1432, 105.0000)
+    assert exc_info.value.status_code == 400
+
+
+def test_should_raise_400_when_image_mime_invalid():
+    dummy_file = UploadFile(
+        filename="document.pdf",
+        file=io.BytesIO(b"dummy pdf content"),
+        headers={"content-type": "application/pdf"},
+    )
+    with pytest.raises(HTTPException) as exc_info:
+        validate_image_file(dummy_file, b"dummy pdf content")
+    assert exc_info.value.status_code == 400
+    assert "Invalid image type" in str(exc_info.value.detail)
+
+
+def test_should_raise_400_when_image_exceeds_size_limit():
+    dummy_file = UploadFile(
+        filename="huge.jpg", file=io.BytesIO(), headers={"content-type": "image/jpeg"}
+    )
+    oversized_bytes = b"0" * (6 * 1024 * 1024)  # 6 MB > 5 MB
+    with pytest.raises(HTTPException) as exc_info:
+        validate_image_file(dummy_file, oversized_bytes)
+    assert exc_info.value.status_code == 400
+    assert "exceeds the maximum permitted limit" in str(exc_info.value.detail)
+
+
+@pytest.mark.asyncio
+async def test_should_log_audit_entry_when_poi_created(poi_catalog_service, db_session):
+    payload = POICreateRequest(
+        title="Hầm giải phẫu",
+        short_description="Phòng phẫu thuật ngầm",
+        description="Nơi cứu chữa thương binh.",
+        latitude=11.1432,
+        longitude=106.4631,
+        radius=25,
+    )
+    await poi_catalog_service.create_new_poi(
+        payload, admin_username="admin", ip_address="127.0.0.1"
+    )
+
+    # Direct verify audit in DB
+    audit_record = db_session.query(Audit).filter(Audit.Status == "CREATE_POI").first()
+    assert audit_record is not None
+    assert audit_record.UserName == "admin"
+    assert audit_record.Ip_address == "127.0.0.1"
+
+
+@pytest.mark.asyncio
+async def test_should_paginate_pois_and_search_in_service(poi_catalog_service):
+    for i in range(3):
+        await poi_catalog_service.create_new_poi(
+            POICreateRequest(
+                title=f"POI Point {i}",
+                latitude=11.1430 + (i * 0.001),
+                longitude=106.4630 + (i * 0.001),
+                radius=30,
+            ),
+            admin_username="admin",
+        )
+
+    res = poi_catalog_service.list_pois(search="POI Point", page=1, size=2)
+    assert res.total == 3
+    assert len(res.items) == 2
+
+    search_res = poi_catalog_service.list_pois(search="Point 1")
+    assert search_res.total == 1
+    assert search_res.items[0].title == "POI Point 1"
+
+
+def test_should_raise_404_when_poi_id_not_found(poi_catalog_service):
+    with pytest.raises(HTTPException) as exc_info:
+        poi_catalog_service.get_poi_details("NONEXISTENT_ID")
+    assert exc_info.value.status_code == 404

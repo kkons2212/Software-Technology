@@ -62,21 +62,16 @@ it does not expose full narration or audio URLs. The API does not create tables
 or sample content automatically: apply the project schema and populate it with
 published content before testing against MySQL.
 
-To add repeatable visitor-map demo content to the running project database, run
-this from the repository root in PowerShell:
+The backend tests use the MySQL database configured by `DATABASE_URL`. Set it
+to the `smart_museum` connection from `DatabaseSetup.md` in the same PowerShell
+window, then run the test suite:
 
 ```powershell
-$OutputEncoding = [Console]::OutputEncoding = New-Object System.Text.UTF8Encoding($false)
-Get-Content -Raw -Encoding UTF8 MVP\backend\scripts\seed_demo.sql |
-  docker exec -i smart_museum_db mysql --default-character-set=utf8mb4 -umuseum_app_user -papp_password_456 smart_museum
+$env:DATABASE_URL = "mysql+pymysql://<user>:<password>@127.0.0.1:3306/smart_museum"
+python -m pytest
 ```
 
-The seed script adds four demo POIs and published, audio-ready demo entries for
-Vietnamese, English, Japanese, and Korean. It only inserts or updates records
-whose IDs begin with `DEMO`; its audio URLs are placeholders, not playable
-narrations.
-
-Run the backend tests from this directory with `python -m pytest`. The suite
-runs against the MySQL container above (`smart_museum`): each test opens its own
-transaction, which is always rolled back, so existing development data is never
-modified. Start the container before running the tests.
+The test suite runs against the MySQL container above (`smart_museum`). Each
+test uses an isolated transaction that is rolled back, so test data is not
+retained and existing development data is not modified. Start the container
+before running tests.

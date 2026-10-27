@@ -1,12 +1,9 @@
-"""SQLAlchemy ORM model for the `Audit` table (authentication & action trail).
-
-US 02.1 - TSK-02.1.3: every login attempt is recorded with the client IP.
-"""
+"""SQLAlchemy ORM model for the `Audit` table (authentication & action trail)."""
 
 from datetime import datetime
 
 from sqlalchemy import DateTime, ForeignKey, String, func
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship, synonym
 
 from app.core.database import Base
 
@@ -16,7 +13,6 @@ AUDIT_IP_ADDRESS_MAX_LENGTH = 45
 AUDIT_DETAILS_MAX_LENGTH = 255
 AUDIT_USER_NAME_MAX_LENGTH = 20
 
-# Standardized UPPERCASE audit status values (dev_rules Section 4.1).
 AUDIT_STATUS_SUCCESS = "SUCCESS"
 AUDIT_STATUS_FAILED = "FAILED"
 AUDIT_STATUS_LOCKED = "LOCKED"
@@ -28,7 +24,7 @@ class Audit(Base):
     __tablename__ = "Audit"
 
     audit_id: Mapped[str] = mapped_column(
-        "AuditID", String(AUDIT_ID_MAX_LENGTH), primary_key=True
+        "AuditID", String(AUDIT_ID_MAX_LENGTH), primary_key=True, index=True
     )
     status: Mapped[str] = mapped_column(
         "Status", String(AUDIT_STATUS_MAX_LENGTH), nullable=False
@@ -40,7 +36,7 @@ class Audit(Base):
         "Details", String(AUDIT_DETAILS_MAX_LENGTH), nullable=True
     )
     create_at: Mapped[datetime] = mapped_column(
-        "Create_at", DateTime, nullable=False, server_default=func.now()
+        "Create_at", DateTime, nullable=False, server_default=func.now(), index=True
     )
     user_name: Mapped[str] = mapped_column(
         "UserName",
@@ -49,3 +45,12 @@ class Audit(Base):
         nullable=False,
         index=True,
     )
+
+    AuditID = synonym("audit_id")
+    Status = synonym("status")
+    Ip_address = synonym("ip_address")
+    Details = synonym("details")
+    Create_at = synonym("create_at")
+    UserName = synonym("user_name")
+
+    user = relationship("User")

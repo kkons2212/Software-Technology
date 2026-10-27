@@ -1,10 +1,8 @@
-"""Repository for `Audit` persistence: authentication and action logging.
+"""AuditRepository for recording administrative actions and security telemetry."""
 
-US 02.1 - TSK-02.1.3. Contains no business rules and never raises HTTP
-exceptions; the caller decides the HTTP outcome.
-"""
-
+import json
 import uuid
+from typing import Any
 
 from sqlalchemy.orm import Session
 
@@ -43,3 +41,23 @@ class AuditRepository:
         self.db.commit()
         self.db.refresh(log_entry)
         return log_entry
+
+    def log_action(
+        self,
+        username: str,
+        status: str,
+        ip_address: str | None = None,
+        details: Any | None = None,
+    ) -> Audit:
+        """Create an audit trail entry for administrator operations."""
+        details_str = (
+            json.dumps(details)
+            if isinstance(details, dict | list)
+            else (str(details) if details else None)
+        )
+        return self.create_log_entry(
+            user_name=username,
+            status=status,
+            ip_address=ip_address,
+            details=details_str[:255] if details_str else None,
+        )

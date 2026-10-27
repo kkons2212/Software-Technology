@@ -55,6 +55,14 @@ CREATE TABLE IF NOT EXISTS `LanguageCode` (
     PRIMARY KEY (`LanguageID`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+INSERT INTO `LanguageCode` (`LanguageID`, `LanguageName`) VALUES
+    ('vi', 'Tiếng Việt'),
+    ('en', 'English'),
+    ('ja', 'Japanese'),
+    ('ko', 'Korean'),
+    ('zh', 'Chinese')
+ON DUPLICATE KEY UPDATE `LanguageName` = VALUES(`LanguageName`);
+
 -- ------------------------------------------------------------------------------
 -- 4. TABLE `POI` (Historical Relic / Point of Interest)
 -- ------------------------------------------------------------------------------
