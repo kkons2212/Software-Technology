@@ -25,6 +25,13 @@ class TelemetryTriggerCreate(BaseModel):
     trigger_type: str | None = Field(
         "AUTO_GEOFENCE", alias="TriggerType", description="AUTO_GEOFENCE or MANUAL_TAP"
     )
+    preferred_language: str | None = Field(
+        None,
+        alias="PreferredLanguage",
+        min_length=2,
+        max_length=20,
+        description="Visitor language code used for language demographic analytics (US 05.2)",
+    )
 
 
 class TelemetryTriggerResponse(BaseModel):

@@ -15,6 +15,7 @@ export const TELEMETRY_TRIGGER_ENDPOINT = '/api/v1/telemetry/trigger';
  * @param {string} [payload.sessionId]
  * @param {number} [payload.dwellTime=0]
  * @param {string} [payload.triggerType='AUTOMATIC_GEOFENCE']
+ * @param {string | null} [payload.preferredLanguage=null]
  * @returns {Promise<Object>}
  */
 export async function reportPoiTrigger({
@@ -22,6 +23,7 @@ export async function reportPoiTrigger({
   sessionId = null,
   dwellTime = 0,
   triggerType = 'AUTOMATIC_GEOFENCE',
+  preferredLanguage = null,
 }) {
   try {
     const response = await fetch(TELEMETRY_TRIGGER_ENDPOINT, {
@@ -34,6 +36,9 @@ export async function reportPoiTrigger({
         SessionID: sessionId,
         DwellTime: dwellTime,
         TriggerType: triggerType,
+        // US 05.2: the backend mints the visitor session with this language so
+        // language demographics can be aggregated without a second call.
+        PreferredLanguage: preferredLanguage,
         Timestamp: new Date().toISOString(),
       }),
     });

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import VisitorMapView from './VisitorMapView.jsx';
 import VisitorHeader from '../../components/visitor/VisitorHeader.jsx';
 import PoiPreviewCard from '../../components/visitor/PoiPreviewCard.jsx';
@@ -11,6 +11,7 @@ import useGeolocation from '../../hooks/useGeolocation.js';
 
 const PREFERRED_LANGUAGE_KEY = 'museum_preferred_lang';
 const DEFAULT_LANGUAGE = 'vi';
+const MILLISECONDS_PER_SECOND = 1000;
 
 export default function VisitorTourPage({
   sessionCode = '',
@@ -27,22 +28,55 @@ export default function VisitorTourPage({
   const [poiRetryCount, setPoiRetryCount] = useState(0);
   const [selectedPoiId, setSelectedPoiId] = useState(null);
   const { currentPoi, isPlaying, completedPoiIds, play } = useAudioPlayer();
+  // Dwell windows opened by a real geofence trigger, keyed by POI id. The
+  // telemetry row is only reported once the visitor leaves the zone, because a
+  // duration cannot be measured at the moment of entry.
+  const dwellStartByPoiIdRef = useRef({});
 
   const handleProximityTrigger = useCallback((poi) => {
     play(poi);
-    reportPoiTrigger({
-      poiId: poi.poi_id || poi.id,
-      dwellTime: 10,
-      triggerType: 'AUTOMATIC_GEOFENCE',
-    });
-  }, [play]);
+    // The language is captured alongside the entry instant: the backend mints
+    // the visitor session from this value, so it must be the visitor's choice at
+    // the time the exhibit was actually triggered.
+    dwellStartByPoiIdRef.current[String(poi.poi_id || poi.id)] = {
+      startedAtMs: Date.now(),
+      language: selectedLanguage,
+    };
+  }, [play, selectedLanguage]);
 
-  useGeofenceTrigger({
+  const { activeGeofencePois } = useGeofenceTrigger({
     userLocation: location,
     pois,
     onTrigger: handleProximityTrigger,
     currentPlayingPoiId: currentPoi?.poi_id || currentPoi?.id,
   });
+
+  useEffect(() => {
+    const activePoiIds = new Set(
+      activeGeofencePois.map(({ poi }) => String(poi.poi_id || poi.id))
+    );
+
+    Object.keys(dwellStartByPoiIdRef.current).forEach((poiId) => {
+      if (activePoiIds.has(poiId)) {
+        return;
+      }
+
+      const { startedAtMs, language } = dwellStartByPoiIdRef.current[poiId];
+      delete dwellStartByPoiIdRef.current[poiId];
+
+      const dwellSeconds = Math.max(
+        0,
+        Math.round((Date.now() - startedAtMs) / MILLISECONDS_PER_SECOND)
+      );
+
+      reportPoiTrigger({
+        poiId,
+        dwellTime: dwellSeconds,
+        triggerType: 'AUTOMATIC_GEOFENCE',
+        preferredLanguage: language,
+      });
+    });
+  }, [activeGeofencePois]);
 
   useEffect(() => {
     const controller = new AbortController();

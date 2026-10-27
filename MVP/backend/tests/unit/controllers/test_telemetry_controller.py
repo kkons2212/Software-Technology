@@ -120,3 +120,22 @@ def test_should_return_422_when_dwell_time_is_negative(client, db_session):
     }
     response = client.post("/api/v1/telemetry/trigger", json=payload)
     assert response.status_code == 422
+
+
+def test_should_persist_payload_language_on_the_guest_session(client, db_session):
+    """US 05.2: the visitor language drives the language demographic aggregation."""
+    poi = setup_test_poi_and_language(db_session)
+
+    payload = {
+        "PoiID": poi.PoiID,
+        "DwellTime": 30,
+        "PreferredLanguage": "ja",
+    }
+    response = client.post("/api/v1/telemetry/trigger", json=payload)
+    assert response.status_code == 201
+
+    session_id = response.json()["session_id"]
+    stored_session = (
+        db_session.query(VisitorSession).filter_by(SessionID=session_id).one()
+    )
+    assert stored_session.PreferredLanguage == "ja"

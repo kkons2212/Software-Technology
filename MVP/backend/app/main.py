@@ -11,6 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from app.controllers.admin_poi_controller import router as admin_poi_router
+from app.controllers.analytics_controller import router as analytics_router
 from app.controllers.auth_controller import router as auth_router
 from app.controllers.language_controller import router as language_router
 from app.controllers.poi_controller import router as poi_router
@@ -61,6 +62,7 @@ def create_app() -> FastAPI:
     application.include_router(admin_poi_router)
     application.include_router(telemetry_router)
     application.include_router(translation_router)
+    application.include_router(analytics_router)
 
     @application.get("/health", tags=["System Health"])
     def health_check():

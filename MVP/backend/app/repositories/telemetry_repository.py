@@ -1,9 +1,12 @@
 """TelemetryRepository: Data access layer for POITrigger and VisitorSession."""
 
 import uuid
+from datetime import datetime
 
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from app.models.language import LanguageCode
 from app.models.poi import POI
 from app.models.session import VisitorSession
 from app.models.trigger import POITrigger
@@ -52,3 +55,91 @@ class TelemetryRepository:
         self.db.commit()
         self.db.refresh(trigger)
         return trigger
+
+    # -------------------------------------------------------------------------
+    # Read-only analytics aggregations (US 05.2)
+    # Each query filters or groups on an existing DDL index so the admin summary
+    # stays sub-second: idx_POITrigger_Trigger_at, idx_POITrigger_PoiID and
+    # idx_VisitorSession_PreferredLanguage.
+    # -------------------------------------------------------------------------
+
+    def count_visitor_sessions(self, range_start: datetime) -> int:
+        """Count visitor sessions created within the reporting window."""
+        total = (
+            self.db.query(func.count(VisitorSession.SessionID))
+            .filter(VisitorSession.Create_at >= range_start)
+            .scalar()
+        )
+        return int(total or 0)
+
+    def count_triggers(self, range_start: datetime) -> int:
+        """Count POI proximity triggers recorded within the reporting window."""
+        total = (
+            self.db.query(func.count(POITrigger.TriggerID))
+            .filter(POITrigger.Trigger_at >= range_start)
+            .scalar()
+        )
+        return int(total or 0)
+
+    def average_tour_duration_seconds(self, range_start: datetime) -> float:
+        """Average per-visitor total dwell seconds (tour length) in the window.
+
+        Tour duration is a per-session metric, so the SUM(DwellTime) is grouped by
+        SessionID first and only then averaged; a flat AVG(DwellTime) would instead
+        report the average dwell per exhibit, not per visitor (US 05.2).
+        """
+        per_session_totals = (
+            self.db.query(
+                POITrigger.SessionID.label("session_id"),
+                func.sum(POITrigger.DwellTime).label("total_dwell"),
+            )
+            .filter(POITrigger.Trigger_at >= range_start)
+            .group_by(POITrigger.SessionID)
+            .subquery()
+        )
+        average = self.db.query(func.avg(per_session_totals.c.total_dwell)).scalar()
+        return float(average or 0.0)
+
+    def list_poi_trigger_counts(
+        self, range_start: datetime, limit: int
+    ) -> list[tuple[str, str, int]]:
+        """Rank exhibits by trigger volume, returning (poi_id, title, count) rows."""
+        rows = (
+            self.db.query(
+                POI.PoiID,
+                POI.Title,
+                func.count(POITrigger.TriggerID).label("trigger_count"),
+            )
+            .join(POITrigger, POITrigger.PoiID == POI.PoiID)
+            .filter(POITrigger.Trigger_at >= range_start)
+            .group_by(POI.PoiID, POI.Title)
+            .order_by(func.count(POITrigger.TriggerID).desc(), POI.Title.asc())
+            .limit(limit)
+            .all()
+        )
+        return [(row[0], row[1], int(row[2])) for row in rows]
+
+    def list_language_distribution(
+        self, range_start: datetime
+    ) -> list[tuple[str, str, int]]:
+        """Rank visitor language choices, returning (language_id, name, count) rows."""
+        rows = (
+            self.db.query(
+                VisitorSession.PreferredLanguage,
+                LanguageCode.LanguageName,
+                func.count(VisitorSession.SessionID).label("visitor_count"),
+            )
+            .join(
+                LanguageCode,
+                LanguageCode.LanguageID == VisitorSession.PreferredLanguage,
+            )
+            .filter(VisitorSession.Create_at >= range_start)
+            .group_by(VisitorSession.PreferredLanguage, LanguageCode.LanguageName)
+            # Language ID tiebreaker keeps equal-volume periods stable across calls.
+            .order_by(
+                func.count(VisitorSession.SessionID).desc(),
+                VisitorSession.PreferredLanguage.asc(),
+            )
+            .all()
+        )
+        return [(row[0], row[1], int(row[2])) for row in rows]

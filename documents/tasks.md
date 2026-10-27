@@ -24,7 +24,7 @@
 | [**US 04.3**](#-us-043-administrative-approval--live-mobile-app-synchronization) | Administrative Approval & Live Mobile App Synchronization | UC-04 | Must Have | 3 SP | 3 Tasks | [ ] 0/3 |
 | [**US 04.4**](#-us-044-automated-ai-translation--audio-synthesis-pipeline) | Automated AI Translation & Audio Synthesis Pipeline | UC-04 | Must Have | 8 SP | 5 Tasks | [ ] 0/5 |
 | [**US 05.1**](#-us-051-real-time-visitor-density-heatmap) | Real-Time Visitor Density Heatmap | UC-05 | Should Have | 5 SP | 3 Tasks | [ ] 0/3 |
-| [**US 05.2**](#-us-052-exhibit-rankings-dwell-times--language-demographics) | Exhibit Rankings, Dwell Times & Language Demographics | UC-05 | Must Have | 5 SP | 3 Tasks | [ ] 0/3 |
+| [**US 05.2**](#-us-052-exhibit-rankings-dwell-times--language-demographics) | Exhibit Rankings, Dwell Times & Language Demographics | UC-05 | Must Have | 5 SP | 3 Tasks | [x] 3/3 |
 | [**US 05.3**](#-us-053-static-audio-storage-capacity-alert--orphan-pruning) | Static Audio Storage Capacity Alert & Orphan Pruning | UC-05 | Must Have | 5 SP | 5 Tasks | [ ] 0/5 |
 | [**US 05.4**](#-us-054-telemetry-filtering--structured-data-export) | Telemetry Filtering & Structured Data Export | UC-05 | Should Have | 3 SP | 3 Tasks | [ ] 0/3 |
 | [**US 06.1**](#-us-061-frictionless-digital-admission-checkout-via-vietqr--cards) | Frictionless Digital Admission Checkout via VietQR & Cards | UC-06 | Must Have | 5 SP | 5 Tasks | [ ] 0/5 |
@@ -585,25 +585,25 @@
 > **So that** I can evaluate exhibition impact and make data-driven curation decisions.
 >
 > * **Priority:** Must Have | **Estimate:** 5 SP
-> * **Progress:** [ ] 0/3 Tasks Completed
+> * **Progress:** [x] 3/3 Tasks Completed
 
 #### Acceptance Criteria:
-- [ ] **AC-05.2.1:** 4 KPI summary cards: Total Visitors, Total Audio Plays, Top Exhibit, Average Tour Duration.
-- [ ] **AC-05.2.2:** Horizontal Bar Chart of Top 10 POIs by trigger volume; percentage distribution list of visitor languages (Vietnamese, English, Japanese, Korean, Chinese).
+- [x] **AC-05.2.1:** 4 KPI summary cards: Total Visitors, Total Audio Plays, Top Exhibit, Average Tour Duration.
+- [x] **AC-05.2.2:** Horizontal Bar Chart of Top 10 POIs by trigger volume; percentage distribution list of visitor languages (Vietnamese, English, Japanese, Korean, Chinese).
 
 #### Task Checklist:
-- [ ] `TSK-05.2.1` `[Backend]` **Analytics Summary Endpoint (`GET /api/v1/admin/analytics/summary`)**
+- [x] `TSK-05.2.1` `[Backend]` **Analytics Summary Endpoint (`GET /api/v1/admin/analytics/summary`)**
   - **Scope:** Run indexed SQL aggregations: POI trigger counts, `AVG(DwellTime)` per POI, and `LanguageID` distribution from `VisitorSession`.
   - **DoD:** Sub-second query response time ($< 800\text{ms}$).
   - **Paired Unit Test:** `tests/unit/services/test_telemetry_service.py`
-- [ ] `TSK-05.2.2` `[Frontend]` **KPI Metric Cards & Analytics Charts (`AnalyticsDashboardView.jsx`)**
+- [x] `TSK-05.2.2` `[Frontend]` **KPI Metric Cards & Analytics Charts (`AnalyticsDashboard.jsx`)**
   - **Scope:** Enterprise-grade dashboard: 4 flat KPI cards, Top 10 POI horizontal bar chart, and language demographic ranked lists.
   - **DoD:** Fully responsive layout across desktop and tablet screens.
-  - **Paired Unit Test:** `src/views/__tests__/AnalyticsDashboardView.test.jsx`
-- [ ] `TSK-05.2.3` `[Test]` **Unit Test Suite for US 05.2 (`test_telemetry_service.py`, `AnalyticsDashboardView.test.jsx`)**
+  - **Paired Unit Test:** `src/views/__tests__/AnalyticsDashboard.test.jsx`
+- [x] `TSK-05.2.3` `[Test]` **Unit Test Suite for US 05.2 (`test_telemetry_service.py`, `AnalyticsDashboard.test.jsx`)**
   - **Scope:** Test KPI queries, dwell time averaging, language breakdown distributions, and dashboard charts rendering.
   - **DoD:** 100% test pass in Pytest and Vitest, $\ge 80\%$ line & branch code coverage.
-  - **Execution:** `pytest tests/unit/services/test_telemetry_service.py` && `npm run test -- AnalyticsDashboardView`
+  - **Execution:** `pytest tests/unit/services/test_telemetry_service.py` && `npm run test -- AnalyticsDashboard`
 
 ---
 
