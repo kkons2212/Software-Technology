@@ -1,4 +1,4 @@
-"""TranslationService containing business logic for Multilingual Translation Audit (US 04.1)."""
+"""TranslationService containing business logic for Multilingual Translation Audit (US 04.1 & US 04.3)."""
 
 from fastapi import HTTPException, status
 
@@ -153,3 +153,48 @@ class TranslationService:
             )
 
         return self._build_response(updated)
+
+    def publish_translation(
+        self,
+        stran_id: str,
+        admin_username: str,
+        ip_address: str | None = None,
+    ) -> TranslationResponse:
+        """Publish translation and synchronize with mobile visitor application (US 04.3)."""
+        existing = self.translation_repo.get_by_id(stran_id)
+        if not existing:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Translation '{stran_id}' not found.",
+            )
+
+        # Invariant (AC-04.3.1): Strictly forbid publication if text and audio are desynchronized
+        if existing.status == "NEEDS_UPDATE":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Cannot publish translation: text and audio are desynchronized. Regenerate audio first.",
+            )
+
+        if not existing.audio or existing.audio.status != "READY":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Cannot publish translation: narration audio is missing or not ready.",
+            )
+
+        published = self.translation_repo.publish_translation(
+            stran_id=stran_id,
+            admin_username=admin_username,
+        )
+
+        if self.audit_repo:
+            self.audit_repo.log_action(
+                username=admin_username,
+                status="SUCCESS",
+                ip_address=ip_address,
+                details=(
+                    f"PUBLISH_TRANSLATION: {stran_id} (Status: PUBLISHED, "
+                    f"POI: {existing.poi_id}, Lang: {existing.language_id})"
+                ),
+            )
+
+        return self._build_response(published)

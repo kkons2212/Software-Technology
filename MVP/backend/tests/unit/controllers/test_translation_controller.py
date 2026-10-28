@@ -1,7 +1,8 @@
-"""Unit tests for TranslationController (US 04.1)."""
+"""Unit tests for TranslationController (US 04.1 & US 04.3)."""
 
 import uuid
 
+from app.models.audio import POIAudio
 from app.models.language import LanguageCode
 from app.models.poi import POI
 from app.models.translation import POITranslation
@@ -141,4 +142,64 @@ def test_should_return_404_when_updating_nonexistent_translation(client, db_sess
 
     payload = {"title": "New Title"}
     response = client.put("/api/v1/admin/translations/TR_DOES_NOT_EXIST", json=payload)
+    assert response.status_code == 404
+
+
+def test_should_publish_translation_when_audio_is_ready(client, db_session):
+    _, _, tr_en = _ensure_admin_and_seed_data(db_session)
+
+    audio = POIAudio(
+        audio_id=f"AUD_{uuid.uuid4().hex[:8].upper()}",
+        stran_id=tr_en.stran_id,
+        audio_url="/static/audio/field_surgery_en.mp3",
+        duration=45.2,
+        file_size=72000,
+        status="READY",
+    )
+    db_session.add(audio)
+    db_session.commit()
+
+    response = client.post(f"/api/v1/admin/translations/{tr_en.stran_id}/publish")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["stran_id"] == tr_en.stran_id
+    assert data["status"] == "PUBLISHED"
+    assert data["review_by"] == "admin"
+    assert data["review_at"] is not None
+    assert data["audio_status"] == "READY"
+
+
+def test_should_reject_publish_when_status_is_needs_update(client, db_session):
+    _, _, tr_en = _ensure_admin_and_seed_data(db_session)
+    tr_en.status = "NEEDS_UPDATE"
+    db_session.commit()
+
+    audio = POIAudio(
+        audio_id=f"AUD_{uuid.uuid4().hex[:8].upper()}",
+        stran_id=tr_en.stran_id,
+        audio_url="/static/audio/old_audio.mp3",
+        status="READY",
+    )
+    db_session.add(audio)
+    db_session.commit()
+
+    response = client.post(f"/api/v1/admin/translations/{tr_en.stran_id}/publish")
+    assert response.status_code == 400
+    error_msg = response.json().get("error", {}).get("message", "")
+    assert "desynchronized" in error_msg.lower()
+
+
+def test_should_reject_publish_when_audio_is_missing_or_not_ready(client, db_session):
+    _, _, tr_en = _ensure_admin_and_seed_data(db_session)
+    # No audio seeded
+    response = client.post(f"/api/v1/admin/translations/{tr_en.stran_id}/publish")
+    assert response.status_code == 400
+    error_msg = response.json().get("error", {}).get("message", "")
+    assert "audio" in error_msg.lower()
+
+
+def test_should_return_404_when_publishing_nonexistent_translation(client, db_session):
+    _ensure_admin_and_seed_data(db_session)
+
+    response = client.post("/api/v1/admin/translations/TR_NONEXISTENT/publish")
     assert response.status_code == 404
