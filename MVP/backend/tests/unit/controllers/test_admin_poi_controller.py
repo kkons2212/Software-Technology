@@ -254,9 +254,11 @@ def test_should_reject_a_cross_site_write_without_the_session_cookie(
     assert response.status_code == 401
     assert response.json()["error"]["code"] == "UNAUTHENTICATED"
 
+
 # ==============================================================================
 # US 03.3: PATCH /api/v1/admin/pois/{poi_id}/visibility Controller Tests
 # ==============================================================================
+
 
 def test_should_toggle_poi_visibility_when_authenticated(
     authenticated_client, seeded_poi, db_session
@@ -278,9 +280,7 @@ def test_should_toggle_poi_visibility_when_authenticated(
     assert seeded_poi.is_active is False
 
 
-def test_should_reactivate_poi_visibility(
-    authenticated_client, seeded_poi, db_session
-):
+def test_should_reactivate_poi_visibility(authenticated_client, seeded_poi, db_session):
     """PATCH visibility to True reactivates POI."""
     seeded_poi.is_active = False
     db_session.commit()
@@ -316,9 +316,7 @@ def test_should_return_404_when_toggling_visibility_for_nonexistent_poi(
     assert body["error"]["code"] == "POI_NOT_FOUND"
 
 
-def test_should_reject_visibility_toggle_without_admin_session(
-    client, seeded_poi
-):
+def test_should_reject_visibility_toggle_without_admin_session(client, seeded_poi):
     """Unauthenticated request to PATCH visibility is rejected with 401."""
     url = f"/api/v1/admin/pois/{seeded_poi.poi_id}/visibility"
     response = client.patch(url, json={"is_active": False})

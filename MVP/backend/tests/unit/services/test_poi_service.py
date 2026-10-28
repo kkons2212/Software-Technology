@@ -483,9 +483,11 @@ def test_should_update_poi_and_mark_foreign_translations_needs_update(
     )
     assert audit_row.user_name == seeded_admin.user_name
 
+
 # ==============================================================================
 # US 03.3: Deactivate / Hide Exhibit & Invalidate Navigation Route Tests
 # ==============================================================================
+
 
 def test_should_deactivate_poi_and_log_audit(
     poi_service, seeded_admin, seeded_poi, db_session
@@ -504,9 +506,7 @@ def test_should_deactivate_poi_and_log_audit(
     assert seeded_poi.is_active is False
 
     audit_row = (
-        db_session.query(Audit)
-        .filter(Audit.details == POI_DEACTIVATED_DETAILS)
-        .first()
+        db_session.query(Audit).filter(Audit.details == POI_DEACTIVATED_DETAILS).first()
     )
     assert audit_row is not None
     assert audit_row.user_name == seeded_admin.user_name
@@ -533,9 +533,7 @@ def test_should_reactivate_poi_and_log_audit(
     assert seeded_poi.is_active is True
 
     audit_row = (
-        db_session.query(Audit)
-        .filter(Audit.details == POI_ACTIVATED_DETAILS)
-        .first()
+        db_session.query(Audit).filter(Audit.details == POI_ACTIVATED_DETAILS).first()
     )
     assert audit_row is not None
     assert audit_row.user_name == seeded_admin.user_name
