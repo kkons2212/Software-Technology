@@ -27,6 +27,15 @@ BACKEND_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."
 DEFAULT_STATIC_DIR = os.path.join(BACKEND_DIR, "static")
 DEFAULT_IMAGE_UPLOAD_DIR = os.path.join(DEFAULT_STATIC_DIR, "images")
 
+# Payment Gateway Defaults (US 06.1)
+DEFAULT_PAYOS_CLIENT_ID = os.getenv("PAYOS_CLIENT_ID", "")
+DEFAULT_PAYOS_API_KEY = os.getenv("PAYOS_API_KEY", "")
+DEFAULT_PAYOS_CHECKSUM_KEY = os.getenv("PAYOS_CHECKSUM_KEY", "")
+DEFAULT_STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY", "")
+DEFAULT_STRIPE_PUBLIC_KEY = os.getenv("STRIPE_PUBLIC_KEY", "")
+DEFAULT_AUDIO_GUIDE_SERVICE_FEE = int(os.getenv("AUDIO_GUIDE_SERVICE_FEE", "50000"))
+DEFAULT_SERVICE_FEE_CURRENCY = os.getenv("SERVICE_FEE_CURRENCY", "VND")
+
 
 class Settings(BaseSettings):
     """Runtime configuration (environment variables override every default)."""
@@ -60,6 +69,15 @@ class Settings(BaseSettings):
     IMAGE_UPLOAD_DIR: str = DEFAULT_IMAGE_UPLOAD_DIR
     MAX_IMAGE_SIZE_BYTES: int = 5 * 1024 * 1024  # 5 MB
     ALLOWED_IMAGE_TYPES: list[str] = ["image/jpeg", "image/png", "image/webp"]
+
+    # Payment Gateway Settings (US 06.1)
+    PAYOS_CLIENT_ID: str = DEFAULT_PAYOS_CLIENT_ID
+    PAYOS_API_KEY: str = DEFAULT_PAYOS_API_KEY
+    PAYOS_CHECKSUM_KEY: str = DEFAULT_PAYOS_CHECKSUM_KEY
+    STRIPE_SECRET_KEY: str = DEFAULT_STRIPE_SECRET_KEY
+    STRIPE_PUBLIC_KEY: str = DEFAULT_STRIPE_PUBLIC_KEY
+    AUDIO_GUIDE_SERVICE_FEE: int = DEFAULT_AUDIO_GUIDE_SERVICE_FEE
+    SERVICE_FEE_CURRENCY: str = DEFAULT_SERVICE_FEE_CURRENCY
 
     # Cu Chi Tunnels Geographic Perimeter Bounds
     CU_CHI_BOUNDS: dict = {
