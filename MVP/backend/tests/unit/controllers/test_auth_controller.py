@@ -25,9 +25,7 @@ VALID_USER_NAME = "admin"
 VALID_EMAIL = "admin@cuchi.vn"
 VALID_PASSWORD = "Admin@12345"
 INVALID_CREDENTIALS_MESSAGE = "Invalid username or password"
-ACCOUNT_LOCKED_MESSAGE = (
-    "Account temporarily locked due to 5 failed attempts. Please retry after 15 minutes."
-)
+ACCOUNT_LOCKED_MESSAGE = "Account temporarily locked due to 5 failed attempts. Please retry after 15 minutes."
 FORWARDED_CLIENT_IP = "198.51.100.23"
 COOKIE_MAX_AGE_SECONDS = 3600
 
