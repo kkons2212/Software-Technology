@@ -27,7 +27,6 @@ from app.schemas.poi_schema import (
     POIResponse,
     POITranslationStatusResponse,
     POIUpdateRequest,
-    POIVisibilityUpdateRequest,
 )
 
 GEO_OUT_OF_BOUNDS_ERROR_CODE = "GEO_OUT_OF_BOUNDS"
