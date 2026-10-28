@@ -97,28 +97,16 @@ export default function StorageHealthBanner({
           data-testid="storage-progress-meter"
           className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
         >
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-500">
-                Audio Cache Disk Capacity
-              </h2>
-              <p className="mt-1 text-2xl font-bold text-slate-900">
-                {percent.toFixed(1)}%
-                <span className="ml-2 text-xs font-normal text-slate-500">
-                  ({thresholdStatus || (isCritical ? 'CRITICAL' : isWarning ? 'WARNING' : 'NORMAL')})
-                </span>
-              </p>
-            </div>
-
-            {onCleanClick && (
-              <button
-                type="button"
-                onClick={onCleanClick}
-                className="rounded-lg border border-slate-200 bg-slate-50 px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-100 hover:text-slate-900"
-              >
-                Clean Orphaned Audio
-              </button>
-            )}
+          <div>
+            <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-500">
+              Audio Cache Disk Capacity
+            </h2>
+            <p className="mt-1 text-2xl font-bold text-slate-900">
+              {percent.toFixed(1)}%
+              <span className="ml-2 text-xs font-normal text-slate-500">
+                ({thresholdStatus || (isCritical ? 'CRITICAL' : isWarning ? 'WARNING' : 'NORMAL')})
+              </span>
+            </p>
           </div>
 
           <div
@@ -174,3 +162,4 @@ StorageHealthBanner.propTypes = {
   stickyOnly: PropTypes.bool,
   showMeter: PropTypes.bool,
 };
+

@@ -24,15 +24,22 @@ X_FORWARDED_FOR_HEADER = {"x-forwarded-for": FORWARDED_CLIENT_IP}
 
 @pytest.fixture()
 def seeded_admin(db_session: Session) -> User:
-    administrator = User(
-        user_name=ADMIN_USER_NAME,
-        email=ADMIN_EMAIL,
-        password_hash=hash_password(ADMIN_PASSWORD),
-        full_name="System Administrator",
-        is_active=True,
-        falsed_attempts=0,
-    )
-    db_session.add(administrator)
+    administrator = db_session.query(User).filter_by(user_name=ADMIN_USER_NAME).first()
+    if administrator is None:
+        administrator = User(
+            user_name=ADMIN_USER_NAME,
+            email=ADMIN_EMAIL,
+            password_hash=hash_password(ADMIN_PASSWORD),
+            full_name="System Administrator",
+            is_active=True,
+            falsed_attempts=0,
+        )
+        db_session.add(administrator)
+    else:
+        administrator.password_hash = hash_password(ADMIN_PASSWORD)
+        administrator.is_active = True
+        administrator.falsed_attempts = 0
+        administrator.locked_until = None
     db_session.commit()
     return administrator
 
