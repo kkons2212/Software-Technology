@@ -54,6 +54,13 @@ def _render_http_exception(exc: StarletteHTTPException) -> JSONResponse:
             message=detail.get("message", ""),
             details=detail.get("details"),
         )
+        if (
+            exc.status_code == 423
+            and isinstance(detail.get("details"), dict)
+            and "retry_after_seconds" in detail["details"]
+        ):
+            content["retry_after_seconds"] = detail["details"]["retry_after_seconds"]
+            content["detail"] = detail.get("message", "Account locked")
     else:
         content = build_error_envelope(
             code=HTTP_ERROR_CODE, message=str(detail), details=None
@@ -74,11 +81,11 @@ def register_error_handlers(app: FastAPI) -> None:
     async def handle_request_validation_error(
         request: Request, exc: RequestValidationError
     ) -> JSONResponse:
+        content = build_error_envelope(
+            code=REQUEST_VALIDATION_ERROR_CODE,
+            message=REQUEST_VALIDATION_ERROR_MESSAGE,
+            details=jsonable_encoder(exc.errors()),
+        )
         return JSONResponse(
-            status_code=REQUEST_VALIDATION_ERROR_STATUS,
-            content=build_error_envelope(
-                code=REQUEST_VALIDATION_ERROR_CODE,
-                message=REQUEST_VALIDATION_ERROR_MESSAGE,
-                details=jsonable_encoder(exc.errors()),
-            ),
+            status_code=REQUEST_VALIDATION_ERROR_STATUS, content=content
         )

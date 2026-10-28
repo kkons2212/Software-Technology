@@ -3,7 +3,12 @@
 US 02.1 - TSK-02.1.3: Bcrypt verification, 60-minute JWT issuance and `Audit`
 logging with the client IP. HTTP status codes are decided here, never in the
 repository layer.
+
+US 02.2 - TSK-02.2.1: Brute-force protection, failed attempt tracking, and
+15-minute account lockout upon 5 consecutive failures.
 """
+
+from datetime import datetime, timedelta
 
 from fastapi import status
 
@@ -28,9 +33,15 @@ INVALID_CREDENTIALS_ERROR_CODE = "INVALID_CREDENTIALS"
 INVALID_CREDENTIALS_ERROR_MESSAGE = "Invalid username or password"
 UNAUTHENTICATED_ERROR_CODE = "UNAUTHENTICATED"
 UNAUTHENTICATED_ERROR_MESSAGE = "Administrator session is missing or has expired."
+ACCOUNT_LOCKED_ERROR_CODE = "ACCOUNT_LOCKED"
+ACCOUNT_LOCKED_ERROR_MESSAGE = "Account temporarily locked due to 5 failed attempts. Please retry after 15 minutes."
 LOGIN_SUCCESS_DETAILS = "ADMIN_LOGIN_SUCCESS"
 LOGIN_FAILED_DETAILS = "ADMIN_LOGIN_FAILED"
 LOGIN_INACTIVE_ACCOUNT_DETAILS = "ADMIN_LOGIN_INACTIVE_ACCOUNT"
+LOGIN_ACCOUNT_LOCKED_DETAILS = "ADMIN_ACCOUNT_LOCKED"
+
+MAX_FAILED_ATTEMPTS = 5
+LOCKOUT_DURATION_MINUTES = 15
 
 
 class AuthService:
@@ -58,7 +69,38 @@ class AuthService:
             # still prevents user enumeration for the caller.
             raise self._build_invalid_credentials_error()
 
+        now = datetime.utcnow()
+
+        # US 02.2: Check if account is currently locked
+        if administrator.locked_until is not None:
+            if administrator.locked_until > now:
+                remaining_seconds = max(
+                    1, int((administrator.locked_until - now).total_seconds())
+                )
+                self._record_login_failure(
+                    administrator, client_ip, LOGIN_ACCOUNT_LOCKED_DETAILS
+                )
+                raise self._build_account_locked_error(remaining_seconds)
+            # Lockout period expired; automatically reset failed counter
+            self.user_repository.reset_failed_attempts(administrator)
+
         if not verify_password(payload.password, administrator.password_hash):
+            new_failed_count = (administrator.falsed_attempts or 0) + 1
+            if new_failed_count >= MAX_FAILED_ATTEMPTS:
+                locked_until = now + timedelta(minutes=LOCKOUT_DURATION_MINUTES)
+                self.user_repository.update_failed_attempts(
+                    administrator,
+                    falsed_attempts=new_failed_count,
+                    locked_until=locked_until,
+                )
+                self._record_login_failure(
+                    administrator, client_ip, LOGIN_ACCOUNT_LOCKED_DETAILS
+                )
+                raise self._build_account_locked_error(LOCKOUT_DURATION_MINUTES * 60)
+
+            self.user_repository.update_failed_attempts(
+                administrator, falsed_attempts=new_failed_count
+            )
             self._record_login_failure(administrator, client_ip, LOGIN_FAILED_DETAILS)
             raise self._build_invalid_credentials_error()
 
@@ -67,6 +109,9 @@ class AuthService:
                 administrator, client_ip, LOGIN_INACTIVE_ACCOUNT_DETAILS
             )
             raise self._build_invalid_credentials_error()
+
+        # Reset failed attempts counter on successful login
+        self.user_repository.reset_failed_attempts(administrator)
 
         self.audit_repository.create_log_entry(
             user_name=administrator.user_name,
@@ -134,4 +179,13 @@ class AuthService:
             status_code=status.HTTP_401_UNAUTHORIZED,
             code=UNAUTHENTICATED_ERROR_CODE,
             message=UNAUTHENTICATED_ERROR_MESSAGE,
+        )
+
+    @staticmethod
+    def _build_account_locked_error(retry_after_seconds: int) -> ApiError:
+        return ApiError(
+            status_code=status.HTTP_423_LOCKED,
+            code=ACCOUNT_LOCKED_ERROR_CODE,
+            message=ACCOUNT_LOCKED_ERROR_MESSAGE,
+            details={"retry_after_seconds": retry_after_seconds},
         )

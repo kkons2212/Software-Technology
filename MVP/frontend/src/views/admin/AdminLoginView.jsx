@@ -1,6 +1,6 @@
 // =============================================================================
 // TIER 1 - ADMIN LOGIN VIEW
-// Desktop-first Administrator authentication screen (US 02.1).
+// Desktop-first Administrator authentication screen (US 02.1 & US 02.2).
 // Presentation only: all network work is delegated to AuthContext -> authApi.
 // =============================================================================
 
@@ -8,12 +8,16 @@ import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 import { ApiError } from '../../api/apiClient.js';
+import AccountLockoutModal, {
+  LOCKOUT_STORAGE_KEY,
+} from '../../components/admin/AccountLockoutModal.jsx';
 
 const ADMIN_WORKSPACE_PATH = '/admin';
 // Generic message prevents user enumeration (AC-02.1.4).
 const INVALID_CREDENTIALS_MESSAGE = 'Invalid username or password';
 const GENERIC_SIGN_IN_ERROR_MESSAGE = 'Unable to sign in right now. Please try again later.';
 const HTTP_UNAUTHORIZED = 401;
+const HTTP_LOCKED = 423;
 
 const INITIAL_FORM_VALUES = { username: '', password: '' };
 
@@ -34,8 +38,29 @@ export default function AdminLoginView() {
   const [fieldErrors, setFieldErrors] = useState({});
   const [submitError, setSubmitError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLocked, setIsLocked] = useState(false);
+  const [lockoutSeconds, setLockoutSeconds] = useState(900);
 
   const redirectPath = currentLocation.state?.from ?? ADMIN_WORKSPACE_PATH;
+
+  // AC-02.2.3: Check if browser session has an active lockout stored
+  useEffect(() => {
+    try {
+      const stored = sessionStorage.getItem(LOCKOUT_STORAGE_KEY);
+      if (stored) {
+        const unlockAt = parseInt(stored, 10);
+        const remaining = Math.ceil((unlockAt - Date.now()) / 1000);
+        if (remaining > 0) {
+          setLockoutSeconds(remaining);
+          setIsLocked(true);
+        } else {
+          sessionStorage.removeItem(LOCKOUT_STORAGE_KEY);
+        }
+      }
+    } catch {
+      // Storage access handled gracefully
+    }
+  }, []);
 
   // Reactive redirect: fires as soon as authentication state flips to unlocked.
   useEffect(() => {
@@ -64,7 +89,7 @@ export default function AdminLoginView() {
 
   async function handleSubmit(event) {
     event.preventDefault();
-    if (isSubmitting) {
+    if (isSubmitting || isLocked) {
       return;
     }
 
@@ -80,10 +105,21 @@ export default function AdminLoginView() {
     try {
       await login({ username: formValues.username.trim(), password: formValues.password });
     } catch (loginError) {
-      // AC-02.1.4: retain the username, wipe the password, refocus the password field.
-      setFormValues((previousValues) => ({ ...previousValues, password: '' }));
-      setSubmitError(resolveLoginErrorMessage(loginError));
-      passwordInputRef.current?.focus();
+      // AC-02.2.2 & AC-02.2.3: Catch HTTP 423 Locked and trigger countdown modal
+      if (loginError instanceof ApiError && loginError.status === HTTP_LOCKED) {
+        const retryAfter =
+          loginError.details?.retry_after_seconds ||
+          loginError.retry_after_seconds ||
+          900;
+        setLockoutSeconds(retryAfter);
+        setIsLocked(true);
+        setSubmitError('');
+      } else {
+        // AC-02.1.4: retain the username, wipe the password, refocus the password field.
+        setFormValues((previousValues) => ({ ...previousValues, password: '' }));
+        setSubmitError(resolveLoginErrorMessage(loginError));
+        passwordInputRef.current?.focus();
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -156,13 +192,21 @@ export default function AdminLoginView() {
 
           <button
             type="submit"
-            disabled={isSubmitting}
+            disabled={isSubmitting || isLocked}
             className="h-11 w-full rounded-md bg-slate-800 text-sm font-semibold text-white transition-all duration-200 hover:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-40"
           >
-            {isSubmitting ? 'Signing in...' : 'Sign In'}
+            {isSubmitting ? 'Signing in...' : isLocked ? 'Account Locked' : 'Sign In'}
           </button>
         </form>
       </section>
+
+      {/* US 02.2: Brute-Force Lockout Countdown Modal */}
+      <AccountLockoutModal
+        isOpen={isLocked}
+        retryAfterSeconds={lockoutSeconds}
+        onUnlock={() => setIsLocked(false)}
+        onClose={() => setIsLocked(false)}
+      />
     </main>
   );
 }
