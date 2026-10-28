@@ -109,6 +109,22 @@ export async function updatePoi(poiId, changes, { signal } = {}) {
 }
 
 /**
+ * Toggle POI active visibility state (Admin - US 03.3).
+ * @param {string} poiId
+ * @param {boolean} isActive
+ * @param {object} [options]
+ * @param {AbortSignal} [options.signal]
+ * @returns {Promise<object>} updated POI profile
+ */
+export async function togglePoiVisibility(poiId, isActive, { signal } = {}) {
+  return apiClient.patch(
+    `${POI_ADMIN_BASE_PATH}/${encodeURIComponent(poiId)}/visibility`,
+    { is_active: isActive },
+    { signal }
+  );
+}
+
+/**
  * Upload cover image for an exhibit (Admin).
  * @param {File} file
  * @param {object} [options]

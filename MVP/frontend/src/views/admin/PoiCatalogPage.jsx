@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import AdminHeader from '../../components/admin/AdminHeader.jsx';
-import { getPois, createPoi } from '../../api/poiApi.js';
+import { getPois, createPoi, togglePoiVisibility } from '../../api/poiApi.js';
+import DeactivateConfirmModal from '../../components/admin/DeactivateConfirmModal.jsx';
 import AdminMapPicker from '../../components/admin/AdminMapPicker.jsx';
 import POIFormModal from '../../components/admin/POIFormModal.jsx';
 
@@ -31,6 +32,10 @@ export default function PoiCatalogPage() {
   const [error, setError] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingPoi, setEditingPoi] = useState(null);
+  const [deactivatingPoi, setDeactivatingPoi] = useState(null);
+  const [isDeactivateModalOpen, setIsDeactivateModalOpen] = useState(false);
+  const [isTogglingVisibility, setIsTogglingVisibility] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
 
   // Form State
   const [title, setTitle] = useState('');
@@ -64,6 +69,39 @@ export default function PoiCatalogPage() {
     }, 300);
     return () => clearTimeout(timer);
   }, [search]);
+
+  const handleOpenDeactivateModal = (poi) => {
+    setDeactivatingPoi(poi);
+    setIsDeactivateModalOpen(true);
+  };
+
+  const handleConfirmVisibilityToggle = async () => {
+    if (!deactivatingPoi) return;
+    setIsTogglingVisibility(true);
+    setError('');
+    const newActiveState = deactivatingPoi.is_active === false;
+    try {
+      await togglePoiVisibility(deactivatingPoi.poi_id, newActiveState);
+      setPois((prev) =>
+        prev.map((item) =>
+          item.poi_id === deactivatingPoi.poi_id
+            ? { ...item, is_active: newActiveState }
+            : item
+        )
+      );
+      setSuccessMessage(
+        newActiveState
+          ? `Exhibit "${deactivatingPoi.title}" reactivated and made visible on visitor map.`
+          : `Exhibit "${deactivatingPoi.title}" hidden from visitor map.`
+      );
+      setIsDeactivateModalOpen(false);
+      setDeactivatingPoi(null);
+    } catch (err) {
+      setError(err?.message || 'Failed to update exhibit visibility.');
+    } finally {
+      setIsTogglingVisibility(false);
+    }
+  };
 
   const handleImageChange = (e) => {
     const file = e.target.files?.[0];
@@ -163,6 +201,20 @@ export default function PoiCatalogPage() {
           </div>
         </div>
 
+        {/* Global Success Banner */}
+        {successMessage && (
+          <div role="status" className="mt-4 flex items-center justify-between rounded-md border border-green-200 bg-green-50 p-3 text-xs text-green-700">
+            <span>{successMessage}</span>
+            <button
+              type="button"
+              onClick={() => setSuccessMessage('')}
+              className="ml-2 font-semibold text-green-800 hover:text-green-950"
+            >
+              ×
+            </button>
+          </div>
+        )}
+
         {/* Global Error Banner */}
         {error && (
           <div role="alert" className="mt-4 rounded-md border border-red-200 bg-red-50 p-3 text-xs text-red-700">
@@ -177,6 +229,7 @@ export default function PoiCatalogPage() {
               <tr className="border-b border-slate-200 bg-slate-100 font-semibold text-slate-700">
                 <th scope="col" className="px-4 py-3">Thumbnail</th>
                 <th scope="col" className="px-4 py-3">Exhibit Title & Overview</th>
+                <th scope="col" className="px-4 py-3">Status</th>
                 <th scope="col" className="px-4 py-3">Trigger Radius</th>
                 <th scope="col" className="px-4 py-3">Coordinates (WGS84)</th>
                 <th scope="col" className="px-4 py-3">AI Multi-Language Status</th>
@@ -186,13 +239,13 @@ export default function PoiCatalogPage() {
             <tbody className="divide-y divide-slate-200">
               {isLoading ? (
                 <tr>
-                  <td colSpan={6} className="py-8 text-center text-slate-500">
+                  <td colSpan={7} className="py-8 text-center text-slate-500">
                     Loading exhibits catalog...
                   </td>
                 </tr>
               ) : pois.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-8 text-center text-slate-500">
+                  <td colSpan={7} className="py-8 text-center text-slate-500">
                     No exhibits found. Click "+ New Exhibit" to digitize the first historical point of interest.
                   </td>
                 </tr>
@@ -217,6 +270,17 @@ export default function PoiCatalogPage() {
                       {poi.short_description && (
                         <div className="mt-0.5 line-clamp-1 text-slate-500">{poi.short_description}</div>
                       )}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span
+                        className={`inline-flex items-center rounded px-2 py-0.5 text-[11px] font-semibold border ${
+                          poi.is_active !== false
+                            ? 'border-green-200 bg-green-50 text-green-700'
+                            : 'border-slate-300 bg-slate-100 text-slate-600'
+                        }`}
+                      >
+                        {poi.is_active !== false ? 'Active' : 'Hidden'}
+                      </span>
                     </td>
                     <td className="px-4 py-3">
                       <span className="inline-flex items-center rounded bg-slate-100 px-2 py-0.5 font-mono text-[11px] font-medium text-slate-800 border border-slate-200">
@@ -249,13 +313,26 @@ export default function PoiCatalogPage() {
                       </div>
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <button
-                        type="button"
-                        onClick={() => setEditingPoi(poi)}
-                        className="rounded px-2.5 py-1 text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-300"
-                      >
-                        Edit
-                      </button>
+                      <div className="flex items-center justify-end space-x-2">
+                        <button
+                          type="button"
+                          onClick={() => setEditingPoi(poi)}
+                          className="rounded px-2.5 py-1 text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-300"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleOpenDeactivateModal(poi)}
+                          className={`rounded px-2.5 py-1 text-xs font-medium border ${
+                            poi.is_active !== false
+                              ? 'text-red-700 bg-red-50 border-red-200 hover:bg-red-100'
+                              : 'text-slate-700 bg-slate-100 border-slate-300 hover:bg-slate-200'
+                          }`}
+                        >
+                          {poi.is_active !== false ? 'Hide' : 'Show'}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -407,6 +484,20 @@ export default function PoiCatalogPage() {
         onSuccess={() => {
           setEditingPoi(null);
           fetchCatalog(search);
+        }}
+      />
+
+      {/* Deactivate / Hide Exhibit Confirmation Modal (US 03.3) */}
+      <DeactivateConfirmModal
+        isOpen={isDeactivateModalOpen}
+        poi={deactivatingPoi}
+        isLoading={isTogglingVisibility}
+        onConfirm={handleConfirmVisibilityToggle}
+        onClose={() => {
+          if (!isTogglingVisibility) {
+            setIsDeactivateModalOpen(false);
+            setDeactivatingPoi(null);
+          }
         }}
       />
     </div>

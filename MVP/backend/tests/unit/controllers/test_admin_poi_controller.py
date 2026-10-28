@@ -253,3 +253,73 @@ def test_should_reject_a_cross_site_write_without_the_session_cookie(
 
     assert response.status_code == 401
     assert response.json()["error"]["code"] == "UNAUTHENTICATED"
+
+
+# ==============================================================================
+# US 03.3: PATCH /api/v1/admin/pois/{poi_id}/visibility Controller Tests
+# ==============================================================================
+
+
+def test_should_toggle_poi_visibility_when_authenticated(
+    authenticated_client, seeded_poi, db_session
+):
+    """PATCH visibility to False deactivates POI and returns updated profile."""
+    url = f"/api/v1/admin/pois/{seeded_poi.poi_id}/visibility"
+    response = authenticated_client.patch(
+        url,
+        json={"is_active": False},
+        headers=X_FORWARDED_FOR_HEADER,
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["poi_id"] == seeded_poi.poi_id
+    assert body["is_active"] is False
+
+    db_session.refresh(seeded_poi)
+    assert seeded_poi.is_active is False
+
+
+def test_should_reactivate_poi_visibility(authenticated_client, seeded_poi, db_session):
+    """PATCH visibility to True reactivates POI."""
+    seeded_poi.is_active = False
+    db_session.commit()
+
+    url = f"/api/v1/admin/pois/{seeded_poi.poi_id}/visibility"
+    response = authenticated_client.patch(
+        url,
+        json={"is_active": True},
+        headers=X_FORWARDED_FOR_HEADER,
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["is_active"] is True
+
+    db_session.refresh(seeded_poi)
+    assert seeded_poi.is_active is True
+
+
+def test_should_return_404_when_toggling_visibility_for_nonexistent_poi(
+    authenticated_client,
+):
+    """PATCH visibility for missing POI returns 404 envelope."""
+    url = "/api/v1/admin/pois/nonexistent-poi-id/visibility"
+    response = authenticated_client.patch(
+        url,
+        json={"is_active": False},
+    )
+
+    assert response.status_code == 404
+    body = response.json()
+    assert body["success"] is False
+    assert body["error"]["code"] == "POI_NOT_FOUND"
+
+
+def test_should_reject_visibility_toggle_without_admin_session(client, seeded_poi):
+    """Unauthenticated request to PATCH visibility is rejected with 401."""
+    url = f"/api/v1/admin/pois/{seeded_poi.poi_id}/visibility"
+    response = client.patch(url, json={"is_active": False})
+
+    assert response.status_code == 401
+    assert response.json()["error"]["code"] == "UNAUTHENTICATED"

@@ -35,10 +35,11 @@ const mockPoisData = {
 vi.mock('../../../api/poiApi.js', () => ({
   getPois: vi.fn(),
   createPoi: vi.fn(),
+  togglePoiVisibility: vi.fn(),
 }));
 
 import PoiCatalogPage from '../PoiCatalogPage.jsx';
-import { getPois, createPoi } from '../../../api/poiApi.js';
+import { getPois, createPoi, togglePoiVisibility } from '../../../api/poiApi.js';
 
 function renderPoiCatalog() {
   return render(
@@ -193,5 +194,62 @@ describe('PoiCatalogPage', () => {
     await waitFor(() => {
       expect(screen.queryByRole('heading', { level: 2, name: /create digitized exhibit profile/i })).not.toBeInTheDocument();
     });
+  });
+  it('renders Active status badge and opens deactivation modal when clicking Hide', async () => {
+    const user = userEvent.setup();
+    getPois.mockResolvedValue(mockPoisData);
+    togglePoiVisibility.mockResolvedValue({ poi_id: 1, is_active: false });
+    renderPoiCatalog();
+
+    expect(await screen.findByText('Active')).toBeInTheDocument();
+    const hideBtn = screen.getByRole('button', { name: 'Hide' });
+    expect(hideBtn).toBeInTheDocument();
+
+    await user.click(hideBtn);
+
+    expect(
+      await screen.findByRole('heading', { level: 3, name: /hide exhibit from visitor map/i })
+    ).toBeInTheDocument();
+
+    const confirmBtn = screen.getByRole('button', { name: 'Hide Exhibit' });
+    await user.click(confirmBtn);
+
+    await waitFor(() => {
+      expect(togglePoiVisibility).toHaveBeenCalledWith(1, false);
+    });
+
+    expect(await screen.findByText('Hidden')).toBeInTheDocument();
+    expect(await screen.findByText(/hidden from visitor map/i)).toBeInTheDocument();
+  });
+
+  it('renders Hidden status badge and reactivates exhibit when clicking Show', async () => {
+    const user = userEvent.setup();
+    const hiddenData = {
+      ...mockPoisData,
+      items: [{ ...mockPoisData.items[0], is_active: false }],
+    };
+    getPois.mockResolvedValue(hiddenData);
+    togglePoiVisibility.mockResolvedValue({ poi_id: 1, is_active: true });
+    renderPoiCatalog();
+
+    expect(await screen.findByText('Hidden')).toBeInTheDocument();
+    const showBtn = screen.getByRole('button', { name: 'Show' });
+    expect(showBtn).toBeInTheDocument();
+
+    await user.click(showBtn);
+
+    expect(
+      await screen.findByRole('heading', { level: 3, name: /reactivate exhibit/i })
+    ).toBeInTheDocument();
+
+    const confirmBtn = screen.getByRole('button', { name: 'Reactivate Exhibit' });
+    await user.click(confirmBtn);
+
+    await waitFor(() => {
+      expect(togglePoiVisibility).toHaveBeenCalledWith(1, true);
+    });
+
+    expect(await screen.findByText('Active')).toBeInTheDocument();
+    expect(await screen.findByText(/reactivated and made visible on visitor map/i)).toBeInTheDocument();
   });
 });

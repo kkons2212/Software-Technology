@@ -17,7 +17,7 @@
 | [**US 02.3**](#-us-023-secure-session-management--inactivity-logout) | Secure Session Management & Inactivity Logout | UC-02 | Should Have | 2 SP | 3 Tasks | [x] 3/3 |
 | [**US 03.1**](#-us-031-create-digitized-exhibit-profile--cover-image-upload) | Create Digitized Exhibit Profile & Cover Image Upload | UC-03 | Must Have | 5 SP | 5 Tasks | [x] 5/5 |
 | [**US 03.2**](#-us-032-interactive-gps-geolocation--geofence-calibration) | Interactive GPS Geolocation & Geofence Calibration | UC-03 | Must Have | 5 SP | 4 Tasks | [x] 4/4 |
-| [**US 03.3**](#-us-033-deactivate--hide-exhibit--invalidate-navigation-route) | Deactivate / Hide Exhibit & Invalidate Navigation Route | UC-03 | Should Have | 3 SP | 3 Tasks | [ ] 0/3 |
+| [**US 03.3**](#-us-033-deactivate--hide-exhibit--invalidate-navigation-route) | Deactivate / Hide Exhibit & Invalidate Navigation Route | UC-03 | Should Have | 3 SP | 3 Tasks | [x] 3/3 |
 | [**US 03.4**](#-us-034-update-exhibit-details--synchronize-translation-status) | Update Exhibit Details & Synchronize Translation Status | UC-03 | Must Have | 3 SP | 3 Tasks | [x] 3/3 |
 | [**US 04.1**](#-us-041-multilingual-translation-audit--historical-terminology-refinement) | Multilingual Translation Audit & Historical Terminology Refinement | UC-04 | Must Have | 5 SP | 4 Tasks | [x] 4/4 |
 | [**US 04.2**](#-us-042-audio-guide-preview--dynamic-voice-re-generation) | Audio Guide Preview & Dynamic Voice Re-generation | UC-04 | Must Have | 3 SP | 4 Tasks | [x] 4/4 |
@@ -31,7 +31,7 @@
 | [**US 06.2**](#-us-062-webhook-driven-24-hour-visiting-session-activation) | Webhook-Driven 24-Hour Visiting Session Activation | UC-06 | Must Have | 5 SP | 4 Tasks | [ ] 0/4 |
 | [**US 06.3**](#-us-063-multi-device-session-recovery-via-session-code) | Multi-Device Session Recovery via Session Code | UC-06 | Should Have | 3 SP | 3 Tasks | [ ] 0/3 |
 | [**US 06.4**](#-us-064-content-protection--narrativeaudio-decryption-access-control) | Content Protection & Narrative/Audio Decryption Access Control | UC-06 | Must Have | 5 SP | 4 Tasks | [ ] 0/4 |
-| **TOTAL** | **23 User Stories (14 Complete)** | — | — | **100 SP** | **92 Tasks** | **[x] 62/92 Tasks** |
+| **TOTAL** | **23 User Stories (14 Complete)** | — | — | **100 SP** | **92 Tasks** | **[x] 65/92 Tasks** |
 
 ---
 
@@ -364,23 +364,23 @@
 > **So that** the system immediately removes them from visitor maps and recalculates walking tour paths.
 >
 > * **Priority:** Should Have | **Estimate:** 3 SP
-> * **Progress:** [ ] 0/3 Tasks Completed
+> * **Progress:** [x] 3/3 Tasks Completed
 
 #### Acceptance Criteria:
-- [ ] **AC-03.3.1:** Set `Is_Active = FALSE`. Exclude inactive POIs from visitor queries immediately.
-- [ ] **AC-03.3.2:** Retain all historical translations, audio files, and `POITrigger` telemetry intact in the database.
-- [ ] **AC-03.3.3:** Present a confirmation modal before applying deactivation.
+- [x] **AC-03.3.1:** Set `Is_Active = FALSE`. Exclude inactive POIs from visitor queries immediately.
+- [x] **AC-03.3.2:** Retain all historical translations, audio files, and `POITrigger` telemetry intact in the database.
+- [x] **AC-03.3.3:** Present a confirmation modal before applying deactivation.
 
 #### Task Checklist:
-- [ ] `TSK-03.3.1` `[Backend]` **Safe Deactivation Endpoint (`PATCH /api/v1/admin/pois/{id}/visibility`)**
+- [x] `TSK-03.3.1` `[Backend]` **Safe Deactivation Endpoint (`PATCH /api/v1/admin/pois/{id}/visibility`)**
   - **Scope:** Accept boolean `is_active`, toggle `Is_Active` in `POI` table, and write event to `Audit` table.
   - **DoD:** Inactive POIs immediately hidden from visitor queries while preserving telemetry.
   - **Paired Unit Test:** `tests/unit/services/test_poi_service.py`
-- [ ] `TSK-03.3.2` `[Frontend]` **Deactivate Confirmation Dialog (`DeactivateConfirmModal.jsx`)**
+- [x] `TSK-03.3.2` `[Frontend]` **Deactivate Confirmation Dialog (`DeactivateConfirmModal.jsx`)**
   - **Scope:** Modal informing admin that the exhibit will be hidden from visitor maps and active walking routes will be recalculated.
   - **DoD:** API only triggered upon explicit user confirmation in modal.
   - **Paired Unit Test:** `src/components/__tests__/DeactivateConfirmModal.test.jsx`
-- [ ] `TSK-03.3.3` `[Test]` **Unit Test Suite for US 03.3 (`test_poi_service.py`, `DeactivateConfirmModal.test.jsx`)**
+- [x] `TSK-03.3.3` `[Test]` **Unit Test Suite for US 03.3 (`test_poi_service.py`, `DeactivateConfirmModal.test.jsx`)**
   - **Scope:** Test `Is_Active = FALSE` toggle, exclusion from public visitor queries, audit logging, and confirmation modal before deactivation.
   - **DoD:** 100% test pass in Pytest and Vitest, $\ge 80\%$ line & branch code coverage.
   - **Execution:** `pytest tests/unit/services/test_poi_service.py` && `npm run test -- DeactivateConfirmModal`

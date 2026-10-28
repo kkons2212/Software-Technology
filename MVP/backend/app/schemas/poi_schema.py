@@ -134,6 +134,15 @@ class POIUpdateRequest(BaseModel):
         return self
 
 
+class POIVisibilityUpdateRequest(BaseModel):
+    """Payload to toggle POI visibility (US 03.3)."""
+
+    is_active: bool = Field(
+        ...,
+        description="True to make exhibit visible on visitor maps, False to hide it",
+    )
+
+
 class POIUpdateResponse(BaseModel):
     """Successful POI write envelope consumed by the Admin Portal."""
 

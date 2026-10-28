@@ -40,6 +40,8 @@ POI_NOT_FOUND_ERROR_CODE = "POI_NOT_FOUND"
 POI_NOT_FOUND_ERROR_MESSAGE = "The requested exhibit does not exist."
 
 POI_GEOFENCE_UPDATED_DETAILS = "ADMIN_POI_GEOFENCE_UPDATED"
+POI_DEACTIVATED_DETAILS = "ADMIN_POI_DEACTIVATED"
+POI_ACTIVATED_DETAILS = "ADMIN_POI_ACTIVATED"
 
 
 TARGET_FOREIGN_LANGUAGES = ["en", "ja", "ko", "zh"]
@@ -76,7 +78,6 @@ def validate_coordinates_in_bounds(lat: float, lng: float) -> None:
     """
 
     if not _is_within_cu_chi_bounds(lat, lng):
-
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail={
@@ -95,14 +96,12 @@ def validate_image_file(file: UploadFile, content_bytes: bytes) -> None:
     """Validate image MIME type and file size (< 5MB)."""
 
     if file.content_type not in settings.ALLOWED_IMAGE_TYPES:
-
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Invalid image type '{file.content_type}'. Only JPG, PNG, and WebP are allowed.",
         )
 
     if len(content_bytes) > settings.MAX_IMAGE_SIZE_BYTES:
-
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Cover image file size exceeds the maximum permitted limit of 5MB.",
@@ -112,12 +111,10 @@ def validate_image_file(file: UploadFile, content_bytes: bytes) -> None:
 def get_poi_service(
     db: Annotated[Session, Depends(get_db)],
 ) -> "POIService":
-
     return POIService(poi_repo=POIRepository(db), audit_repo=AuditRepository(db))
 
 
 class POIService:
-
     def __init__(
         self,
         poi_repo: POIRepository | None = None,
@@ -125,7 +122,6 @@ class POIService:
         repository: POIRepository | None = None,
         audit_repository: AuditRepository | None = None,
     ):
-
         # `poi_repo`/`audit_repo` are the dependency-injection names, while
 
         # `repository`/`audit_repository` are the explicit constructor names
@@ -152,7 +148,6 @@ class POIService:
         file_ext = os.path.splitext(file.filename or "")[1].lower()
 
         if not file_ext:
-
             file_ext = ".jpg"
 
         filename = f"poi_{uuid.uuid4().hex[:16]}{file_ext}"
@@ -160,7 +155,6 @@ class POIService:
         destination_path = os.path.join(settings.IMAGE_UPLOAD_DIR, filename)
 
         with open(destination_path, "wb") as f:
-
             f.write(content)
 
         return f"/static/images/{filename}"
@@ -221,7 +215,6 @@ class POIService:
         ]
 
         for lang in TARGET_FOREIGN_LANGUAGES:
-
             foreign_trans = POITranslation(
                 stran_id=f"TR_{uuid.uuid4().hex[:12].upper()}",
                 title=f"[{lang.upper()}] {payload.title}",
@@ -242,7 +235,6 @@ class POIService:
         # 5. Log audit entry if audit repository is available
 
         if self.audit_repo:
-
             self.audit_repo.log_action(
                 username=admin_username,
                 status="CREATE_POI",
@@ -272,7 +264,6 @@ class POIService:
         """Retrieve paginated POIs with translation status summaries."""
 
         if page < 1:
-
             page = 1
 
         skip = (page - 1) * size
@@ -282,7 +273,6 @@ class POIService:
         response_items = []
 
         for poi in items:
-
             translations = self.poi_repo.get_translations_by_poi_id(poi.poi_id)
 
             status_list = [
@@ -302,7 +292,6 @@ class POIService:
         poi = self.poi_repo.get_by_id(poi_id)
 
         if not poi:
-
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"POI exhibit with id '{poi_id}' was not found.",
@@ -348,7 +337,6 @@ class POIService:
         poi = self.repository.get_by_id(poi_id)
 
         if poi is None:
-
             raise ApiError(
                 status_code=status.HTTP_404_NOT_FOUND,
                 code=POI_NOT_FOUND_ERROR_CODE,
@@ -366,7 +354,6 @@ class POIService:
         )
 
         if payload.latitude is not None or payload.longitude is not None:
-
             self.validate_coordinates_in_bounds(target_latitude, target_longitude)
 
         # Detect whether Vietnamese narrative content changed
@@ -396,7 +383,6 @@ class POIService:
         )
 
         if narrative_changed:
-
             self.repository.update_translation_narrative_and_invalidate_foreign(
                 poi_id=poi_id,
                 title=payload.title,
@@ -459,16 +445,61 @@ class POIService:
         """
 
         if not _is_within_cu_chi_bounds(latitude, longitude):
-
             raise ApiError(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 code=GEO_OUT_OF_BOUNDS_ERROR_CODE,
                 message=GEO_OUT_OF_BOUNDS_ERROR_MESSAGE,
             )
 
+    def set_poi_visibility(
+        self,
+        poi_id: str,
+        is_active: bool,
+        admin_user_name: str,
+        client_ip: str | None = None,
+    ) -> POIResponse:
+        """Toggle an exhibit's active visibility status and record in Audit (US 03.3).
+
+        # ARCH-BOUNDARY: Service coordinates validation, state toggle, and audit logging.
+        # SECURITY-INVARIANT: Inactive exhibits are hidden from visitor discovery while preserving historical telemetry.
+        """
+        poi = self.repository.get_by_id(poi_id)
+        if poi is None:
+            raise ApiError(
+                status_code=status.HTTP_404_NOT_FOUND,
+                code=POI_NOT_FOUND_ERROR_CODE,
+                message=POI_NOT_FOUND_ERROR_MESSAGE,
+            )
+
+        updated_poi = self.repository.set_visibility(poi, is_active=is_active)
+
+        audit_details = POI_ACTIVATED_DETAILS if is_active else POI_DEACTIVATED_DETAILS
+        if hasattr(self.audit_repository, "create_log_entry"):
+            self.audit_repository.create_log_entry(
+                user_name=admin_user_name,
+                status=AUDIT_STATUS_SUCCESS,
+                ip_address=client_ip,
+                details=audit_details,
+            )
+        elif hasattr(self.audit_repository, "log_action"):
+            self.audit_repository.log_action(
+                username=admin_user_name,
+                status=AUDIT_STATUS_SUCCESS,
+                ip_address=client_ip,
+                details=audit_details,
+            )
+
+        translations = self.repository.get_translations_by_poi_id(poi_id)
+        status_list = [
+            POITranslationStatusResponse(
+                language_id=t.language_id, status=t.status, title=t.title
+            )
+            for t in translations
+        ]
+        return self._build_poi_response(updated_poi, status_list)
+
     @staticmethod
     def _to_map_item(poi: POI, translation: POITranslation | None = None) -> POIMapItem:
-
         return POIMapItem(
             id=poi.poi_id,
             title=translation.title if translation else poi.title,
@@ -485,7 +516,6 @@ class POIService:
     def _build_poi_response(
         poi: POI, translations: list[POITranslationStatusResponse]
     ) -> POIResponse:
-
         return POIResponse(
             poi_id=poi.poi_id,
             title=poi.title,
