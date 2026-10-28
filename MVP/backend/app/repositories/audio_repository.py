@@ -7,7 +7,7 @@ from sqlalchemy import func, text
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import ApiError
-from app.models.audio import POIAudio
+from app.models.audio import AUDIO_STATUS_FAILED, AUDIO_STATUS_READY, POIAudio
 from app.models.translation import POITranslation
 
 
@@ -87,17 +87,60 @@ class AudioRepository:
                     stran_id=stran_id,
                     audio_url=audio_url,
                     file_size=file_size,
-                    status="READY",
+                    status=AUDIO_STATUS_READY,
                 )
             )
         else:
             audio.audio_url = audio_url
             audio.file_size = file_size
-            audio.status = "READY"
+            audio.status = AUDIO_STATUS_READY
             audio.update_at = func.now()
 
         translation.status = "DRAFT"
         translation.update_at = func.now()
+        self.db.commit()
+
+    def upsert_audio(
+        self,
+        stran_id: str,
+        audio_url: str,
+        file_size: int,
+        status: str = AUDIO_STATUS_READY,
+    ) -> POIAudio:
+        """Upsert audio record for a translation (US 04.4 pipeline)."""
+        audio = self.db.query(POIAudio).filter(POIAudio.stran_id == stran_id).first()
+        if audio is None:
+            audio = POIAudio(
+                audio_id=f"AUD_{uuid.uuid4().hex[:16]}",
+                stran_id=stran_id,
+                audio_url=audio_url,
+                file_size=file_size,
+                status=status,
+            )
+            self.db.add(audio)
+        else:
+            audio.audio_url = audio_url
+            audio.file_size = file_size
+            audio.status = status
+            audio.update_at = func.now()
+        self.db.commit()
+        self.db.refresh(audio)
+        return audio
+
+    def set_audio_failed(self, stran_id: str) -> None:
+        """Mark audio status as FAILED when TTS synthesis fails."""
+        audio = self.db.query(POIAudio).filter(POIAudio.stran_id == stran_id).first()
+        if audio is None:
+            audio = POIAudio(
+                audio_id=f"AUD_{uuid.uuid4().hex[:16]}",
+                stran_id=stran_id,
+                audio_url="",
+                status=AUDIO_STATUS_FAILED,
+            )
+            self.db.add(audio)
+        else:
+            audio.status = AUDIO_STATUS_FAILED
+            audio.update_at = func.now()
         self.db.commit()
 
     def get_all_audio_urls(self) -> set[str]:

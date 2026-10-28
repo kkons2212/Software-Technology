@@ -1,4 +1,4 @@
-"""Unit tests for TranslationRepository (US 04.1)."""
+"""Unit tests for TranslationRepository (US 04.1 & US 04.4)."""
 
 import uuid
 
@@ -107,6 +107,21 @@ def test_should_get_source_translation_for_poi(db_session):
     assert source.title == tr_vi.title
 
 
+def test_should_get_translation_by_poi_and_language(db_session):
+    poi, tr_vi, tr_en = _seed_base_data(db_session)
+    repo = TranslationRepository(db_session)
+
+    found_vi = repo.get_by_poi_and_language(poi.poi_id, "vi")
+    assert found_vi is not None
+    assert found_vi.stran_id == tr_vi.stran_id
+
+    found_en = repo.get_by_poi_and_language(poi.poi_id, "en")
+    assert found_en is not None
+    assert found_en.stran_id == tr_en.stran_id
+
+    assert repo.get_by_poi_and_language(poi.poi_id, "fr") is None
+
+
 def test_should_update_translation_fields_atomically(db_session):
     _, _, tr_en = _seed_base_data(db_session)
     repo = TranslationRepository(db_session)
@@ -123,6 +138,16 @@ def test_should_update_translation_fields_atomically(db_session):
     assert updated.description == "Updated underground tunnel complex."
     assert updated.status == "NEEDS_UPDATE"
     assert updated.user_name == "admin"
+
+
+def test_should_support_all_standard_status_enums(db_session):
+    _, _, tr_en = _seed_base_data(db_session)
+    repo = TranslationRepository(db_session)
+
+    for valid_status in ["PENDING", "DRAFT", "NEEDS_UPDATE", "PUBLISHED", "FAILED"]:
+        updated = repo.update_translation(stran_id=tr_en.stran_id, status=valid_status)
+        assert updated is not None
+        assert updated.status == valid_status
 
 
 def test_should_return_none_when_updating_nonexistent_translation(db_session):

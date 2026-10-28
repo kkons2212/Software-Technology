@@ -17,7 +17,7 @@ const STATUS_OPTIONS = [
   { value: 'DRAFT', label: 'Draft' },
   { value: 'NEEDS_UPDATE', label: 'Needs Audio Update' },
   { value: 'PUBLISHED', label: 'Published' },
-  { value: 'PENDING', label: 'Processing AI' },
+  { value: 'PENDING', label: 'Pending' },
 ];
 
 export default function TranslationAuditView() {

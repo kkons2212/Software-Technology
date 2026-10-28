@@ -33,6 +33,8 @@ venv/
 htmlcov/
 MVP/backend/static/images/*
 !MVP/backend/static/images/.gitkeep
+MVP/backend/static/audio/*
+!MVP/backend/static/audio/.gitkeep
 
 
 # Agent skills & local configuration
