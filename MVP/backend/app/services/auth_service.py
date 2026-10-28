@@ -6,6 +6,11 @@ repository layer.
 
 US 02.2 - TSK-02.2.1: Brute-force protection, failed attempt tracking, and
 15-minute account lockout upon 5 consecutive failures.
+
+US 02.3 - TSK-02.3.1: Server-side token revocation. The session cookie is
+deleted by the controller, but a JWT stays cryptographically valid until it
+expires, so the newest `ADMIN_LOGOUT` audit row is compared against each
+token's issued-at claim.
 """
 
 from datetime import datetime, timedelta
@@ -14,12 +19,17 @@ from fastapi import status
 
 from app.core.exceptions import ApiError
 from app.core.security import (
+    JWT_ISSUED_AT_CLAIM,
     JWT_SUBJECT_CLAIM,
     create_admin_access_token,
     decode_admin_access_token,
     verify_password,
 )
-from app.models.audit import AUDIT_STATUS_FAILED, AUDIT_STATUS_SUCCESS
+from app.models.audit import (
+    AUDIT_DETAILS_LOGOUT,
+    AUDIT_STATUS_FAILED,
+    AUDIT_STATUS_SUCCESS,
+)
 from app.models.user import User
 from app.repositories.audit_repository import AuditRepository
 from app.repositories.user_repository import UserRepository
@@ -142,7 +152,29 @@ class AuthService:
         if administrator is None or not administrator.is_active:
             raise self._build_unauthenticated_error()
 
+        # SECURITY-INVARIANT (US 02.3 - AC-02.3.1): a logout must kill the token
+        # server-side, otherwise a stolen cookie keeps working until `exp`.
+        # PERF-CRITICAL: this adds exactly one indexed audit read per request.
+        if self._is_token_revoked(
+            administrator.user_name, claims.get(JWT_ISSUED_AT_CLAIM)
+        ):
+            raise self._build_unauthenticated_error()
+
         return AdminProfileResponse.model_validate(administrator)
+
+    def logout_admin(self, admin_user_name: str, client_ip: str | None) -> None:
+        """Record the revocation watermark that terminates an active session.
+
+        US 02.3 - TSK-02.3.1: the row must be written before the controller
+        clears the cookie, because that row is the only thing that makes the
+        already-issued JWT unusable.
+        """
+        self.audit_repository.create_log_entry(
+            user_name=admin_user_name,
+            status=AUDIT_STATUS_SUCCESS,
+            ip_address=client_ip,
+            details=AUDIT_DETAILS_LOGOUT,
+        )
 
     def _find_administrator(self, login_identifier: str) -> User | None:
         """Resolve an identifier that may be either a username or an email."""
@@ -164,6 +196,31 @@ class AuthService:
             ip_address=client_ip,
             details=details,
         )
+
+    def _is_token_revoked(
+        self, admin_user_name: str, issued_at_epoch: float | None
+    ) -> bool:
+        """Return True when the token was issued in or before the logout second.
+
+        US 02.3 - TSK-02.3.1: `Audit.Create_at` is filled by the database into a
+        `DATETIME` column, so the watermark is always truncated *down* to whole
+        seconds while `iat` is a sub-second UTC epoch. Comparing the two raw
+        values would leave a login/logout pair inside one second looking
+        unrevoked, so `iat` is floored to the same resolution first. The
+        comparison is then deliberately inclusive and therefore fails closed: a
+        token minted in the very second of a logout is rejected too.
+        """
+        if issued_at_epoch is None:
+            return False
+
+        last_logout_at = self.audit_repository.find_last_logout_at(admin_user_name)
+        if last_logout_at is None:
+            return False
+
+        issued_at_second = datetime.utcfromtimestamp(issued_at_epoch).replace(
+            microsecond=0
+        )
+        return issued_at_second <= last_logout_at
 
     @staticmethod
     def _build_invalid_credentials_error() -> ApiError:
