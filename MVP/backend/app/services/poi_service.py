@@ -255,6 +255,15 @@ class POIService:
                 },
             )
 
+        if background_tasks is not None:
+            from app.services.translation_pipeline_service import (
+                execute_poi_pipeline_background_task,
+            )
+
+            background_tasks.add_task(
+                execute_poi_pipeline_background_task, created_poi.poi_id
+            )
+
         return self._build_poi_response(created_poi, translation_responses)
 
     def list_pois(
@@ -324,6 +333,7 @@ class POIService:
         payload: POIUpdateRequest,
         admin_user_name: str,
         client_ip: str | None = None,
+        background_tasks: BackgroundTasks | None = None,
     ) -> POIMapItem:
         """Validate, persist POI changes, and synchronize translation statuses (US 03.4).
 
@@ -393,6 +403,13 @@ class POIService:
                 short_description=payload.short_description,
                 description=payload.description,
             )
+
+            if background_tasks is not None:
+                from app.services.translation_pipeline_service import (
+                    execute_poi_pipeline_background_task,
+                )
+
+                background_tasks.add_task(execute_poi_pipeline_background_task, poi_id)
 
         # Audit logging (dev_rules Section 3.3)
 

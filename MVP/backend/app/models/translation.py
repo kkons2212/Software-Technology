@@ -14,6 +14,12 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship, synonym
 
 from app.core.database import Base
 
+TRANSLATION_STATUS_PENDING = "PENDING"
+TRANSLATION_STATUS_DRAFT = "DRAFT"
+TRANSLATION_STATUS_NEEDS_UPDATE = "NEEDS_UPDATE"
+TRANSLATION_STATUS_PUBLISHED = "PUBLISHED"
+TRANSLATION_STATUS_FAILED = "FAILED"
+
 
 class POITranslation(Base):
     __tablename__ = "POITranslation"
@@ -27,7 +33,11 @@ class POITranslation(Base):
     )
     description: Mapped[str | None] = mapped_column("Description", Text, nullable=True)
     status: Mapped[str] = mapped_column(
-        "Status", String(255), nullable=False, default="PENDING", index=True
+        "Status",
+        String(255),
+        nullable=False,
+        default=TRANSLATION_STATUS_PENDING,
+        index=True,
     )
     review_at: Mapped[datetime | None] = mapped_column(
         "Review_at", DateTime, nullable=True
