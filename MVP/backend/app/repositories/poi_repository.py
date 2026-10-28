@@ -236,3 +236,13 @@ class POIRepository:
         self.db.commit()
 
         return len(foreign_translations)
+
+    def set_visibility(self, poi: POI, is_active: bool) -> POI:
+        """Toggle an exhibit's active visibility state (US 03.3).
+
+        # ARCH-BOUNDARY: Atomic repository update toggling is_active.
+        """
+        poi.is_active = is_active
+        self.db.commit()
+        self.db.refresh(poi)
+        return poi

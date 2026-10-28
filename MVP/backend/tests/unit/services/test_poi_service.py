@@ -24,6 +24,8 @@ from app.repositories.poi_repository import POIRepository
 from app.schemas.poi_schema import POICreateRequest, POIUpdateRequest
 from app.services.poi_service import (
     GEO_OUT_OF_BOUNDS_ERROR_CODE,
+    POI_ACTIVATED_DETAILS,
+    POI_DEACTIVATED_DETAILS,
     POI_GEOFENCE_UPDATED_DETAILS,
     POI_NOT_FOUND_ERROR_CODE,
     POIService,
@@ -480,3 +482,131 @@ def test_should_update_poi_and_mark_foreign_translations_needs_update(
         db_session.query(Audit).filter(Audit.details == "ADMIN_POI_UPDATED").one()
     )
     assert audit_row.user_name == seeded_admin.user_name
+
+# ==============================================================================
+# US 03.3: Deactivate / Hide Exhibit & Invalidate Navigation Route Tests
+# ==============================================================================
+
+def test_should_deactivate_poi_and_log_audit(
+    poi_service, seeded_admin, seeded_poi, db_session
+):
+    """Deactivating an exhibit sets is_active=False and records audit entry."""
+    result = poi_service.set_poi_visibility(
+        poi_id=seeded_poi.poi_id,
+        is_active=False,
+        admin_user_name=seeded_admin.user_name,
+        client_ip=CLIENT_IP,
+    )
+
+    assert result.is_active is False
+
+    db_session.refresh(seeded_poi)
+    assert seeded_poi.is_active is False
+
+    audit_row = (
+        db_session.query(Audit)
+        .filter(Audit.details == POI_DEACTIVATED_DETAILS)
+        .first()
+    )
+    assert audit_row is not None
+    assert audit_row.user_name == seeded_admin.user_name
+    assert audit_row.ip_address == CLIENT_IP
+
+
+def test_should_reactivate_poi_and_log_audit(
+    poi_service, seeded_admin, seeded_poi, db_session
+):
+    """Reactivating an exhibit sets is_active=True and records audit entry."""
+    seeded_poi.is_active = False
+    db_session.commit()
+
+    result = poi_service.set_poi_visibility(
+        poi_id=seeded_poi.poi_id,
+        is_active=True,
+        admin_user_name=seeded_admin.user_name,
+        client_ip=CLIENT_IP,
+    )
+
+    assert result.is_active is True
+
+    db_session.refresh(seeded_poi)
+    assert seeded_poi.is_active is True
+
+    audit_row = (
+        db_session.query(Audit)
+        .filter(Audit.details == POI_ACTIVATED_DETAILS)
+        .first()
+    )
+    assert audit_row is not None
+    assert audit_row.user_name == seeded_admin.user_name
+
+
+def test_should_exclude_deactivated_poi_from_visitor_map(
+    poi_service, seeded_admin, seeded_poi, db_session
+):
+    """Deactivated exhibit is excluded from visitor list_map_pois."""
+    # When active, it appears in visitor map query
+    initial_pois = poi_service.list_map_pois()
+    assert any(p.id == seeded_poi.poi_id for p in initial_pois)
+
+    # Deactivate exhibit
+    poi_service.set_poi_visibility(
+        poi_id=seeded_poi.poi_id,
+        is_active=False,
+        admin_user_name=seeded_admin.user_name,
+    )
+
+    # Visitor map query excludes it
+    after_pois = poi_service.list_map_pois()
+    assert not any(p.id == seeded_poi.poi_id for p in after_pois)
+
+
+def test_should_preserve_translations_and_audio_when_deactivated(
+    poi_service, seeded_admin, seeded_poi, db_session
+):
+    """Deactivating a POI preserves all foreign translations and audio records."""
+    from app.models.translation import POITranslation
+
+    tr_vi = POITranslation(
+        stran_id="TR_DEACT_VI",
+        poi_id=seeded_poi.poi_id,
+        language_id="vi",
+        title="Tunnel entrance",
+        status="PUBLISHED",
+    )
+    tr_en = POITranslation(
+        stran_id="TR_DEACT_EN",
+        poi_id=seeded_poi.poi_id,
+        language_id="en",
+        title="Tunnel entrance EN",
+        status="PUBLISHED",
+    )
+    db_session.add_all([tr_vi, tr_en])
+    db_session.commit()
+
+    poi_service.set_poi_visibility(
+        poi_id=seeded_poi.poi_id,
+        is_active=False,
+        admin_user_name=seeded_admin.user_name,
+    )
+
+    # Translations remain intact
+    translations = (
+        db_session.query(POITranslation)
+        .filter(POITranslation.poi_id == seeded_poi.poi_id)
+        .all()
+    )
+    assert len(translations) == 2
+    assert {t.language_id for t in translations} == {"vi", "en"}
+
+
+def test_should_raise_404_when_toggling_nonexistent_poi(poi_service, seeded_admin):
+    """Toggling visibility on nonexistent POI raises ApiError 404."""
+    with pytest.raises(ApiError) as exc_info:
+        poi_service.set_poi_visibility(
+            poi_id="nonexistent-poi-id",
+            is_active=False,
+            admin_user_name=seeded_admin.user_name,
+        )
+    assert exc_info.value.status_code == 404
+    assert exc_info.value.code == POI_NOT_FOUND_ERROR_CODE

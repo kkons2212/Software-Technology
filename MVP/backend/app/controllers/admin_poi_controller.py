@@ -15,7 +15,12 @@ from fastapi import APIRouter, Depends, File, Request, UploadFile
 from app.controllers.auth_controller import resolve_client_ip
 from app.core.dependencies import get_current_admin_profile
 from app.schemas.auth_schema import AdminProfileResponse
-from app.schemas.poi_schema import POIUpdateRequest, POIUpdateResponse
+from app.schemas.poi_schema import (
+    POIResponse,
+    POIUpdateRequest,
+    POIUpdateResponse,
+    POIVisibilityUpdateRequest,
+)
 from app.services.poi_service import POIService, get_poi_service
 
 ADMIN_POI_ROUTE_PREFIX = "/api/v1/admin/pois"
@@ -58,3 +63,21 @@ async def upload_poi_image(
     image_url = await service.save_cover_image(file)
 
     return {"image_url": image_url}
+
+
+@router.patch("/{poi_id}/visibility", response_model=POIResponse)
+def set_poi_visibility(
+    poi_id: str,
+    payload: POIVisibilityUpdateRequest,
+    request: Request,
+    service: POIService = Depends(get_poi_service),
+    current_admin: AdminProfileResponse = Depends(get_current_admin_profile),
+) -> POIResponse:
+    """Toggle an exhibit's active visibility state (US 03.3)."""
+
+    return service.set_poi_visibility(
+        poi_id=poi_id,
+        is_active=payload.is_active,
+        admin_user_name=current_admin.user_name,
+        client_ip=resolve_client_ip(request),
+    )

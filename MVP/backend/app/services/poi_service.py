@@ -27,6 +27,7 @@ from app.schemas.poi_schema import (
     POIResponse,
     POITranslationStatusResponse,
     POIUpdateRequest,
+    POIVisibilityUpdateRequest,
 )
 
 GEO_OUT_OF_BOUNDS_ERROR_CODE = "GEO_OUT_OF_BOUNDS"
@@ -40,6 +41,8 @@ POI_NOT_FOUND_ERROR_CODE = "POI_NOT_FOUND"
 POI_NOT_FOUND_ERROR_MESSAGE = "The requested exhibit does not exist."
 
 POI_GEOFENCE_UPDATED_DETAILS = "ADMIN_POI_GEOFENCE_UPDATED"
+POI_DEACTIVATED_DETAILS = "ADMIN_POI_DEACTIVATED"
+POI_ACTIVATED_DETAILS = "ADMIN_POI_ACTIVATED"
 
 
 TARGET_FOREIGN_LANGUAGES = ["en", "ja", "ko", "zh"]
@@ -448,6 +451,58 @@ class POIService:
                 code=GEO_OUT_OF_BOUNDS_ERROR_CODE,
                 message=GEO_OUT_OF_BOUNDS_ERROR_MESSAGE,
             )
+
+    def set_poi_visibility(
+        self,
+        poi_id: str,
+        is_active: bool,
+        admin_user_name: str,
+        client_ip: str | None = None,
+    ) -> POIResponse:
+        """Toggle an exhibit's active visibility status and record in Audit (US 03.3).
+
+        # ARCH-BOUNDARY: Service coordinates validation, state toggle, and audit logging.
+        # SECURITY-INVARIANT: Inactive exhibits are hidden from visitor discovery while preserving historical telemetry.
+        """
+        poi = self.repository.get_by_id(poi_id)
+        if poi is None:
+            raise ApiError(
+                status_code=status.HTTP_404_NOT_FOUND,
+                code=POI_NOT_FOUND_ERROR_CODE,
+                message=POI_NOT_FOUND_ERROR_MESSAGE,
+            )
+
+        updated_poi = self.repository.set_visibility(poi, is_active=is_active)
+
+        audit_details = (
+            POI_ACTIVATED_DETAILS if is_active else POI_DEACTIVATED_DETAILS
+        )
+        if hasattr(self.audit_repository, "create_log_entry"):
+            self.audit_repository.create_log_entry(
+                user_name=admin_user_name,
+                status=AUDIT_STATUS_SUCCESS,
+                ip_address=client_ip,
+                details=audit_details,
+            )
+        elif hasattr(self.audit_repository, "log_action"):
+            self.audit_repository.log_action(
+                username=admin_user_name,
+                status=AUDIT_STATUS_SUCCESS,
+                ip_address=client_ip,
+                details=audit_details,
+            )
+
+        translations = self.repository.get_translations_by_poi_id(poi_id)
+        status_list = [
+            POITranslationStatusResponse(
+                language_id=t.language_id, status=t.status, title=t.title
+            )
+            for t in translations
+        ]
+        return self._build_poi_response(updated_poi, status_list)
+
+
+
 
     @staticmethod
     def _to_map_item(poi: POI, translation: POITranslation | None = None) -> POIMapItem:

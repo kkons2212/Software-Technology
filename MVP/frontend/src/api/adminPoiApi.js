@@ -18,3 +18,19 @@ const ADMIN_POIS_ENDPOINT = '/api/v1/admin/pois';
 export async function updatePoi(poiId, changes) {
   return apiClient.put(`${ADMIN_POIS_ENDPOINT}/${encodeURIComponent(poiId)}`, changes);
 }
+
+/**
+ * Toggle POI active visibility state (Admin - US 03.3).
+ * @param {string} poiId
+ * @param {boolean} isActive
+ * @param {object} [options]
+ * @param {AbortSignal} [options.signal]
+ * @returns {Promise<object>} updated POI profile
+ */
+export async function togglePoiVisibility(poiId, isActive, { signal } = {}) {
+  return apiClient.patch(
+    `${ADMIN_POIS_ENDPOINT}/${encodeURIComponent(poiId)}/visibility`,
+    { is_active: isActive },
+    { signal }
+  );
+}
