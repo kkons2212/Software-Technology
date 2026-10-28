@@ -1,18 +1,21 @@
 // =============================================================================
 // TIER 1 - ADMIN LOGIN VIEW
-// Desktop-first Administrator authentication screen (US 02.1 & US 02.2).
+// Desktop-first Administrator authentication screen (US 02.1, US 02.2 & US 02.3).
 // Presentation only: all network work is delegated to AuthContext -> authApi.
 // =============================================================================
 
 import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { useAuth } from '../../contexts/AuthContext.jsx';
+import { LOGOUT_REASON_IDLE, useAuth } from '../../contexts/AuthContext.jsx';
 import { ApiError } from '../../api/apiClient.js';
 import AccountLockoutModal, {
   LOCKOUT_STORAGE_KEY,
 } from '../../components/admin/AccountLockoutModal.jsx';
 
 const ADMIN_WORKSPACE_PATH = '/admin';
+// AC-02.3.2: explains the unsolicited bounce back to the login screen.
+const IDLE_TIMEOUT_MESSAGE =
+  'Your session expired after 30 minutes of inactivity. Please sign in again.';
 // Generic message prevents user enumeration (AC-02.1.4).
 const INVALID_CREDENTIALS_MESSAGE = 'Invalid username or password';
 const GENERIC_SIGN_IN_ERROR_MESSAGE = 'Unable to sign in right now. Please try again later.';
@@ -42,6 +45,7 @@ export default function AdminLoginView() {
   const [lockoutSeconds, setLockoutSeconds] = useState(900);
 
   const redirectPath = currentLocation.state?.from ?? ADMIN_WORKSPACE_PATH;
+  const isIdleTimeoutNotice = currentLocation.state?.reason === LOGOUT_REASON_IDLE;
 
   // AC-02.2.3: Check if browser session has an active lockout stored
   useEffect(() => {
@@ -136,6 +140,18 @@ export default function AdminLoginView() {
         </header>
 
         <form className="space-y-4" onSubmit={handleSubmit} noValidate>
+          {/* AC-02.3.2: the browser was bounced here by the idle timer, not by
+              the Administrator, so the redirect is explained before the fields. */}
+          {isIdleTimeoutNotice && (
+            <p
+              role="status"
+              data-testid="idle-timeout-notice"
+              className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800"
+            >
+              {IDLE_TIMEOUT_MESSAGE}
+            </p>
+          )}
+
           {submitError && (
             <p
               role="alert"

@@ -1,12 +1,14 @@
 // =============================================================================
 // TIER 3 - ADMIN AUTHENTICATION API
-// Thin domain wrapper over apiClient for the Administrator Portal (US 02.1).
+// Thin domain wrapper over apiClient for the Administrator Portal
+// (US 02.1 & US 02.3).
 // =============================================================================
 
 import { apiClient } from './apiClient.js';
 
 const AUTH_LOGIN_ENDPOINT = '/api/v1/auth/login';
 const AUTH_CURRENT_ADMIN_ENDPOINT = '/api/v1/auth/me';
+const AUTH_LOGOUT_ENDPOINT = '/api/v1/auth/logout';
 
 /**
  * Authenticate an Administrator. The backend sets the HttpOnly session cookie,
@@ -27,4 +29,14 @@ export async function loginAdmin({ username, password }) {
 export async function fetchCurrentAdmin() {
   const payload = await apiClient.get(AUTH_CURRENT_ADMIN_ENDPOINT);
   return payload?.admin ?? payload ?? null;
+}
+
+/**
+ * Terminate the current Administrator session (US 02.3 - TSK-02.3.2).
+ * The backend revokes the token before clearing the HttpOnly cookie, so a copy
+ * of the old JWT is rejected even if some client still holds one.
+ * @returns {Promise<object|null>} the termination confirmation payload
+ */
+export async function logoutAdmin() {
+  return apiClient.post(AUTH_LOGOUT_ENDPOINT);
 }

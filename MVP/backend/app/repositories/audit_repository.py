@@ -2,11 +2,13 @@
 
 import json
 import uuid
+from datetime import datetime
 from typing import Any
 
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app.models.audit import Audit
+from app.models.audit import AUDIT_DETAILS_LOGOUT, Audit
 
 AUDIT_ID_PREFIX = "AUD"
 AUDIT_ID_RANDOM_LENGTH = 16
@@ -41,6 +43,24 @@ class AuditRepository:
         self.db.commit()
         self.db.refresh(log_entry)
         return log_entry
+
+    def find_last_logout_at(self, user_name: str) -> datetime | None:
+        """Return the timestamp of the most recent logout recorded for a user.
+
+        US 02.3 - AC-02.3.1: deleting the cookie cannot invalidate a JWT that is
+        still cryptographically valid, so the newest logout row is used as the
+        revocation watermark that every token's issued-at claim is compared to.
+        Both `UserName` and `Create_at` are indexed, so this stays a single
+        indexed read on the authentication hot path.
+        """
+        return (
+            self.db.query(func.max(Audit.create_at))
+            .filter(
+                Audit.user_name == user_name,
+                Audit.details == AUDIT_DETAILS_LOGOUT,
+            )
+            .scalar()
+        )
 
     def log_action(
         self,

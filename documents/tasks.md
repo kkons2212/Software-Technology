@@ -492,8 +492,8 @@
 > * **Progress:** [x] 3/3 Tasks Completed
 
 #### Acceptance Criteria:
-- [ ] **AC-04.3.1:** Strictly forbid publication if text and audio are desynchronized (`Status == 'NEEDS_UPDATE'`).
-- [ ] **AC-04.3.2:** Sets `POITranslation.Status = 'PUBLISHED'` and `POIAudio.Status = 'READY'`. Mobile visitor app immediately recognizes the published language.
+- [x] **AC-04.3.1:** Strictly forbid publication if text and audio are desynchronized (`Status == 'NEEDS_UPDATE'`).
+- [x] **AC-04.3.2:** Sets `POITranslation.Status = 'PUBLISHED'` and `POIAudio.Status = 'READY'`. Mobile visitor app immediately recognizes the published language.
 
 #### Task Checklist:
 - [x] `TSK-04.3.1` `[Backend]` **Publish Translation Endpoint (`POST /api/v1/admin/translations/{id}/publish`)**

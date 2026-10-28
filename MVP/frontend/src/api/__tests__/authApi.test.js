@@ -6,7 +6,7 @@ const { mockApiClient } = vi.hoisted(() => ({
 
 vi.mock('../apiClient.js', () => ({ apiClient: mockApiClient }));
 
-import { fetchCurrentAdmin, loginAdmin } from '../authApi.js';
+import { fetchCurrentAdmin, loginAdmin, logoutAdmin } from '../authApi.js';
 
 describe('authApi', () => {
   beforeEach(() => {
@@ -54,5 +54,20 @@ describe('authApi', () => {
     mockApiClient.get.mockResolvedValue(null);
 
     await expect(fetchCurrentAdmin()).resolves.toBeNull();
+  });
+
+  it('posts an empty-body logout to the termination endpoint', async () => {
+    mockApiClient.post.mockResolvedValue({ message: 'Administrator session terminated' });
+
+    await expect(logoutAdmin()).resolves.toEqual({
+      message: 'Administrator session terminated',
+    });
+    expect(mockApiClient.post).toHaveBeenCalledWith('/api/v1/auth/logout');
+  });
+
+  it('propagates a rejection when the session was already revoked', async () => {
+    mockApiClient.post.mockRejectedValue(new Error('Not authenticated'));
+
+    await expect(logoutAdmin()).rejects.toThrow('Not authenticated');
   });
 });

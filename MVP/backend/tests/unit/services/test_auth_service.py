@@ -5,19 +5,26 @@ valid login, invalid password and nonexistent user.
 DoD of TSK-02.2.1 & TSK-02.2.4 tests failed attempt tracking, 15-minute account
 lockout upon 5 consecutive failures, rejecting logins when locked, auto-unlock
 after expiration, and counter reset on success.
+DoD of TSK-02.3.1 tests the server-side revocation watermark, including the
+same-second login/logout boundary that MySQL `DATETIME` truncation creates.
 """
 
 from datetime import datetime, timedelta, timezone
 
 import pytest
+from jose import jwt
 from sqlalchemy.orm import Session
 
+from app.core.config import get_settings
 from app.core.exceptions import ApiError
 from app.core.security import (
+    JWT_ISSUED_AT_CLAIM,
+    JWT_SUBJECT_CLAIM,
     decode_admin_access_token,
     hash_password,
 )
 from app.models.audit import (
+    AUDIT_DETAILS_LOGOUT,
     AUDIT_STATUS_FAILED,
     AUDIT_STATUS_SUCCESS,
     Audit,
@@ -485,3 +492,167 @@ def test_should_raise_unauthenticated_when_account_disabled_after_login(
         auth_service.resolve_authenticated_admin(session_token.access_token)
 
     assert raised_error.value.detail["code"] == UNAUTHENTICATED_ERROR_CODE
+
+
+# ---------------------------------------------------------------------------
+# US 02.3: SERVER-SIDE TOKEN REVOCATION (TSK-02.3.1)
+# ---------------------------------------------------------------------------
+WATERMARK_AUDIT_ID = "AUD-0000000000000001"
+
+
+def _seed_logout_watermark(
+    db_session: Session, user_name: str, create_at: datetime
+) -> None:
+    """Insert the revocation watermark with an exact, hand-picked timestamp.
+
+    `create_log_entry` lets MySQL fill `Create_at` with `NOW()`, which cannot
+    express the same-second boundary this suite has to pin down, so the row is
+    written directly here.
+    """
+    db_session.add(
+        Audit(
+            audit_id=WATERMARK_AUDIT_ID,
+            user_name=user_name,
+            status=AUDIT_STATUS_SUCCESS,
+            details=AUDIT_DETAILS_LOGOUT,
+            create_at=create_at,
+        )
+    )
+    db_session.commit()
+
+
+def test_should_record_the_logout_watermark_row(auth_service, active_admin, db_session):
+    auth_service.logout_admin(VALID_USER_NAME, client_ip=CLIENT_IP)
+
+    logout_row = (
+        db_session.query(Audit).filter(Audit.details == AUDIT_DETAILS_LOGOUT).one()
+    )
+    assert logout_row.user_name == VALID_USER_NAME
+    assert logout_row.status == AUDIT_STATUS_SUCCESS
+    assert logout_row.ip_address == CLIENT_IP
+    assert logout_row.create_at is not None
+
+
+def test_should_reject_the_session_token_after_a_real_logout(
+    auth_service, active_admin
+):
+    session_token = auth_service.authenticate_admin(
+        AdminLoginRequest(username=VALID_USER_NAME, password=VALID_PASSWORD),
+        client_ip=CLIENT_IP,
+    )
+
+    auth_service.logout_admin(VALID_USER_NAME, client_ip=CLIENT_IP)
+
+    # AC-02.3.1: the JWT is still cryptographically valid but must be refused.
+    with pytest.raises(ApiError) as raised_error:
+        auth_service.resolve_authenticated_admin(session_token.access_token)
+
+    assert raised_error.value.status_code == 401
+    assert raised_error.value.detail["code"] == UNAUTHENTICATED_ERROR_CODE
+
+
+def test_should_reject_a_token_issued_in_the_same_second_as_the_logout(
+    auth_service, active_admin, db_session
+):
+    session_token = auth_service.authenticate_admin(
+        AdminLoginRequest(username=VALID_USER_NAME, password=VALID_PASSWORD),
+        client_ip=CLIENT_IP,
+    )
+    issued_at_epoch = decode_admin_access_token(session_token.access_token)[
+        JWT_ISSUED_AT_CLAIM
+    ]
+    # MySQL truncates the watermark down to the second, so a token minted later
+    # in that same second must still be treated as revoked (fail-closed).
+    _seed_logout_watermark(
+        db_session,
+        VALID_USER_NAME,
+        datetime.utcfromtimestamp(issued_at_epoch).replace(microsecond=0),
+    )
+
+    with pytest.raises(ApiError):
+        auth_service.resolve_authenticated_admin(session_token.access_token)
+
+
+def test_should_keep_a_token_issued_after_the_logout_watermark(
+    auth_service, active_admin, db_session
+):
+    session_token = auth_service.authenticate_admin(
+        AdminLoginRequest(username=VALID_USER_NAME, password=VALID_PASSWORD),
+        client_ip=CLIENT_IP,
+    )
+    issued_at_epoch = decode_admin_access_token(session_token.access_token)[
+        JWT_ISSUED_AT_CLAIM
+    ]
+    _seed_logout_watermark(
+        db_session,
+        VALID_USER_NAME,
+        datetime.utcfromtimestamp(issued_at_epoch).replace(microsecond=0)
+        - timedelta(seconds=1),
+    )
+
+    resolved_profile = auth_service.resolve_authenticated_admin(
+        session_token.access_token
+    )
+
+    assert resolved_profile.user_name == VALID_USER_NAME
+
+
+def test_should_scope_the_watermark_to_the_requesting_administrator(
+    auth_service, active_admin, user_repository
+):
+    session_token = auth_service.authenticate_admin(
+        AdminLoginRequest(username=VALID_USER_NAME, password=VALID_PASSWORD),
+        client_ip=CLIENT_IP,
+    )
+    user_repository.create_admin(
+        User(
+            user_name="other-admin",
+            email="other-admin@cuchi.vn",
+            password_hash=hash_password(VALID_PASSWORD),
+            is_active=True,
+            falsed_attempts=0,
+        )
+    )
+    auth_service.logout_admin("other-admin", client_ip=CLIENT_IP)
+
+    resolved_profile = auth_service.resolve_authenticated_admin(
+        session_token.access_token
+    )
+
+    assert resolved_profile.user_name == VALID_USER_NAME
+
+
+def test_should_not_revoke_when_the_watermark_does_not_exist(
+    auth_service, active_admin
+):
+    session_token = auth_service.authenticate_admin(
+        AdminLoginRequest(username=VALID_USER_NAME, password=VALID_PASSWORD),
+        client_ip=CLIENT_IP,
+    )
+
+    resolved_profile = auth_service.resolve_authenticated_admin(
+        session_token.access_token
+    )
+
+    assert resolved_profile.user_name == VALID_USER_NAME
+
+
+def test_should_not_revoke_when_the_token_carries_no_issued_at_claim(
+    auth_service, active_admin, db_session
+):
+    # A token minted without `iat` cannot be placed on the watermark timeline;
+    # the signature still has to be valid for the session to resolve at all.
+    settings = get_settings()
+    legacy_token = jwt.encode(
+        {
+            JWT_SUBJECT_CLAIM: VALID_USER_NAME,
+            "exp": datetime.now(timezone.utc) + timedelta(minutes=30),
+        },
+        settings.JWT_SECRET_KEY,
+        algorithm=settings.JWT_ALGORITHM,
+    )
+    _seed_logout_watermark(db_session, VALID_USER_NAME, datetime(2026, 1, 1, 12, 0, 0))
+
+    resolved_profile = auth_service.resolve_authenticated_admin(legacy_token)
+
+    assert resolved_profile.user_name == VALID_USER_NAME
