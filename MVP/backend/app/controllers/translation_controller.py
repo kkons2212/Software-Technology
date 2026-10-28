@@ -1,6 +1,6 @@
-"""Admin Translation Audit Controller (US 04.1).
+"""Admin Translation Audit Controller (US 04.1 & US 04.3).
 
-Enables side-by-side historical audit and terminology refinement for multilingual POI guides.
+Enables side-by-side historical audit, terminology refinement, and live publication approval.
 """
 
 from fastapi import APIRouter, Depends, Query, Request, status
@@ -87,3 +87,23 @@ async def regenerate_translation_audio(
 ) -> AudioRegenerationResponse:
     """Regenerate narration asynchronously for an audited translation."""
     return await tts_service.regenerate_audio(id)
+
+
+@router.post(
+    "/{id}/publish",
+    response_model=TranslationResponse,
+    status_code=status.HTTP_200_OK,
+)
+def publish_translation(
+    id: str,
+    request: Request,
+    translation_service: TranslationService = Depends(get_translation_service),
+    current_admin: str = Depends(get_current_admin),
+) -> TranslationResponse:
+    """Grant publication approval and synchronize live to visitors (US 04.3)."""
+    client_ip = request.client.host if request.client else None
+    return translation_service.publish_translation(
+        stran_id=id,
+        admin_username=current_admin,
+        ip_address=client_ip,
+    )

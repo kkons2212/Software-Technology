@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { getTranslations, updateTranslation } from '../../api/translationApi.js';
+import { getTranslations, updateTranslation, publishTranslation } from '../../api/translationApi.js';
 import { getPois } from '../../api/poiApi.js';
 import AudioSyncBadge from '../../components/admin/AudioSyncBadge.jsx';
 import AudioAuditPlayer from '../../components/admin/AudioAuditPlayer.jsx';
@@ -35,6 +35,7 @@ export default function TranslationAuditView() {
   // Row-level edit drafts: { [stranId]: { title, short_description, description } }
   const [editDrafts, setEditDrafts] = useState({});
   const [savingRows, setSavingRows] = useState({});
+  const [publishingRows, setPublishingRows] = useState({});
 
   // 1. Fetch POIs for the 3-tier filter header
   useEffect(() => {
@@ -62,6 +63,8 @@ export default function TranslationAuditView() {
         poiId: selectedPoiId,
         languageId: selectedLanguageId,
         status: selectedStatus,
+        page: 1,
+        size: 50,
       });
       const items = res?.items || (Array.isArray(res) ? res : []);
       setTranslations(items);
@@ -77,35 +80,34 @@ export default function TranslationAuditView() {
     loadTranslations();
   }, [loadTranslations]);
 
-  // Handle keystroke edits in target textareas (AC-04.1.3)
-  const handleFieldChange = (item, field, value) => {
-    const currentDraft = editDrafts[item.stran_id] || {
-      title: item.title,
-      short_description: item.short_description || '',
-      description: item.description || '',
-    };
-
-    setEditDrafts((prev) => ({
-      ...prev,
-      [item.stran_id]: {
-        ...currentDraft,
-        [field]: value,
-      },
-    }));
+  // Handlers for side-by-side editing
+  const handleFieldChange = (stranId, field, value, originalItem) => {
+    setEditDrafts((prev) => {
+      const currentDraft = prev[stranId] || {
+        title: originalItem.title,
+        short_description: originalItem.short_description || '',
+        description: originalItem.description || '',
+      };
+      return {
+        ...prev,
+        [stranId]: {
+          ...currentDraft,
+          [field]: value,
+        },
+      };
+    });
   };
 
-  // Determine if a row has uncommitted text modifications
   const isRowModified = (item) => {
     const draft = editDrafts[item.stran_id];
     if (!draft) return false;
     return (
       draft.title !== item.title ||
-      (draft.short_description || '') !== (item.short_description || '') ||
-      (draft.description || '') !== (item.description || '')
+      draft.short_description !== (item.short_description || '') ||
+      draft.description !== (item.description || '')
     );
   };
 
-  // Save modified text (transitions status to NEEDS_UPDATE)
   const handleSaveTranslation = async (item) => {
     const draft = editDrafts[item.stran_id];
     if (!draft) return;
@@ -169,6 +171,44 @@ export default function TranslationAuditView() {
     setNotification({ type: 'error', message: errorMessage });
   };
 
+  const handlePublishTranslation = async (item) => {
+    setPublishingRows((prev) => ({ ...prev, [item.stran_id]: true }));
+    setNotification(null);
+
+    try {
+      const published = await publishTranslation(item.stran_id);
+
+      setTranslations((prev) =>
+        prev.flatMap((t) => {
+          if (t.stran_id !== item.stran_id) return [t];
+          if (selectedStatus && selectedStatus !== 'PUBLISHED') return [];
+          return [
+            {
+              ...t,
+              status: published.status || 'PUBLISHED',
+              audio_status: published.audio_status || t.audio_status,
+              audio_url: published.audio_url || t.audio_url,
+              review_by: published.review_by || t.review_by,
+              review_at: published.review_at || t.review_at,
+            },
+          ];
+        })
+      );
+
+      setNotification({
+        type: 'success',
+        message: `Published '${item.title}' successfully. Now live for visitors.`,
+      });
+    } catch (err) {
+      setNotification({
+        type: 'error',
+        message: err?.message || 'Failed to publish translation.',
+      });
+    } finally {
+      setPublishingRows((prev) => ({ ...prev, [item.stran_id]: false }));
+    }
+  };
+
   return (
     <div className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
       {/* Header */}
@@ -178,7 +218,7 @@ export default function TranslationAuditView() {
         </h1>
         <p className="mt-1 text-sm text-slate-600">
           Review and refine translations against source Vietnamese, preview narrations,
-          and regenerate audio to maintain strict audio-text synchronization (US 04.1–04.2).
+          and regenerate audio to maintain strict audio-text synchronization (US 04.1–04.3).
         </p>
       </div>
 
@@ -297,6 +337,7 @@ export default function TranslationAuditView() {
               description: item.description || '',
             };
             const isSaving = savingRows[item.stran_id] || false;
+            const isPublishing = publishingRows[item.stran_id] || false;
             const effectiveStatus = isModified ? 'NEEDS_UPDATE' : item.status;
             const isPublishLocked =
               effectiveStatus === 'NEEDS_UPDATE' ||
@@ -388,44 +429,41 @@ export default function TranslationAuditView() {
 
                     <div className="space-y-4">
                       <div>
-                        <label htmlFor={`target-title-${item.stran_id}`} className="block text-xs font-medium text-slate-700">
-                          Translated Title
-                        </label>
+                        <label className="block text-xs font-medium text-slate-600">Translated Title</label>
                         <input
-                          id={`target-title-${item.stran_id}`}
-                          data-testid={`target-title-input-${item.stran_id}`}
                           type="text"
+                          data-testid={`target-title-input-${item.stran_id}`}
                           value={draft.title}
-                          onChange={(e) => handleFieldChange(item, 'title', e.target.value)}
-                          className="mt-1 block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-900 shadow-sm focus:border-slate-800 focus:outline-none"
+                          onChange={(e) =>
+                            handleFieldChange(item.stran_id, 'title', e.target.value, item)
+                          }
+                          className="mt-1 block w-full rounded-md border border-slate-300 p-2 text-sm text-slate-900 shadow-sm focus:border-slate-800 focus:outline-none"
                         />
                       </div>
 
                       <div>
-                        <label htmlFor={`target-short-${item.stran_id}`} className="block text-xs font-medium text-slate-700">
-                          Summary (Short Description)
-                        </label>
+                        <label className="block text-xs font-medium text-slate-600">Summary (Short Description)</label>
                         <textarea
-                          id={`target-short-${item.stran_id}`}
-                          data-testid={`target-short-input-${item.stran_id}`}
                           rows={2}
+                          data-testid={`target-short-desc-input-${item.stran_id}`}
                           value={draft.short_description}
-                          onChange={(e) => handleFieldChange(item, 'short_description', e.target.value)}
-                          className="mt-1 block w-full rounded-md border border-slate-300 bg-white p-2 text-xs text-slate-800 shadow-sm focus:border-slate-800 focus:outline-none"
+                          onChange={(e) =>
+                            handleFieldChange(item.stran_id, 'short_description', e.target.value, item)
+                          }
+                          className="mt-1 block w-full rounded-md border border-slate-300 p-2 text-xs text-slate-900 shadow-sm focus:border-slate-800 focus:outline-none"
                         />
                       </div>
 
                       <div>
-                        <label htmlFor={`target-desc-${item.stran_id}`} className="block text-xs font-medium text-slate-700">
-                          Detailed Historical Narration
-                        </label>
+                        <label className="block text-xs font-medium text-slate-600">Detailed Historical Narration</label>
                         <textarea
-                          id={`target-desc-${item.stran_id}`}
+                          rows={4}
                           data-testid={`target-desc-input-${item.stran_id}`}
-                          rows={5}
                           value={draft.description}
-                          onChange={(e) => handleFieldChange(item, 'description', e.target.value)}
-                          className="mt-1 block w-full rounded-md border border-slate-300 bg-white p-2 text-xs text-slate-800 shadow-sm focus:border-slate-800 focus:outline-none"
+                          onChange={(e) =>
+                            handleFieldChange(item.stran_id, 'description', e.target.value, item)
+                          }
+                          className="mt-1 block w-full rounded-md border border-slate-300 p-2 text-xs text-slate-900 shadow-sm focus:border-slate-800 focus:outline-none leading-relaxed"
                         />
                       </div>
                       <AudioAuditPlayer
@@ -468,13 +506,14 @@ export default function TranslationAuditView() {
                       {isSaving ? 'Saving...' : 'Save Draft'}
                     </button>
 
-                    {/* Publishing remains locked until the translation and audio are in sync. */}
+                    {/* Publishing remains locked until the translation and audio are in sync (US 04.3). */}
                     <button
                       type="button"
                       data-testid={`publish-btn-${item.stran_id}`}
-                      disabled={isPublishLocked}
+                      onClick={() => handlePublishTranslation(item)}
+                      disabled={isPublishLocked || isPublishing}
                       className={`inline-flex items-center rounded-md px-3.5 py-1.5 text-xs font-semibold shadow-sm ${
-                        !isPublishLocked
+                        !isPublishLocked && !isPublishing
                           ? 'bg-green-700 text-white hover:bg-green-800'
                           : 'cursor-not-allowed bg-slate-200 text-slate-400 opacity-50'
                       }`}
@@ -484,7 +523,11 @@ export default function TranslationAuditView() {
                           : 'Approve and publish translation to visitors'
                       }
                     >
-                      {isPublishLocked ? '🔒 Publish Locked' : 'Approve & Publish'}
+                      {isPublishing
+                        ? 'Publishing...'
+                        : isPublishLocked
+                        ? '🔒 Publish Locked'
+                        : 'Approve & Publish'}
                     </button>
                   </div>
                 </div>
