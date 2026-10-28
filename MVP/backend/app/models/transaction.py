@@ -41,9 +41,7 @@ class Transaction(Base):
     gateway_payload: Mapped[dict[str, Any] | None] = mapped_column(
         "GatewayPayload", JSON, nullable=True
     )
-    paid_at: Mapped[datetime | None] = mapped_column(
-        "Paid_at", DateTime, nullable=True
-    )
+    paid_at: Mapped[datetime | None] = mapped_column("Paid_at", DateTime, nullable=True)
     create_at: Mapped[datetime] = mapped_column(
         "Create_at", DateTime, nullable=False, default=func.now()
     )

@@ -75,4 +75,3 @@ def test_should_simulate_payment_success_and_activate_session(client, db_session
 def test_should_return_404_when_querying_unknown_order(client, db_session):
     response = client.get("/api/v1/payments/order/TXN_DOES_NOT_EXIST/status")
     assert response.status_code == 404
-

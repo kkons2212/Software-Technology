@@ -81,7 +81,9 @@ class OrderStatusResponse(BaseModel):
     """Response returned when polling order status."""
 
     order_id: str = Field(..., description="Unique transaction/order identifier.")
-    status: str = Field(..., description="Current status: PENDING, PAID, EXPIRED, FAILED.")
+    status: str = Field(
+        ..., description="Current status: PENDING, PAID, EXPIRED, FAILED."
+    )
     pay_amount: int = Field(..., description="Service fee amount.")
     amount: int | None = Field(default=None, description="Alias for pay_amount.")
     currency: str = Field(default="VND", description="Currency code.")

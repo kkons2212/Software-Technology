@@ -45,7 +45,9 @@ class PaymentService:
     def _generate_payos_signature(self, data: dict, checksum_key: str) -> str:
         """Compute HMAC-SHA256 signature required by PayOS payment gateway."""
         sorted_keys = sorted(data.keys())
-        sign_string = "&".join(f"{k}={data[k]}" for k in sorted_keys if data[k] is not None)
+        sign_string = "&".join(
+            f"{k}={data[k]}" for k in sorted_keys if data[k] is not None
+        )
         return hmac.new(
             checksum_key.encode("utf-8"),
             sign_string.encode("utf-8"),
@@ -68,7 +70,9 @@ class PaymentService:
             "orderCode": order_code,
             "returnUrl": return_url,
         }
-        signature = self._generate_payos_signature(sign_data, settings.PAYOS_CHECKSUM_KEY)
+        signature = self._generate_payos_signature(
+            sign_data, settings.PAYOS_CHECKSUM_KEY
+        )
         payload = {
             **sign_data,
             "signature": signature,
@@ -81,7 +85,9 @@ class PaymentService:
 
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
-                res = await client.post(PAYOS_API_ENDPOINT, json=payload, headers=headers)
+                res = await client.post(
+                    PAYOS_API_ENDPOINT, json=payload, headers=headers
+                )
                 if res.status_code == 200:
                     data = res.json()
                     if data.get("code") == "00":
@@ -96,7 +102,9 @@ class PaymentService:
 
         return None
 
-    def _build_vietqr_url(self, account_no: str, bank_bin: str, amount: int, memo: str) -> str:
+    def _build_vietqr_url(
+        self, account_no: str, bank_bin: str, amount: int, memo: str
+    ) -> str:
         """Construct standard Napas247 VietQR image URL with amount and transfer memo."""
         encoded_memo = urllib.parse.quote(memo)
         return (
@@ -134,7 +142,9 @@ class PaymentService:
             if self._has_payos_credentials():
                 # Order code must be integer for PayOS
                 try:
-                    numeric_order_code = int(datetime.utcnow().timestamp() * 1000) % 100000000
+                    numeric_order_code = (
+                        int(datetime.utcnow().timestamp() * 1000) % 100000000
+                    )
                 except Exception:
                     numeric_order_code = 10001
 
