@@ -103,3 +103,18 @@ def get_tts_service() -> TTSService:
         session_factory=SessionLocal,
         audio_dir=Path(get_settings().STATIC_DIR) / "audio",
     )
+
+
+def get_storage_service(db: Session = Depends(get_db)):
+    """Dependency provider injecting AudioRepository and AuditRepository into StorageService."""
+    from app.repositories.audio_repository import AudioRepository
+    from app.services.storage_service import StorageService
+
+    settings = get_settings()
+    audio_dir = Path(settings.STATIC_DIR) / "audio"
+    return StorageService(
+        audio_repository=AudioRepository(db),
+        audit_repository=AuditRepository(db),
+        audio_dir=audio_dir,
+        settings=settings,
+    )
