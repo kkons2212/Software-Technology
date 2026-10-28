@@ -409,9 +409,7 @@ class POIService:
                     execute_poi_pipeline_background_task,
                 )
 
-                background_tasks.add_task(
-                    execute_poi_pipeline_background_task, poi_id
-                )
+                background_tasks.add_task(execute_poi_pipeline_background_task, poi_id)
 
         # Audit logging (dev_rules Section 3.3)
 
