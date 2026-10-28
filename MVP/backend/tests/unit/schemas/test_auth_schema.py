@@ -1,13 +1,16 @@
-"""Paired unit tests for `app.schemas.auth_schema` (US 02.1 request/response DTOs)."""
+"""Paired unit tests for `app.schemas.auth_schema` (US 02.1 & US 02.3 DTOs)."""
 
 import pytest
 from pydantic import ValidationError
 
 from app.models.user import User
 from app.schemas.auth_schema import (
+    ADMIN_LOGOUT_MESSAGE,
     ADMIN_PASSWORD_MAX_LENGTH,
     ADMIN_USERNAME_MAX_LENGTH,
     AdminLoginRequest,
+    AdminLogoutDataResponse,
+    AdminLogoutResponse,
     AdminProfileResponse,
     AdminSessionDataResponse,
     AdminSessionResponse,
@@ -81,9 +84,28 @@ def test_should_carry_access_token_and_profile_in_token_dto():
     assert token_dto.admin.email == VALID_EMAIL
 
 
+def test_should_build_logout_envelope_with_default_message():
+    logout_response = AdminLogoutResponse(data=AdminLogoutDataResponse())
+
+    assert logout_response.success is True
+    assert logout_response.data.message == ADMIN_LOGOUT_MESSAGE
+    assert logout_response.model_dump() == {
+        "success": True,
+        "data": {"message": ADMIN_LOGOUT_MESSAGE},
+    }
+
+
 # ---------------------------------------------------------------------------
 # BOUNDARY
 # ---------------------------------------------------------------------------
+def test_should_allow_overriding_the_logout_message():
+    logout_response = AdminLogoutResponse(
+        data=AdminLogoutDataResponse(message="Session closed")
+    )
+
+    assert logout_response.data.message == "Session closed"
+
+
 def test_should_accept_username_and_password_at_maximum_length():
     longest_username = "u" * ADMIN_USERNAME_MAX_LENGTH
 

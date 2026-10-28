@@ -1,17 +1,19 @@
-"""HTTP endpoints for Administrator authentication (US 02.1).
+"""HTTP endpoints for Administrator authentication (US 02.1 & US 02.3).
 
 Presentation boundary only: the controller validates the request through
 Pydantic, delegates to `AuthService` and shapes the HTTP response. It never
 imports repositories or models (dev_rules Section 3.2).
 """
 
-from fastapi import APIRouter, Depends, Request, Response
+from fastapi import APIRouter, Depends, Request, Response, status
 
 from app.core.config import get_settings
 from app.core.dependencies import get_auth_service, get_current_admin_profile
 from app.core.security import get_access_token_max_age_seconds
 from app.schemas.auth_schema import (
     AdminLoginRequest,
+    AdminLogoutDataResponse,
+    AdminLogoutResponse,
     AdminProfileResponse,
     AdminSessionDataResponse,
     AdminSessionResponse,
@@ -68,12 +70,32 @@ def read_current_admin(
     return AdminSessionResponse(data=AdminSessionDataResponse(admin=current_admin))
 
 
-@router.post("/logout", summary="Admin Logout")
-def logout(response: Response):
-    """Terminate administrator session and clear cookie."""
+@router.post(
+    "/logout",
+    response_model=AdminLogoutResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Admin Logout",
+)
+def logout_admin(
+    request: Request,
+    response: Response,
+    current_admin: AdminProfileResponse = Depends(get_current_admin_profile),
+    auth_service: AuthService = Depends(get_auth_service),
+) -> AdminLogoutResponse:
+    """Terminate the administrator session and revoke its token server-side.
+
+    US 02.3 - AC-02.3.1: the audit watermark is written first, then the cookie is
+    cleared, so the submitted JWT is already rejected by the time the browser is
+    told the session ended. Reaching this endpoint therefore requires a session
+    that is still valid; a second call answers 401 instead of 200.
+    """
+    auth_service.logout_admin(
+        admin_user_name=current_admin.user_name,
+        client_ip=resolve_client_ip(request),
+    )
     settings = get_settings()
     response.delete_cookie(
         key=settings.ADMIN_SESSION_COOKIE_NAME,
         path=ADMIN_SESSION_COOKIE_PATH,
     )
-    return {"message": "Logged out successfully"}
+    return AdminLogoutResponse(data=AdminLogoutDataResponse())

@@ -1,9 +1,10 @@
-"""Paired unit tests for `app.controllers.auth_controller` (US 02.1 & US 02.2 - TSK-02.2.2).
+"""Paired unit tests for `app.controllers.auth_controller` (US 02.1, US 02.2 & US 02.3).
 
 The controller is exercised through a real `TestClient` with the JIT `get_db`
 dependency overridden by the rollback-isolated MySQL `db_session` fixture, so
 every assertion covers the HTTP contract (status codes, HttpOnly cookie flags,
-error envelope, HTTP 423 Locked countdown response).
+error envelope, HTTP 423 Locked countdown response, logout cookie purging and
+server-side token invalidation).
 """
 
 from datetime import datetime, timedelta
@@ -17,15 +18,18 @@ from app.core.config import get_settings
 from app.core.database import get_db
 from app.core.security import hash_password
 from app.main import app
+from app.models.audit import AUDIT_DETAILS_LOGOUT, Audit
 from app.models.user import User
 
 LOGIN_ROUTE = "/api/v1/auth/login"
+LOGOUT_ROUTE = "/api/v1/auth/logout"
 CURRENT_ADMIN_ROUTE = "/api/v1/auth/me"
 VALID_USER_NAME = "admin"
 VALID_EMAIL = "admin@cuchi.vn"
 VALID_PASSWORD = "Admin@12345"
 INVALID_CREDENTIALS_MESSAGE = "Invalid username or password"
 ACCOUNT_LOCKED_MESSAGE = "Account temporarily locked due to 5 failed attempts. Please retry after 15 minutes."
+LOGOUT_MESSAGE = "Administrator session terminated"
 FORWARDED_CLIENT_IP = "198.51.100.23"
 COOKIE_MAX_AGE_SECONDS = 3600
 
@@ -259,3 +263,77 @@ def test_should_reject_subsequent_login_with_423_when_account_locked(
     assert body["error"]["code"] == "ACCOUNT_LOCKED"
     assert body["error"]["details"]["retry_after_seconds"] <= 900
     assert body["retry_after_seconds"] <= 900
+
+
+# ---------------------------------------------------------------------------
+# US 02.3: LOGOUT & TOKEN INVALIDATION (TSK-02.3.1 & TSK-02.3.3)
+# ---------------------------------------------------------------------------
+def _login(client: TestClient):
+    return client.post(
+        LOGIN_ROUTE, json={"username": VALID_USER_NAME, "password": VALID_PASSWORD}
+    )
+
+
+def test_should_terminate_session_and_purge_cookie_on_logout(
+    client, seeded_admin, db_session
+):
+    _login(client)
+
+    # The header makes the originating address deterministic, which the raw
+    # TestClient peer address is not.
+    response = client.post(
+        LOGOUT_ROUTE, headers={"x-forwarded-for": FORWARDED_CLIENT_IP}
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "success": True,
+        "data": {"message": LOGOUT_MESSAGE},
+    }
+    # AC-02.3.1: the browser is told to drop the cookie immediately.
+    assert "Max-Age=0" in response.headers["set-cookie"]
+
+    logout_row = (
+        db_session.query(Audit).filter(Audit.details == AUDIT_DETAILS_LOGOUT).one()
+    )
+    assert logout_row.user_name == VALID_USER_NAME
+    assert logout_row.ip_address == FORWARDED_CLIENT_IP
+
+    # The session is gone from the same cookie jar as well.
+    assert client.get(CURRENT_ADMIN_ROUTE).status_code == 401
+
+
+def test_should_reject_a_replayed_token_after_logout(client, seeded_admin):
+    login_response = _login(client)
+    session_cookie_name = get_settings().ADMIN_SESSION_COOKIE_NAME
+    stolen_cookie_value = login_response.cookies.get(session_cookie_name)
+
+    assert client.post(LOGOUT_ROUTE).status_code == 200
+
+    # Replay the exact JWT that was still in the browser: deleting the cookie
+    # alone would not stop a copy of the token from working until `exp`.
+    client.cookies.set(session_cookie_name, stolen_cookie_value)
+    replay_response = client.get(CURRENT_ADMIN_ROUTE)
+
+    assert replay_response.status_code == 401
+    assert replay_response.json()["error"]["code"] == "UNAUTHENTICATED"
+
+
+def test_should_return_401_and_write_no_audit_row_when_logout_has_no_session(
+    client, seeded_admin, db_session
+):
+    response = client.post(LOGOUT_ROUTE)
+
+    assert response.status_code == 401
+    assert response.json()["error"]["code"] == "UNAUTHENTICATED"
+    assert db_session.query(Audit).count() == 0
+
+
+def test_should_return_401_when_logout_is_called_twice(client, seeded_admin):
+    _login(client)
+
+    assert client.post(LOGOUT_ROUTE).status_code == 200
+    second_response = client.post(LOGOUT_ROUTE)
+
+    assert second_response.status_code == 401
+    assert second_response.json()["error"]["code"] == "UNAUTHENTICATED"
