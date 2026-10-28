@@ -190,11 +190,8 @@ export default function VisitorTourPage({
   };
 
   const handleUnlockClick = () => {
-    if (onUnlock) {
-      onUnlock();
-    } else {
-      setIsCheckoutOpen(true);
-    }
+    setIsCheckoutOpen(true);
+    onUnlock?.();
   };
 
   const handleCheckoutSuccess = (paymentData) => {

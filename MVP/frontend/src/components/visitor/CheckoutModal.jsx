@@ -5,6 +5,7 @@
 // =============================================================================
 
 import { useCallback, useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Check,
   CheckCircle2,
@@ -132,12 +133,12 @@ export default function CheckoutModal({
 
   const formattedAmount = (order?.amount ?? DEFAULT_FEE_VND).toLocaleString('vi-VN');
 
-  return (
+  const modalContent = (
     <div
       role="dialog"
       aria-modal="true"
       aria-labelledby="checkout-modal-title"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm overflow-y-auto"
+      className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm overflow-y-auto"
       onClick={(e) => {
         if (e.target === e.currentTarget) {
           onClose?.();
@@ -427,5 +428,10 @@ export default function CheckoutModal({
       </div>
     </div>
   );
-}
 
+  if (typeof document !== 'undefined' && document.body) {
+    return createPortal(modalContent, document.body);
+  }
+
+  return modalContent;
+}
