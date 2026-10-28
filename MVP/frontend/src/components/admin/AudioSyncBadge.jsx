@@ -32,7 +32,7 @@ export default function AudioSyncBadge({
       break;
     case 'PENDING':
       badgeStyles = 'bg-amber-50 text-amber-700 border-amber-200 animate-pulse';
-      badgeLabel = 'Processing AI...';
+      badgeLabel = 'Pending';
       isPublishLocked = true;
       break;
     case 'FAILED':

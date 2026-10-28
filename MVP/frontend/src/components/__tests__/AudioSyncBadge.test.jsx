@@ -28,10 +28,10 @@ describe('AudioSyncBadge (TSK-04.1.3 & AC-04.1.3)', () => {
     expect(badge.className).toContain('bg-amber-50');
   });
 
-  it('renders "Processing AI..." spinner badge when status is PENDING', () => {
+  it('renders "Pending" spinner badge when status is PENDING', () => {
     render(<AudioSyncBadge status="PENDING" />);
     const badge = screen.getByTestId('audio-sync-badge');
-    expect(badge.textContent).toContain('Processing AI...');
+    expect(badge.textContent).toContain('Pending');
     expect(badge.className).toContain('animate-pulse');
   });
 

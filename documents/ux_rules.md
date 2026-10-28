@@ -101,7 +101,7 @@ The system enforces a **Unified Multi-Admin Model**: Every authenticated Adminis
   * Coordinates outside the Cu Chi Tunnels bounding polygon immediately turn inputs red, show an error alert, and disable the `"Save Changes"` button.
 * **Non-blocking Async AI Pipeline:**
   * Saving a POI (`POST / PUT /api/v1/admin/pois`) saves the record with status `PENDING` and spawns a background worker to run machine translation and Edge-TTS audio synthesis.
-  * The Admin UI returns immediately, shows a `PENDING` badge ("Processing AI..."), and updates to `READY` automatically when complete without requiring a page reload.
+  * The Admin UI returns immediately, shows a `PENDING` badge ("Pending"), and updates to `READY` automatically when complete without requiring a page reload.
 * **Hybrid Safe Deletion Confirmation:**
   * Deleting a POI requires a 2-step confirmation dialog explaining that physical `.mp3` files will be purged while the database record is deactivated (`is_active = FALSE`) to protect audit and trigger history.
 
