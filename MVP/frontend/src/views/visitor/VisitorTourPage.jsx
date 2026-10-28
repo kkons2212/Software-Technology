@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import VisitorMapView from './VisitorMapView.jsx';
 import VisitorHeader from '../../components/visitor/VisitorHeader.jsx';
 import PoiPreviewCard from '../../components/visitor/PoiPreviewCard.jsx';
+import CheckoutModal from '../../components/visitor/CheckoutModal.jsx';
 import { getPublishedLanguages } from '../../api/languageApi.js';
 import { getMapPois } from '../../api/poiApi.js';
 import { useAudioPlayer } from '../../contexts/AudioPlayerContext.jsx';
@@ -10,6 +11,9 @@ import { reportPoiTrigger } from '../../api/telemetryApi.js';
 import useGeolocation from '../../hooks/useGeolocation.js';
 
 const PREFERRED_LANGUAGE_KEY = 'museum_preferred_lang';
+const VISITOR_SESSION_CODE_KEY = 'visitor_session_code';
+const VISITOR_SESSION_TOKEN_KEY = 'visitor_session_token';
+const VISITOR_EXPIRES_AT_KEY = 'visitor_expires_at';
 const DEFAULT_LANGUAGE = 'vi';
 const MILLISECONDS_PER_SECOND = 1000;
 
@@ -27,11 +31,21 @@ export default function VisitorTourPage({
   const [poiError, setPoiError] = useState('');
   const [poiRetryCount, setPoiRetryCount] = useState(0);
   const [selectedPoiId, setSelectedPoiId] = useState(null);
+  const [internalSessionCode, setInternalSessionCode] = useState(() => {
+    return window.localStorage.getItem(VISITOR_SESSION_CODE_KEY) || '';
+  });
+  const [internalExpiresAt, setInternalExpiresAt] = useState(() => {
+    return window.localStorage.getItem(VISITOR_EXPIRES_AT_KEY) || null;
+  });
+  const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const { currentPoi, isPlaying, completedPoiIds, play } = useAudioPlayer();
   // Dwell windows opened by a real geofence trigger, keyed by POI id. The
   // telemetry row is only reported once the visitor leaves the zone, because a
   // duration cannot be measured at the moment of entry.
   const dwellStartByPoiIdRef = useRef({});
+
+  const effectiveSessionCode = sessionCode || internalSessionCode;
+  const effectiveExpiresAt = expiresAt || internalExpiresAt;
 
   const handleProximityTrigger = useCallback((poi) => {
     play(poi);
@@ -175,15 +189,37 @@ export default function VisitorTourPage({
     setSelectedLanguage(languageCode);
   };
 
+  const handleUnlockClick = () => {
+    if (onUnlock) {
+      onUnlock();
+    } else {
+      setIsCheckoutOpen(true);
+    }
+  };
+
+  const handleCheckoutSuccess = (paymentData) => {
+    if (paymentData?.session_code) {
+      window.localStorage.setItem(VISITOR_SESSION_CODE_KEY, paymentData.session_code);
+      setInternalSessionCode(paymentData.session_code);
+    }
+    if (paymentData?.session_token) {
+      window.localStorage.setItem(VISITOR_SESSION_TOKEN_KEY, paymentData.session_token);
+    }
+    if (paymentData?.expires_at) {
+      window.localStorage.setItem(VISITOR_EXPIRES_AT_KEY, paymentData.expires_at);
+      setInternalExpiresAt(paymentData.expires_at);
+    }
+  };
+
   return (
     <main className="visitor-tour-page">
       <VisitorHeader
         languages={languages}
         selectedLanguage={selectedLanguage}
         onLanguageChange={handleLanguageChange}
-        sessionCode={sessionCode}
-        expiresAt={expiresAt}
-        onUnlock={onUnlock}
+        sessionCode={effectiveSessionCode}
+        expiresAt={effectiveExpiresAt}
+        onUnlock={handleUnlockClick}
       />
 
       {languageError && (
@@ -230,6 +266,13 @@ export default function VisitorTourPage({
           onDismiss={handleDismissPOIPreview}
         />
       )}
+
+      <CheckoutModal
+        isOpen={isCheckoutOpen}
+        onClose={() => setIsCheckoutOpen(false)}
+        onSuccess={handleCheckoutSuccess}
+        preferredLanguage={selectedLanguage || DEFAULT_LANGUAGE}
+      />
     </main>
   );
 }

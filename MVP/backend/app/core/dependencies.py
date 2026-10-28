@@ -14,11 +14,13 @@ from app.core.database import SessionLocal, get_db
 from app.repositories.audit_repository import AuditRepository
 from app.repositories.language_repository import LanguageRepository
 from app.repositories.poi_repository import POIRepository
+from app.repositories.transaction_repository import TransactionRepository
 from app.repositories.translation_repository import TranslationRepository
 from app.repositories.user_repository import UserRepository
 from app.schemas.auth_schema import AdminProfileResponse
 from app.services.auth_service import AuthService
 from app.services.language_service import LanguageService
+from app.services.payment_service import PaymentService
 from app.services.poi_service import POIService
 from app.services.translation_service import TranslationService
 from app.services.tts_service import TTSService
@@ -103,3 +105,15 @@ def get_tts_service() -> TTSService:
         session_factory=SessionLocal,
         audio_dir=Path(get_settings().STATIC_DIR) / "audio",
     )
+
+
+def get_transaction_repository(db: Session = Depends(get_db)) -> TransactionRepository:
+    """Build a TransactionRepository bound to the request session."""
+    return TransactionRepository(db)
+
+
+def get_payment_service(
+    transaction_repo: TransactionRepository = Depends(get_transaction_repository),
+) -> PaymentService:
+    """Build the PaymentService for checkout order creation and polling."""
+    return PaymentService(transaction_repo=transaction_repo)

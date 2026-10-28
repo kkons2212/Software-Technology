@@ -1,1 +1,1 @@
-// PaymentModal.jsx
+export { default } from './CheckoutModal.jsx';

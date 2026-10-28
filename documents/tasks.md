@@ -27,11 +27,11 @@
 | [**US 05.2**](#-us-052-exhibit-rankings-dwell-times--language-demographics) | Exhibit Rankings, Dwell Times & Language Demographics | UC-05 | Must Have | 5 SP | 3 Tasks | [x] 3/3 |
 | [**US 05.3**](#-us-053-static-audio-storage-capacity-alert--orphan-pruning) | Static Audio Storage Capacity Alert & Orphan Pruning | UC-05 | Must Have | 5 SP | 5 Tasks | [ ] 0/5 |
 | [**US 05.4**](#-us-054-telemetry-filtering--structured-data-export) | Telemetry Filtering & Structured Data Export | UC-05 | Should Have | 3 SP | 3 Tasks | [ ] 0/3 |
-| [**US 06.1**](#-us-061-frictionless-digital-admission-checkout-via-vietqr--cards) | Frictionless Digital Admission Checkout via VietQR & Cards | UC-06 | Must Have | 5 SP | 5 Tasks | [ ] 0/5 |
+| [**US 06.1**](#-us-061-frictionless-digital-admission-checkout-via-vietqr--cards) | Frictionless Digital Admission Checkout via VietQR & Cards | UC-06 | Must Have | 5 SP | 5 Tasks | [x] 5/5 |
 | [**US 06.2**](#-us-062-webhook-driven-24-hour-visiting-session-activation) | Webhook-Driven 24-Hour Visiting Session Activation | UC-06 | Must Have | 5 SP | 4 Tasks | [ ] 0/4 |
 | [**US 06.3**](#-us-063-multi-device-session-recovery-via-session-code) | Multi-Device Session Recovery via Session Code | UC-06 | Should Have | 3 SP | 3 Tasks | [ ] 0/3 |
 | [**US 06.4**](#-us-064-content-protection--narrativeaudio-decryption-access-control) | Content Protection & Narrative/Audio Decryption Access Control | UC-06 | Must Have | 5 SP | 4 Tasks | [ ] 0/4 |
-| **TOTAL** | **23 User Stories (9 Complete)** | — | — | **100 SP** | **92 Tasks** | **[x] 39/92 Tasks** |
+| **TOTAL** | **23 User Stories (10 Complete)** | — | — | **100 SP** | **92 Tasks** | **[x] 44/92 Tasks** |
 
 ---
 
@@ -680,31 +680,31 @@
 > **So that** I can unlock full exhibit narratives and audio guides across the entire museum.
 >
 > * **Priority:** Must Have | **Estimate:** 5 SP
-> * **Progress:** [ ] 0/5 Tasks Completed
+> * **Progress:** [x] 5/5 Tasks Completed
 
 #### Acceptance Criteria:
-- [ ] **AC-06.1.1:** Integrate online payment gateways (PayOS for domestic VietQR and Stripe for international cards).
-- [ ] **AC-06.1.2:** Mobile checkout modal: fixed price, validity label ("24-hour unlimited access"), selectable VietQR code, and card payment option.
-- [ ] **AC-06.1.3:** Automated client polling: poll order status every 2.5 seconds while QR modal is active. On `PAID`, automatically close modal and unlock tour.
+- [x] **AC-06.1.1:** Integrate online payment gateways (PayOS for domestic VietQR and Stripe for international cards).
+- [x] **AC-06.1.2:** Mobile checkout modal: fixed price, validity label ("24-hour unlimited access"), selectable VietQR code, and card payment option.
+- [x] **AC-06.1.3:** Automated client polling: poll order status every 2.5 seconds while QR modal is active. On `PAID`, automatically close modal and unlock tour.
 
 #### Task Checklist:
-- [ ] `TSK-06.1.1` `[Backend]` **Create Checkout Order Endpoint (`POST /api/v1/payments/create-checkout`)**
+- [x] `TSK-06.1.1` `[Backend]` **Create Checkout Order Endpoint (`POST /api/v1/payments/create-checkout`)**
   - **Scope:** Record `PENDING` order in `Transaction` table, call payment SDK to generate VietQR payload or card checkout session URL.
   - **DoD:** Returns `order_id`, `qr_code_url`, and `checkout_url` within $< 1.5\text{s}$.
   - **Paired Unit Test:** `tests/unit/controllers/test_payment_controller.py`
-- [ ] `TSK-06.1.2` `[Backend]` **Order Status Polling Endpoint (`GET /api/v1/payments/order/{order_id}/status`)**
+- [x] `TSK-06.1.2` `[Backend]` **Order Status Polling Endpoint (`GET /api/v1/payments/order/{order_id}/status`)**
   - **Scope:** Support client polling. Query `Transaction` status (`PENDING`, `PAID`, `EXPIRED`).
   - **DoD:** JIT DB lifecycle; sub-100ms response time.
   - **Paired Unit Test:** `tests/unit/controllers/test_payment_controller.py`
-- [ ] `TSK-06.1.3` `[Frontend]` **Mobile Checkout Modal (`CheckoutModal.jsx`)**
+- [x] `TSK-06.1.3` `[Frontend]` **Mobile Checkout Modal (`CheckoutModal.jsx`)**
   - **Scope:** Clean mobile checkout modal: fixed price display, high-resolution VietQR image, banking instructions, and card payment redirect CTA.
   - **DoD:** Crisp QR rendering without distortion; download QR image option.
   - **Paired Unit Test:** `src/components/__tests__/CheckoutModal.test.jsx`
-- [ ] `TSK-06.1.4` `[Frontend]` **Payment Polling Hook (`usePaymentPolling.js`)**
+- [x] `TSK-06.1.4` `[Frontend]` **Payment Polling Hook (`usePaymentPolling.js`)**
   - **Scope:** Schedule status check every 2.5 seconds. On `PAID`, clear polling interval, trigger chime, and unlock application context.
   - **DoD:** Cleans up interval on modal close or unmount.
   - **Paired Unit Test:** `src/hooks/__tests__/usePaymentPolling.test.js`
-- [ ] `TSK-06.1.5` `[Test]` **Unit Test Suite for US 06.1 (`test_payment_controller.py`, `CheckoutModal.test.jsx`, `usePaymentPolling.test.js`)**
+- [x] `TSK-06.1.5` `[Test]` **Unit Test Suite for US 06.1 (`test_payment_controller.py`, `CheckoutModal.test.jsx`, `usePaymentPolling.test.js`)**
   - **Scope:** Test payment gateway order creation, status query endpoint, checkout modal QR rendering, and 2.5s polling hook interval lifecycle.
   - **DoD:** 100% test pass in Pytest and Vitest, $\ge 80\%$ line & branch code coverage.
   - **Execution:** `pytest tests/unit/controllers/test_payment_controller.py` && `npm run test -- CheckoutModal usePaymentPolling`
