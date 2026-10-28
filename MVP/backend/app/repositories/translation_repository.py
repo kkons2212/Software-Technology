@@ -45,6 +45,19 @@ class TranslationRepository:
             .first()
         )
 
+    def get_by_poi_and_language(
+        self, poi_id: str, language_id: str
+    ) -> POITranslation | None:
+        """Retrieve a translation by POI ID and Language ID."""
+        return (
+            self.db.query(POITranslation)
+            .filter(
+                POITranslation.poi_id == poi_id,
+                POITranslation.language_id == language_id,
+            )
+            .first()
+        )
+
     def get_source_translation(self, poi_id: str) -> POITranslation | None:
         """Retrieve the primary Vietnamese source translation for a given POI."""
         return (

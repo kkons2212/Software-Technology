@@ -8,6 +8,10 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship, synonym
 
 from app.core.database import Base
 
+AUDIO_STATUS_PENDING = "PENDING"
+AUDIO_STATUS_READY = "READY"
+AUDIO_STATUS_FAILED = "FAILED"
+
 
 class POIAudio(Base):
     __tablename__ = "POIAudio"
@@ -23,7 +27,7 @@ class POIAudio(Base):
         "File_size", BigInteger, nullable=True
     )
     status: Mapped[str] = mapped_column(
-        "Status", String(255), nullable=False, default="READY"
+        "Status", String(255), nullable=False, default=AUDIO_STATUS_READY
     )
     create_at: Mapped[datetime] = mapped_column(
         "Create_at", DateTime, nullable=False, default=func.now()

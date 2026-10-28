@@ -22,7 +22,7 @@
 | [**US 04.1**](#-us-041-multilingual-translation-audit--historical-terminology-refinement) | Multilingual Translation Audit & Historical Terminology Refinement | UC-04 | Must Have | 5 SP | 4 Tasks | [x] 4/4 |
 | [**US 04.2**](#-us-042-audio-guide-preview--dynamic-voice-re-generation) | Audio Guide Preview & Dynamic Voice Re-generation | UC-04 | Must Have | 3 SP | 4 Tasks | [x] 4/4 |
 | [**US 04.3**](#-us-043-administrative-approval--live-mobile-app-synchronization) | Administrative Approval & Live Mobile App Synchronization | UC-04 | Must Have | 3 SP | 3 Tasks | [x] 3/3 |
-| [**US 04.4**](#-us-044-automated-ai-translation--audio-synthesis-pipeline) | Automated AI Translation & Audio Synthesis Pipeline | UC-04 | Must Have | 8 SP | 5 Tasks | [ ] 0/5 |
+| [**US 04.4**](#-us-044-automated-ai-translation--audio-synthesis-pipeline) | Automated AI Translation & Audio Synthesis Pipeline | UC-04 | Must Have | 8 SP | 5 Tasks | [x] 5/5 |
 | [**US 05.1**](#-us-051-real-time-visitor-density-heatmap) | Real-Time Visitor Density Heatmap | UC-05 | Should Have | 5 SP | 3 Tasks | [ ] 0/3 |
 | [**US 05.2**](#-us-052-exhibit-rankings-dwell-times--language-demographics) | Exhibit Rankings, Dwell Times & Language Demographics | UC-05 | Must Have | 5 SP | 3 Tasks | [x] 3/3 |
 | [**US 05.3**](#-us-053-static-audio-storage-capacity-alert--orphan-pruning) | Static Audio Storage Capacity Alert & Orphan Pruning | UC-05 | Must Have | 5 SP | 5 Tasks | [x] 5/5 |
@@ -31,7 +31,7 @@
 | [**US 06.2**](#-us-062-webhook-driven-24-hour-visiting-session-activation) | Webhook-Driven 24-Hour Visiting Session Activation | UC-06 | Must Have | 5 SP | 4 Tasks | [ ] 0/4 |
 | [**US 06.3**](#-us-063-multi-device-session-recovery-via-session-code) | Multi-Device Session Recovery via Session Code | UC-06 | Should Have | 3 SP | 3 Tasks | [ ] 0/3 |
 | [**US 06.4**](#-us-064-content-protection--narrativeaudio-decryption-access-control) | Content Protection & Narrative/Audio Decryption Access Control | UC-06 | Must Have | 5 SP | 4 Tasks | [ ] 0/4 |
-| **TOTAL** | **23 User Stories (12 Complete)** | — | — | **100 SP** | **92 Tasks** | **[x] 52/92 Tasks** |
+| **TOTAL** | **23 User Stories (13 Complete)** | — | — | **100 SP** | **92 Tasks** | **[x] 57/92 Tasks** |
 
 ---
 
@@ -517,32 +517,32 @@
 > **So that** administrators do not have to wait and draft audio guides are ready for verification.
 >
 > * **Priority:** Must Have | **Estimate:** 8 SP
-> * **Progress:** [ ] 0/5 Tasks Completed
+> * **Progress:** [x] 5/5 Tasks Completed
 
 #### Acceptance Criteria:
-- [ ] **AC-04.4.1:** Translate Vietnamese source text into 4 target languages using `deep-translator` with up to 3 exponential backoff retries.
-- [ ] **AC-04.4.2:** Synthesize localized text into MP3 format ($64\text{kbps}-96\text{kbps}$) using `edge-tts` with high-quality native neural voices.
-- [ ] **AC-04.4.3:** SHA-256 Audio Caching Engine: Compute `audio_hash = SHA256(title + text + lang + voice)`. Reuse existing MP3 file if hash matches.
-- [ ] **AC-04.4.4:** Enforce JIT database lifecycle: never hold DB connection open across external translation or TTS API calls.
+- [x] **AC-04.4.1:** Translate Vietnamese source text into 4 target languages using `deep-translator` with up to 3 exponential backoff retries.
+- [x] **AC-04.4.2:** Synthesize localized text into MP3 format ($64\text{kbps}-96\text{kbps}$) using `edge-tts` with high-quality native neural voices.
+- [x] **AC-04.4.3:** SHA-256 Audio Caching Engine: Compute `audio_hash = SHA256(title + text + lang + voice)`. Reuse existing MP3 file if hash matches.
+- [x] **AC-04.4.4:** Enforce JIT database lifecycle: never hold DB connection open across external translation or TTS API calls.
 
 #### Task Checklist:
-- [ ] `TSK-04.4.1` `[Backend]` **Asynchronous Multilingual Translation Worker (`translation_worker.py`)**
+- [x] `TSK-04.4.1` `[Backend]` **Asynchronous Multilingual Translation Worker (`translation_worker.py`)**
   - **Scope:** Process background translation queue, chunk text exceeding API limits, translate into `en`, `ja`, `ko`, `zh`, retry on network errors, and persist translations with `DRAFT` status.
   - **DoD:** Non-blocking background worker; handles network drops gracefully.
   - **Paired Unit Test:** `tests/unit/services/test_translation_service.py`
-- [ ] `TSK-04.4.2` `[Backend]` **Neural Voice TTS Synthesis Worker (`audio_synthesis_worker.py`)**
+- [x] `TSK-04.4.2` `[Backend]` **Neural Voice TTS Synthesis Worker (`audio_synthesis_worker.py`)**
   - **Scope:** Convert translated text to MP3 files ($64\text{kbps}-96\text{kbps}$) using `edge-tts`, save to `/static/audio`, update `POIAudio`.
   - **DoD:** Adheres to JIT DB connection: open DB $\rightarrow$ read $\rightarrow$ close DB $\rightarrow$ invoke TTS $\rightarrow$ open DB $\rightarrow$ write URL.
   - **Paired Unit Test:** `tests/unit/services/test_audio_service.py`
-- [ ] `TSK-04.4.3` `[Backend]` **SHA-256 Audio Content Hash Engine**
+- [x] `TSK-04.4.3` `[Backend]` **SHA-256 Audio Content Hash Engine**
   - **Scope:** Implement `compute_audio_hash(title, text, lang_code, voice_id)`. Before running TTS, check `POIAudio` for matching hash; reuse existing audio on match.
   - **DoD:** Prevents duplicate MP3 generation for identical text content.
   - **Paired Unit Test:** `tests/unit/services/test_audio_service.py`
-- [ ] `TSK-04.4.4` `[Database]` **Align Status Enums in `POITranslation` & `POIAudio`**
+- [x] `TSK-04.4.4` `[Database]` **Align Status Enums in `POITranslation` & `POIAudio`**
   - **Scope:** Verify status enums: `POITranslation.Status` (`PENDING`, `DRAFT`, `NEEDS_UPDATE`, `PUBLISHED`, `FAILED`) and `POIAudio.Status` (`PENDING`, `READY`, `FAILED`).
   - **DoD:** Schema aligned with containerized MySQL environment in CI.
   - **Paired Unit Test:** `tests/unit/repositories/test_translation_repository.py`
-- [ ] `TSK-04.4.5` `[Test]` **Unit Test Suite for US 04.4 (`test_translation_service.py`, `test_audio_service.py`, `test_translation_repository.py`)**
+- [x] `TSK-04.4.5` `[Test]` **Unit Test Suite for US 04.4 (`test_translation_service.py`, `test_audio_service.py`, `test_translation_repository.py`)**
   - **Scope:** Test translation retry/backoff, edge-tts synthesis mock with JIT DB lifecycle, SHA-256 hash deduplication, and repository status enum validations.
   - **DoD:** 100% test pass in Pytest, $\ge 80\%$ line & branch code coverage.
   - **Execution:** `pytest tests/unit/services/test_translation_service.py tests/unit/services/test_audio_service.py tests/unit/repositories/test_translation_repository.py`
