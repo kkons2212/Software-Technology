@@ -66,7 +66,7 @@ export default function AdminHeader() {
                   to={path}
                   className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
                     isActive
-                      ? 'bg-slate-100 font-semibold text-slate-900'
+                      ? 'bg-slate-100 text-slate-900 font-semibold'
                       : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                   }`}
                 >
@@ -79,11 +79,12 @@ export default function AdminHeader() {
 
         <div className="flex items-center space-x-3">
           <span className="text-xs text-slate-600">
-            {user?.username || 'Administrator'}
+            {/* The profile contract exposes `user_name` (AdminProfileResponse). */}
+            {user?.user_name || user?.full_name || 'Administrator'}
           </span>
           <button
             type="button"
-            onClick={() => logout && logout()}
+            onClick={() => logout()}
             className="rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100"
           >
             Sign Out
