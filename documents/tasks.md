@@ -20,8 +20,8 @@
 | [**US 03.3**](#-us-033-deactivate--hide-exhibit--invalidate-navigation-route) | Deactivate / Hide Exhibit & Invalidate Navigation Route | UC-03 | Should Have | 3 SP | 3 Tasks | [ ] 0/3 |
 | [**US 03.4**](#-us-034-update-exhibit-details--synchronize-translation-status) | Update Exhibit Details & Synchronize Translation Status | UC-03 | Must Have | 3 SP | 3 Tasks | [ ] 0/3 |
 | [**US 04.1**](#-us-041-multilingual-translation-audit--historical-terminology-refinement) | Multilingual Translation Audit & Historical Terminology Refinement | UC-04 | Must Have | 5 SP | 4 Tasks | [x] 4/4 |
-| [**US 04.2**](#-us-042-audio-guide-preview--dynamic-voice-re-generation) | Audio Guide Preview & Dynamic Voice Re-generation | UC-04 | Must Have | 3 SP | 4 Tasks | [ ] 0/4 |
-| [**US 04.3**](#-us-043-administrative-approval--live-mobile-app-synchronization) | Administrative Approval & Live Mobile App Synchronization | UC-04 | Must Have | 3 SP | 3 Tasks | [ ] 0/3 |
+| [**US 04.2**](#-us-042-audio-guide-preview--dynamic-voice-re-generation) | Audio Guide Preview & Dynamic Voice Re-generation | UC-04 | Must Have | 3 SP | 4 Tasks | [x] 4/4 |
+| [**US 04.3**](#-us-043-administrative-approval--live-mobile-app-synchronization) | Administrative Approval & Live Mobile App Synchronization | UC-04 | Must Have | 3 SP | 3 Tasks | [x] 3/3 |
 | [**US 04.4**](#-us-044-automated-ai-translation--audio-synthesis-pipeline) | Automated AI Translation & Audio Synthesis Pipeline | UC-04 | Must Have | 8 SP | 5 Tasks | [ ] 0/5 |
 | [**US 05.1**](#-us-051-real-time-visitor-density-heatmap) | Real-Time Visitor Density Heatmap | UC-05 | Should Have | 5 SP | 3 Tasks | [ ] 0/3 |
 | [**US 05.2**](#-us-052-exhibit-rankings-dwell-times--language-demographics) | Exhibit Rankings, Dwell Times & Language Demographics | UC-05 | Must Have | 5 SP | 3 Tasks | [x] 3/3 |
@@ -31,7 +31,7 @@
 | [**US 06.2**](#-us-062-webhook-driven-24-hour-visiting-session-activation) | Webhook-Driven 24-Hour Visiting Session Activation | UC-06 | Must Have | 5 SP | 4 Tasks | [ ] 0/4 |
 | [**US 06.3**](#-us-063-multi-device-session-recovery-via-session-code) | Multi-Device Session Recovery via Session Code | UC-06 | Should Have | 3 SP | 3 Tasks | [ ] 0/3 |
 | [**US 06.4**](#-us-064-content-protection--narrativeaudio-decryption-access-control) | Content Protection & Narrative/Audio Decryption Access Control | UC-06 | Must Have | 5 SP | 4 Tasks | [ ] 0/4 |
-| **TOTAL** | **23 User Stories (7 Complete)** | — | — | **100 SP** | **92 Tasks** | **[x] 32/92 Tasks** |
+| **TOTAL** | **23 User Stories (9 Complete)** | — | — | **100 SP** | **92 Tasks** | **[x] 39/92 Tasks** |
 
 ---
 
@@ -489,22 +489,22 @@
 > **So that** the latest approved audio guide is made live for visitors on the mobile map.
 >
 > * **Priority:** Must Have | **Estimate:** 3 SP
-> * **Progress:** [ ] 0/3 Tasks Completed
+> * **Progress:** [x] 3/3 Tasks Completed
 
 #### Acceptance Criteria:
-- [ ] **AC-04.3.1:** Strictly forbid publication if text and audio are desynchronized (`Status == 'NEEDS_UPDATE'`).
-- [ ] **AC-04.3.2:** Sets `POITranslation.Status = 'PUBLISHED'` and `POIAudio.Status = 'READY'`. Mobile visitor app immediately recognizes the published language.
+- [x] **AC-04.3.1:** Strictly forbid publication if text and audio are desynchronized (`Status == 'NEEDS_UPDATE'`).
+- [x] **AC-04.3.2:** Sets `POITranslation.Status = 'PUBLISHED'` and `POIAudio.Status = 'READY'`. Mobile visitor app immediately recognizes the published language.
 
 #### Task Checklist:
-- [ ] `TSK-04.3.1` `[Backend]` **Publish Translation Endpoint (`POST /api/v1/admin/translations/{id}/publish`)**
+- [x] `TSK-04.3.1` `[Backend]` **Publish Translation Endpoint (`POST /api/v1/admin/translations/{id}/publish`)**
   - **Scope:** Check text/audio synchronization. Reject with HTTP 400 if `NEEDS_UPDATE`. Otherwise, set `Status = 'PUBLISHED'` and log in `Audit`.
   - **DoD:** Only verified, synchronized content can be published.
   - **Paired Unit Test:** `tests/unit/controllers/test_translation_controller.py`
-- [ ] `TSK-04.3.2` `[Frontend]` **Publish Action Handler & Strict UI State Lock**
+- [x] `TSK-04.3.2` `[Frontend]` **Publish Action Handler & Strict UI State Lock**
   - **Scope:** Disable "Approve & Publish" button (`disabled opacity-40`) whenever `status == 'NEEDS_UPDATE'`. Enable only when audio is in sync.
   - **DoD:** Prevents accidental publishing of desynchronized content.
   - **Paired Unit Test:** `src/views/__tests__/TranslationAuditView.test.jsx`
-- [ ] `TSK-04.3.3` `[Test]` **Unit Test Suite for US 04.3 (`test_translation_controller.py`, `TranslationAuditView.test.jsx`)**
+- [x] `TSK-04.3.3` `[Test]` **Unit Test Suite for US 04.3 (`test_translation_controller.py`, `TranslationAuditView.test.jsx`)**
   - **Scope:** Test rejection of publishing when `NEEDS_UPDATE`, successful publish transition to `PUBLISHED`, and UI button disabled state locking.
   - **DoD:** 100% test pass in Pytest and Vitest, $\ge 80\%$ line & branch code coverage.
   - **Execution:** `pytest tests/unit/controllers/test_translation_controller.py` && `npm run test -- TranslationAuditView`

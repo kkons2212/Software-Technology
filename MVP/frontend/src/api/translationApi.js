@@ -1,5 +1,5 @@
 // =============================================================================
-// TIER 3 - API CLIENT FOR MULTILINGUAL TRANSLATION AUDIT (US 04.1)
+// TIER 3 - API CLIENT FOR MULTILINGUAL TRANSLATION AUDIT (US 04.1 & US 04.3)
 // Strictly decoupled from UI presentations.
 // =============================================================================
 
@@ -77,6 +77,20 @@ export async function updateTranslation(translationId, payload, { signal } = {})
 export async function regenerateTranslationAudio(translationId, { signal } = {}) {
   return apiClient.post(
     `${TRANSLATION_ADMIN_BASE_PATH}/${translationId}/regenerate-audio`,
+    {},
+    { signal }
+  );
+}
+
+/**
+ * Grant publication approval to a verified translation (Admin - US 04.3).
+ * @param {string} translationId
+ * @param {Object} [options]
+ * @param {AbortSignal} [options.signal]
+ */
+export async function publishTranslation(translationId, { signal } = {}) {
+  return apiClient.post(
+    `${TRANSLATION_ADMIN_BASE_PATH}/${translationId}/publish`,
     {},
     { signal }
   );

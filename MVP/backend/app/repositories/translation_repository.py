@@ -86,6 +86,29 @@ class TranslationRepository:
         self.db.refresh(translation)
         return translation
 
+    def publish_translation(
+        self,
+        stran_id: str,
+        admin_username: str,
+    ) -> POITranslation | None:
+        """Atomically set translation status to PUBLISHED and record reviewer metadata."""
+        translation = self.get_by_id(stran_id)
+        if not translation:
+            return None
+
+        translation.status = "PUBLISHED"
+        translation.review_by = admin_username
+        translation.review_at = func.now()
+        translation.update_at = func.now()
+
+        if translation.audio:
+            translation.audio.status = "READY"
+            translation.audio.update_at = func.now()
+
+        self.db.commit()
+        self.db.refresh(translation)
+        return translation
+
     def create(self, translation: POITranslation) -> POITranslation:
         """Persist a new POITranslation record."""
         self.db.add(translation)
