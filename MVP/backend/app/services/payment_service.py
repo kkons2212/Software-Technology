@@ -213,6 +213,7 @@ class PaymentService:
             session_code=session_code,
             session_token=session_token,
             session_expires_at=session_expires_at,
+            expires_at=session_expires_at,
         )
 
     def simulate_payment_success(
@@ -243,4 +244,5 @@ class PaymentService:
             session_code=session.SessionCode,
             session_token=session.SessionToken,
             session_expires_at=session.Expire_at,
+            expires_at=session.Expire_at,
         )

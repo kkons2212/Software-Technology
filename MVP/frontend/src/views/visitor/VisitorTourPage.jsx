@@ -195,17 +195,25 @@ export default function VisitorTourPage({
   };
 
   const handleCheckoutSuccess = (paymentData) => {
-    if (paymentData?.session_code) {
-      window.localStorage.setItem(VISITOR_SESSION_CODE_KEY, paymentData.session_code);
-      setInternalSessionCode(paymentData.session_code);
+    const code = paymentData?.session_code || paymentData?.SessionCode || '';
+    const token = paymentData?.session_token || paymentData?.SessionToken || '';
+    const rawExpiry =
+      paymentData?.expires_at ||
+      paymentData?.session_expires_at ||
+      paymentData?.Expire_at;
+    const expiry = rawExpiry
+      ? new Date(rawExpiry).toISOString()
+      : new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+
+    if (code) {
+      window.localStorage.setItem(VISITOR_SESSION_CODE_KEY, code);
+      setInternalSessionCode(code);
     }
-    if (paymentData?.session_token) {
-      window.localStorage.setItem(VISITOR_SESSION_TOKEN_KEY, paymentData.session_token);
+    if (token) {
+      window.localStorage.setItem(VISITOR_SESSION_TOKEN_KEY, token);
     }
-    if (paymentData?.expires_at) {
-      window.localStorage.setItem(VISITOR_EXPIRES_AT_KEY, paymentData.expires_at);
-      setInternalExpiresAt(paymentData.expires_at);
-    }
+    window.localStorage.setItem(VISITOR_EXPIRES_AT_KEY, expiry);
+    setInternalExpiresAt(expiry);
   };
 
   return (

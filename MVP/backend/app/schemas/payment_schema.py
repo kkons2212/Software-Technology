@@ -24,6 +24,7 @@ class CheckoutCreateResponse(BaseModel):
 
     order_id: str = Field(..., description="Unique transaction/order identifier.")
     pay_amount: int = Field(..., description="Service fee amount.")
+    amount: int | None = Field(default=None, description="Alias for pay_amount.")
     currency: str = Field(default="VND", description="Currency code (e.g., VND).")
     payment_method: str = Field(..., description="Payment method: VIETQR or CARD.")
     qr_code_url: str | None = Field(
@@ -38,17 +39,33 @@ class CheckoutCreateResponse(BaseModel):
         default=None,
         description="Receiving bank name for VietQR domestic transfers.",
     )
+    bank_name: str | None = Field(
+        default=None,
+        description="Alias for transfer_bank.",
+    )
     transfer_account: str | None = Field(
         default=None,
         description="Receiving bank account number.",
+    )
+    account_no: str | None = Field(
+        default=None,
+        description="Alias for transfer_account.",
     )
     transfer_account_name: str | None = Field(
         default=None,
         description="Receiving bank account holder name.",
     )
+    account_name: str | None = Field(
+        default=None,
+        description="Alias for transfer_account_name.",
+    )
     transfer_content: str | None = Field(
         default=None,
         description="Mandatory transfer reference/memo syntax.",
+    )
+    payment_reference: str | None = Field(
+        default=None,
+        description="Alias for transfer_content.",
     )
     status: str = Field(
         default="PENDING",
@@ -66,6 +83,7 @@ class OrderStatusResponse(BaseModel):
     order_id: str = Field(..., description="Unique transaction/order identifier.")
     status: str = Field(..., description="Current status: PENDING, PAID, EXPIRED, FAILED.")
     pay_amount: int = Field(..., description="Service fee amount.")
+    amount: int | None = Field(default=None, description="Alias for pay_amount.")
     currency: str = Field(default="VND", description="Currency code.")
     paid_at: datetime | None = Field(
         default=None,
@@ -82,4 +100,8 @@ class OrderStatusResponse(BaseModel):
     session_expires_at: datetime | None = Field(
         default=None,
         description="Expiration timestamp of the 24-hour visitor session.",
+    )
+    expires_at: datetime | None = Field(
+        default=None,
+        description="Direct alias for session_expires_at for seamless frontend consumption.",
     )
