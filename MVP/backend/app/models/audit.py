@@ -17,6 +17,12 @@ AUDIT_STATUS_SUCCESS = "SUCCESS"
 AUDIT_STATUS_FAILED = "FAILED"
 AUDIT_STATUS_LOCKED = "LOCKED"
 
+# US 02.3: the `Details` marker of the audit row that acts as the session
+# revocation watermark. It lives in the model layer because both the repository
+# (which reads the watermark) and the service (which writes it) need it, and a
+# repository must never import from `services/`.
+AUDIT_DETAILS_LOGOUT = "ADMIN_LOGOUT"
+
 
 class Audit(Base):
     """An immutable audit log row describing one administrator action."""

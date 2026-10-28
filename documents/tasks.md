@@ -8,30 +8,30 @@
 
 | Story ID | User Story Title | Use Case | Priority | Story Points | Total Tasks | Progress Status |
 |:---|:---|:---:|:---:|:---:|:---:|:---:|
-| [**US 01.1**](#-us-011-interactive-outdoor-map-header--real-time-gps-tracking) | Interactive Outdoor Map, Header & Real-Time GPS Tracking | UC-01 | Must Have | 5 SP | 5 Tasks | [x] 5/5 |
+| [**US 01.1**](#-us-011-interactive-outdoor-map-header--real-time-gps-tracking) | Interactive Outdoor Map, Header & Real-Time GPS Tracking | UC-01 | Must Have | 5 SP | 7 Tasks | [x] 7/7 |
 | [**US 01.2**](#-us-012-tap-map-marker-for-teaser-preview-bottom-sheet) | Tap Map Marker for Teaser Preview Bottom Sheet | UC-01 | Must Have | 3 SP | 3 Tasks | [x] 3/3 |
 | [**US 01.3**](#-us-013-automated-voice-narration-on-gps-proximity--mini-audio-player) | Automated Voice Narration on GPS Proximity & Mini Audio Player | UC-01 | Must Have | 8 SP | 6 Tasks | [x] 6/6 |
 | [**US 01.4**](#-us-014-intelligent-recommended-walking-route-wayfinding) | Intelligent Recommended Walking Route Wayfinding | UC-01 | Should Have | 5 SP | 3 Tasks | [ ] 0/3 |
 | [**US 02.1**](#-us-021-administrator-authentication--portal-login) | Administrator Authentication & Portal Login | UC-02 | Must Have | 5 SP | 5 Tasks | [x] 5/5 |
-| [**US 02.2**](#-us-022-brute-force-protection--account-lockout) | Brute-Force Protection & Account Lockout | UC-02 | Must Have | 3 SP | 4 Tasks | [ ] 0/4 |
-| [**US 02.3**](#-us-023-secure-session-management--inactivity-logout) | Secure Session Management & Inactivity Logout | UC-02 | Should Have | 2 SP | 3 Tasks | [ ] 0/3 |
+| [**US 02.2**](#-us-022-brute-force-protection--account-lockout) | Brute-Force Protection & Account Lockout | UC-02 | Must Have | 3 SP | 4 Tasks | [x] 4/4 |
+| [**US 02.3**](#-us-023-secure-session-management--inactivity-logout) | Secure Session Management & Inactivity Logout | UC-02 | Should Have | 2 SP | 3 Tasks | [x] 3/3 |
 | [**US 03.1**](#-us-031-create-digitized-exhibit-profile--cover-image-upload) | Create Digitized Exhibit Profile & Cover Image Upload | UC-03 | Must Have | 5 SP | 5 Tasks | [x] 5/5 |
 | [**US 03.2**](#-us-032-interactive-gps-geolocation--geofence-calibration) | Interactive GPS Geolocation & Geofence Calibration | UC-03 | Must Have | 5 SP | 4 Tasks | [x] 4/4 |
 | [**US 03.3**](#-us-033-deactivate--hide-exhibit--invalidate-navigation-route) | Deactivate / Hide Exhibit & Invalidate Navigation Route | UC-03 | Should Have | 3 SP | 3 Tasks | [ ] 0/3 |
-| [**US 03.4**](#-us-034-update-exhibit-details--synchronize-translation-status) | Update Exhibit Details & Synchronize Translation Status | UC-03 | Must Have | 3 SP | 3 Tasks | [ ] 0/3 |
+| [**US 03.4**](#-us-034-update-exhibit-details--synchronize-translation-status) | Update Exhibit Details & Synchronize Translation Status | UC-03 | Must Have | 3 SP | 3 Tasks | [x] 3/3 |
 | [**US 04.1**](#-us-041-multilingual-translation-audit--historical-terminology-refinement) | Multilingual Translation Audit & Historical Terminology Refinement | UC-04 | Must Have | 5 SP | 4 Tasks | [x] 4/4 |
 | [**US 04.2**](#-us-042-audio-guide-preview--dynamic-voice-re-generation) | Audio Guide Preview & Dynamic Voice Re-generation | UC-04 | Must Have | 3 SP | 4 Tasks | [x] 4/4 |
 | [**US 04.3**](#-us-043-administrative-approval--live-mobile-app-synchronization) | Administrative Approval & Live Mobile App Synchronization | UC-04 | Must Have | 3 SP | 3 Tasks | [x] 3/3 |
 | [**US 04.4**](#-us-044-automated-ai-translation--audio-synthesis-pipeline) | Automated AI Translation & Audio Synthesis Pipeline | UC-04 | Must Have | 8 SP | 5 Tasks | [ ] 0/5 |
 | [**US 05.1**](#-us-051-real-time-visitor-density-heatmap) | Real-Time Visitor Density Heatmap | UC-05 | Should Have | 5 SP | 3 Tasks | [ ] 0/3 |
 | [**US 05.2**](#-us-052-exhibit-rankings-dwell-times--language-demographics) | Exhibit Rankings, Dwell Times & Language Demographics | UC-05 | Must Have | 5 SP | 3 Tasks | [x] 3/3 |
-| [**US 05.3**](#-us-053-static-audio-storage-capacity-alert--orphan-pruning) | Static Audio Storage Capacity Alert & Orphan Pruning | UC-05 | Must Have | 5 SP | 5 Tasks | [ ] 0/5 |
+| [**US 05.3**](#-us-053-static-audio-storage-capacity-alert--orphan-pruning) | Static Audio Storage Capacity Alert & Orphan Pruning | UC-05 | Must Have | 5 SP | 5 Tasks | [x] 5/5 |
 | [**US 05.4**](#-us-054-telemetry-filtering--structured-data-export) | Telemetry Filtering & Structured Data Export | UC-05 | Should Have | 3 SP | 3 Tasks | [ ] 0/3 |
 | [**US 06.1**](#-us-061-frictionless-digital-admission-checkout-via-vietqr--cards) | Frictionless Digital Admission Checkout via VietQR & Cards | UC-06 | Must Have | 5 SP | 5 Tasks | [x] 5/5 |
 | [**US 06.2**](#-us-062-webhook-driven-24-hour-visiting-session-activation) | Webhook-Driven 24-Hour Visiting Session Activation | UC-06 | Must Have | 5 SP | 4 Tasks | [ ] 0/4 |
 | [**US 06.3**](#-us-063-multi-device-session-recovery-via-session-code) | Multi-Device Session Recovery via Session Code | UC-06 | Should Have | 3 SP | 3 Tasks | [ ] 0/3 |
 | [**US 06.4**](#-us-064-content-protection--narrativeaudio-decryption-access-control) | Content Protection & Narrative/Audio Decryption Access Control | UC-06 | Must Have | 5 SP | 4 Tasks | [ ] 0/4 |
-| **TOTAL** | **23 User Stories (10 Complete)** | — | — | **100 SP** | **92 Tasks** | **[x] 44/92 Tasks** |
+| **TOTAL** | **23 User Stories (13 Complete)** | — | — | **100 SP** | **92 Tasks** | **[x] 57/92 Tasks** |
 
 ---
 
@@ -263,22 +263,22 @@
 > **So that** workstation security is maintained in shared administrative environments.
 >
 > * **Priority:** Should Have | **Estimate:** 2 SP
-> * **Progress:** [ ] 0/3 Tasks Completed
+> * **Progress:** [x] 3/3 Tasks Completed
 
 #### Acceptance Criteria:
-- [ ] **AC-02.3.1:** Clicking "Log Out" clears session cookies, revokes the token server-side, and redirects immediately to the Login screen.
-- [ ] **AC-02.3.2:** Automatically expire session and wipe local authentication state after 30 minutes of continuous user inactivity.
+- [x] **AC-02.3.1:** Clicking "Log Out" clears session cookies, revokes the token server-side, and redirects immediately to the Login screen.
+- [x] **AC-02.3.2:** Automatically expire session and wipe local authentication state after 30 minutes of continuous user inactivity.
 
 #### Task Checklist:
-- [ ] `TSK-02.3.1` `[Backend]` **Logout & Token Invalidation (`POST /api/v1/auth/logout`)**
+- [x] `TSK-02.3.1` `[Backend]` **Logout & Token Invalidation (`POST /api/v1/auth/logout`)**
   - **Scope:** Clear HttpOnly session cookies, record logout in `Audit`, and invalidate active session tokens.
   - **DoD:** Token is immediately rejected in all subsequent requests.
   - **Paired Unit Test:** `tests/unit/controllers/test_auth_controller.py`
-- [ ] `TSK-02.3.2` `[Frontend]` **Inactivity Idle Timer Hook (`useIdleTimer.js`) & Logout Action**
+- [x] `TSK-02.3.2` `[Frontend]` **Inactivity Idle Timer Hook (`useIdleTimer.js`) & Logout Action**
   - **Scope:** Track mouse/keyboard inactivity for 30 minutes. Trigger auto-logout toast, clear local state, and redirect to login screen.
   - **DoD:** Idle timer functions reliably even when the browser tab is running in the background.
   - **Paired Unit Test:** `src/hooks/__tests__/useIdleTimer.test.js`
-- [ ] `TSK-02.3.3` `[Test]` **Unit Test Suite for US 02.3 (`test_auth_controller.py`, `useIdleTimer.test.js`)**
+- [x] `TSK-02.3.3` `[Test]` **Unit Test Suite for US 02.3 (`test_auth_controller.py`, `useIdleTimer.test.js`)**
   - **Scope:** Test logout cookie purging, server token invalidation, and 30-min idle timer event tracking with automatic logout toast and redirection.
   - **DoD:** 100% test pass in Pytest and Vitest, $\ge 80\%$ line & branch code coverage.
   - **Execution:** `pytest tests/unit/controllers/test_auth_controller.py` && `npm run test -- useIdleTimer`
@@ -613,31 +613,31 @@
 > **So that** disk exhaustion is avoided and server storage costs are optimized.
 >
 > * **Priority:** Must Have | **Estimate:** 5 SP
-> * **Progress:** [ ] 0/5 Tasks Completed
+> * **Progress:** [x] 5/5 Tasks Completed
 
 #### Acceptance Criteria:
-- [ ] **AC-05.3.1:** Check physical disk usage of `/static/audio` via standard `shutil.disk_usage()`.
-- [ ] **AC-05.3.2:** Sticky alert banner on admin header when disk usage $\ge 85\%$ (Amber: 85%-94%, Red Alert: $\ge 95\%$).
-- [ ] **AC-05.3.3:** "Clean Orphaned Audio" action scans disk, compares against active `POIAudio.Audio_url` DB records, and deletes unreferenced MP3s safely.
+- [x] **AC-05.3.1:** Check physical disk usage of `/static/audio` via standard `shutil.disk_usage()`.
+- [x] **AC-05.3.2:** Sticky alert banner on admin header when disk usage $\ge 85\%$ (Amber: 85%-94%, Red Alert: $\ge 95\%$).
+- [x] **AC-05.3.3:** "Clean Orphaned Audio" action scans disk, compares against active `POIAudio.Audio_url` DB records, and deletes unreferenced MP3s safely.
 
 #### Task Checklist:
-- [ ] `TSK-05.3.1` `[Backend]` **System Health & Storage Check (`GET /api/v1/admin/system/health`)**
+- [x] `TSK-05.3.1` `[Backend]` **System Health & Storage Check (`GET /api/v1/admin/system/health`)**
   - **Scope:** Inspect disk usage using `shutil.disk_usage()`, test DB connection latency, and external service health.
   - **DoD:** Returns `{ disk_used_percent, db_status, external_services_ok }`.
   - **Paired Unit Test:** `tests/unit/services/test_system_health.py`
-- [ ] `TSK-05.3.2` `[Frontend]` **Storage Progress Meter & Alert Banner (`StorageHealthBanner.jsx`)**
+- [x] `TSK-05.3.2` `[Frontend]` **Storage Progress Meter & Alert Banner (`StorageHealthBanner.jsx`)**
   - **Scope:** Progress meter ($<85\%$ green, $85\%-94\%$ amber, $\ge 95\%$ red). Sticky warning banner triggered at $\ge 85\%$.
   - **DoD:** Visually prominent alert with direct button to trigger cleanup modal.
   - **Paired Unit Test:** `src/components/__tests__/StorageHealthBanner.test.jsx`
-- [ ] `TSK-05.3.3` `[Backend]` **Orphan Audio Pruning Endpoint (`POST /api/v1/admin/storage/clean-orphans`)**
+- [x] `TSK-05.3.3` `[Backend]` **Orphan Audio Pruning Endpoint (`POST /api/v1/admin/storage/clean-orphans`)**
   - **Scope:** Scan `/static/audio`, cross-reference with DB `Audio_url` set, unlink orphaned files via `os.unlink()`, and return reclaimed space in MB.
   - **DoD:** Never deletes referenced files; correctly returns freed space amount.
   - **Paired Unit Test:** `tests/unit/services/test_storage_service.py`
-- [ ] `TSK-05.3.4` `[Frontend]` **"Clean Orphaned Audio" Modal & Action Trigger**
+- [x] `TSK-05.3.4` `[Frontend]` **"Clean Orphaned Audio" Modal & Action Trigger**
   - **Scope:** Confirmation modal, progress indicator, and toast report displaying reclaimed disk space in MB.
   - **DoD:** Automatically refreshes storage health gauge upon completion.
   - **Paired Unit Test:** `src/components/__tests__/StorageHealthBanner.test.jsx`
-- [ ] `TSK-05.3.5` `[Test]` **Unit Test Suite for US 05.3 (`test_system_health.py`, `test_storage_service.py`, `StorageHealthBanner.test.jsx`)**
+- [x] `TSK-05.3.5` `[Test]` **Unit Test Suite for US 05.3 (`test_system_health.py`, `test_storage_service.py`, `StorageHealthBanner.test.jsx`)**
   - **Scope:** Test disk usage inspection via `shutil.disk_usage()`, threshold warning alerts at $\ge 85\%$, orphan file deletion logic, and cleanup modal confirmation.
   - **DoD:** 100% test pass in Pytest and Vitest, $\ge 80\%$ line & branch code coverage.
   - **Execution:** `pytest tests/unit/services/test_system_health.py tests/unit/services/test_storage_service.py` && `npm run test -- StorageHealthBanner`

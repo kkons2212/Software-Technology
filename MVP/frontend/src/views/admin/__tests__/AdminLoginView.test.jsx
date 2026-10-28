@@ -7,15 +7,20 @@ const { mockAuthState } = vi.hoisted(() => ({
   mockAuthState: { login: vi.fn(), isAuthenticated: false },
 }));
 
-vi.mock('../../../contexts/AuthContext.jsx', () => ({ useAuth: () => mockAuthState }));
+vi.mock('../../../contexts/AuthContext.jsx', () => ({
+  LOGOUT_REASON_IDLE: 'IDLE_TIMEOUT',
+  useAuth: () => mockAuthState,
+}));
 
 import AdminLoginView from '../AdminLoginView.jsx';
 import { ApiError } from '../../../api/apiClient.js';
 import { LOCKOUT_STORAGE_KEY } from '../../../components/admin/AccountLockoutModal.jsx';
 
-function renderLoginView() {
+function renderLoginView({ state } = {}) {
+  const initialEntry = state ? { pathname: '/admin/login', state } : '/admin/login';
+
   return render(
-    <MemoryRouter initialEntries={['/admin/login']}>
+    <MemoryRouter initialEntries={[initialEntry]}>
       <Routes>
         <Route path="/admin/login" element={<AdminLoginView />} />
         <Route path="/admin" element={<div>Admin Workspace Stub</div>} />
@@ -148,6 +153,20 @@ describe('AdminLoginView', () => {
     ).toBeInTheDocument();
     expect(screen.getByTestId('lockout-countdown')).toHaveTextContent('15:00');
     expect(screen.getByRole('button', { name: /account locked/i })).toBeDisabled();
+  });
+
+  it('explains the redirect when the session expired from inactivity', () => {
+    renderLoginView({ state: { from: '/admin/pois', reason: 'IDLE_TIMEOUT' } });
+
+    expect(screen.getByTestId('idle-timeout-notice')).toHaveTextContent(
+      'session expired after 30 minutes of inactivity',
+    );
+  });
+
+  it('omits the idle notice after a deliberate sign-out', () => {
+    renderLoginView({ state: { from: '/admin/pois', reason: 'MANUAL' } });
+
+    expect(screen.queryByTestId('idle-timeout-notice')).not.toBeInTheDocument();
   });
 
   it('restores lockout state from sessionStorage on page load', () => {

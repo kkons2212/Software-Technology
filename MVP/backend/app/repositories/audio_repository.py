@@ -1,8 +1,9 @@
 """Persistence operations for generated POI narration audio."""
 
+import time
 import uuid
 
-from sqlalchemy import func
+from sqlalchemy import func, text
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import ApiError
@@ -98,3 +99,14 @@ class AudioRepository:
         translation.status = "DRAFT"
         translation.update_at = func.now()
         self.db.commit()
+
+    def get_all_audio_urls(self) -> set[str]:
+        """Return the set of all active audio URLs referenced in the database."""
+        rows = self.db.query(POIAudio.audio_url).all()
+        return {r[0] for r in rows if r[0]}
+
+    def ping_database(self) -> float:
+        """Measure database connection round-trip latency in milliseconds."""
+        start = time.perf_counter()
+        self.db.execute(text("SELECT 1"))
+        return round((time.perf_counter() - start) * 1000, 2)
