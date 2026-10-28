@@ -607,4 +607,4 @@ def test_should_raise_404_when_toggling_nonexistent_poi(poi_service, seeded_admi
             admin_user_name=seeded_admin.user_name,
         )
     assert exc_info.value.status_code == 404
-    assert exc_info.value.code == POI_NOT_FOUND_ERROR_CODE
+    assert exc_info.value.detail["code"] == POI_NOT_FOUND_ERROR_CODE
