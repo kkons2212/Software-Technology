@@ -5,10 +5,10 @@ import AdminMapPicker from '../../components/admin/AdminMapPicker.jsx';
 import POIFormModal from '../../components/admin/POIFormModal.jsx';
 
 const CU_CHI_BOUNDS = {
-  minLat: 11.1350,
-  maxLat: 11.1550,
-  minLng: 106.4500,
-  maxLng: 106.4750,
+  minLat: 11.136361,
+  maxLat: 11.149306,
+  minLng: 106.455139,
+  maxLng: 106.467639,
 };
 
 function isOutOfBounds(lat, lng) {
@@ -347,7 +347,7 @@ export default function PoiCatalogPage() {
                   latitudeLabel="Latitude (WGS84) *"
                   longitudeLabel="Longitude (WGS84) *"
                   radiusLabel="Proximity Trigger Radius"
-                  outOfBoundsMessage="Warning: Coordinates must reside within Cu Chi site boundary (Lat: [11.1350, 11.1550], Lng: [106.4500, 106.4750])."
+                  outOfBoundsMessage="Warning: Coordinates must reside within Cu Chi site boundary (Lat: [11.136361, 11.149306], Lng: [106.455139, 106.467639])."
                   onChange={({ latitude: nextLat, longitude: nextLng, radius: nextRad }) => {
                     setLatitude(String(nextLat));
                     setLongitude(String(nextLng));

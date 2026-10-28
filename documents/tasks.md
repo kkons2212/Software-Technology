@@ -336,11 +336,11 @@
 #### Acceptance Criteria:
 - [x] **AC-03.2.1:** Leaflet map allows draggable pin placement, dynamically populating numeric Latitude and Longitude input fields.
 - [x] **AC-03.2.2:** Radius slider adjusts between 10m and 50m with 1m step increments; Geofence circle on map scales dynamically in real time.
-- [x] **AC-03.2.3:** Coordinates must reside strictly within Cu Chi relic boundaries (`Lat: [11.1350, 11.1550]`, `Lng: [106.4500, 106.4750]`). Out-of-bounds pins highlight red `#B91C1C` and disable save action.
+- [x] **AC-03.2.3:** Coordinates must reside strictly within Cu Chi relic boundaries (`Lat: [11.136361, 11.149306]`, `Lng: [106.455139, 106.467639]`). Out-of-bounds pins highlight red `#B91C1C` and disable save action.
 
 #### Task Checklist:
 - [x] `TSK-03.2.1` `[Backend]` **Cu Chi Perimeter Bounding Box Validator**
-  - **Scope:** Implement coordinate boundary validator in `poi_service.py`: Lat `[11.1350, 11.1550]`, Lng `[106.4500, 106.4750]`. Reject out-of-bounds coordinates with HTTP 400.
+  - **Scope:** Implement coordinate boundary validator in `poi_service.py`: Lat `[11.136361, 11.149306]`, Lng `[106.455139, 106.467639]`. Reject out-of-bounds coordinates with HTTP 400.
   - **DoD:** Rejects invalid coordinates server-side.
   - **Paired Unit Test:** `tests/unit/services/test_poi_service.py`
 - [x] `TSK-03.2.2` `[Frontend]` **Interactive Leaflet Map Coordinate Picker (`AdminMapPicker.jsx`)**
@@ -352,7 +352,7 @@
   - **DoD:** Form submission strictly blocked on out-of-bounds coordinates.
   - **Paired Unit Test:** `src/components/admin/__tests__/AdminMapPicker.test.jsx`
 - [x] `TSK-03.2.4` `[Test]` **Unit Test Suite for US 03.2 (`test_poi_service.py`, `AdminMapPicker.test.jsx`)**
-  - **Scope:** Test bounding box coordinate validator (`[11.1350, 11.1550]`, `[106.4500, 106.4750]`), draggable pin events, radius circle sync, and red border error state.
+  - **Scope:** Test bounding box coordinate validator (`[11.136361, 11.149306]`, `[106.455139, 106.467639]`), draggable pin events, radius circle sync, and red border error state.
   - **DoD:** 100% test pass in Pytest and Vitest, $\ge 80\%$ line & branch code coverage.
   - **Execution:** `pytest tests/unit/services/test_poi_service.py` && `npm run test -- AdminMapPicker`
 

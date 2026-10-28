@@ -36,7 +36,7 @@ const RADIUS_STEP = 1;
 const COORDINATE_PRECISION = 1e7;
 
 const OUT_OF_BOUNDS_MESSAGE =
-  'Coordinates must stay inside the Cu Chi Tunnels boundary (Lat 11.1350-11.1550, Lng 106.4500-106.4750).';
+  'Coordinates must stay inside the Cu Chi Tunnels boundary (Lat 11.136361-11.149306, Lng 106.455139-106.467639).';
 
 function roundCoordinate(value) {
   return Math.round(value * COORDINATE_PRECISION) / COORDINATE_PRECISION;
