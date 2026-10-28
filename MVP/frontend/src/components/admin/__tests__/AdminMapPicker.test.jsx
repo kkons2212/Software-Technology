@@ -78,7 +78,7 @@ function markerEventHandler(eventName) {
 beforeEach(() => {
   cleanup();
   vi.clearAllMocks();
-  leafletMocks.markerInstance.getLatLng.mockReturnValue({ lat: 11.15, lng: 106.47 });
+  leafletMocks.markerInstance.getLatLng.mockReturnValue({ lat: 11.145, lng: 106.462 });
 });
 
 describe('AdminMapPicker', () => {
@@ -107,13 +107,13 @@ describe('AdminMapPicker', () => {
 
   it('republishes the pin coordinates into the numeric fields after a drag', () => {
     renderPicker();
-    leafletMocks.markerInstance.getLatLng.mockReturnValue({ lat: 11.15, lng: 106.47 });
+    leafletMocks.markerInstance.getLatLng.mockReturnValue({ lat: 11.145, lng: 106.462 });
 
     act(() => markerEventHandler('dragend')());
 
-    expect(screen.getByLabelText('Latitude')).toHaveValue(11.15);
-    expect(screen.getByLabelText('Longitude')).toHaveValue(106.47);
-    expect(leafletMocks.circleInstance.setLatLng).toHaveBeenCalledWith([11.15, 106.47]);
+    expect(screen.getByLabelText('Latitude')).toHaveValue(11.145);
+    expect(screen.getByLabelText('Longitude')).toHaveValue(106.462);
+    expect(leafletMocks.circleInstance.setLatLng).toHaveBeenCalledWith([11.145, 106.462]);
   });
 
   it('moves the pin and the circle when a coordinate is typed', () => {

@@ -8,10 +8,10 @@
 export const MAIN_ENTRANCE = { lat: 11.1432, lng: 106.4631 };
 
 export const MUSEUM_BOUNDS = {
-  minLat: 11.135,
-  maxLat: 11.155,
-  minLng: 106.45,
-  maxLng: 106.475,
+  minLat: 11.136361,
+  maxLat: 11.149306,
+  minLng: 106.455139,
+  maxLng: 106.467639,
 };
 
 /**

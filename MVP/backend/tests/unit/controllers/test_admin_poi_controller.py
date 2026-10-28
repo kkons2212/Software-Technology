@@ -106,7 +106,7 @@ def test_should_update_geofence_and_return_the_exhibit_payload(
 ):
     response = authenticated_client.put(
         _update_route(),
-        json={"latitude": 11.1501, "longitude": 106.4702, "radius": 45},
+        json={"latitude": 11.1450, "longitude": 106.4620, "radius": 45},
         headers=X_FORWARDED_FOR_HEADER,
     )
 
@@ -118,8 +118,8 @@ def test_should_update_geofence_and_return_the_exhibit_payload(
             "title": "Tunnel entrance",
             "short_description": "A narrow entry",
             "image_url": "https://example.test/poi.jpg",
-            "latitude": 11.1501,
-            "longitude": 106.4702,
+            "latitude": 11.1450,
+            "longitude": 106.4620,
             "trigger_radius": 45,
         },
     }
@@ -152,7 +152,7 @@ def test_should_accept_a_radius_only_update(authenticated_client, seeded_poi):
 # ---------------------------------------------------------------------------
 @pytest.mark.parametrize(
     ("latitude", "longitude"),
-    [(11.135, 106.45), (11.155, 106.475)],
+    [(11.136361, 106.455139), (11.149306, 106.467639)],
 )
 def test_should_accept_coordinates_exactly_on_the_perimeter(
     authenticated_client, seeded_poi, latitude, longitude

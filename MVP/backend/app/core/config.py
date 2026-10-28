@@ -63,10 +63,10 @@ class Settings(BaseSettings):
 
     # Cu Chi Tunnels Geographic Perimeter Bounds
     CU_CHI_BOUNDS: dict = {
-        "min_lat": 11.1350,
-        "max_lat": 11.1550,
-        "min_lng": 106.4500,
-        "max_lng": 106.4750,
+        "min_lat": 11.136361,
+        "max_lat": 11.149306,
+        "min_lng": 106.455139,
+        "max_lng": 106.467639,
     }
 
 

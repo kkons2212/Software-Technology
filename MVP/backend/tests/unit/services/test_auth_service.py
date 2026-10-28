@@ -1,9 +1,10 @@
-"""Paired unit tests for `app.services.auth_service` (US 02.1 - TSK-02.1.3).
+"""Paired unit tests for `app.services.auth_service` (US 02.1 - TSK-02.1.3 & US 02.2 - TSK-02.2.1).
 
 DoD of TSK-02.1.3 requires 100% coverage of the three decisive branches:
-valid login, invalid password and nonexistent user. The service is exercised
-through the real repositories against the rollback-isolated MySQL session, with
-a low-cost Bcrypt override injected by the autouse `use_low_cost_bcrypt` fixture.
+valid login, invalid password and nonexistent user.
+DoD of TSK-02.2.1 & TSK-02.2.4 tests failed attempt tracking, 15-minute account
+lockout upon 5 consecutive failures, rejecting logins when locked, auto-unlock
+after expiration, and counter reset on success.
 """
 
 from datetime import datetime, timedelta, timezone
@@ -26,8 +27,11 @@ from app.repositories.audit_repository import AuditRepository
 from app.repositories.user_repository import UserRepository
 from app.schemas.auth_schema import AdminLoginRequest
 from app.services.auth_service import (
+    ACCOUNT_LOCKED_ERROR_CODE,
+    ACCOUNT_LOCKED_ERROR_MESSAGE,
     INVALID_CREDENTIALS_ERROR_CODE,
     INVALID_CREDENTIALS_ERROR_MESSAGE,
+    LOGIN_ACCOUNT_LOCKED_DETAILS,
     LOGIN_FAILED_DETAILS,
     LOGIN_INACTIVE_ACCOUNT_DETAILS,
     LOGIN_SUCCESS_DETAILS,
@@ -290,6 +294,124 @@ def test_should_not_leak_user_enumeration_between_missing_and_wrong_password(
         missing_user_error.value.status_code == wrong_password_error.value.status_code
     )
     assert missing_user_error.value.detail == wrong_password_error.value.detail
+
+
+# ---------------------------------------------------------------------------
+# US 02.2: BRUTE-FORCE PROTECTION & ACCOUNT LOCKOUT (TSK-02.2.1 & TSK-02.2.4)
+# ---------------------------------------------------------------------------
+def test_should_increment_failed_attempts_on_invalid_password(
+    auth_service, active_admin, db_session
+):
+    with pytest.raises(ApiError) as raised_error:
+        auth_service.authenticate_admin(
+            AdminLoginRequest(username=VALID_USER_NAME, password="WrongPassword1"),
+            client_ip=CLIENT_IP,
+        )
+
+    assert raised_error.value.status_code == 401
+    db_session.refresh(active_admin)
+    assert active_admin.falsed_attempts == 1
+    assert active_admin.locked_until is None
+
+
+def test_should_lock_account_for_15_minutes_on_fifth_consecutive_failed_attempt(
+    auth_service, active_admin, db_session
+):
+    for i in range(4):
+        with pytest.raises(ApiError) as err:
+            auth_service.authenticate_admin(
+                AdminLoginRequest(
+                    username=VALID_USER_NAME, password=f"WrongPassword{i}"
+                ),
+                client_ip=CLIENT_IP,
+            )
+        assert err.value.status_code == 401
+
+    db_session.refresh(active_admin)
+    assert active_admin.falsed_attempts == 4
+    assert active_admin.locked_until is None
+
+    # 5th failed attempt triggers 15-minute lockout
+    with pytest.raises(ApiError) as err:
+        auth_service.authenticate_admin(
+            AdminLoginRequest(username=VALID_USER_NAME, password="WrongPassword5"),
+            client_ip=CLIENT_IP,
+        )
+
+    assert err.value.status_code == 423
+    assert err.value.detail["code"] == ACCOUNT_LOCKED_ERROR_CODE
+    assert err.value.detail["message"] == ACCOUNT_LOCKED_ERROR_MESSAGE
+    assert err.value.detail["details"]["retry_after_seconds"] == 15 * 60
+
+    db_session.refresh(active_admin)
+    assert active_admin.falsed_attempts == 5
+    assert active_admin.locked_until is not None
+    assert active_admin.locked_until > datetime.utcnow()
+
+    # Verify security audit trail recorded lockout
+    lockout_audits = (
+        db_session.query(Audit)
+        .filter(Audit.details == LOGIN_ACCOUNT_LOCKED_DETAILS)
+        .all()
+    )
+    assert len(lockout_audits) == 1
+    assert lockout_audits[0].user_name == VALID_USER_NAME
+
+
+def test_should_reject_login_when_account_is_currently_locked(
+    auth_service, active_admin, db_session
+):
+    active_admin.falsed_attempts = 5
+    active_admin.locked_until = datetime.utcnow() + timedelta(minutes=10)
+    db_session.commit()
+
+    with pytest.raises(ApiError) as err:
+        auth_service.authenticate_admin(
+            AdminLoginRequest(username=VALID_USER_NAME, password=VALID_PASSWORD),
+            client_ip=CLIENT_IP,
+        )
+
+    assert err.value.status_code == 423
+    assert err.value.detail["code"] == ACCOUNT_LOCKED_ERROR_CODE
+    # Remaining seconds should be approximately 600s
+    assert 580 <= err.value.detail["details"]["retry_after_seconds"] <= 600
+
+
+def test_should_automatically_unlock_when_lockout_period_has_expired(
+    auth_service, active_admin, db_session
+):
+    # Lockout time has expired in the past
+    active_admin.falsed_attempts = 5
+    active_admin.locked_until = datetime.utcnow() - timedelta(minutes=1)
+    db_session.commit()
+
+    session_token = auth_service.authenticate_admin(
+        AdminLoginRequest(username=VALID_USER_NAME, password=VALID_PASSWORD),
+        client_ip=CLIENT_IP,
+    )
+
+    assert session_token.access_token
+    db_session.refresh(active_admin)
+    assert active_admin.falsed_attempts == 0
+    assert active_admin.locked_until is None
+
+
+def test_should_reset_failed_attempts_counter_on_successful_login(
+    auth_service, active_admin, db_session
+):
+    # User failed 3 times
+    active_admin.falsed_attempts = 3
+    db_session.commit()
+
+    session_token = auth_service.authenticate_admin(
+        AdminLoginRequest(username=VALID_USER_NAME, password=VALID_PASSWORD),
+        client_ip=CLIENT_IP,
+    )
+
+    assert session_token.access_token
+    db_session.refresh(active_admin)
+    assert active_admin.falsed_attempts == 0
+    assert active_admin.locked_until is None
 
 
 # ---------------------------------------------------------------------------

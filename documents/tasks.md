@@ -230,27 +230,27 @@
 > **So that** automated brute-force attacks and credential stuffing are prevented.
 >
 > * **Priority:** Must Have | **Estimate:** 3 SP
-> * **Progress:** [ ] 0/4 Tasks Completed
+> * **Progress:** [x] 4/4 Tasks Completed
 
 #### Acceptance Criteria:
-- [ ] **AC-02.2.1:** Track failed attempts in `FalsedAttempts`. At 5 consecutive failures, calculate `Lockeduntil = now() + 15 minutes` and log security warning in `Audit`.
-- [ ] **AC-02.2.2:** Return `HTTP 423 Locked` response with countdown payload: `{ "detail": "Account locked", "retry_after_seconds": 900 }`.
-- [ ] **AC-02.2.3:** Client UI catches HTTP 423 and renders an active countdown timer disabling the submit button until lockout expires.
+- [x] **AC-02.2.1:** Track failed attempts in `FalsedAttempts`. At 5 consecutive failures, calculate `Lockeduntil = now() + 15 minutes` and log security warning in `Audit`.
+- [x] **AC-02.2.2:** Return `HTTP 423 Locked` response with countdown payload: `{ "detail": "Account locked", "retry_after_seconds": 900 }`.
+- [x] **AC-02.2.3:** Client UI catches HTTP 423 and renders an active countdown timer disabling the submit button until lockout expires.
 
 #### Task Checklist:
-- [ ] `TSK-02.2.1` `[Backend]` **Failed Attempt Tracking & Lockout Counter**
+- [x] `TSK-02.2.1` `[Backend]` **Failed Attempt Tracking & Lockout Counter**
   - **Scope:** Increment `FalsedAttempts` in `User` table on bad password. When $\ge 5$, assign `Lockeduntil`. Reset counter to 0 on successful authentication.
   - **DoD:** Rejects login when `Lockeduntil > now()`.
   - **Paired Unit Test:** `tests/unit/services/test_auth_service.py`
-- [ ] `TSK-02.2.2` `[Backend]` **`HTTP 423 Locked` Response Handler**
+- [x] `TSK-02.2.2` `[Backend]` **`HTTP 423 Locked` Response Handler**
   - **Scope:** In `auth_controller.py`, intercept locked user state and return HTTP 423 with calculated `retry_after_seconds`.
   - **DoD:** RFC-compliant HTTP 423 response with accurate seconds countdown payload.
   - **Paired Unit Test:** `tests/unit/controllers/test_auth_controller.py`
-- [ ] `TSK-02.2.3` `[Frontend]` **Lockout Countdown Modal Component (`AccountLockoutModal.jsx`)**
+- [x] `TSK-02.2.3` `[Frontend]` **Lockout Countdown Modal Component (`AccountLockoutModal.jsx`)**
   - **Scope:** Catch HTTP 423 response and render real-time countdown timer modal disabling login submit button.
   - **DoD:** Live 1-second interval countdown; cannot be bypassed via page refresh.
   - **Paired Unit Test:** `src/components/__tests__/AccountLockoutModal.test.jsx`
-- [ ] `TSK-02.2.4` `[Test]` **Unit Test Suite for US 02.2 (`test_auth_service.py`, `test_auth_controller.py`, `AccountLockoutModal.test.jsx`)**
+- [x] `TSK-02.2.4` `[Test]` **Unit Test Suite for US 02.2 (`test_auth_service.py`, `test_auth_controller.py`, `AccountLockoutModal.test.jsx`)**
   - **Scope:** Test failed attempt increments up to 5, calculation of 15m lockout, HTTP 423 response with countdown seconds, and countdown modal UI.
   - **DoD:** 100% test pass in Pytest and Vitest, $\ge 80\%$ line & branch code coverage.
   - **Execution:** `pytest tests/unit/services/test_auth_service.py tests/unit/controllers/test_auth_controller.py` && `npm run test -- AccountLockoutModal`
@@ -336,11 +336,11 @@
 #### Acceptance Criteria:
 - [x] **AC-03.2.1:** Leaflet map allows draggable pin placement, dynamically populating numeric Latitude and Longitude input fields.
 - [x] **AC-03.2.2:** Radius slider adjusts between 10m and 50m with 1m step increments; Geofence circle on map scales dynamically in real time.
-- [x] **AC-03.2.3:** Coordinates must reside strictly within Cu Chi relic boundaries (`Lat: [11.1350, 11.1550]`, `Lng: [106.4500, 106.4750]`). Out-of-bounds pins highlight red `#B91C1C` and disable save action.
+- [x] **AC-03.2.3:** Coordinates must reside strictly within Cu Chi relic boundaries (`Lat: [11.136361, 11.149306]`, `Lng: [106.455139, 106.467639]`). Out-of-bounds pins highlight red `#B91C1C` and disable save action.
 
 #### Task Checklist:
 - [x] `TSK-03.2.1` `[Backend]` **Cu Chi Perimeter Bounding Box Validator**
-  - **Scope:** Implement coordinate boundary validator in `poi_service.py`: Lat `[11.1350, 11.1550]`, Lng `[106.4500, 106.4750]`. Reject out-of-bounds coordinates with HTTP 400.
+  - **Scope:** Implement coordinate boundary validator in `poi_service.py`: Lat `[11.136361, 11.149306]`, Lng `[106.455139, 106.467639]`. Reject out-of-bounds coordinates with HTTP 400.
   - **DoD:** Rejects invalid coordinates server-side.
   - **Paired Unit Test:** `tests/unit/services/test_poi_service.py`
 - [x] `TSK-03.2.2` `[Frontend]` **Interactive Leaflet Map Coordinate Picker (`AdminMapPicker.jsx`)**
@@ -352,7 +352,7 @@
   - **DoD:** Form submission strictly blocked on out-of-bounds coordinates.
   - **Paired Unit Test:** `src/components/admin/__tests__/AdminMapPicker.test.jsx`
 - [x] `TSK-03.2.4` `[Test]` **Unit Test Suite for US 03.2 (`test_poi_service.py`, `AdminMapPicker.test.jsx`)**
-  - **Scope:** Test bounding box coordinate validator (`[11.1350, 11.1550]`, `[106.4500, 106.4750]`), draggable pin events, radius circle sync, and red border error state.
+  - **Scope:** Test bounding box coordinate validator (`[11.136361, 11.149306]`, `[106.455139, 106.467639]`), draggable pin events, radius circle sync, and red border error state.
   - **DoD:** 100% test pass in Pytest and Vitest, $\ge 80\%$ line & branch code coverage.
   - **Execution:** `pytest tests/unit/services/test_poi_service.py` && `npm run test -- AdminMapPicker`
 

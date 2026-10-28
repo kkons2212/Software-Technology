@@ -41,10 +41,10 @@ EXISTING_LONGITUDE = 106.4645
 EXISTING_RADIUS = 30
 
 # Cu Chi Tunnels perimeter (dev_rules / ui_rules Section 3.2).
-MIN_LATITUDE = 11.135
-MAX_LATITUDE = 11.155
-MIN_LONGITUDE = 106.45
-MAX_LONGITUDE = 106.475
+MIN_LATITUDE = 11.136361
+MAX_LATITUDE = 11.149306
+MIN_LONGITUDE = 106.455139
+MAX_LONGITUDE = 106.467639
 
 
 @pytest.fixture()
@@ -155,12 +155,12 @@ def test_should_persist_new_coordinates_as_decimal(
 ):
     updated = poi_service.update_poi_geofence(
         EXISTING_POI_ID,
-        POIUpdateRequest(latitude=11.1501, longitude=106.4702),
+        POIUpdateRequest(latitude=11.1450, longitude=106.4620),
         admin_user_name=ADMIN_USER_NAME,
     )
 
-    assert updated.latitude == 11.1501
-    assert updated.longitude == 106.4702
+    assert updated.latitude == 11.1450
+    assert updated.longitude == 106.4620
     # `Numeric(10, 7)` requires a Decimal, never a binary float.
     assert isinstance(seeded_poi.latitude, Decimal)
     assert isinstance(seeded_poi.longitude, Decimal)

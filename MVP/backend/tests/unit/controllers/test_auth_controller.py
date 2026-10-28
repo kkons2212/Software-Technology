@@ -1,10 +1,12 @@
-"""Paired unit tests for `app.controllers.auth_controller` (US 02.1 - TSK-02.1.4 BE).
+"""Paired unit tests for `app.controllers.auth_controller` (US 02.1 & US 02.2 - TSK-02.2.2).
 
 The controller is exercised through a real `TestClient` with the JIT `get_db`
 dependency overridden by the rollback-isolated MySQL `db_session` fixture, so
 every assertion covers the HTTP contract (status codes, HttpOnly cookie flags,
-error envelope).
+error envelope, HTTP 423 Locked countdown response).
 """
+
+from datetime import datetime, timedelta
 
 import pytest
 from fastapi.testclient import TestClient
@@ -23,6 +25,7 @@ VALID_USER_NAME = "admin"
 VALID_EMAIL = "admin@cuchi.vn"
 VALID_PASSWORD = "Admin@12345"
 INVALID_CREDENTIALS_MESSAGE = "Invalid username or password"
+ACCOUNT_LOCKED_MESSAGE = "Account temporarily locked due to 5 failed attempts. Please retry after 15 minutes."
 FORWARDED_CLIENT_IP = "198.51.100.23"
 COOKIE_MAX_AGE_SECONDS = 3600
 
@@ -210,3 +213,49 @@ def test_should_return_401_envelope_when_session_cookie_is_tampered(
 
     assert response.status_code == 401
     assert response.json()["error"]["code"] == "UNAUTHENTICATED"
+
+
+# ---------------------------------------------------------------------------
+# US 02.2: HTTP 423 LOCKED RESPONSE (TSK-02.2.2 & TSK-02.2.4)
+# ---------------------------------------------------------------------------
+def test_should_return_423_locked_envelope_when_account_locked_after_5_failures(
+    client, seeded_admin
+):
+    for i in range(4):
+        res = client.post(
+            LOGIN_ROUTE,
+            json={"username": VALID_USER_NAME, "password": f"BadPassword{i}"},
+        )
+        assert res.status_code == 401
+
+    # 5th attempt returns 423
+    response = client.post(
+        LOGIN_ROUTE, json={"username": VALID_USER_NAME, "password": "BadPassword5"}
+    )
+
+    assert response.status_code == 423
+    body = response.json()
+    assert body["success"] is False
+    assert body["error"]["code"] == "ACCOUNT_LOCKED"
+    assert body["error"]["message"] == ACCOUNT_LOCKED_MESSAGE
+    assert body["error"]["details"]["retry_after_seconds"] == 900
+    assert body["retry_after_seconds"] == 900
+    assert get_settings().ADMIN_SESSION_COOKIE_NAME not in response.cookies
+
+
+def test_should_reject_subsequent_login_with_423_when_account_locked(
+    client, seeded_admin, db_session
+):
+    seeded_admin.falsed_attempts = 5
+    seeded_admin.locked_until = datetime.utcnow() + timedelta(minutes=15)
+    db_session.commit()
+
+    response = client.post(
+        LOGIN_ROUTE, json={"username": VALID_USER_NAME, "password": VALID_PASSWORD}
+    )
+
+    assert response.status_code == 423
+    body = response.json()
+    assert body["error"]["code"] == "ACCOUNT_LOCKED"
+    assert body["error"]["details"]["retry_after_seconds"] <= 900
+    assert body["retry_after_seconds"] <= 900

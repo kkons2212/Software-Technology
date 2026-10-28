@@ -5,6 +5,8 @@ dependency, so every query runs inside a short-lived connection and the caller
 closes it immediately afterwards.
 """
 
+from datetime import datetime
+
 from sqlalchemy.orm import Session
 
 from app.models.user import User
@@ -30,3 +32,17 @@ class UserRepository:
         self.db.commit()
         self.db.refresh(user)
         return user
+
+    def update_failed_attempts(
+        self, user: User, falsed_attempts: int, locked_until: datetime | None = None
+    ) -> None:
+        """Update consecutive failed login count and optional lockout timestamp."""
+        user.falsed_attempts = falsed_attempts
+        user.locked_until = locked_until
+        self.db.commit()
+
+    def reset_failed_attempts(self, user: User) -> None:
+        """Clear failed attempts counter and remove lockout timestamp."""
+        user.falsed_attempts = 0
+        user.locked_until = None
+        self.db.commit()
