@@ -54,3 +54,30 @@ class AnalyticsSummaryResponse(BaseModel):
     """`{data: ...}` envelope consumed by the frontend apiClient unwrapper."""
 
     data: AnalyticsSummaryDTO
+
+
+class HeatmapPointDTO(BaseModel):
+    """A single aggregated GPS heatmap coordinate with normalized intensity (US 05.1)."""
+
+    poi_id: str
+    poi_title: str
+    lat: float
+    lng: float
+    trigger_count: int = Field(..., ge=0)
+    intensity: float = Field(..., ge=0.0, le=1.0)
+
+
+class HeatmapDataDTO(BaseModel):
+    """Payload representing visitor density telemetry across relic grounds."""
+
+    time_range: str
+    generated_at: datetime
+    points: list[HeatmapPointDTO]
+    total_points: int = Field(..., ge=0)
+    max_trigger_count: int = Field(..., ge=0)
+
+
+class HeatmapResponse(BaseModel):
+    """`{data: ...}` envelope for heatmap aggregation API."""
+
+    data: HeatmapDataDTO
