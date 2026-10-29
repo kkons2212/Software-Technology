@@ -26,12 +26,12 @@
 | [**US 05.1**](#-us-051-real-time-visitor-density-heatmap) | Real-Time Visitor Density Heatmap | UC-05 | Should Have | 5 SP | 3 Tasks | [x] 3/3 |
 | [**US 05.2**](#-us-052-exhibit-rankings-dwell-times--language-demographics) | Exhibit Rankings, Dwell Times & Language Demographics | UC-05 | Must Have | 5 SP | 3 Tasks | [x] 3/3 |
 | [**US 05.3**](#-us-053-static-audio-storage-capacity-alert--orphan-pruning) | Static Audio Storage Capacity Alert & Orphan Pruning | UC-05 | Must Have | 5 SP | 5 Tasks | [x] 5/5 |
-| [**US 05.4**](#-us-054-telemetry-filtering--structured-data-export) | Telemetry Filtering & Structured Data Export | UC-05 | Should Have | 3 SP | 3 Tasks | [ ] 0/3 |
+| [**US 05.4**](#-us-054-telemetry-filtering--structured-data-export) | Telemetry Filtering & Structured Data Export | UC-05 | Should Have | 3 SP | 3 Tasks | [x] 3/3 |
 | [**US 06.1**](#-us-061-frictionless-digital-admission-checkout-via-vietqr--cards) | Frictionless Digital Admission Checkout via VietQR & Cards | UC-06 | Must Have | 5 SP | 5 Tasks | [x] 5/5 |
 | [**US 06.2**](#-us-062-webhook-driven-24-hour-visiting-session-activation) | Webhook-Driven 24-Hour Visiting Session Activation | UC-06 | Must Have | 5 SP | 4 Tasks | [x] 4/4 |
 | [**US 06.3**](#-us-063-multi-device-session-recovery-via-session-code) | Multi-Device Session Recovery via Session Code | UC-06 | Should Have | 3 SP | 3 Tasks | [x] 3/3 |
 | [**US 06.4**](#-us-064-content-protection--narrativeaudio-decryption-access-control) | Content Protection & Narrative/Audio Decryption Access Control | UC-06 | Must Have | 5 SP | 4 Tasks | [ ] 0/4 |
-| **TOTAL** | **23 User Stories (21 Complete)** | — | — | **102 SP** | **92 Tasks** | **[x] 85/92 Tasks** |
+| **TOTAL** | **23 User Stories (22 Complete)** | — | — | **102 SP** | **92 Tasks** | **[x] 88/92 Tasks** |
 
 ---
 
@@ -650,22 +650,22 @@
 > **So that** I can share reports with site management and archive operational records.
 >
 > * **Priority:** Should Have | **Estimate:** 3 SP
-> * **Progress:** [ ] 0/3 Tasks Completed
+> * **Progress:** [x] 3/3 Tasks Completed
 
 #### Acceptance Criteria:
-- [ ] **AC-05.4.1:** Export structured dataset: Date, Exhibit Name, Trigger Count, Language, Average Dwell Duration.
-- [ ] **AC-05.4.2:** Stream download directly from server to avoid server memory spikes.
+- [x] **AC-05.4.1:** Export structured dataset: Date, Exhibit Name, Trigger Count, Language, Average Dwell Duration.
+- [x] **AC-05.4.2:** Stream download directly from server to avoid server memory spikes.
 
 #### Task Checklist:
-- [ ] `TSK-05.4.1` `[Backend]` **Telemetry Stream Export Endpoint (`GET /api/v1/admin/analytics/export`)**
+- [x] `TSK-05.4.1` `[Backend]` **Telemetry Stream Export Endpoint (`GET /api/v1/admin/analytics/export`)**
   - **Scope:** Stream CSV / JSON using FastAPI `StreamingResponse`, batching records from database.
   - **DoD:** Proper UTF-8 with BOM for Excel compatibility with Vietnamese text.
   - **Paired Unit Test:** `tests/unit/services/test_export_service.py`
-- [ ] `TSK-05.4.2` `[Frontend]` **Telemetry Date Range Picker & Export Toolbar**
+- [x] `TSK-05.4.2` `[Frontend]` **Telemetry Date Range Picker & Export Toolbar**
   - **Scope:** Date range filter with "Export CSV" and "Export JSON" download buttons.
   - **DoD:** Triggers secure browser file download.
   - **Paired Unit Test:** `src/components/__tests__/AnalyticsExport.test.jsx`
-- [ ] `TSK-05.4.3` `[Test]` **Unit Test Suite for US 05.4 (`test_export_service.py`, `AnalyticsExport.test.jsx`)**
+- [x] `TSK-05.4.3` `[Test]` **Unit Test Suite for US 05.4 (`test_export_service.py`, `AnalyticsExport.test.jsx`)**
   - **Scope:** Test CSV and JSON file streaming, date range filtering, BOM headers, and frontend download button triggers.
   - **DoD:** 100% test pass in Pytest and Vitest, $\ge 80\%$ line & branch code coverage.
   - **Execution:** `pytest tests/unit/services/test_export_service.py` && `npm run test -- AnalyticsExport`

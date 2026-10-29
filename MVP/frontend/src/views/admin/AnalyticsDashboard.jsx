@@ -1,9 +1,9 @@
 // =============================================================================
-// TIER 1 - ADMIN VISITOR ANALYTICS DASHBOARD (US 05.2 & US 05.1)
-// Renders the 4 KPI summary cards, the visitor density heatmap, the Top 10
-// exhibit ranking and the visitor language distribution. All network access is
-// delegated to the Tier-3 API layer (`api/analyticsApi.js`) to preserve the
-// frontend 3-tier boundary.
+// TIER 1 - ADMIN VISITOR ANALYTICS DASHBOARD (US 05.2, US 05.1 & US 05.4)
+// Renders the 4 KPI summary cards, the visitor density heatmap, the telemetry
+// export toolbar, the Top 10 exhibit ranking and the visitor language distribution.
+// All network access is delegated to the Tier-3 API layer (`api/analyticsApi.js`)
+// to preserve the frontend 3-tier boundary.
 // =============================================================================
 
 import { useEffect, useMemo, useState } from 'react';
@@ -11,6 +11,7 @@ import {
   ANALYTICS_TIME_RANGES,
   getAnalyticsSummary,
 } from '../../api/analyticsApi.js';
+import AnalyticsExport from '../../components/admin/AnalyticsExport.jsx';
 import AnalyticsHeatmap from '../../components/admin/AnalyticsHeatmap.jsx';
 
 // Reporting windows exposed by the segmented control, in display order.
@@ -63,56 +64,56 @@ export default function AnalyticsDashboard() {
     getAnalyticsSummary({ range, signal: controller.signal })
       .then((payload) => {
         setSummary(payload);
-        setErrorMessage('');
+        setIsLoading(false);
       })
       .catch((error) => {
-        // An aborted request is a superseded fetch, not a user-facing failure.
-        if (error.name !== 'AbortError') {
-          setErrorMessage(LOAD_ERROR_MESSAGE);
+        if (error?.name === 'AbortError') {
+          return;
         }
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) {
-          setIsLoading(false);
-        }
+        setErrorMessage(error?.message || LOAD_ERROR_MESSAGE);
+        setIsLoading(false);
       });
 
-    return () => controller.abort();
+    return () => {
+      controller.abort();
+    };
   }, [range, reloadToken]);
 
-  const kpis = summary?.kpis ?? null;
-  const topPois = useMemo(() => summary?.top_pois ?? [], [summary]);
-  const languageDistribution = useMemo(
-    () => summary?.language_distribution ?? [],
-    [summary]
-  );
-  const busiestTriggerCount = useMemo(
-    () =>
-      topPois.reduce(
-        (maxCount, entry) => Math.max(maxCount, Number(entry.trigger_count) || 0),
-        0
-      ),
-    [topPois]
-  );
-
   const handleRangeChange = (nextRange) => {
+    if (nextRange === range) {
+      return;
+    }
     setRange(nextRange);
   };
 
   const handleRetry = () => {
-    setReloadToken((token) => token + 1);
+    setReloadToken((current) => current + 1);
   };
 
+  const kpis = summary?.kpis;
+  const topPois = useMemo(() => summary?.top_pois ?? [], [summary]);
+  const languageDistribution = useMemo(
+    () => summary?.language_distribution ?? [],
+    [summary],
+  );
+
+  const maxTriggerCount = useMemo(() => {
+    if (!topPois.length) {
+      return 0;
+    }
+    return Math.max(...topPois.map((item) => Number(item.trigger_count) || 0));
+  }, [topPois]);
+
   return (
-    <div className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-      {/* Header */}
-      <div className="border-b border-slate-200 pb-4">
+    <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+      {/* Page Title */}
+      <div>
         <h1 className="text-2xl font-bold tracking-tight text-slate-900">
           Visitor Analytics &amp; Exhibition Impact
         </h1>
         <p className="mt-1 text-sm text-slate-600">
           Aggregated visitor KPIs, Top 10 exhibit rankings, average tour duration,
-          spatial density heatmap and language demographics (US 05.1 &amp; US 05.2).
+          spatial density heatmap, data export and language demographics (US 05.1, US 05.2 &amp; US 05.4).
         </p>
       </div>
 
@@ -142,6 +143,11 @@ export default function AnalyticsDashboard() {
             </button>
           );
         })}
+      </div>
+
+      {/* US 05.4: Telemetry Filtering & Structured Data Export Toolbar */}
+      <div className="mt-6">
+        <AnalyticsExport currentRange={range} />
       </div>
 
       {/* Loading Skeleton */}
@@ -181,16 +187,17 @@ export default function AnalyticsDashboard() {
             type="button"
             data-testid="analytics-retry-button"
             onClick={handleRetry}
-            className="mt-3 inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded bg-red-700 px-4 text-sm font-semibold text-white hover:bg-red-800"
+            className="mt-3 inline-flex min-h-[44px] items-center rounded-md bg-red-900 px-4 py-2 text-sm font-semibold text-white hover:bg-red-800"
           >
             Retry
           </button>
         </div>
       )}
 
-      {!isLoading && !errorMessage && summary && (
+      {/* Dashboard Body */}
+      {!isLoading && !errorMessage && (
         <>
-          {/* AC-05.2.1: 4 flat KPI summary cards (no decorative icons) */}
+          {/* AC-05.2.1: 4 Flat KPI Cards */}
           <div
             data-testid="analytics-kpi-grid"
             className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4"
@@ -239,14 +246,17 @@ export default function AnalyticsDashboard() {
             </div>
           </div>
 
-          {/* AC-05.1.1 & AC-05.1.2: Real-Time Visitor Density Heatmap Component */}
-          <AnalyticsHeatmap range={range} onRangeChange={handleRangeChange} />
+          {/* US 05.1: Real-Time Visitor Density Heatmap */}
+          <div className="mt-8">
+            <AnalyticsHeatmap range={range} />
+          </div>
 
-          <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
-            {/* AC-05.2.2: Top 10 POI ranking as a flat horizontal bar list */}
+          {/* Visual Charts: Top 10 Exhibits + Language Distribution */}
+          <div className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-2">
+            {/* Top 10 Exhibits by Trigger Volume */}
             <section
               aria-labelledby="analytics-top-exhibits-heading"
-              data-testid="analytics-poi-ranking"
+              data-testid="analytics-top-exhibits"
               className="rounded-md border border-slate-200 bg-white p-4"
             >
               <h2
@@ -258,44 +268,41 @@ export default function AnalyticsDashboard() {
 
               {topPois.length === 0 ? (
                 <p
-                  data-testid="analytics-poi-empty-state"
+                  data-testid="analytics-top-exhibits-empty-state"
                   className="mt-4 text-sm text-slate-500"
                 >
                   No exhibit triggers were recorded for this period.
                 </p>
               ) : (
-                <ol className="mt-4 space-y-3">
-                  {topPois.map((entry, index) => (
+                <ul className="mt-4 space-y-3">
+                  {topPois.map((item) => (
                     <li
-                      key={entry.poi_id ?? entry.poi_title}
-                      data-testid={`analytics-poi-row-${entry.poi_id}`}
+                      key={item.poi_id}
+                      data-testid={`analytics-top-poi-row-${item.poi_id}`}
                     >
                       <div className="flex items-baseline justify-between gap-4">
                         <span className="truncate text-sm text-slate-700">
-                          <span className="mr-2 font-mono text-xs text-slate-500">
-                            {index + 1}
-                          </span>
-                          {entry.poi_title}
+                          {item.poi_title}
                         </span>
                         <span className="shrink-0 text-sm font-semibold text-slate-900">
-                          {formatCount(entry.trigger_count)}
+                          {formatCount(item.trigger_count)}
                         </span>
                       </div>
                       <div className="mt-1 h-2 w-full rounded-full bg-slate-200">
                         <div
                           className="h-2 rounded-full bg-[#1E293B]"
                           style={{
-                            width: `${toBarWidthPercent(entry.trigger_count, busiestTriggerCount)}%`,
+                            width: `${toBarWidthPercent(item.trigger_count, maxTriggerCount)}%`,
                           }}
                         />
                       </div>
                     </li>
                   ))}
-                </ol>
+                </ul>
               )}
             </section>
 
-            {/* AC-05.2.2: Visitor language percentage distribution list */}
+            {/* Language Demographics */}
             <section
               aria-labelledby="analytics-languages-heading"
               data-testid="analytics-language-distribution"

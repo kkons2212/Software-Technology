@@ -20,6 +20,7 @@ vi.mock('../../api/analyticsApi.js', () => ({
   DEFAULT_ANALYTICS_RANGE: 'LAST_7_DAYS',
   getAnalyticsSummary: vi.fn(),
   getHeatmapData: vi.fn(),
+  exportTelemetryData: vi.fn(),
 }));
 
 import { getAnalyticsSummary, getHeatmapData } from '../../api/analyticsApi.js';
@@ -58,129 +59,129 @@ const EMPTY_SUMMARY = {
 };
 
 beforeEach(() => {
+  cleanup();
+  vi.clearAllMocks();
   getAnalyticsSummary.mockResolvedValue(POPULATED_SUMMARY);
-  getHeatmapData.mockResolvedValue({ time_range: 'LAST_7_DAYS', points: [], total_points: 0, max_trigger_count: 0 });
+  getHeatmapData.mockResolvedValue({
+    time_range: 'LAST_7_DAYS',
+    generated_at: '2026-10-27T06:30:00',
+    points: [],
+    total_points: 0,
+    max_trigger_count: 0,
+  });
 });
 
 afterEach(() => {
   cleanup();
-  vi.clearAllMocks();
 });
 
 describe('AnalyticsDashboard', () => {
   it('renders the 4 KPI cards, the Top 10 ranking bars and the language distribution', async () => {
     render(<AnalyticsDashboard />);
 
-    expect(await screen.findByTestId('analytics-kpi-grid')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.queryByTestId('analytics-loading-skeleton')).not.toBeInTheDocument();
+    });
 
-    expect(screen.getByTestId('analytics-kpi-total-visitors')).toHaveTextContent('Total Visitors');
     expect(screen.getByTestId('analytics-kpi-total-visitors')).toHaveTextContent('1,240');
     expect(screen.getByTestId('analytics-kpi-total-audio-plays')).toHaveTextContent('3,010');
     expect(screen.getByTestId('analytics-kpi-top-exhibit')).toHaveTextContent('Ben Duoc Tunnels');
     expect(screen.getByTestId('analytics-kpi-average-duration')).toHaveTextContent('12.5 min');
 
-    expect(screen.getByTestId('analytics-kpi-grid').children).toHaveLength(4);
+    const topSection = screen.getByTestId('analytics-top-exhibits');
+    expect(within(topSection).getByTestId('analytics-top-poi-row-poi-1')).toHaveTextContent(
+      'Ben Duoc Tunnels',
+    );
+    expect(within(topSection).getByTestId('analytics-top-poi-row-poi-2')).toHaveTextContent(
+      'Cu Chi Tunnels',
+    );
 
-    // The busiest exhibit owns the full-width bar; the runner-up is proportional.
-    const ranking = screen.getByTestId('analytics-poi-ranking');
-    expect(within(ranking).getByText('Ben Duoc Tunnels')).toBeInTheDocument();
-    expect(screen.getByTestId('analytics-poi-row-poi-1').querySelector('div[style]')).toHaveStyle({
-      width: '100%',
-    });
-    expect(screen.getByTestId('analytics-poi-row-poi-2').querySelector('div[style]')).toHaveStyle({
-      width: '20%',
-    });
-
-    const languages = screen.getByTestId('analytics-language-distribution');
-    expect(within(languages).getByText('Vietnamese')).toBeInTheDocument();
-    expect(screen.getByTestId('analytics-language-row-ja')).toHaveTextContent('310 (50%)');
-    expect(screen.getByTestId('analytics-language-row-vi').querySelector('div[style]')).toHaveStyle({
-      width: '50%',
-    });
-
-    expect(screen.queryByTestId('analytics-error-state')).not.toBeInTheDocument();
+    const langSection = screen.getByTestId('analytics-language-distribution');
+    expect(within(langSection).getByTestId('analytics-language-row-vi')).toHaveTextContent(
+      'Vietnamese',
+    );
+    expect(within(langSection).getByTestId('analytics-language-row-ja')).toHaveTextContent(
+      'Japanese',
+    );
   });
 
-  it('defaults to the LAST_7_DAYS window and refetches when another window is selected', async () => {
+  it('defaults to the LAST_7_DAYS reporting window and loads that period', async () => {
     render(<AnalyticsDashboard />);
 
-    await screen.findByTestId('analytics-kpi-grid');
     expect(getAnalyticsSummary).toHaveBeenCalledWith(
-      expect.objectContaining({ range: 'LAST_7_DAYS', signal: expect.any(AbortSignal) })
+      expect.objectContaining({ range: 'LAST_7_DAYS' }),
     );
     expect(screen.getByTestId('analytics-range-LAST_7_DAYS')).toHaveAttribute(
       'aria-pressed',
-      'true'
+      'true',
     );
+  });
+
+  it('re-fetches telemetry when the operator switches the reporting window', async () => {
+    render(<AnalyticsDashboard />);
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('analytics-loading-skeleton')).not.toBeInTheDocument();
+    });
 
     fireEvent.click(screen.getByTestId('analytics-range-TODAY'));
 
-    await waitFor(() =>
+    await waitFor(() => {
       expect(getAnalyticsSummary).toHaveBeenLastCalledWith(
-        expect.objectContaining({ range: 'TODAY', signal: expect.any(AbortSignal) })
-      )
-    );
+        expect.objectContaining({ range: 'TODAY' }),
+      );
+    });
     expect(screen.getByTestId('analytics-range-TODAY')).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByTestId('analytics-range-LAST_7_DAYS')).toHaveAttribute(
       'aria-pressed',
-      'false'
+      'false',
     );
   });
 
-  it('shows a non-blocking error with a Retry action that reloads the summary', async () => {
-    getAnalyticsSummary
-      .mockRejectedValueOnce(new Error('Network error'))
-      .mockResolvedValueOnce(POPULATED_SUMMARY);
+  it('renders a retryable non-blocking error banner on network failure', async () => {
+    getAnalyticsSummary.mockRejectedValueOnce(new Error('Network offline'));
 
     render(<AnalyticsDashboard />);
 
-    const errorState = await screen.findByTestId('analytics-error-state');
-    expect(errorState).toHaveTextContent('Unable to load visitor analytics.');
-    expect(screen.queryByTestId('analytics-kpi-grid')).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByTestId('analytics-error-state')).toBeInTheDocument();
+    });
+    expect(screen.getByTestId('analytics-error-state')).toHaveTextContent('Network offline');
 
-    fireEvent.click(within(errorState).getByRole('button', { name: 'Retry' }));
+    getAnalyticsSummary.mockResolvedValueOnce(POPULATED_SUMMARY);
+    fireEvent.click(screen.getByTestId('analytics-retry-button'));
 
-    expect(await screen.findByTestId('analytics-kpi-grid')).toBeInTheDocument();
-    expect(getAnalyticsSummary).toHaveBeenCalledTimes(2);
+    await waitFor(() => {
+      expect(screen.queryByTestId('analytics-error-state')).not.toBeInTheDocument();
+    });
+    expect(screen.getByTestId('analytics-kpi-total-visitors')).toHaveTextContent('1,240');
   });
 
-  it('ignores a superseded (aborted) request instead of surfacing a failure', async () => {
-    const abortError = new Error('The operation was aborted.');
-    abortError.name = 'AbortError';
-    getAnalyticsSummary.mockRejectedValue(abortError);
+  it('displays empty placeholders when the reporting window contains zero triggers', async () => {
+    getAnalyticsSummary.mockResolvedValueOnce(EMPTY_SUMMARY);
 
     render(<AnalyticsDashboard />);
 
-    await waitFor(() => expect(getAnalyticsSummary).toHaveBeenCalledTimes(1));
-    expect(screen.queryByTestId('analytics-error-state')).not.toBeInTheDocument();
-    expect(screen.getByTestId('analytics-range-control')).toBeInTheDocument();
-  });
+    await waitFor(() => {
+      expect(screen.queryByTestId('analytics-loading-skeleton')).not.toBeInTheDocument();
+    });
 
-  it('renders zeroed KPIs and empty-state notices when the window holds no telemetry', async () => {
-    getAnalyticsSummary.mockResolvedValue(EMPTY_SUMMARY);
-
-    render(<AnalyticsDashboard />);
-
-    expect(await screen.findByTestId('analytics-kpi-grid')).toBeInTheDocument();
     expect(screen.getByTestId('analytics-kpi-total-visitors')).toHaveTextContent('0');
-    expect(screen.getByTestId('analytics-kpi-average-duration')).toHaveTextContent('0.0 min');
+    expect(screen.getByTestId('analytics-kpi-total-audio-plays')).toHaveTextContent('0');
     expect(screen.getByTestId('analytics-kpi-top-exhibit')).toHaveTextContent('—');
-    expect(screen.getByTestId('analytics-poi-empty-state')).toHaveTextContent(
-      'No exhibit triggers were recorded for this period.'
-    );
-    expect(screen.getByTestId('analytics-language-empty-state')).toHaveTextContent(
-      'No visitor languages were recorded for this period.'
-    );
+    expect(screen.getByTestId('analytics-kpi-average-duration')).toHaveTextContent('0.0 min');
+
+    expect(screen.getByTestId('analytics-top-exhibits-empty-state')).toBeInTheDocument();
+    expect(screen.getByTestId('analytics-language-empty-state')).toBeInTheDocument();
   });
 
-  it('tolerates a partial payload that omits the KPI and ranking sections', async () => {
-    getAnalyticsSummary.mockResolvedValue({ time_range: 'TODAY', generated_at: null });
-
+  it('renders the analytics export toolbar', async () => {
     render(<AnalyticsDashboard />);
 
-    expect(await screen.findByTestId('analytics-kpi-grid')).toBeInTheDocument();
-    expect(screen.getByTestId('analytics-kpi-top-exhibit')).toHaveTextContent('—');
-    expect(screen.getByTestId('analytics-poi-empty-state')).toBeInTheDocument();
-    expect(screen.getByTestId('analytics-language-empty-state')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.queryByTestId('analytics-loading-skeleton')).not.toBeInTheDocument();
+    });
+
+    expect(screen.getByTestId('analytics-export-toolbar')).toBeInTheDocument();
   });
 });

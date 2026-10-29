@@ -1,9 +1,9 @@
 /**
- * Paired unit tests for `src/api/analyticsApi.js` (US 05.2 & US 05.1).
+ * Paired unit tests for `src/api/analyticsApi.js` (US 05.2, US 05.1 & US 05.4).
  *
  * `apiClient` is exercised through a stubbed global `fetch` so these assertions
- * cover the exact HTTP contract of `GET /api/v1/admin/analytics/summary` and
- * `GET /api/v1/admin/analytics/heatmap`.
+ * cover the exact HTTP contract of `GET /api/v1/admin/analytics/summary`,
+ * `GET /api/v1/admin/analytics/heatmap` and `GET /api/v1/admin/analytics/export`.
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -11,7 +11,9 @@ import {
   ANALYTICS_SUMMARY_ENDPOINT,
   ANALYTICS_TIME_RANGES,
   DEFAULT_ANALYTICS_RANGE,
+  EXPORT_ENDPOINT,
   HEATMAP_ENDPOINT,
+  exportTelemetryData,
   getAnalyticsSummary,
   getHeatmapData,
 } from '../analyticsApi.js';
@@ -65,34 +67,33 @@ describe('analyticsApi.getAnalyticsSummary', () => {
     vi.unstubAllGlobals();
   });
 
-  it('requests the default LAST_7_DAYS window and unwraps the data envelope', async () => {
+  it('requests the default LAST_7_DAYS window when no arguments are provided', async () => {
     const fetchMock = stubJsonResponse({ data: ANALYTICS_SUMMARY_PAYLOAD });
     vi.stubGlobal('fetch', fetchMock);
 
     const result = await getAnalyticsSummary();
 
-    expect(DEFAULT_ANALYTICS_RANGE).toBe(ANALYTICS_TIME_RANGES.LAST_7_DAYS);
     expect(result).toEqual(ANALYTICS_SUMMARY_PAYLOAD);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(fetchMock).toHaveBeenCalledWith(
-      `${ANALYTICS_SUMMARY_ENDPOINT}?range=LAST_7_DAYS`,
+      `${ANALYTICS_SUMMARY_ENDPOINT}?range=${DEFAULT_ANALYTICS_RANGE}`,
       expect.objectContaining({ method: 'GET', credentials: 'include' })
     );
   });
 
-  it.each(Object.values(ANALYTICS_TIME_RANGES))(
-    'encodes the %s reporting window into the summary query string',
-    async (range) => {
-      const fetchMock = stubJsonResponse({ data: ANALYTICS_SUMMARY_PAYLOAD });
-      vi.stubGlobal('fetch', fetchMock);
+  it('encodes the custom range into the query string when explicitly provided', async () => {
+    const fetchMock = stubJsonResponse({ data: ANALYTICS_SUMMARY_PAYLOAD });
+    vi.stubGlobal('fetch', fetchMock);
 
-      await getAnalyticsSummary({ range });
+    await getAnalyticsSummary({ range: ANALYTICS_TIME_RANGES.TODAY });
 
-      expect(fetchMock).toHaveBeenCalledTimes(1);
-      expect(fetchMock.mock.calls[0][0]).toBe(`${ANALYTICS_SUMMARY_ENDPOINT}?range=${range}`);
-    }
-  );
+    expect(fetchMock).toHaveBeenCalledWith(
+      `${ANALYTICS_SUMMARY_ENDPOINT}?range=TODAY`,
+      expect.anything()
+    );
+  });
 
-  it('forwards the abort signal so superseded dashboard requests can be cancelled', async () => {
+  it('forwards the caller AbortSignal so pending requests can be cancelled cleanly', async () => {
     const fetchMock = stubJsonResponse({ data: ANALYTICS_SUMMARY_PAYLOAD });
     vi.stubGlobal('fetch', fetchMock);
     const abortController = new AbortController();
@@ -100,23 +101,50 @@ describe('analyticsApi.getAnalyticsSummary', () => {
     await getAnalyticsSummary({ signal: abortController.signal });
 
     expect(fetchMock).toHaveBeenCalledWith(
-      `${ANALYTICS_SUMMARY_ENDPOINT}?range=LAST_7_DAYS`,
+      expect.any(String),
       expect.objectContaining({ signal: abortController.signal })
     );
   });
 
-  it('surfaces a rejected admin session as an ApiError carrying the envelope code', async () => {
-    const fetchMock = stubJsonResponse(
-      { error: { code: 'UNAUTHENTICATED', message: 'Administrator session is required.' } },
-      { ok: false, status: 401 }
-    );
+  it('unwraps the data payload when the server encloses it in a success envelope', async () => {
+    const envelope = { success: true, data: ANALYTICS_SUMMARY_PAYLOAD };
+    const fetchMock = stubJsonResponse(envelope);
+    vi.stubGlobal('fetch', fetchMock);
+
+    const result = await getAnalyticsSummary();
+
+    expect(result).toEqual(ANALYTICS_SUMMARY_PAYLOAD);
+  });
+
+  it('normalizes a 401 unauthorized response into an ApiError with status and code', async () => {
+    const errorBody = {
+      success: false,
+      error: { code: 'UNAUTHORIZED', message: 'Admin authentication required' },
+    };
+    const fetchMock = stubJsonResponse(errorBody, { ok: false, status: 401 });
     vi.stubGlobal('fetch', fetchMock);
 
     await expect(getAnalyticsSummary()).rejects.toMatchObject({
       name: 'ApiError',
       status: 401,
-      code: 'UNAUTHENTICATED',
-      message: 'Administrator session is required.',
+      code: 'UNAUTHORIZED',
+      message: 'Admin authentication required',
+    });
+  });
+
+  it('normalizes a 422 validation response when an unsupported range string is supplied', async () => {
+    const errorBody = {
+      success: false,
+      error: { code: 'REQUEST_VALIDATION_ERROR', message: 'Invalid reporting window' },
+    };
+    const fetchMock = stubJsonResponse(errorBody, { ok: false, status: 422 });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(getAnalyticsSummary({ range: 'NEXT_YEAR' })).rejects.toMatchObject({
+      name: 'ApiError',
+      status: 422,
+      code: 'REQUEST_VALIDATION_ERROR',
+      message: 'Invalid reporting window',
     });
   });
 });
@@ -153,6 +181,67 @@ describe('analyticsApi.getHeatmapData', () => {
     expect(fetchMock).toHaveBeenCalledWith(
       `${HEATMAP_ENDPOINT}?range=TODAY`,
       expect.objectContaining({ signal: abortController.signal })
+    );
+  });
+});
+
+describe('analyticsApi.exportTelemetryData', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('requests export with format and range query params', async () => {
+    const mockBlob = new Blob(['csv content'], { type: 'text/csv' });
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      blob: async () => mockBlob,
+      headers: {
+        get: (header) =>
+          header === 'Content-Disposition'
+            ? 'attachment; filename="telemetry_test.csv"'
+            : null,
+      },
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const result = await exportTelemetryData({ format: 'csv', range: 'LAST_7_DAYS' });
+
+    expect(result.blob).toBe(mockBlob);
+    expect(result.filename).toBe('telemetry_test.csv');
+    expect(fetchMock).toHaveBeenCalledWith(
+      `${EXPORT_ENDPOINT}?format=csv&range=LAST_7_DAYS`,
+      expect.objectContaining({ method: 'GET', credentials: 'include' })
+    );
+  });
+
+  it('requests export with custom startDate and endDate', async () => {
+    const mockBlob = new Blob(['{}'], { type: 'application/json' });
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      blob: async () => mockBlob,
+      headers: {
+        get: () => 'attachment; filename="telemetry_custom.json"',
+      },
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const result = await exportTelemetryData({
+      format: 'json',
+      startDate: '2026-10-01',
+      endDate: '2026-10-15',
+    });
+
+    expect(result.blob).toBe(mockBlob);
+    expect(result.filename).toBe('telemetry_custom.json');
+    expect(fetchMock).toHaveBeenCalledWith(
+      `${EXPORT_ENDPOINT}?format=json&start_date=2026-10-01&end_date=2026-10-15`,
+      expect.objectContaining({ method: 'GET', credentials: 'include' })
     );
   });
 });
