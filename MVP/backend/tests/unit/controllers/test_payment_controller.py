@@ -40,6 +40,7 @@ def test_should_create_checkout_order_for_card(client, db_session):
     assert "order_id" in data
     assert data["payment_method"] == "CARD"
     assert data["checkout_url"] is not None
+    assert "paypal" in data["checkout_url"].lower()
     assert data["status"] == "PENDING"
 
 
@@ -175,3 +176,49 @@ def test_should_handle_idempotent_duplicate_webhook(client, db_session, monkeypa
     assert res2.json()["success"] is True
     assert res2.json()["session_code"] == session_code
     assert "idempotent" in res2.json()["message"].lower()
+
+
+def test_should_render_paypal_mock_checkout_page(client, db_session):
+    create_res = client.post(
+        "/api/v1/payments/create-checkout",
+        json={"payment_method": "CARD"},
+    )
+    order_id = create_res.json()["order_id"]
+
+    res = client.get(f"/api/v1/payments/paypal-checkout?order_id={order_id}")
+    assert res.status_code == 200
+    assert "PayPal" in res.text
+    assert order_id in res.text
+
+
+def test_should_confirm_paypal_mock_payment_and_redirect(client, db_session):
+    create_res = client.post(
+        "/api/v1/payments/create-checkout",
+        json={"payment_method": "CARD"},
+    )
+    order_id = create_res.json()["order_id"]
+
+    res = client.get(
+        f"/api/v1/payments/paypal/confirm-mock?order_id={order_id}",
+        follow_redirects=False,
+    )
+    assert res.status_code == 302
+    assert "payment_success=true" in res.headers["location"]
+
+    status_res = client.get(f"/api/v1/payments/order/{order_id}/status")
+    assert status_res.status_code == 200
+    assert status_res.json()["status"] == "PAID"
+
+
+def test_should_capture_paypal_order(client, db_session):
+    create_res = client.post(
+        "/api/v1/payments/create-checkout",
+        json={"payment_method": "CARD"},
+    )
+    order_id = create_res.json()["order_id"]
+
+    cap_res = client.post(f"/api/v1/payments/order/{order_id}/paypal-capture")
+    assert cap_res.status_code == 200
+    data = cap_res.json()
+    assert data["status"] == "PAID"
+    assert data["session_code"] is not None

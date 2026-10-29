@@ -11,6 +11,7 @@ import httpx
 from fastapi import HTTPException, status
 
 from app.core.config import settings
+from app.integrations.paypal_client import paypal_client
 from app.repositories.session_repository import SessionRepository
 from app.repositories.transaction_repository import TransactionRepository
 from app.schemas.payment_schema import (
@@ -145,7 +146,7 @@ class PaymentService:
         payment_method = payload.payment_method.upper()
 
         # Step 1: Create PENDING transaction in MySQL database
-        gateway_name = "PAYOS" if payment_method == "VIETQR" else "STRIPE"
+        gateway_name = "PAYOS" if payment_method == "VIETQR" else "PAYPAL"
         txn = self.transaction_repo.create_transaction(
             pay_amount=fee_amount,
             payment_gateway=gateway_name,
@@ -209,7 +210,26 @@ class PaymentService:
             )
 
         # Card payment flow (Stripe)
-        checkout_url = f"/api/v1/payments/card-checkout?order_id={order_id}"
+        if paypal_client.is_configured():
+            return_url = (
+                f"http://localhost:5173/tour?payment_success=true&order_id={order_id}"
+            )
+            cancel_url = "http://localhost:5173/tour?payment_cancel=true"
+            paypal_data = await paypal_client.create_order(
+                order_id=order_id,
+                amount_vnd=fee_amount,
+                return_url=return_url,
+                cancel_url=cancel_url,
+            )
+            if paypal_data and paypal_data.get("approve_url"):
+                checkout_url = paypal_data["approve_url"]
+                txn.gateway_transaction_id = str(
+                    paypal_data.get("paypal_order_id") or ""
+                )
+                self.transaction_repo.db.commit()
+
+        if not checkout_url:
+            checkout_url = f"/api/v1/payments/paypal-checkout?order_id={order_id}"
         return CheckoutCreateResponse(
             order_id=order_id,
             pay_amount=fee_amount,
@@ -268,6 +288,48 @@ class PaymentService:
             transaction_id=order_id,
             preferred_language=preferred_language,
             gateway_transaction_id=f"SIM_{order_id}",
+        )
+
+        return OrderStatusResponse(
+            order_id=updated_txn.transaction_id,
+            status=updated_txn.status,
+            pay_amount=updated_txn.pay_amount,
+            currency=updated_txn.currency,
+            paid_at=updated_txn.paid_at,
+            session_code=session.SessionCode,
+            session_token=session.SessionToken,
+            session_expires_at=session.Expire_at,
+            expires_at=session.Expire_at,
+        )
+
+    async def capture_paypal_order(
+        self,
+        order_id: str,
+        paypal_order_id: str | None = None,
+        preferred_language: str = "vi",
+    ) -> OrderStatusResponse:
+        """Capture PayPal Sandbox order and activate 24-hour VisitorSession."""
+        txn = self.transaction_repo.get_by_id(order_id)
+        if not txn:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Order '{order_id}' not found.",
+            )
+
+        if txn.status == "PAID":
+            return self.get_order_status(order_id)
+
+        target_paypal_id = paypal_order_id or txn.gateway_transaction_id
+        if paypal_client.is_configured() and target_paypal_id:
+            try:
+                await paypal_client.capture_order(target_paypal_id)
+            except Exception as exc:
+                logger.warning("PayPal capture order error: %s", exc)
+
+        updated_txn, session = self.transaction_repo.mark_as_paid(
+            transaction_id=order_id,
+            preferred_language=preferred_language,
+            gateway_transaction_id=target_paypal_id or f"PP_{order_id}",
         )
 
         return OrderStatusResponse(
