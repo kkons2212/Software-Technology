@@ -13,6 +13,10 @@ vi.mock('../../../api/telemetryApi.js', () => ({
   reportPoiTrigger: vi.fn(),
 }));
 
+vi.mock('../../../api/tourApi.js', () => ({
+  getWalkingRoute: vi.fn(),
+}));
+
 vi.mock('../../../hooks/useGeolocation.js', () => ({
   default: () => ({
     location: { lat: 11.1432, lng: 106.4631 },
@@ -146,10 +150,7 @@ describe('VisitorTourPage', () => {
 
     expect(await screen.findByRole('dialog')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Cu Chi Tunnel' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Directions' })).toHaveAttribute(
-      'href',
-      'https://www.google.com/maps/dir/?api=1&destination=11.14%2C106.46',
-    );
+    expect(screen.getByRole('button', { name: 'Directions' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Play Narration' }));
 
     expect(audioPlayerMock.play).toHaveBeenCalledWith(expect.objectContaining({

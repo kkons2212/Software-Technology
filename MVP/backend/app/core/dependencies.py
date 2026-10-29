@@ -142,3 +142,12 @@ def get_storage_service(db: Session = Depends(get_db)):
         audio_dir=audio_dir,
         settings=settings,
     )
+
+
+def get_wayfinding_service(db: Session = Depends(get_db)):
+    """Dependency provider injecting POIRepository into WayfindingService."""
+    from app.repositories.poi_repository import POIRepository
+    from app.services.wayfinding_service import WayfindingService
+
+    poi_repo = POIRepository(db)
+    return WayfindingService(db_session=db, poi_repository=poi_repo)

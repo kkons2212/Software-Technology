@@ -5,11 +5,14 @@ import PoiPreviewCard from '../../components/visitor/PoiPreviewCard.jsx';
 import CheckoutModal from '../../components/visitor/CheckoutModal.jsx';
 import { getPublishedLanguages } from '../../api/languageApi.js';
 import { getMapPois } from '../../api/poiApi.js';
+import { getWalkingRoute } from '../../api/tourApi.js';
 import { useAudioPlayer } from '../../contexts/AudioPlayerContext.jsx';
 import { useVisitorSession } from '../../contexts/VisitorSessionContext.jsx';
 import { useGeofenceTrigger } from '../../hooks/useGeofenceTrigger.js';
 import { reportPoiTrigger } from '../../api/telemetryApi.js';
 import useGeolocation from '../../hooks/useGeolocation.js';
+import { calculateHaversineDistance } from '../../utils/haversine.js';
+import { MAIN_ENTRANCE } from '../../utils/museumBounds.js';
 
 const PREFERRED_LANGUAGE_KEY = 'museum_preferred_lang';
 const DEFAULT_LANGUAGE = 'vi';
@@ -30,16 +33,7 @@ export default function VisitorTourPage({
   const [poiRetryCount, setPoiRetryCount] = useState(0);
   const [selectedPoiId, setSelectedPoiId] = useState(null);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
-
-  const {
-    sessionCode: contextSessionCode,
-    expiresAt: contextExpiresAt,
-    activateSession,
-  } = useVisitorSession();
-
-  const effectiveSessionCode = sessionCode || contextSessionCode;
-  const effectiveExpiresAt = expiresAt || contextExpiresAt;
-
+  const [activeRoute, setActiveRoute] = useState(null);
   const { currentPoi, isPlaying, completedPoiIds, play } = useAudioPlayer();
   // Dwell windows opened by a real geofence trigger, keyed by POI id. The
   // telemetry row is only reported once the visitor leaves the zone, because a
@@ -93,6 +87,21 @@ export default function VisitorTourPage({
       });
     });
   }, [activeGeofencePois]);
+
+  // Auto-clear route when visitor enters the destination geofence
+  useEffect(() => {
+    if (!activeRoute || !location || !hasLiveLocation) {
+      return;
+    }
+
+    const destLocation = activeRoute.destinationLocation;
+    const triggerRadius = activeRoute.triggerRadius || 30;
+    const distanceToDest = calculateHaversineDistance(location, destLocation);
+
+    if (Number.isFinite(distanceToDest) && distanceToDest <= triggerRadius) {
+      setActiveRoute(null);
+    }
+  }, [activeRoute, location, hasLiveLocation]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -159,19 +168,56 @@ export default function VisitorTourPage({
   const selectedPoi = pois.find(({ id }) => String(id) === String(selectedPoiId));
   const playingPoiId = isPlaying ? currentPoi?.id ?? null : null;
 
-  const directionsUrl = useMemo(() => {
+  const isRoutingToSelectedPoi = activeRoute
+    && selectedPoi
+    && activeRoute.destinationPoiId === String(selectedPoi.id);
+
+  const handleDirectionsClick = useCallback(() => {
     if (!selectedPoi) {
-      return '';
+      return;
     }
 
-    const directions = new URL('https://www.google.com/maps/dir/');
-    directions.searchParams.set('api', '1');
-    directions.searchParams.set(
-      'destination',
-      `${selectedPoi.latitude},${selectedPoi.longitude}`
-    );
-    return directions.toString();
-  }, [selectedPoi]);
+    // If already routing to this POI, clear the route
+    if (isRoutingToSelectedPoi) {
+      setActiveRoute(null);
+      return;
+    }
+
+    const effectiveLocation = location || MAIN_ENTRANCE;
+    const controller = new AbortController();
+    getWalkingRoute({
+      originLat: effectiveLocation.lat,
+      originLng: effectiveLocation.lng,
+      destinationPoiId: String(selectedPoi.id),
+      signal: controller.signal,
+    })
+      .then((routeFeature) => {
+        if (!routeFeature?.geometry?.coordinates) {
+          console.warn('Invalid route payload:', routeFeature);
+          return;
+        }
+        setActiveRoute({
+          coordinates: routeFeature.geometry.coordinates,
+          destinationTitle: routeFeature.properties.destination.title,
+          destinationPoiId: String(routeFeature.properties.destination.poi_id),
+          destinationLocation: {
+            lat: routeFeature.properties.destination.lat,
+            lng: routeFeature.properties.destination.lng,
+          },
+          triggerRadius: routeFeature.properties.destination.trigger_radius,
+          totalDistance: routeFeature.properties.total_distance_meters,
+          estimatedMinutes: routeFeature.properties.estimated_walking_minutes,
+        });
+        setSelectedPoiId(null);
+      })
+      .catch((err) => {
+        console.error('Failed to get walking route:', err);
+      });
+  }, [selectedPoi, isRoutingToSelectedPoi, location]);
+
+  const handleClearRoute = useCallback(() => {
+    setActiveRoute(null);
+  }, []);
 
   const handleDismissPOIPreview = useCallback(() => {
     setSelectedPoiId(null);
@@ -262,14 +308,17 @@ export default function VisitorTourPage({
         onDismissPOIPreview={handleDismissPOIPreview}
         playingPoiId={playingPoiId}
         visitedPoiIds={completedPoiIds}
+        activeRoute={activeRoute}
+        onClearRoute={handleClearRoute}
       />
       {selectedPoi && (
         <PoiPreviewCard
           poi={selectedPoi}
           location={hasLiveLocation ? location : null}
-          directionsUrl={directionsUrl}
           onPlayAudio={handlePlayAudio}
           onDismiss={handleDismissPOIPreview}
+          onDirectionsClick={handleDirectionsClick}
+          isRoutingActive={!!isRoutingToSelectedPoi}
         />
       )}
 
