@@ -47,4 +47,20 @@ describe('VisitorHeader', () => {
     act(() => vi.advanceTimersByTime(60000));
     expect(screen.getByLabelText(/23h 59m remaining/i)).toBeInTheDocument();
   });
+
+  it('triggers onRestoreSession when restore button is clicked without active session', () => {
+    const onRestoreSession = vi.fn();
+    render(
+      <VisitorHeader
+        languages={[{ code: 'vi', name: 'Tiếng Việt' }]}
+        selectedLanguage="vi"
+        onRestoreSession={onRestoreSession}
+      />
+    );
+
+    const restoreBtn = screen.getByRole('button', { name: /khôi phục/i });
+    expect(restoreBtn).toBeInTheDocument();
+    fireEvent.click(restoreBtn);
+    expect(onRestoreSession).toHaveBeenCalledTimes(1);
+  });
 });

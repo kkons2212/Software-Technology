@@ -29,9 +29,9 @@
 | [**US 05.4**](#-us-054-telemetry-filtering--structured-data-export) | Telemetry Filtering & Structured Data Export | UC-05 | Should Have | 3 SP | 3 Tasks | [ ] 0/3 |
 | [**US 06.1**](#-us-061-frictionless-digital-admission-checkout-via-vietqr--cards) | Frictionless Digital Admission Checkout via VietQR & Cards | UC-06 | Must Have | 5 SP | 5 Tasks | [x] 5/5 |
 | [**US 06.2**](#-us-062-webhook-driven-24-hour-visiting-session-activation) | Webhook-Driven 24-Hour Visiting Session Activation | UC-06 | Must Have | 5 SP | 4 Tasks | [x] 4/4 |
-| [**US 06.3**](#-us-063-multi-device-session-recovery-via-session-code) | Multi-Device Session Recovery via Session Code | UC-06 | Should Have | 3 SP | 3 Tasks | [ ] 0/3 |
+| [**US 06.3**](#-us-063-multi-device-session-recovery-via-session-code) | Multi-Device Session Recovery via Session Code | UC-06 | Should Have | 3 SP | 3 Tasks | [x] 3/3 |
 | [**US 06.4**](#-us-064-content-protection--narrativeaudio-decryption-access-control) | Content Protection & Narrative/Audio Decryption Access Control | UC-06 | Must Have | 5 SP | 4 Tasks | [ ] 0/4 |
-| **TOTAL** | **23 User Stories (20 Complete)** | — | — | **102 SP** | **92 Tasks** | **[x] 82/92 Tasks** |
+| **TOTAL** | **23 User Stories (21 Complete)** | — | — | **102 SP** | **92 Tasks** | **[x] 85/92 Tasks** |
 
 ---
 
@@ -750,22 +750,22 @@
 > **So that** I can resume my purchased tour without paying again.
 >
 > * **Priority:** Should Have | **Estimate:** 3 SP
-> * **Progress:** [ ] 0/3 Tasks Completed
+> * **Progress:** [x] 3/3 Tasks Completed
 
 #### Acceptance Criteria:
-- [ ] **AC-06.3.1:** Visitor enters uppercase code (e.g., `CCT-894201`).
-- [ ] **AC-06.3.2:** If code is valid and unexpired, return new session token and restore tour state. If expired or invalid, display: "Session code is invalid or has expired."
+- [x] **AC-06.3.1:** Visitor enters uppercase code (e.g., `CCT-894201`).
+- [x] **AC-06.3.2:** If code is valid and unexpired, return new session token and restore tour state. If expired or invalid, display: "Session code is invalid or has expired."
 
 #### Task Checklist:
-- [ ] `TSK-06.3.1` `[Backend]` **Session Restore Endpoint (`POST /api/v1/sessions/restore`)**
+- [x] `TSK-06.3.1` `[Backend]` **Session Restore Endpoint (`POST /api/v1/sessions/restore`)**
   - **Scope:** Query `session_code` in `VisitorSession`. Verify `Expire_at > now()`. Return new token and remaining validity seconds.
   - **DoD:** Returns HTTP 404/410 on invalid or expired code.
   - **Paired Unit Test:** `tests/unit/controllers/test_session_controller.py`
-- [ ] `TSK-06.3.2` `[Frontend]` **Session Restore Modal Dialog (`RestoreSessionModal.jsx`)**
+- [x] `TSK-06.3.2` `[Frontend]` **Session Restore Modal Dialog (`RestoreSessionModal.jsx`)**
   - **Scope:** Monospace uppercase text input, inline validation, and error alert handling.
   - **DoD:** Immediately unlocks application state on valid code entry.
   - **Paired Unit Test:** `src/components/__tests__/RestoreSessionModal.test.jsx`
-- [ ] `TSK-06.3.3` `[Test]` **Unit Test Suite for US 06.3 (`test_session_controller.py`, `RestoreSessionModal.test.jsx`)**
+- [x] `TSK-06.3.3` `[Test]` **Unit Test Suite for US 06.3 (`test_session_controller.py`, `RestoreSessionModal.test.jsx`)**
   - **Scope:** Test session code validation, unexpired session check, error handling on expired/nonexistent codes, and restoration modal input.
   - **DoD:** 100% test pass in Pytest and Vitest, $\ge 80\%$ line & branch code coverage.
   - **Execution:** `pytest tests/unit/controllers/test_session_controller.py` && `npm run test -- RestoreSessionModal`
