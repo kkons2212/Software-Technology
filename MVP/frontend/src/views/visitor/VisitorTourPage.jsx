@@ -41,6 +41,7 @@ export default function VisitorTourPage({
     expiresAt: contextExpiresAt,
     isUnlocked,
     activateSession,
+    clearSession,
   } = useVisitorSession();
 
   const effectiveSessionCode = sessionCode || contextSessionCode;
@@ -287,6 +288,7 @@ export default function VisitorTourPage({
         sessionCode={effectiveSessionCode}
         expiresAt={effectiveExpiresAt}
         onUnlock={handleUnlockClick}
+        onClearSession={clearSession}
       />
 
       {languageError && (
