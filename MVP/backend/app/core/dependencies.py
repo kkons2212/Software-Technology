@@ -82,6 +82,15 @@ def get_telemetry_service(db: Session = Depends(get_db)):
     return TelemetryService(telemetry_repo=telemetry_repo)
 
 
+def get_export_service(db: Session = Depends(get_db)):
+    """Dependency provider injecting TelemetryRepository into ExportService."""
+    from app.repositories.telemetry_repository import TelemetryRepository
+    from app.services.export_service import ExportService
+
+    telemetry_repo = TelemetryRepository(db)
+    return ExportService(telemetry_repo=telemetry_repo)
+
+
 def get_language_service(db: Session = Depends(get_db)) -> LanguageService:
     """Dependency provider injecting LanguageRepository into LanguageService."""
     language_repo = LanguageRepository(db)

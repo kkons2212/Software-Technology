@@ -57,7 +57,7 @@ class TelemetryRepository:
         return trigger
 
     # -------------------------------------------------------------------------
-    # Read-only analytics aggregations (US 05.2 & US 05.1)
+    # Read-only analytics aggregations (US 05.2 & US 05.1 & US 05.4)
     # Each query filters or groups on an existing DDL index so the admin summary
     # stays sub-second: idx_POITrigger_Trigger_at, idx_POITrigger_PoiID and
     # idx_VisitorSession_PreferredLanguage.
@@ -174,4 +174,54 @@ class TelemetryRepository:
         )
         return [
             (row[0], row[1], float(row[2]), float(row[3]), int(row[4])) for row in rows
+        ]
+
+    def query_export_telemetry(
+        self, range_start: datetime, range_end: datetime | None = None
+    ) -> list[tuple[str, str, int, str, float]]:
+        """Query aggregated telemetry grouped by Date, Exhibit Name, and Language for export (US 05.4).
+
+        Returns tuples of:
+        (Date, Exhibit Name, Trigger Count, Language, Average Dwell Duration in seconds)
+        """
+        filters = [POITrigger.Trigger_at >= range_start]
+        if range_end is not None:
+            filters.append(POITrigger.Trigger_at <= range_end)
+
+        trigger_date = func.date(POITrigger.Trigger_at).label("trigger_date")
+        rows = (
+            self.db.query(
+                trigger_date,
+                POI.Title.label("poi_title"),
+                func.count(POITrigger.TriggerID).label("trigger_count"),
+                func.coalesce(VisitorSession.PreferredLanguage, "vi").label("language"),
+                func.coalesce(func.round(func.avg(POITrigger.DwellTime), 2), 0.0).label(
+                    "avg_dwell"
+                ),
+            )
+            .join(POI, POITrigger.PoiID == POI.PoiID)
+            .outerjoin(VisitorSession, POITrigger.SessionID == VisitorSession.SessionID)
+            .filter(*filters)
+            .group_by(
+                trigger_date,
+                POI.PoiID,
+                POI.Title,
+                VisitorSession.PreferredLanguage,
+            )
+            .order_by(
+                trigger_date.desc(),
+                POI.Title.asc(),
+                VisitorSession.PreferredLanguage.asc(),
+            )
+            .all()
+        )
+        return [
+            (
+                str(row[0]),
+                str(row[1]),
+                int(row[2]),
+                str(row[3]),
+                float(row[4]),
+            )
+            for row in rows
         ]
