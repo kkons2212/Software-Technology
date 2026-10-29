@@ -8,6 +8,7 @@
 import { lazy, Suspense } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import AdminRouteGuard from './components/admin/AdminRouteGuard.jsx';
+import AdminLayout from './components/admin/AdminLayout.jsx';
 import { AudioPlayerProvider } from './contexts/AudioPlayerContext.jsx';
 import { VisitorSessionProvider } from './contexts/VisitorSessionContext.jsx';
 import { MiniAudioPlayer } from './components/visitor/MiniAudioPlayer.jsx';
@@ -47,6 +48,9 @@ const GeofenceCalibPage = lazy(() => import('./views/admin/GeofenceCalibPage.jsx
 const TranslationPage = lazy(() => import('./views/admin/TranslationPage.jsx'));
 const SystemHealthPage = lazy(() => import('./views/admin/SystemHealthPage.jsx'));
 
+// Fallback / Error Domain
+const NotFoundPage = lazy(() => import('./views/NotFoundPage.jsx'));
+
 export default function App() {
   return (
     <VisitorSessionProvider>
@@ -62,10 +66,8 @@ export default function App() {
           }
         >
           <Routes>
-            {/* Default Root Redirect: Points to Admin during active dev/MVP */}
-            <Route path="/" element={<Navigate to={ADMIN_ROUTES.DASHBOARD} replace />} />
-
-            {/* Visitor Web App Routes (Mobile-First, Public) */}
+            {/* Visitor Web App Routes (Mobile-First, Public Access) */}
+            <Route path="/" element={<VisitorTourPage />} />
             <Route path={VISITOR_ROUTES.HOME} element={<VisitorTourPage />} />
             <Route path={VISITOR_ROUTES.TOUR} element={<Navigate to={VISITOR_ROUTES.HOME} replace />} />
             <Route path={VISITOR_ROUTES.CHECKOUT_SUCCESS} element={<CheckoutSuccessPage />} />
@@ -74,64 +76,23 @@ export default function App() {
             {/* Admin Web Portal Routes (Desktop-First) */}
             <Route path={ADMIN_ROUTES.LOGIN} element={<AdminLoginView />} />
             <Route
-              path={ADMIN_ROUTES.DASHBOARD}
               element={
                 <AdminRouteGuard>
-                  <AnalyticsDashboard />
+                  <AdminLayout />
                 </AdminRouteGuard>
               }
-            />
-            <Route
-              path={ADMIN_ROUTES.ANALYTICS}
-              element={
-                <AdminRouteGuard>
-                  <AnalyticsDashboard />
-                </AdminRouteGuard>
-              }
-            />
-            <Route
-              path={ADMIN_ROUTES.POIS}
-              element={
-                <AdminRouteGuard>
-                  <PoiCatalogPage />
-                </AdminRouteGuard>
-              }
-            />
-            <Route
-              path={`${ADMIN_ROUTES.POIS}/:id/geofence`}
-              element={
-                <AdminRouteGuard>
-                  <GeofenceCalibPage />
-                </AdminRouteGuard>
-              }
-            />
-            <Route
-              path={ADMIN_ROUTES.GEOFENCE}
-              element={
-                <AdminRouteGuard>
-                  <GeofenceCalibPage />
-                </AdminRouteGuard>
-              }
-            />
-            <Route
-              path={ADMIN_ROUTES.TRANSLATIONS}
-              element={
-                <AdminRouteGuard>
-                  <TranslationPage />
-                </AdminRouteGuard>
-              }
-            />
-            <Route
-              path={ADMIN_ROUTES.HEALTH}
-              element={
-                <AdminRouteGuard>
-                  <SystemHealthPage />
-                </AdminRouteGuard>
-              }
-            />
+            >
+              <Route path={ADMIN_ROUTES.DASHBOARD} element={<AnalyticsDashboard />} />
+              <Route path={ADMIN_ROUTES.ANALYTICS} element={<AnalyticsDashboard />} />
+              <Route path={ADMIN_ROUTES.POIS} element={<PoiCatalogPage />} />
+              <Route path={`${ADMIN_ROUTES.POIS}/:id/geofence`} element={<GeofenceCalibPage />} />
+              <Route path={ADMIN_ROUTES.GEOFENCE} element={<GeofenceCalibPage />} />
+              <Route path={ADMIN_ROUTES.TRANSLATIONS} element={<TranslationPage />} />
+              <Route path={ADMIN_ROUTES.HEALTH} element={<SystemHealthPage />} />
+            </Route>
 
-            {/* Catch-all Wildcard Route */}
-            <Route path="*" element={<Navigate to={ADMIN_ROUTES.DASHBOARD} replace />} />
+            {/* Catch-all Wildcard Route: User-Friendly 404 Page */}
+            <Route path="*" element={<NotFoundPage />} />
           </Routes>
         </Suspense>
         <MiniAudioPlayer />

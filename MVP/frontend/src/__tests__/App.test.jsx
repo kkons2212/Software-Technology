@@ -54,19 +54,20 @@ describe('App', () => {
     vi.unstubAllGlobals();
   });
 
-  it('redirects the root path into the protected admin route', async () => {
+  it('renders the visitor tour page on the root path', async () => {
     renderApp('/');
 
     expect(
-      await screen.findByRole('heading', { level: 1, name: /administrator sign in/i }),
+      await screen.findByRole('heading', { level: 1, name: /cu chi tunnels/i }, { timeout: 5000 }),
     ).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: /outdoor museum map/i })).toBeInTheDocument();
   });
 
   it('renders the administrator sign-in screen on the admin login route', async () => {
     renderApp('/admin/login');
 
     expect(
-      await screen.findByRole('heading', { level: 1, name: /administrator sign in/i }),
+      await screen.findByRole('heading', { level: 1, name: /administrator sign in/i }, { timeout: 5000 }),
     ).toBeInTheDocument();
     expect(screen.getByLabelText(/^password$/i)).toBeInTheDocument();
   });
@@ -75,7 +76,7 @@ describe('App', () => {
     renderApp('/visitor');
 
     expect(
-      await screen.findByRole('heading', { level: 1, name: /cu chi tunnels/i }),
+      await screen.findByRole('heading', { level: 1, name: /cu chi tunnels/i }, { timeout: 5000 }),
     ).toBeInTheDocument();
     expect(screen.getByRole('region', { name: /outdoor museum map/i })).toBeInTheDocument();
   });
@@ -84,7 +85,7 @@ describe('App', () => {
     renderApp('/tour');
 
     expect(
-      await screen.findByRole('heading', { level: 1, name: /cu chi tunnels/i }),
+      await screen.findByRole('heading', { level: 1, name: /cu chi tunnels/i }, { timeout: 5000 }),
     ).toBeInTheDocument();
   });
 
@@ -92,7 +93,7 @@ describe('App', () => {
     renderApp('/visitor/checkout/success');
 
     expect(
-      await screen.findByRole('heading', { level: 1, name: /payment successful/i }),
+      await screen.findByRole('heading', { level: 1, name: /payment successful/i }, { timeout: 5000 }),
     ).toBeInTheDocument();
   });
 
@@ -100,7 +101,49 @@ describe('App', () => {
     renderApp('/admin/pois');
 
     expect(
-      await screen.findByRole('heading', { level: 1, name: /administrator sign in/i }),
+      await screen.findByRole('heading', { level: 1, name: /administrator sign in/i }, { timeout: 5000 }),
+    ).toBeInTheDocument();
+  });
+
+  it('renders the admin navigation layout for authenticated admin routes', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation((url) => {
+        const urlStr = String(url);
+        if (urlStr.includes('/api/v1/auth/me')) {
+          return Promise.resolve({
+            ok: true,
+            status: 200,
+            headers: new Headers({ 'content-type': 'application/json' }),
+            text: async () => JSON.stringify({ admin: { user_name: 'admin', role: 'admin' } }),
+          });
+        }
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          headers: new Headers({ 'content-type': 'application/json' }),
+          text: async () => JSON.stringify({}),
+        });
+      }),
+    );
+
+    renderApp('/admin/health');
+
+    expect(
+      await screen.findByRole('navigation', { name: /admin navigation/i }, { timeout: 5000 }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /system health/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /sign out/i })).toBeInTheDocument();
+  });
+
+  it('renders the 404 not found page on any unknown wildcard route', async () => {
+    renderApp('/unknown/non-existent-page');
+
+    expect(
+      await screen.findByRole('heading', { level: 1, name: /không tìm thấy trang/i }, { timeout: 5000 }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/đường dẫn bạn yêu cầu không tồn tại/i),
     ).toBeInTheDocument();
   });
 });
