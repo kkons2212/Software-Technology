@@ -14,6 +14,8 @@ if BACKEND_ROOT not in sys.path:
     sys.path.insert(0, BACKEND_ROOT)
 
 from app.core.config import Settings, settings  # noqa: E402
+
+settings.ALLOW_GLOBAL_COORDINATES = False
 from app.core.database import Base, create_database_engine, get_db  # noqa: E402
 from app.main import app  # noqa: E402
 from app.models.audio import POIAudio  # noqa: E402,F401
