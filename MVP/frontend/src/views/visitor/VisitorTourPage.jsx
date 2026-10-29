@@ -397,6 +397,7 @@ export default function VisitorTourPage({
           isActivated={isPoiActivated(selectedPoi.poi_id || selectedPoi.id)}
           onDirectionsClick={handleDirectionsClick}
           isRoutingActive={!!isRoutingToSelectedPoi}
+          language={selectedLanguage}
         />
       )}
 
@@ -412,6 +413,7 @@ export default function VisitorTourPage({
         isOpen={isRestoreOpen}
         onClose={() => setIsRestoreOpen(false)}
         onSuccess={handleRestoreSuccess}
+        language={selectedLanguage}
       />
     </main>
   );

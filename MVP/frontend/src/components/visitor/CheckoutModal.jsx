@@ -19,9 +19,10 @@ import {
 } from 'lucide-react';
 import { createCheckoutOrder, simulatePaymentSuccess } from '../../api/paymentApi.js';
 import { usePaymentPolling } from '../../hooks/usePaymentPolling.js';
+import { getVisitorText } from '../../locales/visitorTranslations.js';
 
-const SERVICE_TITLE = 'Dịch vụ Thuyết minh Âm thanh Đa ngôn ngữ';
-const SERVICE_SUBTITLE = 'Gói trải nghiệm 24 giờ không giới hạn';
+
+
 const DEFAULT_FEE_VND = 50000;
 
 export default function CheckoutModal({
@@ -165,15 +166,15 @@ export default function CheckoutModal({
             </div>
 
             <h2 className="text-xl font-bold text-slate-900">
-              Kích hoạt thành công!
+              {getVisitorText('activationSuccessTitle', preferredLanguage)}
             </h2>
             <p className="mt-1 text-sm text-slate-600">
-              Gói thuyết minh âm thanh 24 giờ của bạn đã sẵn sàng.
+              {getVisitorText('activationSuccessSubtitle', preferredLanguage)}
             </p>
 
             <div className="my-6 rounded-xl border border-emerald-200 bg-emerald-50/60 p-4 text-left">
               <div className="flex justify-between items-center text-sm py-1 border-b border-emerald-100">
-                <span className="text-slate-600 font-medium">Mã phiên:</span>
+                <span className="text-slate-600 font-medium">{getVisitorText('sessionCodeLabel', preferredLanguage)}</span>
                 <span className="font-bold text-emerald-800 tracking-wider font-mono">
                   {completedSession?.session_code || 'PASS-ACTIVE'}
                 </span>
@@ -195,7 +196,7 @@ export default function CheckoutModal({
               onClick={onClose}
               className="w-full rounded-xl bg-emerald-600 py-3 px-4 text-sm font-semibold text-white shadow-md hover:bg-emerald-700 active:scale-[0.99] transition"
             >
-              Bắt đầu trải nghiệm ngay
+              {getVisitorText('startListeningBtn', preferredLanguage)}
             </button>
           </div>
         ) : (
@@ -211,19 +212,19 @@ export default function CheckoutModal({
                 id="checkout-modal-title"
                 className="text-lg font-bold text-slate-900 leading-snug"
               >
-                {SERVICE_TITLE}
+                {getVisitorText('serviceTitle', preferredLanguage)}
               </h2>
-              <p className="text-xs text-slate-500 mt-0.5">{SERVICE_SUBTITLE}</p>
+              <p className="text-xs text-slate-500 mt-0.5">{getVisitorText('serviceSubtitle', preferredLanguage)}</p>
             </div>
 
             {/* Fee badge */}
             <div className="mt-4 flex items-baseline justify-between rounded-xl bg-slate-50 px-4 py-3 border border-slate-100">
-              <span className="text-xs font-medium text-slate-600">Phí dịch vụ 24h:</span>
+              <span className="text-xs font-medium text-slate-600">{getVisitorText('serviceFee24h', preferredLanguage)}</span>
               <div className="text-right">
                 <span className="text-xl font-extrabold text-emerald-700">
                   {formattedAmount} đ
                 </span>
-                <span className="text-[11px] text-slate-400 block">/ thiết bị</span>
+                <span className="text-[11px] text-slate-400 block">{getVisitorText('perDevice', preferredLanguage)}</span>
               </div>
             </div>
 
@@ -241,7 +242,7 @@ export default function CheckoutModal({
                 }`}
               >
                 <QrCode size={16} aria-hidden="true" />
-                <span>VietQR Napas247</span>
+                <span>{getVisitorText('tabVietQR', preferredLanguage)}</span>
               </button>
               <button
                 type="button"
@@ -255,7 +256,7 @@ export default function CheckoutModal({
                 }`}
               >
                 <CreditCard size={16} aria-hidden="true" />
-                <span>Thẻ quốc tế</span>
+                <span>{getVisitorText('tabCard', preferredLanguage)}</span>
               </button>
             </div>
 
@@ -300,14 +301,14 @@ export default function CheckoutModal({
                 {/* Transfer Details Card */}
                 <div className="mt-3 space-y-2 rounded-xl bg-slate-50 p-3 text-xs border border-slate-100">
                   <div className="flex justify-between items-center">
-                    <span className="text-slate-500">Ngân hàng:</span>
+                    <span className="text-slate-500">{getVisitorText('bank', preferredLanguage)}:</span>
                     <span className="font-semibold text-slate-800">
                       {order?.bank_name || 'MBBank'}
                     </span>
                   </div>
 
                   <div className="flex justify-between items-center">
-                    <span className="text-slate-500">Số tài khoản:</span>
+                    <span className="text-slate-500">{getVisitorText('accountNumber', preferredLanguage)}:</span>
                     <div className="flex items-center gap-1.5">
                       <span className="font-mono font-bold text-slate-900">
                         {order?.account_no || '0911223344'}
@@ -328,14 +329,14 @@ export default function CheckoutModal({
                   </div>
 
                   <div className="flex justify-between items-center">
-                    <span className="text-slate-500">Chủ tài khoản:</span>
+                    <span className="text-slate-500">{getVisitorText('accountHolder', preferredLanguage)}:</span>
                     <span className="font-semibold text-slate-800 text-right truncate max-w-[180px]">
                       {order?.account_name || 'DIA DAO CU CHI'}
                     </span>
                   </div>
 
                   <div className="flex justify-between items-center">
-                    <span className="text-slate-500">Nội dung:</span>
+                    <span className="text-slate-500">{getVisitorText('transferContent', preferredLanguage)}:</span>
                     <div className="flex items-center gap-1.5">
                       <span className="font-mono font-bold text-emerald-800">
                         {order?.payment_reference || order?.order_id || 'CCT PASS'}
@@ -366,8 +367,8 @@ export default function CheckoutModal({
                   </span>
                   <span>
                     {isPolling || orderStatus === 'PENDING'
-                      ? 'Đang chờ hệ thống xác nhận chuyển khoản tự động...'
-                      : 'Đang kiểm tra trạng thái thanh toán...'}
+                      ? getVisitorText('waitingPaymentConfirm', preferredLanguage)
+                      : getVisitorText('checkingPaymentStatus', preferredLanguage)}
                   </span>
                 </div>
               </div>
@@ -378,10 +379,10 @@ export default function CheckoutModal({
                   <CreditCard size={28} />
                 </div>
                 <h3 className="text-sm font-semibold text-slate-900">
-                  Cổng thanh toán thẻ quốc tế
+                  {getVisitorText('cardGatewayTitle', preferredLanguage)}
                 </h3>
                 <p className="mt-1 text-xs text-slate-500 max-w-xs mx-auto">
-                  Hỗ trợ tài khoản PayPal và thẻ quốc tế Visa, Mastercard qua cổng bảo mật PayPal Sandbox.
+                  {getVisitorText('cardGatewayDesc', preferredLanguage)}
                 </p>
 
                 {order?.checkout_url ? (
@@ -391,7 +392,7 @@ export default function CheckoutModal({
                     rel="noopener noreferrer"
                     className="mt-5 inline-flex w-full items-center justify-center rounded-xl bg-[#0070ba] py-3 px-4 text-xs font-semibold text-white shadow-md hover:bg-[#005ea6] transition"
                   >
-                    Tiếp tục thanh toán qua PayPal Sandbox ({formattedAmount} đ)
+                    {getVisitorText('continueWithPayPal', preferredLanguage, { amount: formattedAmount })}
                   </a>
                 ) : (
                   <button
@@ -399,7 +400,7 @@ export default function CheckoutModal({
                     onClick={handleSimulate}
                     className="mt-5 w-full rounded-xl bg-[#0070ba] py-3 px-4 text-xs font-semibold text-white shadow-md hover:bg-[#005ea6] transition"
                   >
-                    Thanh toán qua PayPal Sandbox ({formattedAmount} đ)
+                    {getVisitorText('simulatePayPalPayment', preferredLanguage, { amount: formattedAmount })}
                   </button>
                 )}
               </div>
@@ -415,7 +416,7 @@ export default function CheckoutModal({
                 }}
                 className="text-xs text-blue-600 hover:text-blue-800 font-medium inline-flex items-center gap-1 hover:underline transition"
               >
-                <span>Đã mua vé trước đó? Nhập mã phiên để khôi phục</span>
+                <span>{getVisitorText('alreadyPurchasedPrompt', preferredLanguage)}</span>
               </button>
             </div>
 
@@ -433,7 +434,7 @@ export default function CheckoutModal({
                   {isSimulating ? (
                     <Loader2 size={12} className="animate-spin" />
                   ) : (
-                    <span>⚡ Giả lập thanh toán</span>
+                    <span>⚡ {getVisitorText('simulateSuccessBtn', preferredLanguage)}</span>
                   )}
                 </button>
               </div>

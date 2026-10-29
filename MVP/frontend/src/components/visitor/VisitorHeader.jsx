@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { KeyRound, LockKeyhole } from 'lucide-react';
+import { getVisitorText } from '../../locales/visitorTranslations.js';
 
 const COUNTDOWN_INTERVAL_MS = 1000;
 
@@ -45,8 +46,8 @@ export default function VisitorHeader({
       <a className="visitor-brand" href="/" aria-label="Cu Chi Tunnels home">
         <span className="visitor-brand-mark" aria-hidden="true">C</span>
         <span className="visitor-brand-copy">
-          <h1>Cu Chi Tunnels</h1>
-          <span>Smart audio guide</span>
+          <h1>{getVisitorText('brandTitle', selectedLanguage)}</h1>
+          <span>{getVisitorText('brandSubtitle', selectedLanguage)}</span>
         </span>
       </a>
 
@@ -59,7 +60,7 @@ export default function VisitorHeader({
           onChange={(event) => onLanguageChange?.(event.target.value)}
           disabled={languages.length === 0}
         >
-          {languages.length === 0 && <option value="">No languages available</option>}
+          {languages.length === 0 && <option value="">{getVisitorText('noLanguages', selectedLanguage)}</option>}
           {languages.map((language) => (
             <option key={language.code} value={language.code}>
               {language.name}
@@ -105,14 +106,14 @@ export default function VisitorHeader({
               className="visitor-restore-button inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition"
               type="button"
               onClick={onRestoreSession}
-              title="Khôi phục phiên đã mua"
+              title={getVisitorText('restorePassTitle', selectedLanguage)}
             >
               <KeyRound size={13} aria-hidden="true" />
-              <span className="hidden sm:inline">Khôi phục</span>
+              <span className="hidden sm:inline">{getVisitorText('restorePass', selectedLanguage)}</span>
             </button>
             <button className="visitor-unlock-button" type="button" onClick={onUnlock}>
               <LockKeyhole size={15} aria-hidden="true" />
-              <span>Unlock audio</span>
+              <span>{getVisitorText('unlockAudio', selectedLanguage)}</span>
             </button>
           </div>
         )}

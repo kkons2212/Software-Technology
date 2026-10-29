@@ -3,6 +3,8 @@
  * Protects in-depth historical narrative and audio content for unpaid visitors.
  * Renders preview teaser with smooth fade gradient and unlock CTA.
  */
+import { getVisitorText } from '../../locales/visitorTranslations.js';
+
 export default function ContentPaywallGate({
   isUnlocked = false,
   isActivated = true,
@@ -10,13 +12,14 @@ export default function ContentPaywallGate({
   fullDescription = '',
   onUnlock,
   className = '',
+  language = 'en',
 }) {
   if (isUnlocked) {
     if (isActivated) {
       return (
         <div data-testid="content-unlocked" className={`content-unlocked ${className}`}>
           <p className="poi-preview-summary text-slate-700 dark:text-slate-200">
-            {fullDescription || shortDescription || 'No description available.'}
+            {fullDescription || shortDescription || getVisitorText('noDescriptionAvailable', language)}
           </p>
         </div>
       );
@@ -28,7 +31,7 @@ export default function ContentPaywallGate({
           {shortDescription || 'Historical chronicle preview...'}
         </p>
         <span className="mt-1.5 inline-flex items-center gap-1 rounded bg-amber-50 border border-amber-200 px-2 py-0.5 text-[11px] font-medium text-amber-800">
-          📍 Đến gần điểm (&le;15m) để kích hoạt thuyết minh đầy đủ
+          {getVisitorText('paywallTeaserInstruction', language)}
         </span>
       </div>
     );
@@ -61,7 +64,7 @@ export default function ContentPaywallGate({
             <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
             <path d="M7 11V7a5 5 0 0 1 10 0v4" />
           </svg>
-          <span>Unlock Full Story</span>
+          <span>{getVisitorText('unlockFullStory', language)}</span>
         </button>
       </div>
     </div>
