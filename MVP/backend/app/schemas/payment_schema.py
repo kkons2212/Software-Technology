@@ -109,6 +109,15 @@ class OrderStatusResponse(BaseModel):
     )
 
 
+class SimulatePaymentRequest(BaseModel):
+    """Optional body for the sandbox simulate-success endpoint."""
+
+    preferred_language: str = Field(
+        default="vi",
+        description="Visitor's selected language code forwarded to VisitorSession creation.",
+    )
+
+
 class PayOSWebhookData(BaseModel):
     """Inner data payload delivered by PayOS webhook."""
 

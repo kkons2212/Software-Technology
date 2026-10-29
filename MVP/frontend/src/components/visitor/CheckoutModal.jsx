@@ -118,7 +118,7 @@ export default function CheckoutModal({
     if (!order?.order_id || isSimulating) return;
     setIsSimulating(true);
     try {
-      const res = await simulatePaymentSuccess(order.order_id);
+      const res = await simulatePaymentSuccess(order.order_id, { preferredLanguage });
       if (res?.status === 'PAID') {
         handlePaymentSuccess(res);
       }

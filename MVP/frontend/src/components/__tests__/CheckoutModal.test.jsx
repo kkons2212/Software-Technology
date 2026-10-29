@@ -147,7 +147,7 @@ describe('CheckoutModal', () => {
     });
 
     await waitFor(() => {
-      expect(simulatePaymentSuccess).toHaveBeenCalledWith('cct-order-999');
+      expect(simulatePaymentSuccess).toHaveBeenCalledWith('cct-order-999', { preferredLanguage: 'vi' });
     });
 
     expect(await screen.findByTestId('checkout-success-view')).toBeInTheDocument();
