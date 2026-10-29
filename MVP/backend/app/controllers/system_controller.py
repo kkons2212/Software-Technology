@@ -8,6 +8,10 @@ Adheres strictly to 3-tier boundary rules: delegates all file system,
 database telemetry, and business logic to `StorageService`.
 """
 
+import logging
+import os
+from pathlib import Path
+
 from fastapi import APIRouter, Depends, Request
 
 from app.core.config import settings
@@ -62,13 +66,40 @@ def clean_orphaned_audio(
     return CleanOrphansResponse(success=True, data=result)
 
 
+logger = logging.getLogger(__name__)
+
 public_router = APIRouter(prefix="/api/v1/system", tags=["Public System Configuration"])
+
+
+def resolve_cloudflare_tunnel_url() -> str:
+    """Dynamically resolve tunnel URL from runtime settings or .env file on disk."""
+    env_path = Path(settings.STATIC_DIR).parent / ".env"
+    if env_path.is_file():
+        try:
+            with open(env_path, encoding="utf-8") as f:
+                for line in f:
+                    stripped = line.strip()
+                    if stripped.startswith("CLOUDFLARE_TUNNEL_URL="):
+                        raw_val = stripped.split("=", 1)[1].strip()
+                        val = raw_val.strip('"').strip("'").strip()
+                        if val:
+                            return val.rstrip("/")
+        except Exception as exc:
+            logger.warning(
+                "Failed to read CLOUDFLARE_TUNNEL_URL from %s: %s", env_path, exc
+            )
+
+    return (
+        (settings.CLOUDFLARE_TUNNEL_URL or os.getenv("CLOUDFLARE_TUNNEL_URL", ""))
+        .strip()
+        .rstrip("/")
+    )
 
 
 @public_router.get("/public-config", response_model=PublicConfigResponse)
 def get_public_config() -> PublicConfigResponse:
     """Return public tunnel URL and QR targets for visitors and administrators."""
-    tunnel_url = (settings.CLOUDFLARE_TUNNEL_URL or "").strip().rstrip("/")
+    tunnel_url = resolve_cloudflare_tunnel_url()
     visitor_url = f"{tunnel_url}/visitor" if tunnel_url else "/visitor"
     admin_url = f"{tunnel_url}/admin" if tunnel_url else "/admin"
 

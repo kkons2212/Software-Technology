@@ -40,13 +40,11 @@ export default function QRCodePage() {
   const svgContainerRef = useRef(null);
 
   // Initialize and load public config from backend
-  useEffect(() => {
-    let isMounted = true;
+  const loadConfig = useCallback(() => {
     setIsLoading(true);
 
     getPublicSystemConfig()
       .then((config) => {
-        if (!isMounted) return;
         const cloudflareUrl = (config?.cloudflare_tunnel_url || '').trim();
         setTunnelUrl(cloudflareUrl);
 
@@ -59,7 +57,6 @@ export default function QRCodePage() {
         setInputUrl(initialTarget);
       })
       .catch(() => {
-        if (!isMounted) return;
         // # FALLBACK-LOGIC: Use current browser origin if backend config is unreachable
         const currentOrigin =
           typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5173';
@@ -68,13 +65,22 @@ export default function QRCodePage() {
         setInputUrl(fallbackTarget);
       })
       .finally(() => {
-        if (isMounted) setIsLoading(false);
+        setIsLoading(false);
       });
-
-    return () => {
-      isMounted = false;
-    };
   }, []);
+
+  useEffect(() => {
+    loadConfig();
+
+    // Automatically re-fetch whenever the user returns or switches to this browser tab
+    const handleWindowFocus = () => {
+      loadConfig();
+    };
+    window.addEventListener('focus', handleWindowFocus);
+    return () => {
+      window.removeEventListener('focus', handleWindowFocus);
+    };
+  }, [loadConfig]);
 
   const handleApplyUrl = useCallback((e) => {
     e?.preventDefault();
@@ -200,6 +206,15 @@ export default function QRCodePage() {
               title="Cập nhật mã QR"
             >
               Áp dụng
+            </button>
+            <button
+              type="button"
+              onClick={loadConfig}
+              className="rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 px-3 py-2 text-xs font-semibold text-slate-300 hover:text-white transition flex items-center gap-1"
+              title="Tải lại link mới nhất từ file .env"
+            >
+              <RefreshCw size={12} className={isLoading ? 'animate-spin text-emerald-400' : ''} />
+              <span>Làm mới</span>
             </button>
           </div>
           {tunnelUrl && (
