@@ -28,10 +28,10 @@
 | [**US 05.3**](#-us-053-static-audio-storage-capacity-alert--orphan-pruning) | Static Audio Storage Capacity Alert & Orphan Pruning | UC-05 | Must Have | 5 SP | 5 Tasks | [x] 5/5 |
 | [**US 05.4**](#-us-054-telemetry-filtering--structured-data-export) | Telemetry Filtering & Structured Data Export | UC-05 | Should Have | 3 SP | 3 Tasks | [ ] 0/3 |
 | [**US 06.1**](#-us-061-frictionless-digital-admission-checkout-via-vietqr--cards) | Frictionless Digital Admission Checkout via VietQR & Cards | UC-06 | Must Have | 5 SP | 5 Tasks | [x] 5/5 |
-| [**US 06.2**](#-us-062-webhook-driven-24-hour-visiting-session-activation) | Webhook-Driven 24-Hour Visiting Session Activation | UC-06 | Must Have | 5 SP | 4 Tasks | [ ] 0/4 |
+| [**US 06.2**](#-us-062-webhook-driven-24-hour-visiting-session-activation) | Webhook-Driven 24-Hour Visiting Session Activation | UC-06 | Must Have | 5 SP | 4 Tasks | [x] 4/4 |
 | [**US 06.3**](#-us-063-multi-device-session-recovery-via-session-code) | Multi-Device Session Recovery via Session Code | UC-06 | Should Have | 3 SP | 3 Tasks | [ ] 0/3 |
 | [**US 06.4**](#-us-064-content-protection--narrativeaudio-decryption-access-control) | Content Protection & Narrative/Audio Decryption Access Control | UC-06 | Must Have | 5 SP | 4 Tasks | [ ] 0/4 |
-| **TOTAL** | **23 User Stories (17 Complete)** | — | — | **102 SP** | **92 Tasks** | **[x] 72/92 Tasks** |
+| **TOTAL** | **23 User Stories (18 Complete)** | — | — | **102 SP** | **92 Tasks** | **[x] 76/92 Tasks** |
 
 ---
 
@@ -717,27 +717,27 @@
 > **So that** a 24-hour visiting session is activated and a unique Session Code (`CCT-XXXXXX`) is issued to the visitor.
 >
 > * **Priority:** Must Have | **Estimate:** 5 SP
-> * **Progress:** [ ] 0/4 Tasks Completed
+> * **Progress:** [x] 4/4 Tasks Completed
 
 #### Acceptance Criteria:
-- [ ] **AC-06.2.1:** Verify cryptographic HMAC SHA-256 signature from payment gateway to prevent counterfeit requests.
-- [ ] **AC-06.2.2:** Mark `Transaction.Status = 'PAID'`, create `VisitorSession` valid for exactly 24 hours (`Expire_at = now() + 24 hours`).
-- [ ] **AC-06.2.3:** Issue unique Session Code (e.g., `CCT-894201`) and store session token in visitor's `localStorage`.
+- [x] **AC-06.2.1:** Verify cryptographic HMAC SHA-256 signature from payment gateway to prevent counterfeit requests.
+- [x] **AC-06.2.2:** Mark `Transaction.Status = 'PAID'`, create `VisitorSession` valid for exactly 24 hours (`Expire_at = now() + 24 hours`).
+- [x] **AC-06.2.3:** Issue unique Session Code (e.g., `CCT-894201`) and store session token in visitor's `localStorage`.
 
 #### Task Checklist:
-- [ ] `TSK-06.2.1` `[Backend]` **Secure Webhook Handler (`POST /api/v1/payments/webhook`)**
+- [x] `TSK-06.2.1` `[Backend]` **Secure Webhook Handler (`POST /api/v1/payments/webhook`)**
   - **Scope:** Verify HMAC signature against raw request body. On match, update `Transaction`, generate random `SessionCode`, and persist `VisitorSession` (24h validity).
   - **DoD:** Rejects invalid signatures with HTTP 401; idempotent handling of duplicate webhooks.
   - **Paired Unit Test:** `tests/unit/services/test_payment_service.py`
-- [ ] `TSK-06.2.2` `[Database]` **`VisitorSession` & `Transaction` Schema Alignment**
+- [x] `TSK-06.2.2` `[Database]` **`VisitorSession` & `Transaction` Schema Alignment**
   - **Scope:** Configure 24h lifespan, unique `SessionCode` (`VARCHAR(20)`), and ON DELETE CASCADE constraints.
   - **DoD:** Passes CI schema verification in container.
   - **Paired Unit Test:** `tests/unit/repositories/test_session_repository.py`
-- [ ] `TSK-06.2.3` `[Frontend]` **Visitor Session Context (`VisitorSessionContext.jsx`)**
+- [x] `TSK-06.2.3` `[Frontend]` **Visitor Session Context (`VisitorSessionContext.jsx`)**
   - **Scope:** Persist session token and code in `localStorage`, expose global `isUnlocked`, `sessionCode`, and `timeRemaining` properties.
   - **DoD:** Restores unlocked state automatically on page reload.
   - **Paired Unit Test:** `src/context/__tests__/VisitorSessionContext.test.jsx`
-- [ ] `TSK-06.2.4` `[Test]` **Unit Test Suite for US 06.2 (`test_payment_service.py`, `test_session_repository.py`, `VisitorSessionContext.test.jsx`)**
+- [x] `TSK-06.2.4` `[Test]` **Unit Test Suite for US 06.2 (`test_payment_service.py`, `test_session_repository.py`, `VisitorSessionContext.test.jsx`)**
   - **Scope:** Test HMAC signature verification, 24h expiration timestamping, session code generation, and session context unlock state persistence.
   - **DoD:** 100% test pass in Pytest and Vitest, $\ge 80\%$ line & branch code coverage.
   - **Execution:** `pytest tests/unit/services/test_payment_service.py tests/unit/repositories/test_session_repository.py` && `npm run test -- VisitorSessionContext`
