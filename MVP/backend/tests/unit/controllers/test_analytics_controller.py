@@ -172,3 +172,62 @@ def test_should_return_422_envelope_for_an_unsupported_time_range(
     body = response.json()
     assert body["success"] is False
     assert body["error"]["code"] == "REQUEST_VALIDATION_ERROR"
+
+
+# ---------------------------------------------------------------------------
+# US 05.1: Real-Time Visitor Density Heatmap Controller Tests
+# ---------------------------------------------------------------------------
+HEATMAP_ROUTE = "/api/v1/admin/analytics/heatmap"
+
+
+def test_should_return_empty_heatmap_when_no_triggers_exist(
+    authenticated_client, frozen_clock
+):
+    response = authenticated_client.get(HEATMAP_ROUTE)
+
+    assert response.status_code == 200
+    payload = response.json()["data"]
+    assert payload["time_range"] == "LAST_7_DAYS"
+    assert payload["total_points"] == 0
+    assert payload["max_trigger_count"] == 0
+    assert payload["points"] == []
+
+
+def test_should_aggregate_heatmap_points_with_normalized_intensity(
+    authenticated_client, db_session, frozen_clock
+):
+    seed_analytics_fixture(db_session)
+
+    response = authenticated_client.get(f"{HEATMAP_ROUTE}?range=LAST_7_DAYS")
+
+    assert response.status_code == 200
+    payload = response.json()["data"]
+    assert payload["total_points"] == 1
+    assert payload["max_trigger_count"] == 1
+    point = payload["points"][0]
+    assert point["poi_id"] == "poi_an_001"
+    assert point["poi_title"] == "Ben Duoc Tunnels"
+    assert point["trigger_count"] == 1
+    assert point["intensity"] == 1.0
+    assert point["lat"] == 11.1432
+    assert point["lng"] == 106.4631
+
+
+def test_should_return_401_for_heatmap_when_unauthenticated(client, frozen_clock):
+    response = client.get(HEATMAP_ROUTE)
+
+    assert response.status_code == 401
+    body = response.json()
+    assert body["success"] is False
+    assert body["error"]["code"]
+
+
+def test_should_return_422_for_heatmap_with_invalid_range(
+    authenticated_client, frozen_clock
+):
+    response = authenticated_client.get(f"{HEATMAP_ROUTE}?range=UNKNOWN_RANGE")
+
+    assert response.status_code == 422
+    body = response.json()
+    assert body["success"] is False
+    assert body["error"]["code"] == "REQUEST_VALIDATION_ERROR"

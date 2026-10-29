@@ -15,15 +15,16 @@ const poi = {
 afterEach(cleanup);
 
 describe('PoiPreviewCard', () => {
-  it('shows the exhibit preview, Haversine distance, and action links', () => {
+  it('shows the exhibit preview, Haversine distance, and action buttons', () => {
     const onPlayAudio = vi.fn();
+    const onDirectionsClick = vi.fn();
     render(
       <PoiPreviewCard
         poi={poi}
         location={{ lat: 11.14, lng: 106.461 }}
-        directionsUrl="https://maps.example/directions"
         onPlayAudio={onPlayAudio}
         onDismiss={vi.fn()}
+        onDirectionsClick={onDirectionsClick}
       />,
     );
 
@@ -32,10 +33,10 @@ describe('PoiPreviewCard', () => {
     expect(screen.getByRole('heading', { name: poi.title })).toBeInTheDocument();
     expect(screen.getByText(poi.short_description)).toBeInTheDocument();
     expect(screen.getByText(/109 m away/)).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Directions' })).toHaveAttribute(
-      'href',
-      'https://maps.example/directions',
-    );
+    expect(screen.getByRole('button', { name: 'Directions' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Directions' }));
+    expect(onDirectionsClick).toHaveBeenCalledOnce();
 
     fireEvent.click(screen.getByRole('button', { name: 'Play Narration' }));
     expect(onPlayAudio).toHaveBeenCalledOnce();
@@ -47,9 +48,9 @@ describe('PoiPreviewCard', () => {
       <PoiPreviewCard
         poi={{ ...poi, image_url: null }}
         location={null}
-        directionsUrl="https://maps.example/directions"
         onPlayAudio={vi.fn()}
         onDismiss={onDismiss}
+        onDirectionsClick={vi.fn()}
       />,
     );
 
@@ -65,9 +66,9 @@ describe('PoiPreviewCard', () => {
       <PoiPreviewCard
         poi={poi}
         location={null}
-        directionsUrl="https://maps.example/directions"
         onPlayAudio={vi.fn()}
         onDismiss={onDismiss}
+        onDirectionsClick={vi.fn()}
       />,
     );
 
@@ -86,7 +87,6 @@ describe('PoiPreviewCard', () => {
       <PoiPreviewCard
         poi={poi}
         location={null}
-        directionsUrl="https://maps.example/directions"
         onPlayAudio={vi.fn()}
         onDismiss={vi.fn()}
         onUnlock={onUnlock}
@@ -105,7 +105,6 @@ describe('PoiPreviewCard', () => {
       <PoiPreviewCard
         poi={poi}
         location={null}
-        directionsUrl="https://maps.example/directions"
         onPlayAudio={vi.fn()}
         onDismiss={vi.fn()}
         isUnlocked={true}
@@ -115,5 +114,21 @@ describe('PoiPreviewCard', () => {
     expect(screen.queryByTestId('content-paywall-gate')).not.toBeInTheDocument();
     expect(screen.getByTestId('content-unlocked')).toBeInTheDocument();
     expect(screen.getByText(poi.description)).toBeInTheDocument();
+  });
+
+  it('toggles button label from Directions to Clear Route when routing is active', () => {
+    render(
+      <PoiPreviewCard
+        poi={poi}
+        location={{ lat: 11.14, lng: 106.461 }}
+        onPlayAudio={vi.fn()}
+        onDismiss={vi.fn()}
+        onDirectionsClick={vi.fn()}
+        isRoutingActive={true}
+      />,
+    );
+
+    expect(screen.getByRole('button', { name: 'Clear Route' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Directions' })).not.toBeInTheDocument();
   });
 });

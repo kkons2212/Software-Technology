@@ -20,11 +20,12 @@ function formatDistance(distanceMeters) {
 export default function PoiPreviewCard({
   poi,
   location,
-  directionsUrl,
   onPlayAudio,
   onDismiss,
   onUnlock,
   isUnlocked: propIsUnlocked,
+  onDirectionsClick,
+  isRoutingActive = false,
 }) {
   const touchStartYRef = useRef(null);
   const session = useVisitorSession();
@@ -100,14 +101,13 @@ export default function PoiPreviewCard({
           </div>
         </div>
         <div className="poi-preview-actions">
-          <a
-            className="poi-preview-directions"
-            href={directionsUrl}
-            target="_blank"
-            rel="noopener noreferrer"
+          <button
+            className={`poi-preview-directions ${isRoutingActive ? 'poi-preview-directions--active' : ''}`}
+            type="button"
+            onClick={onDirectionsClick}
           >
-            Directions
-          </a>
+            {isRoutingActive ? 'Clear Route' : 'Directions'}
+          </button>
           <button className="poi-preview-play" type="button" onClick={onPlayAudio}>
             Play Narration
           </button>

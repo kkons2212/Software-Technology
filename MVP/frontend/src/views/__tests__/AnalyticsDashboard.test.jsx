@@ -19,9 +19,10 @@ vi.mock('../../api/analyticsApi.js', () => ({
   },
   DEFAULT_ANALYTICS_RANGE: 'LAST_7_DAYS',
   getAnalyticsSummary: vi.fn(),
+  getHeatmapData: vi.fn(),
 }));
 
-import { getAnalyticsSummary } from '../../api/analyticsApi.js';
+import { getAnalyticsSummary, getHeatmapData } from '../../api/analyticsApi.js';
 import AnalyticsDashboard from '../admin/AnalyticsDashboard.jsx';
 
 const POPULATED_SUMMARY = {
@@ -58,6 +59,7 @@ const EMPTY_SUMMARY = {
 
 beforeEach(() => {
   getAnalyticsSummary.mockResolvedValue(POPULATED_SUMMARY);
+  getHeatmapData.mockResolvedValue({ time_range: 'LAST_7_DAYS', points: [], total_points: 0, max_trigger_count: 0 });
 });
 
 afterEach(() => {

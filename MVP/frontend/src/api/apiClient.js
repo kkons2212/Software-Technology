@@ -93,3 +93,5 @@ export const apiClient = {
   patch: (path, body, options) => requestJson(path, { ...options, method: 'PATCH', body }),
   delete: (path, options) => requestJson(path, { ...options, method: 'DELETE' }),
 };
+
+export default apiClient;
