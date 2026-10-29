@@ -59,10 +59,19 @@ class AudioSynthesisWorker:
             return False
 
         # STEP 2: Compute SHA-256 hash and synthesize speech (holding NO DB connection)
+        # AC-04.4.3 / dev_rules 5.2: audio_hash includes voice_id for exact cache fidelity
+        voice_id = None
+        if hasattr(self.tts_client, "resolve_voice"):
+            try:
+                voice_id = await self.tts_client.resolve_voice(lang_id)
+            except Exception:
+                voice_id = None
+
         audio_hash = compute_audio_hash(
             title=title,
             description=desc,
             language_id=lang_id,
+            voice_id=voice_id,
         )
 
         try:

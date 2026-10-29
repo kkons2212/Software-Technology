@@ -7,6 +7,16 @@ import pytest
 from app.integrations.edge_tts_client import EdgeTTSClient, compute_audio_hash
 
 
+@pytest.fixture(autouse=True)
+def reset_voice_cache():
+    """Reset EdgeTTSClient discovered voice cache before each test."""
+    EdgeTTSClient._DISCOVERED_VOICES.clear()
+    EdgeTTSClient._ALL_VOICES_CACHE = None
+    yield
+    EdgeTTSClient._DISCOVERED_VOICES.clear()
+    EdgeTTSClient._ALL_VOICES_CACHE = None
+
+
 @pytest.mark.asyncio
 async def test_should_use_language_voice_and_save_to_requested_path(mocker, tmp_path):
     communicate = mocker.patch("app.integrations.edge_tts_client.edge_tts.Communicate")
@@ -27,9 +37,45 @@ async def test_should_use_language_voice_and_save_to_requested_path(mocker, tmp_
 
 
 @pytest.mark.asyncio
-async def test_should_reject_language_without_a_configured_voice(tmp_path):
-    with pytest.raises(ValueError, match="No Edge-TTS voice is configured"):
-        await EdgeTTSClient().generate_audio("Narration", "fr", tmp_path / "fr.mp3")
+async def test_should_dynamically_discover_voice_for_unconfigured_language(mocker):
+    client = EdgeTTSClient()
+    mock_voices = [
+        {"Locale": "de-AT", "ShortName": "de-AT-IngridNeural", "Gender": "Female"},
+        {"Locale": "de-DE", "ShortName": "de-DE-KatjaNeural", "Gender": "Female"},
+        {"Locale": "de-DE", "ShortName": "de-DE-ConradNeural", "Gender": "Male"},
+    ]
+    mock_list = mocker.patch(
+        "app.integrations.edge_tts_client.edge_tts.list_voices",
+        new=AsyncMock(return_value=mock_voices),
+    )
+
+    # First lookup should invoke edge_tts.list_voices()
+    voice = await client.resolve_voice("de")
+    assert voice == "de-DE-KatjaNeural"
+    mock_list.assert_awaited_once()
+
+    # Second lookup should hit in-memory cache and NOT call edge_tts.list_voices() again
+    mock_list.reset_mock()
+    cached_voice = await client.resolve_voice("de")
+    assert cached_voice == "de-DE-KatjaNeural"
+    mock_list.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_should_reject_language_without_a_configured_or_discovered_voice(
+    mocker, tmp_path
+):
+    mocker.patch(
+        "app.integrations.edge_tts_client.edge_tts.list_voices",
+        new=AsyncMock(return_value=[]),
+    )
+
+    with pytest.raises(
+        ValueError, match="No Edge-TTS voice is configured or available"
+    ):
+        await EdgeTTSClient().generate_audio(
+            "Narration", "unknown-lang", tmp_path / "unknown.mp3"
+        )
 
 
 def test_should_compute_deterministic_audio_hash():
