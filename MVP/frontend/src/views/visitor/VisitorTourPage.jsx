@@ -33,7 +33,9 @@ export default function VisitorTourPage({
 
   const {
     sessionCode: contextSessionCode,
+    sessionToken: contextSessionToken,
     expiresAt: contextExpiresAt,
+    isUnlocked,
     activateSession,
   } = useVisitorSession();
 
@@ -140,7 +142,11 @@ export default function VisitorTourPage({
     setSelectedPoiId(null);
     setPoiError('');
     const controller = new AbortController();
-    getMapPois({ language: selectedLanguage, signal: controller.signal })
+    getMapPois({
+      language: selectedLanguage,
+      token: contextSessionToken,
+      signal: controller.signal,
+    })
       .then((availablePois) => {
         setPois(availablePois);
         setPoiError('');
@@ -154,7 +160,7 @@ export default function VisitorTourPage({
       });
 
     return () => controller.abort();
-  }, [poiRetryCount, selectedLanguage]);
+  }, [poiRetryCount, selectedLanguage, contextSessionToken]);
 
   const selectedPoi = pois.find(({ id }) => String(id) === String(selectedPoiId));
   const playingPoiId = isPlaying ? currentPoi?.id ?? null : null;
@@ -270,6 +276,8 @@ export default function VisitorTourPage({
           directionsUrl={directionsUrl}
           onPlayAudio={handlePlayAudio}
           onDismiss={handleDismissPOIPreview}
+          onUnlock={handleUnlockClick}
+          isUnlocked={isUnlocked || Boolean(effectiveSessionCode)}
         />
       )}
 

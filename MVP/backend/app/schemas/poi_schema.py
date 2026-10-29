@@ -18,12 +18,10 @@ DEFAULT_TRIGGER_RADIUS = 30
 
 
 class APIResponse(BaseModel, Generic[T]):
-
     data: T
 
 
 class PublishedLanguage(BaseModel):
-
     code: str
 
     language_name: str
@@ -62,6 +60,18 @@ class POIMapItem(BaseModel):
 
     trigger_radius: int = Field(
         validation_alias=AliasChoices("trigger_radius", "radius")
+    )
+    description: str | None = Field(
+        default=None,
+        description="Detailed historical narrative (unlocked for paid visitors)",
+    )
+    audio_url: str | None = Field(
+        default=None,
+        description="Protected audio stream URL (unlocked for paid visitors)",
+    )
+    is_locked: bool | None = Field(
+        default=None,
+        description="Content lock state: False for unlocked, None/True for locked teaser",
     )
 
 
@@ -118,7 +128,6 @@ class POIUpdateRequest(BaseModel):
 
     @model_validator(mode="after")
     def require_at_least_one_change(self) -> "POIUpdateRequest":
-
         if (
             self.title is None
             and self.short_description is None
@@ -128,7 +137,6 @@ class POIUpdateRequest(BaseModel):
             and self.longitude is None
             and self.radius is None
         ):
-
             raise ValueError("Provide at least one field to update.")
 
         return self
@@ -152,7 +160,6 @@ class POIUpdateResponse(BaseModel):
 
 
 class POICreateRequest(BaseModel):
-
     title: str = Field(
         ...,
         min_length=1,
@@ -189,7 +196,6 @@ class POICreateRequest(BaseModel):
 
 
 class POITranslationStatusResponse(BaseModel):
-
     language_id: str
 
     status: str = "PENDING"
@@ -200,7 +206,6 @@ class POITranslationStatusResponse(BaseModel):
 
 
 class POIResponse(BaseModel):
-
     poi_id: str
 
     title: str
@@ -231,7 +236,6 @@ class POIResponse(BaseModel):
 
 
 class POIListResponse(BaseModel):
-
     items: list[POIResponse]
 
     total: int

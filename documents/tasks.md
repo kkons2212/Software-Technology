@@ -30,8 +30,8 @@
 | [**US 06.1**](#-us-061-frictionless-digital-admission-checkout-via-vietqr--cards) | Frictionless Digital Admission Checkout via VietQR & Cards | UC-06 | Must Have | 5 SP | 5 Tasks | [x] 5/5 |
 | [**US 06.2**](#-us-062-webhook-driven-24-hour-visiting-session-activation) | Webhook-Driven 24-Hour Visiting Session Activation | UC-06 | Must Have | 5 SP | 4 Tasks | [x] 4/4 |
 | [**US 06.3**](#-us-063-multi-device-session-recovery-via-session-code) | Multi-Device Session Recovery via Session Code | UC-06 | Should Have | 3 SP | 3 Tasks | [ ] 0/3 |
-| [**US 06.4**](#-us-064-content-protection--narrativeaudio-decryption-access-control) | Content Protection & Narrative/Audio Decryption Access Control | UC-06 | Must Have | 5 SP | 4 Tasks | [ ] 0/4 |
-| **TOTAL** | **23 User Stories (18 Complete)** | — | — | **102 SP** | **92 Tasks** | **[x] 76/92 Tasks** |
+| [**US 06.4**](#-us-064-content-protection--narrativeaudio-decryption-access-control) | Content Protection & Narrative/Audio Decryption Access Control | UC-06 | Must Have | 5 SP | 4 Tasks | [x] 4/4 |
+| **TOTAL** | **23 User Stories (19 Complete)** | — | — | **102 SP** | **92 Tasks** | **[x] 80/92 Tasks** |
 
 ---
 
@@ -778,27 +778,27 @@
 > **So that** museum intellectual property and digital admission revenue are protected.
 >
 > * **Priority:** Must Have | **Estimate:** 5 SP
-> * **Progress:** [ ] 0/4 Tasks Completed
+> * **Progress:** [x] 4/4 Tasks Completed
 
 #### Acceptance Criteria:
-- [ ] **AC-06.4.1:** For unpaid visitors, API responses omit `description` and `audio_url`, returning only `short_description` and thumbnail.
-- [ ] **AC-06.4.2:** Audio streaming endpoint (`GET /api/v1/audio/{poi_id}`) enforces active session token. Returns `HTTP 403 Forbidden` if unpaid or expired.
-- [ ] **AC-06.4.3:** Frontend applies visual paywall blur gradient over text preview with an unlock CTA button.
+- [x] **AC-06.4.1:** For unpaid visitors, API responses omit `description` and `audio_url`, returning only `short_description` and thumbnail.
+- [x] **AC-06.4.2:** Audio streaming endpoint (`GET /api/v1/audio/{poi_id}`) enforces active session token. Returns `HTTP 403 Forbidden` if unpaid or expired.
+- [x] **AC-06.4.3:** Frontend applies visual paywall blur gradient over text preview with an unlock CTA button.
 
 #### Task Checklist:
-- [ ] `TSK-06.4.1` `[Backend]` **Audio Streaming Authorization Middleware**
+- [x] `TSK-06.4.1` `[Backend]` **Audio Streaming Authorization Middleware**
   - **Scope:** Protect `/api/v1/audio/*`. Inspect session token; return `HTTP 403 Forbidden` if token is missing, invalid, or expired.
   - **DoD:** Completely prevents unauthorized audio file streaming or scraping.
   - **Paired Unit Test:** `tests/unit/controllers/test_audio_controller.py`
-- [ ] `TSK-06.4.2` `[Backend]` **POI Content Gating Filter**
+- [x] `TSK-06.4.2` `[Backend]` **POI Content Gating Filter**
   - **Scope:** In `poi_service.py`, inspect visitor session. For unpaid requests, sanitize `description` and `audio_url` fields, providing only teaser content.
   - **DoD:** Protects content at backend API layer, preventing data leakage to client.
   - **Paired Unit Test:** `tests/unit/services/test_poi_service.py`
-- [ ] `TSK-06.4.3` `[Frontend]` **Content Paywall Gate Component (`ContentPaywallGate.jsx`)**
+- [x] `TSK-06.4.3` `[Frontend]` **Content Paywall Gate Component (`ContentPaywallGate.jsx`)**
   - **Scope:** Render first 3 lines of preview text covered by a smooth fade gradient (`bg-gradient-to-b from-transparent to-white`) with unlock CTA button.
   - **DoD:** Tapping unlock CTA opens `CheckoutModal.jsx`.
   - **Paired Unit Test:** `src/components/__tests__/ContentPaywallGate.test.jsx`
-- [ ] `TSK-06.4.4` `[Test]` **Unit Test Suite for US 06.4 (`test_audio_controller.py`, `test_poi_service.py`, `ContentPaywallGate.test.jsx`)**
+- [x] `TSK-06.4.4` `[Test]` **Unit Test Suite for US 06.4 (`test_audio_controller.py`, `test_poi_service.py`, `ContentPaywallGate.test.jsx`)**
   - **Scope:** Test HTTP 403 authorization middleware on audio streams, POI teaser filtering for unpaid users, and paywall gradient overlay UI with unlock trigger.
   - **DoD:** 100% test pass in Pytest and Vitest, $\ge 80\%$ line & branch code coverage.
   - **Execution:** `pytest tests/unit/controllers/test_audio_controller.py tests/unit/services/test_poi_service.py` && `npm run test -- ContentPaywallGate`
