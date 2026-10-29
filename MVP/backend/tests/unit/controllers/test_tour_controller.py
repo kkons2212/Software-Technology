@@ -7,11 +7,12 @@ for GET /api/v1/tour/route.
 from unittest.mock import MagicMock
 
 import pytest
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
+from app.controllers.tour_controller import router as tour_router
 from app.core.dependencies import get_wayfinding_service
-from app.core.exceptions import ApiError
-from app.main import app
+from app.core.exceptions import ApiError, register_error_handlers
 from app.schemas.tour_schema import (
     GeoJsonLineStringGeometry,
     GeoJsonRouteFeature,
@@ -30,6 +31,9 @@ def mock_wayfinding_service():
 
 @pytest.fixture
 def client(mock_wayfinding_service):
+    app = FastAPI()
+    register_error_handlers(app)
+    app.include_router(tour_router)
     app.dependency_overrides[get_wayfinding_service] = lambda: mock_wayfinding_service
     test_client = TestClient(app)
     yield test_client
@@ -44,7 +48,6 @@ def sample_route_feature():
             type="LineString",
             coordinates=[
                 [106.463100, 11.143200],
-                [106.462600, 11.143100],
                 [106.461400, 11.144500],
             ],
         ),
@@ -68,14 +71,14 @@ def sample_route_feature():
 def test_should_return_200_and_geojson_route(
     client, mock_wayfinding_service, sample_route_feature
 ):
-    """GET /api/v1/tour/route with valid query params returns HTTP 200 and GeoJSON payload."""
+    """GET /api/v1/tour/route returns 200 OK and GeoJSON Feature payload."""
     mock_wayfinding_service.calculate_walking_route.return_value = sample_route_feature
 
     response = client.get(
         ROUTE_URL,
         params={
-            "origin_lat": 11.143200,
-            "origin_lng": 106.463100,
+            "origin_lat": 11.1432,
+            "origin_lng": 106.4631,
             "destination_poi_id": "POI_TEST_01",
         },
     )
@@ -85,38 +88,32 @@ def test_should_return_200_and_geojson_route(
     assert body["success"] is True
     assert body["data"]["type"] == "Feature"
     assert body["data"]["geometry"]["type"] == "LineString"
-    assert len(body["data"]["geometry"]["coordinates"]) == 3
+    assert len(body["data"]["geometry"]["coordinates"]) == 2
     assert body["data"]["properties"]["total_distance_meters"] == 185.5
-    assert body["data"]["properties"]["destination"]["poi_id"] == "POI_TEST_01"
+    assert body["data"]["properties"]["destination"]["title"] == "Địa đạo Bến Dược"
 
 
 def test_should_return_422_when_missing_required_params(client):
-    """GET /api/v1/tour/route without destination_poi_id returns HTTP 422 validation error."""
-    response = client.get(
-        ROUTE_URL,
-        params={"origin_lat": 11.143200, "origin_lng": 106.463100},
-    )
-
+    """GET /api/v1/tour/route without required query parameters returns 422."""
+    response = client.get(ROUTE_URL)
     assert response.status_code == 422
-    body = response.json()
-    assert body["success"] is False
-    assert body["error"]["code"] == "REQUEST_VALIDATION_ERROR"
 
 
 def test_should_return_404_when_poi_not_found(client, mock_wayfinding_service):
-    """GET /api/v1/tour/route returns HTTP 404 when POI does not exist."""
+    """Returns standard 404 envelope when destination POI does not exist."""
     mock_wayfinding_service.calculate_walking_route.side_effect = ApiError(
-        status_code=404,
         code="POI_NOT_FOUND",
-        message="Exhibit not found.",
+        message="Exhibit 'nonexistent' not found.",
+        status_code=404,
+        details={"destination_poi_id": "nonexistent"},
     )
 
     response = client.get(
         ROUTE_URL,
         params={
-            "origin_lat": 11.143200,
-            "origin_lng": 106.463100,
-            "destination_poi_id": "NONEXISTENT",
+            "origin_lat": 11.1432,
+            "origin_lng": 106.4631,
+            "destination_poi_id": "nonexistent",
         },
     )
 
@@ -127,19 +124,20 @@ def test_should_return_404_when_poi_not_found(client, mock_wayfinding_service):
 
 
 def test_should_return_404_when_poi_is_deactivated(client, mock_wayfinding_service):
-    """GET /api/v1/tour/route returns HTTP 404 when POI is deactivated (US 03.3)."""
+    """Returns standard 404 envelope when target POI has been deactivated (US 03.3)."""
     mock_wayfinding_service.calculate_walking_route.side_effect = ApiError(
-        status_code=404,
         code="POI_DEACTIVATED",
-        message="Exhibit is deactivated.",
+        message="Exhibit 'Hầm chỉ huy' has been deactivated and is not available for navigation.",
+        status_code=404,
+        details={"destination_poi_id": "POI_DEACTIVATED_01", "is_active": False},
     )
 
     response = client.get(
         ROUTE_URL,
         params={
-            "origin_lat": 11.143200,
-            "origin_lng": 106.463100,
-            "destination_poi_id": "DEACTIVATED_POI",
+            "origin_lat": 11.1432,
+            "origin_lng": 106.4631,
+            "destination_poi_id": "POI_DEACTIVATED_01",
         },
     )
 

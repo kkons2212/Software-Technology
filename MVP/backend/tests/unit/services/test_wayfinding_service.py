@@ -1,6 +1,6 @@
 """Unit test suite for WayfindingService (US 01.4 - TSK-01.4.3).
 
-Verifies shortest path trail calculation, GeoJSON LineString generation,
+Verifies dynamic walking route calculation, GeoJSON LineString generation,
 performance SLA (< 500ms), and error handling for out-of-bounds or deactivated POIs.
 """
 
@@ -32,7 +32,7 @@ def active_poi():
         short_description="Hệ thống hầm địa đạo lịch sử Bến Dược",
         latitude=Decimal("11.144500"),
         longitude=Decimal("106.461400"),
-        trigger_radius=30,
+        radius=30,
         is_active=True,
     )
 
@@ -45,7 +45,7 @@ def deactivated_poi():
         short_description="Đang bảo trì đóng cửa",
         latitude=Decimal("11.142500"),
         longitude=Decimal("106.460400"),
-        trigger_radius=25,
+        radius=25,
         is_active=False,
     )
 
@@ -59,14 +59,11 @@ def test_haversine_distance_calculation():
     assert haversine_distance(11.1432, 106.4631, 11.1432, 106.4631) == 0.0
 
 
-def test_should_calculate_walking_route_through_trail_network(
-    mock_poi_repository, active_poi
-):
-    """Calculates valid GeoJSON LineString traversing Cu Chi trail network."""
+def test_should_calculate_dynamic_walking_route(mock_poi_repository, active_poi):
+    """Calculates valid dynamic GeoJSON LineString connecting visitor GPS to POI."""
     mock_poi_repository.get_by_id.return_value = active_poi
     service = WayfindingService(poi_repository=mock_poi_repository)
 
-    # Origin at Main Entrance (11.1432, 106.4631)
     origin_lat, origin_lng = 11.1432, 106.4631
     result = service.calculate_walking_route(
         origin_lat=origin_lat,
@@ -76,7 +73,7 @@ def test_should_calculate_walking_route_through_trail_network(
 
     assert result.type == "Feature"
     assert result.geometry.type == "LineString"
-    assert len(result.geometry.coordinates) >= 3
+    assert len(result.geometry.coordinates) == 2
 
     # GeoJSON coordinates format is [lng, lat]
     first_coord = result.geometry.coordinates[0]
@@ -92,27 +89,8 @@ def test_should_calculate_walking_route_through_trail_network(
     assert result.properties.destination.title == "Địa đạo Bến Dược"
     assert result.properties.total_distance_meters > 50.0
     assert result.properties.estimated_walking_minutes > 0.0
-
-
-def test_should_calculate_direct_route_when_in_immediate_proximity(
-    mock_poi_repository, active_poi
-):
-    """Generates direct 2-point line of sight when origin is adjacent (< 30m) to POI."""
-    mock_poi_repository.get_by_id.return_value = active_poi
-    service = WayfindingService(poi_repository=mock_poi_repository)
-
-    # Coordinates ~15 meters away from active_poi
-    origin_lat = float(active_poi.latitude) + 0.0001
-    origin_lng = float(active_poi.longitude) + 0.00005
-
-    result = service.calculate_walking_route(
-        origin_lat=origin_lat,
-        origin_lng=origin_lng,
-        destination_poi_id="POI_BEN_DUOC",
-    )
-
-    assert len(result.geometry.coordinates) == 2
-    assert result.properties.total_distance_meters <= 30.0
+    assert result.properties.origin.lat == origin_lat
+    assert result.properties.origin.lng == origin_lng
 
 
 def test_should_meet_calculation_latency_sla(mock_poi_repository, active_poi):
@@ -137,7 +115,6 @@ def test_should_raise_422_when_origin_out_of_bounds(mock_poi_repository, active_
     mock_poi_repository.get_by_id.return_value = active_poi
     service = WayfindingService(poi_repository=mock_poi_repository)
 
-    # Clearly out of bounds coordinates
     with pytest.raises(ApiError) as exc_info:
         service.calculate_walking_route(
             origin_lat=10.0,
