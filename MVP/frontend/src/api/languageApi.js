@@ -36,3 +36,16 @@ export async function getPublishedLanguages({ signal } = {}) {
     }))
     .filter((language) => typeof language.code === 'string' && typeof language.name === 'string');
 }
+
+export async function getSupportedLanguages({ signal, all = true } = {}) {
+  const query = all ? '?all=true' : '';
+  const response = await apiClient.get(`${LANGUAGES_ENDPOINT}${query}`, { signal });
+
+  return unwrapLanguages(response)
+    .map((language) => ({
+      code: language.code ?? language.language_id ?? language.language_code,
+      name: language.native_name ?? language.language_name ?? language.name,
+      status: language.status,
+    }))
+    .filter((language) => typeof language.code === 'string' && typeof language.name === 'string');
+}

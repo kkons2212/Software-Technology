@@ -36,6 +36,17 @@ class LanguageService:
             for language in self.repository.list_published()
         ]
 
+    def list_all(self) -> list[PublishedLanguage]:
+        """Return all catalog languages."""
+        return [
+            PublishedLanguage(
+                code=language.language_id,
+                language_name=language.language_name,
+                status="SUPPORTED",
+            )
+            for language in self.repository.list_all()
+        ]
+
     def get_published_languages(self) -> list[dict[str, Any]]:
         """Return all catalog languages."""
         languages = self.repository.list_all()
