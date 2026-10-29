@@ -12,7 +12,13 @@ from fastapi import APIRouter, Depends, Request
 
 from app.core.dependencies import get_current_admin_profile, get_storage_service
 from app.schemas.auth_schema import AdminProfileResponse
-from app.schemas.system_schema import CleanOrphansResponse, SystemHealthResponse
+from app.core.config import settings
+from app.schemas.system_schema import (
+    CleanOrphansResponse,
+    PublicConfigData,
+    PublicConfigResponse,
+    SystemHealthResponse,
+)
 from app.services.storage_service import StorageService
 
 SYSTEM_ROUTE_PREFIX = "/api/v1/admin"
@@ -54,3 +60,23 @@ def clean_orphaned_audio(
         client_ip=client_ip,
     )
     return CleanOrphansResponse(success=True, data=result)
+
+
+public_router = APIRouter(prefix="/api/v1/system", tags=["Public System Configuration"])
+
+
+@public_router.get("/public-config", response_model=PublicConfigResponse)
+def get_public_config() -> PublicConfigResponse:
+    """Return public tunnel URL and QR targets for visitors and administrators."""
+    tunnel_url = (settings.CLOUDFLARE_TUNNEL_URL or "").strip().rstrip("/")
+    visitor_url = f"{tunnel_url}/visitor" if tunnel_url else "/visitor"
+    admin_url = f"{tunnel_url}/admin" if tunnel_url else "/admin"
+
+    return PublicConfigResponse(
+        success=True,
+        data=PublicConfigData(
+            cloudflare_tunnel_url=tunnel_url,
+            visitor_url=visitor_url,
+            admin_url=admin_url,
+        ),
+    )

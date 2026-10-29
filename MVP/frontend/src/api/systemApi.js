@@ -29,3 +29,17 @@ export async function getSystemHealth({ signal } = {}) {
 export async function cleanOrphanedAudio({ signal } = {}) {
   return apiClient.post(CLEAN_ORPHANS_ENDPOINT, {}, { signal });
 }
+
+const PUBLIC_CONFIG_ENDPOINT = '/api/v1/system/public-config';
+
+/**
+ * Fetch public tunnel and base URL configuration for visitor access & QR generation.
+ *
+ * @param {object} [options]
+ * @param {AbortSignal} [options.signal]
+ * @returns {Promise<{cloudflare_tunnel_url: string, visitor_url: string, admin_url: string}>}
+ */
+export async function getPublicSystemConfig({ signal } = {}) {
+  const response = await apiClient.get(PUBLIC_CONFIG_ENDPOINT, { signal });
+  return response?.data || response;
+}

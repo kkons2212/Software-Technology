@@ -1,6 +1,7 @@
 """Unit tests for SystemHealth and Storage Controller (US 05.3 - TSK-05.3.1, TSK-05.3.3).
 
-Verifies GET /api/v1/admin/system/health and POST /api/v1/admin/storage/clean-orphans.
+Verifies GET /api/v1/admin/system/health, POST /api/v1/admin/storage/clean-orphans,
+and public GET /api/v1/system/public-config.
 """
 
 import pytest
@@ -18,6 +19,7 @@ ADMIN_PASSWORD = "Admin@12345"
 LOGIN_ROUTE = "/api/v1/auth/login"
 HEALTH_ROUTE = "/api/v1/admin/system/health"
 CLEAN_ORPHANS_ROUTE = "/api/v1/admin/storage/clean-orphans"
+PUBLIC_CONFIG_ROUTE = "/api/v1/system/public-config"
 FORWARDED_CLIENT_IP = "198.51.100.23"
 X_FORWARDED_FOR_HEADER = {"x-forwarded-for": FORWARDED_CLIENT_IP}
 
@@ -116,3 +118,20 @@ def test_should_return_401_when_admin_cookie_absent_on_clean_orphans(
 
     assert response.status_code == 401
     assert response.json()["error"]["code"] == "UNAUTHENTICATED"
+
+
+def test_should_return_public_system_config_without_authentication(
+    client: TestClient,
+):
+    response = client.get(PUBLIC_CONFIG_ROUTE)
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["success"] is True
+
+    data = payload["data"]
+    assert "cloudflare_tunnel_url" in data
+    assert "visitor_url" in data
+    assert "admin_url" in data
+    assert data["visitor_url"].endswith("/visitor")
+    assert data["admin_url"].endswith("/admin")

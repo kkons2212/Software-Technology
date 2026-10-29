@@ -97,6 +97,14 @@ describe('App', () => {
     ).toBeInTheDocument();
   });
 
+  it('renders the QR page on the /qr route', async () => {
+    renderApp('/qr');
+
+    expect(
+      await screen.findByRole('heading', { level: 1, name: /mã qr truy cập tour/i }, { timeout: 5000 }),
+    ).toBeInTheDocument();
+  });
+
   it('redirects unauthenticated access to /admin/pois into the login view', async () => {
     renderApp('/admin/pois');
 

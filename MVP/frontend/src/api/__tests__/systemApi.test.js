@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { apiClient } from '../apiClient.js';
-import { getSystemHealth, cleanOrphanedAudio } from '../systemApi.js';
+import { getSystemHealth, cleanOrphanedAudio, getPublicSystemConfig } from '../systemApi.js';
 
 vi.mock('../apiClient.js', () => ({
   apiClient: {
@@ -32,5 +32,19 @@ describe('systemApi', () => {
 
     expect(apiClient.post).toHaveBeenCalledWith('/api/v1/admin/storage/clean-orphans', {}, { signal: undefined });
     expect(result).toEqual(mockCleanResult);
+  });
+
+  it('calls GET /api/v1/system/public-config', async () => {
+    const mockPublicConfig = {
+      cloudflare_tunnel_url: 'https://test-tunnel.trycloudflare.com',
+      visitor_url: 'https://test-tunnel.trycloudflare.com/visitor',
+      admin_url: 'https://test-tunnel.trycloudflare.com/admin',
+    };
+    apiClient.get.mockResolvedValue({ data: mockPublicConfig });
+
+    const result = await getPublicSystemConfig();
+
+    expect(apiClient.get).toHaveBeenCalledWith('/api/v1/system/public-config', { signal: undefined });
+    expect(result).toEqual(mockPublicConfig);
   });
 });

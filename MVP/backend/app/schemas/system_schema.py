@@ -60,3 +60,20 @@ class CleanOrphansResponse(BaseModel):
 
     success: bool = True
     data: CleanOrphansData
+
+
+class PublicConfigData(BaseModel):
+    """Public system configuration for QR code and base URLs."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    cloudflare_tunnel_url: str
+    visitor_url: str
+    admin_url: str
+
+
+class PublicConfigResponse(BaseModel):
+    """Standardized API response envelope for public system configuration."""
+
+    success: bool = True
+    data: PublicConfigData

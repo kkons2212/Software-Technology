@@ -21,6 +21,7 @@ export const VISITOR_ROUTES = {
   HOME: '/visitor',
   TOUR: '/tour',
   CHECKOUT_SUCCESS: '/visitor/checkout/success',
+  QR: '/qr',
 };
 
 export const ADMIN_ROUTES = {
@@ -39,6 +40,7 @@ export const ADMIN_ROUTES = {
 // Visitor Domain (Mobile-First)
 const VisitorTourPage = lazy(() => import('./views/visitor/VisitorTourPage.jsx'));
 const CheckoutSuccessPage = lazy(() => import('./views/visitor/CheckoutSuccessPage.jsx'));
+const QRCodePage = lazy(() => import('./views/QRCodePage.jsx'));
 
 // Admin Domain (Desktop-First)
 const AdminLoginView = lazy(() => import('./views/admin/AdminLoginView.jsx'));
@@ -72,6 +74,7 @@ export default function App() {
             <Route path={VISITOR_ROUTES.TOUR} element={<Navigate to={VISITOR_ROUTES.HOME} replace />} />
             <Route path={VISITOR_ROUTES.CHECKOUT_SUCCESS} element={<CheckoutSuccessPage />} />
             <Route path="/checkout/success" element={<Navigate to={VISITOR_ROUTES.CHECKOUT_SUCCESS} replace />} />
+            <Route path={VISITOR_ROUTES.QR} element={<QRCodePage />} />
 
             {/* Admin Web Portal Routes (Desktop-First) */}
             <Route path={ADMIN_ROUTES.LOGIN} element={<AdminLoginView />} />

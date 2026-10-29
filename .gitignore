@@ -44,3 +44,16 @@ skills-lock.json
 # Local wiki clones
 Software-Technology.wiki/
 *.wiki/
+
+# E2E Playwright local testing & artifacts
+MVP/e2e_playwright/
+**/test-results/
+**/playwright-report/
+**/blob-report/
+**/.playwright/
+**/screenshots/
+
+# Cloudflared binaries & tunnel logs
+*.exe
+**/cloudflared.exe
+.cloudflared/
