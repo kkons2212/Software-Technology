@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import VisitorMapView from './VisitorMapView.jsx';
 import VisitorHeader from '../../components/visitor/VisitorHeader.jsx';
 import PoiPreviewCard from '../../components/visitor/PoiPreviewCard.jsx';
@@ -34,6 +34,16 @@ export default function VisitorTourPage({
   const [selectedPoiId, setSelectedPoiId] = useState(null);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [activeRoute, setActiveRoute] = useState(null);
+
+  const {
+    sessionCode: contextSessionCode,
+    expiresAt: contextExpiresAt,
+    activateSession,
+  } = useVisitorSession();
+
+  const effectiveSessionCode = sessionCode || contextSessionCode;
+  const effectiveExpiresAt = expiresAt || contextExpiresAt;
+
   const { currentPoi, isPlaying, completedPoiIds, play } = useAudioPlayer();
   // Dwell windows opened by a real geofence trigger, keyed by POI id. The
   // telemetry row is only reported once the visitor leaves the zone, because a
@@ -168,9 +178,10 @@ export default function VisitorTourPage({
   const selectedPoi = pois.find(({ id }) => String(id) === String(selectedPoiId));
   const playingPoiId = isPlaying ? currentPoi?.id ?? null : null;
 
-  const isRoutingToSelectedPoi = activeRoute
-    && selectedPoi
-    && activeRoute.destinationPoiId === String(selectedPoi.id);
+  const isRoutingToSelectedPoi =
+    activeRoute &&
+    selectedPoi &&
+    activeRoute.destinationPoiId === String(selectedPoi.id);
 
   const handleDirectionsClick = useCallback(() => {
     if (!selectedPoi) {
