@@ -1,5 +1,4 @@
-import { Compass, MapPin, Shield } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Compass } from 'lucide-react';
 
 export default function NotFoundPage() {
   return (
@@ -18,27 +17,8 @@ export default function NotFoundPage() {
           Không tìm thấy trang
         </h1>
         <p className="mt-2 text-sm text-slate-600">
-          Đường dẫn bạn yêu cầu không tồn tại hoặc đã được thay đổi. Quý khách vui lòng chọn hành động bên dưới:
+          Đường dẫn bạn yêu cầu không tồn tại hoặc đã được thay đổi.
         </p>
-
-        {/* Action Navigation Buttons */}
-        <div className="mt-6 flex flex-col gap-3">
-          <Link
-            to="/visitor"
-            className="inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white shadow-md transition hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:ring-offset-1 active:scale-[0.99]"
-          >
-            <MapPin size={18} aria-hidden="true" />
-            <span>Về bản đồ tham quan</span>
-          </Link>
-
-          <Link
-            to="/admin/login"
-            className="inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-300 active:scale-[0.99]"
-          >
-            <Shield size={18} aria-hidden="true" />
-            <span>Cổng quản trị viên</span>
-          </Link>
-        </div>
       </div>
     </main>
   );

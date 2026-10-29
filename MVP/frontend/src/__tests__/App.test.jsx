@@ -111,7 +111,8 @@ describe('App', () => {
     expect(
       await screen.findByRole('heading', { level: 1, name: /không tìm thấy trang/i }),
     ).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /về bản đồ tham quan/i })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /cổng quản trị viên/i })).toBeInTheDocument();
+    expect(
+      screen.getByText(/đường dẫn bạn yêu cầu không tồn tại/i),
+    ).toBeInTheDocument();
   });
 });
