@@ -72,7 +72,7 @@ CREATE TABLE IF NOT EXISTS `Audit` (
 -- ------------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `LanguageCode` (
     `LanguageID` VARCHAR(20) NOT NULL, -- 'vi', 'en', 'ja', 'ko', 'zh'
-    `LanguageName` VARCHAR(255) NOT NULL,
+    `LanguageName` NVARCHAR(255) NOT NULL,
     PRIMARY KEY (`LanguageID`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -257,7 +257,7 @@ The full MySQL initialization DDL script is provided in section [2.1. MySQL Sche
 | Column Name | Data Type | Constraints | Description |
 |---|---|---|---|
 | `language_id` | `VARCHAR(20)` | `PRIMARY KEY` | ISO language code (`vi`, `en`, `ja`, `ko`, `zh`) |
-| `language_name` | `VARCHAR(255)` | `NOT NULL` | Display name of the language |
+| `language_name` | `NVARCHAR(255)` | `NOT NULL` | Display name of the language |
 
 ---
 
