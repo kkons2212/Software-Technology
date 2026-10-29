@@ -1,5 +1,6 @@
 """Pipeline orchestrator for automated multilingual translation and audio synthesis (US 04.4)."""
 
+import asyncio
 import logging
 from collections.abc import Callable
 from pathlib import Path
@@ -25,6 +26,7 @@ class TranslationPipelineService:
         audio_dir: Path | None = None,
         translation_worker: TranslationWorker | None = None,
         audio_worker: AudioSynthesisWorker | None = None,
+        pacing_delay: float | None = None,
     ):
         settings = get_settings()
         self.session_factory = session_factory or SessionLocal
@@ -36,6 +38,11 @@ class TranslationPipelineService:
             session_factory=self.session_factory,
             audio_dir=self.audio_dir,
         )
+        self.pacing_delay = (
+            pacing_delay
+            if pacing_delay is not None
+            else getattr(settings, "TRANSLATION_PACING_DELAY", 1.5)
+        )
 
     async def run_pipeline_for_poi(
         self,
@@ -44,11 +51,12 @@ class TranslationPipelineService:
     ) -> dict[str, dict[str, bool]]:
         """Run translation and audio synthesis for all configured foreign languages.
 
-        US 04.4 - AC-04.4.1 through AC-04.4.4:
+        US 04.4 - AC-04.4.1 through AC-04.4.4 & Direction 2:
         Dispatches background worker jobs for all target languages dynamically from
         the LanguageCode catalog table (excluding 'vi'). Translates text with
-        exponential backoff, synthesizes MP3s with SHA-256 deduplication, and strictly
-        enforces short-lived JIT database sessions.
+        exponential backoff, applies inter-language pacing delay to prevent rate limits,
+        synthesizes MP3s with SHA-256 deduplication, and strictly enforces short-lived
+        JIT database sessions.
         """
         if target_languages is None:
             try:
@@ -73,12 +81,22 @@ class TranslationPipelineService:
         results: dict[str, dict[str, bool]] = {}
 
         logger.info(
-            "Starting automated translation & audio pipeline for POI %s (languages: %s)",
+            "Starting automated translation & audio pipeline for POI %s (languages: %s, pacing: %.2fs)",
             poi_id,
             languages,
+            self.pacing_delay,
         )
 
-        for lang in languages:
+        for idx, lang in enumerate(languages):
+            if idx > 0 and self.pacing_delay > 0:
+                logger.info(
+                    "Pacing delay: waiting %.2fs before translating language '%s' for POI %s...",
+                    self.pacing_delay,
+                    lang,
+                    poi_id,
+                )
+                await asyncio.sleep(self.pacing_delay)
+
             lang_result = {"translation": False, "audio": False}
 
             # 1. Asynchronous translation

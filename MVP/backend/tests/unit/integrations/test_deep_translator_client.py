@@ -120,12 +120,14 @@ async def test_should_chunk_and_reassemble_long_text(mocker, client):
 
 
 @pytest.mark.asyncio
-async def test_should_translate_exhibit_narrative_fields(mocker, client):
-    mocker.patch.object(
-        client,
-        "translate_text",
-        side_effect=lambda text, target_lang, source_lang="vi": f"{text} in {target_lang}",
-    )
+async def test_should_translate_exhibit_narrative_fields_batched_free(mocker, client):
+    def mock_translate(text, source, target):
+        return "\n".join(
+            line if "<<<---POI_FIELD_BREAK--->>>" in line else f"[TR] {line}"
+            for line in text.split("\n")
+        )
+
+    mocker.patch.object(client, "_translate_sync", side_effect=mock_translate)
 
     narrative = await client.translate_exhibit_narrative(
         title="Bếp Hoàng Cầm",
@@ -134,9 +136,107 @@ async def test_should_translate_exhibit_narrative_fields(mocker, client):
         target_lang="ja",
     )
 
-    assert narrative["title"] == "Bếp Hoàng Cầm in ja"
-    assert narrative["short_description"] == "Bếp dã chiến giấu khói in ja"
-    assert narrative["description"] == "Sáng chế bếp độc đáo thời kháng chiến in ja"
+    assert narrative["title"] == "[TR] Bếp Hoàng Cầm"
+    assert narrative["short_description"] == "[TR] Bếp dã chiến giấu khói"
+    assert narrative["description"] == "[TR] Sáng chế bếp độc đáo thời kháng chiến"
+
+
+@pytest.mark.asyncio
+async def test_should_batch_translate_narrative_via_gemini_json():
+    mock_http = MagicMock(spec=httpx.AsyncClient)
+    resp_200 = MagicMock(
+        status_code=200,
+        json=lambda: {
+            "candidates": [
+                {
+                    "content": {
+                        "parts": [
+                            {
+                                "text": '{"title": "Hoang Cam Stove", "short_description": "Secret kitchen", "description": "Smokeless cooker"}'
+                            }
+                        ]
+                    }
+                }
+            ]
+        },
+    )
+    mock_http.post = AsyncMock(return_value=resp_200)
+
+    client = DeepTranslatorClient(
+        gemini_keys=["gemini_key_1"],
+        http_client=mock_http,
+    )
+
+    narrative = await client.translate_exhibit_narrative(
+        title="Bếp Hoàng Cầm",
+        short_description="Bếp dã chiến",
+        description="Bếp không khói",
+        target_lang="en",
+    )
+
+    assert narrative["title"] == "Hoang Cam Stove"
+    assert narrative["short_description"] == "Secret kitchen"
+    assert narrative["description"] == "Smokeless cooker"
+    assert mock_http.post.call_count == 1
+
+
+@pytest.mark.asyncio
+async def test_should_batch_translate_narrative_via_google_cloud():
+    mock_http = MagicMock(spec=httpx.AsyncClient)
+    resp_200 = MagicMock(
+        status_code=200,
+        json=lambda: {
+            "data": {
+                "translations": [
+                    {"translatedText": "Hoang Cam Stove"},
+                    {"translatedText": "Secret &amp; Smokeless"},
+                    {"translatedText": "Historical exhibit"},
+                ]
+            }
+        },
+    )
+    mock_http.post = AsyncMock(return_value=resp_200)
+
+    client = DeepTranslatorClient(
+        gemini_keys=[],
+        google_translate_keys=["google_key_1"],
+        http_client=mock_http,
+    )
+
+    narrative = await client.translate_exhibit_narrative(
+        title="Bếp Hoàng Cầm",
+        short_description="Bếp dã chiến",
+        description="Di tích lịch sử",
+        target_lang="en",
+    )
+
+    assert narrative["title"] == "Hoang Cam Stove"
+    assert narrative["short_description"] == "Secret & Smokeless"
+    assert narrative["description"] == "Historical exhibit"
+    assert mock_http.post.call_count == 1
+
+
+@pytest.mark.asyncio
+async def test_should_fallback_to_field_by_field_when_delimiter_mismatches(
+    mocker, client
+):
+    def mock_corrupt_translate(text, source, target):
+        if "<<<---POI_FIELD_BREAK--->>>" in text:
+            return "Corrupted text missing delimiter"
+        return f"[FALLBACK] {text}"
+
+    mocker.patch.object(client, "_translate_sync", side_effect=mock_corrupt_translate)
+
+    narrative = await client.translate_exhibit_narrative(
+        title="Bếp Hoàng Cầm",
+        short_description="Bếp dã chiến",
+        description="Mô tả",
+        target_lang="en",
+    )
+
+    assert narrative["title"] == "[FALLBACK] Bếp Hoàng Cầm"
+    assert narrative["short_description"] == "[FALLBACK] Bếp dã chiến"
+    assert narrative["description"] == "[FALLBACK] Mô tả"
 
 
 @pytest.mark.asyncio

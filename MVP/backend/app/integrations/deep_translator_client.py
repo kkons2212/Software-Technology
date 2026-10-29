@@ -2,6 +2,7 @@
 
 import asyncio
 import html
+import json
 import logging
 from typing import ClassVar
 
@@ -13,7 +14,7 @@ from app.core.config import settings
 logger = logging.getLogger(__name__)
 
 DEFAULT_MAX_RETRIES = 3
-DEFAULT_BASE_DELAY = 1.0
+DEFAULT_BASE_DELAY = 1.5
 DEFAULT_CHUNK_SIZE = 4500
 DEFAULT_HTTP_TIMEOUT = 15.0
 
@@ -52,6 +53,8 @@ class DeepTranslatorClient:
     2. Google Cloud Translation REST API (Round-robin API Key pool).
     3. deep-translator GoogleTranslator (Free web fallback, 0 config required).
     """
+
+    NARRATIVE_DELIMITER: ClassVar[str] = "\n<<<---POI_FIELD_BREAK--->>>\n"
 
     # Map internal ISO language identifiers to Google/Gemini target language codes
     LANGUAGE_MAPPING: ClassVar[dict[str, str]] = {
@@ -151,12 +154,18 @@ class DeepTranslatorClient:
                                     attempt,
                                 )
                                 return result
-                logger.warning(
-                    "Gemini AI translation returned status %d on key index %d: %s",
-                    response.status_code,
-                    attempt,
-                    response.text[:200],
-                )
+                elif response.status_code == 429:
+                    logger.warning(
+                        "Gemini AI rate limit (429) on key index %d. Rotating key...",
+                        attempt,
+                    )
+                else:
+                    logger.warning(
+                        "Gemini AI translation returned status %d on key index %d: %s",
+                        response.status_code,
+                        attempt,
+                        response.text[:200],
+                    )
             except Exception as exc:
                 logger.warning(
                     "Gemini AI translation failed on key index %d: %s",
@@ -165,6 +174,113 @@ class DeepTranslatorClient:
                 )
 
         logger.warning("All %d Gemini API keys failed or were exhausted", total_keys)
+        return None
+
+    async def _translate_narrative_with_gemini(
+        self,
+        title: str,
+        short_description: str | None,
+        description: str | None,
+        source_lang: str,
+        target_lang: str,
+    ) -> dict[str, str | None] | None:
+        """Translate exhibit narrative fields in a single batched Gemini AI call (Direction 1)."""
+        if not self.gemini_pool.has_keys():
+            return None
+
+        client = await self._get_http_client()
+        total_keys = len(self.gemini_pool.keys)
+
+        input_data = {
+            "title": title,
+            "short_description": short_description or "",
+            "description": description or "",
+        }
+
+        prompt = (
+            f"You are an expert museum and cultural heritage translator specializing in historical sites "
+            f"(specifically Vietnam's historic Cu Chi Tunnels - Địa đạo Củ Chi).\n"
+            f"Translate the following exhibit fields accurately from {source_lang} to {target_lang}.\n"
+            f"Preserve historical significance, military and cultural terminology, and maintain a dignified, "
+            f"engaging museum tour guide persona.\n"
+            f"Output ONLY a valid parseable JSON object with keys 'title', 'short_description', 'description'. "
+            f"Do NOT include markdown quotes, markdown code fences, or any commentary.\n\n"
+            f"Input JSON:\n{json.dumps(input_data, ensure_ascii=False)}"
+        )
+
+        payload = {
+            "contents": [{"parts": [{"text": prompt}]}],
+            "generationConfig": {"temperature": 0.2},
+        }
+
+        for attempt in range(total_keys):
+            key = self.gemini_pool.get_next_key()
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{self.gemini_model}:generateContent?key={key}"
+
+            try:
+                response = await client.post(url, json=payload)
+                if response.status_code == 200:
+                    data = response.json()
+                    candidates = data.get("candidates", [])
+                    if candidates:
+                        parts = candidates[0].get("content", {}).get("parts", [])
+                        if parts and "text" in parts[0]:
+                            raw_text = parts[0]["text"].strip()
+                            if raw_text.startswith("```"):
+                                raw_text = raw_text.strip("`")
+                                if raw_text.startswith("json"):
+                                    raw_text = raw_text[4:].strip()
+                            try:
+                                parsed = json.loads(raw_text)
+                                logger.info(
+                                    "Successfully translated narrative batch via Gemini AI (%s -> %s, key_index=%d)",
+                                    source_lang,
+                                    target_lang,
+                                    attempt,
+                                )
+                                return {
+                                    "title": parsed.get("title", title),
+                                    "short_description": (
+                                        parsed.get("short_description")
+                                        if short_description
+                                        else None
+                                    ),
+                                    "description": (
+                                        parsed.get("description")
+                                        if description
+                                        else None
+                                    ),
+                                }
+                            except json.JSONDecodeError as jde:
+                                logger.warning(
+                                    "Failed to parse Gemini JSON response on key index %d: %s (raw: %s)",
+                                    attempt,
+                                    jde,
+                                    raw_text[:200],
+                                )
+                elif response.status_code == 429:
+                    logger.warning(
+                        "Gemini AI rate limit (429) on key index %d. Rotating key...",
+                        attempt,
+                    )
+                else:
+                    logger.warning(
+                        "Gemini AI translation returned status %d on key index %d: %s",
+                        response.status_code,
+                        attempt,
+                        response.text[:200],
+                    )
+            except Exception as exc:
+                logger.warning(
+                    "Gemini AI translation failed on key index %d: %s",
+                    attempt,
+                    exc,
+                )
+
+        logger.warning(
+            "All %d Gemini API keys failed or were exhausted for narrative batch",
+            total_keys,
+        )
         return None
 
     async def _translate_with_google_cloud(
@@ -202,12 +318,18 @@ class DeepTranslatorClient:
                             attempt,
                         )
                         return result
-                logger.warning(
-                    "Google Cloud Translate returned status %d on key index %d: %s",
-                    response.status_code,
-                    attempt,
-                    response.text[:200],
-                )
+                elif response.status_code == 429:
+                    logger.warning(
+                        "Google Cloud Translate rate limit (429) on key index %d. Rotating key...",
+                        attempt,
+                    )
+                else:
+                    logger.warning(
+                        "Google Cloud Translate returned status %d on key index %d: %s",
+                        response.status_code,
+                        attempt,
+                        response.text[:200],
+                    )
             except Exception as exc:
                 logger.warning(
                     "Google Cloud Translate failed on key index %d: %s",
@@ -217,6 +339,99 @@ class DeepTranslatorClient:
 
         logger.warning(
             "All %d Google Cloud Translate API keys failed or were exhausted",
+            total_keys,
+        )
+        return None
+
+    async def _translate_narrative_with_google_cloud(
+        self,
+        title: str,
+        short_description: str | None,
+        description: str | None,
+        source_lang: str,
+        target_lang: str,
+    ) -> dict[str, str | None] | None:
+        """Translate exhibit narrative fields in a single batched Google Cloud REST call (Direction 1)."""
+        if not self.google_pool.has_keys():
+            return None
+
+        client = await self._get_http_client()
+        total_keys = len(self.google_pool.keys)
+
+        texts_to_send = [title]
+        has_short = bool(short_description and short_description.strip())
+        has_desc = bool(description and description.strip())
+
+        if has_short:
+            texts_to_send.append(short_description)
+        if has_desc:
+            texts_to_send.append(description)
+
+        payload = {
+            "q": texts_to_send,
+            "source": source_lang,
+            "target": target_lang,
+            "format": "text",
+        }
+
+        for attempt in range(total_keys):
+            key = self.google_pool.get_next_key()
+            url = f"https://translation.googleapis.com/language/translate/v2?key={key}"
+
+            try:
+                response = await client.post(url, json=payload)
+                if response.status_code == 200:
+                    data = response.json()
+                    translations = data.get("data", {}).get("translations", [])
+                    if len(translations) == len(texts_to_send):
+                        res_title = html.unescape(
+                            translations[0]["translatedText"]
+                        ).strip()
+                        cursor = 1
+                        res_short = None
+                        if has_short:
+                            res_short = html.unescape(
+                                translations[cursor]["translatedText"]
+                            ).strip()
+                            cursor += 1
+                        res_desc = None
+                        if has_desc:
+                            res_desc = html.unescape(
+                                translations[cursor]["translatedText"]
+                            ).strip()
+
+                        logger.info(
+                            "Successfully translated narrative batch via Google Cloud REST API (%s -> %s, key_index=%d)",
+                            source_lang,
+                            target_lang,
+                            attempt,
+                        )
+                        return {
+                            "title": res_title,
+                            "short_description": res_short,
+                            "description": res_desc,
+                        }
+                elif response.status_code == 429:
+                    logger.warning(
+                        "Google Cloud Translate rate limit (429) on key index %d. Rotating key...",
+                        attempt,
+                    )
+                else:
+                    logger.warning(
+                        "Google Cloud Translate returned status %d on key index %d: %s",
+                        response.status_code,
+                        attempt,
+                        response.text[:200],
+                    )
+            except Exception as exc:
+                logger.warning(
+                    "Google Cloud Translate failed on key index %d: %s",
+                    attempt,
+                    exc,
+                )
+
+        logger.warning(
+            "All %d Google Cloud Translate API keys failed or were exhausted for narrative batch",
             total_keys,
         )
         return None
@@ -321,6 +536,81 @@ class DeepTranslatorClient:
 
         return "\n".join(translated_chunks) if len(chunks) > 1 else translated_chunks[0]
 
+    async def _translate_narrative_with_free_deep_translator(
+        self,
+        title: str,
+        short_description: str | None,
+        description: str | None,
+        source_lang: str,
+        target_lang: str,
+    ) -> dict[str, str | None]:
+        """Translate exhibit narrative fields in a single batched call with deep-translator web library."""
+        keys = ["title"]
+        texts = [title]
+        has_short = bool(short_description and short_description.strip())
+        has_desc = bool(description and description.strip())
+
+        if has_short:
+            keys.append("short_description")
+            texts.append(short_description)
+        if has_desc:
+            keys.append("description")
+            texts.append(description)
+
+        combined_text = self.NARRATIVE_DELIMITER.join(texts)
+
+        try:
+            translated_combined = await self._translate_with_free_deep_translator(
+                combined_text, source_lang=source_lang, target_lang=target_lang
+            )
+            raw_parts = translated_combined.split("<<<---POI_FIELD_BREAK--->>>")
+            parts = [p.strip() for p in raw_parts]
+
+            if len(parts) == len(keys):
+                res_title = parts[0]
+                cursor = 1
+                res_short = parts[cursor] if has_short else None
+                if has_short:
+                    cursor += 1
+                res_desc = parts[cursor] if has_desc else None
+
+                return {
+                    "title": res_title,
+                    "short_description": res_short,
+                    "description": res_desc,
+                }
+            logger.warning(
+                "Delimited batch translation parts mismatch (got %d, expected %d). Falling back to single field translations.",
+                len(parts),
+                len(keys),
+            )
+        except Exception as exc:
+            logger.warning(
+                "Batch translation with free deep-translator failed: %s. Falling back to field-by-field.",
+                exc,
+            )
+
+        # Safe fallback to field-by-field if delimiter split failed
+        tr_title = await self._translate_with_free_deep_translator(
+            title, source_lang=source_lang, target_lang=target_lang
+        )
+        tr_short = None
+        if has_short:
+            tr_short = await self._translate_with_free_deep_translator(
+                short_description, source_lang=source_lang, target_lang=target_lang
+            )
+        tr_desc = None
+        if has_desc:
+            tr_desc = await self._translate_with_free_deep_translator(
+                description, source_lang=source_lang, target_lang=target_lang
+            )
+
+        return {
+            "title": tr_title,
+            "short_description": tr_short,
+            "description": tr_desc,
+        }
+
     async def translate_text(
         self,
         text: str,
@@ -366,25 +656,33 @@ class DeepTranslatorClient:
         target_lang: str,
         source_lang: str = "vi",
     ) -> dict[str, str | None]:
-        """Translate all fields of an exhibit narrative into the target language."""
-        translated_title = await self.translate_text(
-            title, target_lang=target_lang, source_lang=source_lang
+        """Translate all fields of an exhibit narrative in 1 batched request per tier (Direction 1).
+
+        Hierarchy:
+        1. Gemini AI: 1 prompt returning JSON with title, short_description, description.
+        2. Google Cloud REST: 1 HTTP call with q=[title, short_desc, desc].
+        3. deep-translator: 1 HTTP call with delimited text.
+        """
+        resolved_target = self._resolve_target_language(target_lang)
+        resolved_source = self._resolve_target_language(source_lang)
+
+        # 1. Cascade Tier 1: Gemini AI
+        if self.gemini_pool.has_keys():
+            gemini_result = await self._translate_narrative_with_gemini(
+                title, short_description, description, resolved_source, resolved_target
+            )
+            if gemini_result is not None:
+                return gemini_result
+
+        # 2. Cascade Tier 2: Google Cloud Translation REST API
+        if self.google_pool.has_keys():
+            cloud_result = await self._translate_narrative_with_google_cloud(
+                title, short_description, description, resolved_source, resolved_target
+            )
+            if cloud_result is not None:
+                return cloud_result
+
+        # 3. Cascade Tier 3: Free deep-translator
+        return await self._translate_narrative_with_free_deep_translator(
+            title, short_description, description, resolved_source, resolved_target
         )
-
-        translated_short = None
-        if short_description and short_description.strip():
-            translated_short = await self.translate_text(
-                short_description, target_lang=target_lang, source_lang=source_lang
-            )
-
-        translated_desc = None
-        if description and description.strip():
-            translated_desc = await self.translate_text(
-                description, target_lang=target_lang, source_lang=source_lang
-            )
-
-        return {
-            "title": translated_title,
-            "short_description": translated_short,
-            "description": translated_desc,
-        }
