@@ -350,7 +350,7 @@ export default function PoiCatalogPage() {
               Create Digitized Exhibit Profile
             </h2>
             <p className="mt-0.5 text-xs text-slate-600">
-              Enter historical details, coordinates within Cu Chi site bounds, and upload cover photo.
+              Enter historical details, valid WGS84 coordinates, and upload cover photo.
             </p>
 
             {formError && (

@@ -115,7 +115,7 @@ class Settings(BaseSettings):
 
     # Cu Chi Tunnels Geographic Perimeter Bounds
     ALLOW_GLOBAL_COORDINATES: bool = (
-        os.getenv("ALLOW_GLOBAL_COORDINATES", "false").lower() == "true"
+        os.getenv("ALLOW_GLOBAL_COORDINATES", "true").lower() == "true"
     )
 
     CU_CHI_BOUNDS: dict = {
