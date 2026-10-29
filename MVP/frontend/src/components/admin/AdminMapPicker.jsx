@@ -11,7 +11,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import L from 'leaflet';
-import { MUSEUM_BOUNDS, isWithinMuseumBounds } from '../../utils/museumBounds.js';
+import { isWithinMuseumBounds } from '../../utils/museumBounds.js';
 
 // Design tokens from ui_rules Section 3.2: accent blue for a valid geofence and
 // warning red for the out-of-bounds error state.
@@ -20,7 +20,7 @@ const OUT_OF_BOUNDS_COLOR = '#B91C1C';
 const DEFAULT_MAP_BORDER_COLOR = '#CBD5E1';
 
 const DEFAULT_ZOOM = 17;
-const MIN_ZOOM = 15;
+const MIN_ZOOM = 1;
 const MAX_ZOOM = 19;
 const DEFAULT_MAP_HEIGHT_PX = 260;
 const TILE_LAYER_URL = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
@@ -36,7 +36,7 @@ const RADIUS_STEP = 1;
 const COORDINATE_PRECISION = 1e7;
 
 const OUT_OF_BOUNDS_MESSAGE =
-  'Coordinates must stay inside the Cu Chi Tunnels boundary (Lat 11.136361-11.149306, Lng 106.455139-106.467639).';
+  'Coordinates must be valid latitude (-90 to 90) and longitude (-180 to 180).';
 
 function roundCoordinate(value) {
   return Math.round(value * COORDINATE_PRECISION) / COORDINATE_PRECISION;
@@ -102,11 +102,6 @@ export default function AdminMapPicker({
         zoomControl: false,
         minZoom: MIN_ZOOM,
         maxZoom: MAX_ZOOM,
-        maxBounds: L.latLngBounds(
-          [MUSEUM_BOUNDS.minLat, MUSEUM_BOUNDS.minLng],
-          [MUSEUM_BOUNDS.maxLat, MUSEUM_BOUNDS.maxLng],
-        ),
-        maxBoundsViscosity: 0.85,
       });
 
       const tileLayer = L.tileLayer(TILE_LAYER_URL, {

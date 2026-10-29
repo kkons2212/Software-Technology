@@ -128,7 +128,7 @@ export default function POIFormModal({
     }
 
     if (isOutOfBounds) {
-      setFormError('Coordinates must reside within Cu Chi site boundary.');
+      setFormError('Tọa độ không hợp lệ (Vĩ độ: [-90, 90], Kinh độ: [-180, 180]).');
       return;
     }
 

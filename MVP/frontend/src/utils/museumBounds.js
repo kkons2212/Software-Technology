@@ -1,30 +1,31 @@
 // =============================================================================
-// SHARED MUSEUM GEOGRAPHY CONSTANTS
-// Single source of truth for the Cu Chi Tunnels perimeter, consumed by the
-// visitor geolocation hook and the Admin geofence calibrator (US 03.2).
-// Kept in sync with the backend `CU_CHI_BOUNDS` constant in `poi_service.py`.
+// SHARED GEOGRAPHY CONSTANTS
+// Global coordinate validation guardrails (-90..90 lat, -180..180 lng).
 // =============================================================================
 
 export const MAIN_ENTRANCE = { lat: 11.1432, lng: 106.4631 };
 
 export const MUSEUM_BOUNDS = {
-  minLat: 11.136361,
-  maxLat: 11.149306,
-  minLng: 106.455139,
-  maxLng: 106.467639,
+  minLat: -90,
+  maxLat: 90,
+  minLng: -180,
+  maxLng: 180,
 };
 
 /**
- * Whether a coordinate falls inside the historical site perimeter.
+ * Whether a coordinate falls inside the valid global coordinate range.
  * @param {number} latitude
  * @param {number} longitude
  * @returns {boolean}
  */
 export function isWithinMuseumBounds(latitude, longitude) {
+  const numLat = parseFloat(latitude);
+  const numLng = parseFloat(longitude);
+  if (Number.isNaN(numLat) || Number.isNaN(numLng)) return false;
   return (
-    latitude >= MUSEUM_BOUNDS.minLat &&
-    latitude <= MUSEUM_BOUNDS.maxLat &&
-    longitude >= MUSEUM_BOUNDS.minLng &&
-    longitude <= MUSEUM_BOUNDS.maxLng
+    numLat >= -90 &&
+    numLat <= 90 &&
+    numLng >= -180 &&
+    numLng <= 180
   );
 }

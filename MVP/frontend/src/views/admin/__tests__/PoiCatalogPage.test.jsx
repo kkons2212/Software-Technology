@@ -128,10 +128,10 @@ describe('PoiCatalogPage', () => {
 
     const latInput = screen.getByLabelText(/latitude \(wgs84\)/i);
     await user.clear(latInput);
-    await user.type(latInput, '10.1234');
+    await user.type(latInput, '95.1234');
 
     expect(
-      await screen.findByText(/warning: coordinates must reside within cu chi site boundary/i)
+      await screen.findByText(/cảnh báo: tọa độ không hợp lệ/i)
     ).toBeInTheDocument();
 
     const saveBtn = screen.getByRole('button', { name: /save & digitize/i });

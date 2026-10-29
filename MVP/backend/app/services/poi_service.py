@@ -60,6 +60,9 @@ def _is_within_cu_chi_bounds(latitude: float, longitude: float) -> bool:
 
     """
 
+    if getattr(settings, "ALLOW_GLOBAL_COORDINATES", False):
+        return -90.0 <= latitude <= 90.0 and -180.0 <= longitude <= 180.0
+
     bounds = settings.CU_CHI_BOUNDS
 
     return (
