@@ -31,7 +31,7 @@
 | [**US 06.2**](#-us-062-webhook-driven-24-hour-visiting-session-activation) | Webhook-Driven 24-Hour Visiting Session Activation | UC-06 | Must Have | 5 SP | 4 Tasks | [ ] 0/4 |
 | [**US 06.3**](#-us-063-multi-device-session-recovery-via-session-code) | Multi-Device Session Recovery via Session Code | UC-06 | Should Have | 3 SP | 3 Tasks | [ ] 0/3 |
 | [**US 06.4**](#-us-064-content-protection--narrativeaudio-decryption-access-control) | Content Protection & Narrative/Audio Decryption Access Control | UC-06 | Must Have | 5 SP | 4 Tasks | [ ] 0/4 |
-| **TOTAL** | **23 User Stories (14 Complete)** | — | — | **100 SP** | **92 Tasks** | **[x] 65/92 Tasks** |
+| **TOTAL** | **23 User Stories (17 Complete)** | — | — | **102 SP** | **92 Tasks** | **[x] 72/92 Tasks** |
 
 ---
 
