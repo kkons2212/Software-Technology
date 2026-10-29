@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import AdminHeader from '../../components/admin/AdminHeader.jsx';
 import { getPois, createPoi, togglePoiVisibility } from '../../api/poiApi.js';
 import DeactivateConfirmModal from '../../components/admin/DeactivateConfirmModal.jsx';
 import AdminMapPicker from '../../components/admin/AdminMapPicker.jsx';
@@ -168,7 +167,6 @@ export default function PoiCatalogPage() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <AdminHeader />
 
       <main className="mx-auto max-w-7xl px-6 py-8">
         {/* Page Heading & Actions Bar */}

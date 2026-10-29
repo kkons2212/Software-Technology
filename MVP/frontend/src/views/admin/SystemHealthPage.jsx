@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState } from 'react';
-import AdminHeader from '../../components/admin/AdminHeader.jsx';
 import StorageHealthBanner from '../../components/admin/StorageHealthBanner.jsx';
 import CleanOrphansModal from '../../components/admin/CleanOrphansModal.jsx';
 import { getSystemHealth } from '../../api/systemApi.js';
@@ -39,7 +38,6 @@ export default function SystemHealthPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
-      <AdminHeader />
 
       <main className="mx-auto w-full max-w-6xl px-6 py-8">
         {/* Top notification toast */}
