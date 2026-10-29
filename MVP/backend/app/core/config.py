@@ -91,6 +91,25 @@ class Settings(BaseSettings):
     SERVICE_FEE_CURRENCY: str = DEFAULT_SERVICE_FEE_CURRENCY
     CLOUDFLARE_TUNNEL_URL: str = DEFAULT_CLOUDFLARE_TUNNEL_URL
 
+    # AI & Cloud Translation Settings (US 04.4)
+    GEMINI_API_KEYS: str = os.getenv("GEMINI_API_KEYS", "")
+    GOOGLE_TRANSLATE_API_KEYS: str = os.getenv("GOOGLE_TRANSLATE_API_KEYS", "")
+    GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
+
+    @property
+    def gemini_keys_list(self) -> list[str]:
+        if not self.GEMINI_API_KEYS:
+            return []
+        return [k.strip() for k in self.GEMINI_API_KEYS.split(",") if k.strip()]
+
+    @property
+    def google_translate_keys_list(self) -> list[str]:
+        if not self.GOOGLE_TRANSLATE_API_KEYS:
+            return []
+        return [
+            k.strip() for k in self.GOOGLE_TRANSLATE_API_KEYS.split(",") if k.strip()
+        ]
+
     # Cu Chi Tunnels Geographic Perimeter Bounds
     CU_CHI_BOUNDS: dict = {
         "min_lat": 11.136361,

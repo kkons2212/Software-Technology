@@ -1,17 +1,42 @@
 """Unit tests for DeepTranslatorClient integration adapter (US 04.4 - TSK-04.4.1)."""
 
+from unittest.mock import AsyncMock, MagicMock
+
+import httpx
 import pytest
 
 from app.integrations.deep_translator_client import (
     DeepTranslatorClient,
+    KeyPool,
     TranslationError,
 )
 
 
 @pytest.fixture()
 def client():
-    """Build client with minimal backoff delay for fast test execution."""
-    return DeepTranslatorClient(max_retries=3, base_delay=0.001, chunk_size=100)
+    """Build client with minimal backoff delay and empty key pools for fast test execution."""
+    return DeepTranslatorClient(
+        gemini_keys=[],
+        google_translate_keys=[],
+        max_retries=3,
+        base_delay=0.001,
+        chunk_size=100,
+    )
+
+
+def test_key_pool_should_rotate_keys_in_circular_order():
+    pool = KeyPool(["key1", "key2", "key3"])
+    assert pool.has_keys() is True
+    assert pool.get_next_key() == "key1"
+    assert pool.get_next_key() == "key2"
+    assert pool.get_next_key() == "key3"
+    assert pool.get_next_key() == "key1"
+
+
+def test_key_pool_handles_empty_or_whitespace_keys():
+    pool = KeyPool(["  ", "", None])
+    assert pool.has_keys() is False
+    assert pool.get_next_key() is None
 
 
 @pytest.mark.asyncio
@@ -27,6 +52,7 @@ async def test_should_resolve_target_language_mapping(client):
     assert client._resolve_target_language("en") == "en"
     assert client._resolve_target_language("ja") == "ja"
     assert client._resolve_target_language("ko") == "ko"
+    assert client._resolve_target_language("fr") == "fr"
 
 
 @pytest.mark.asyncio
@@ -77,7 +103,6 @@ async def test_should_raise_translation_error_when_retries_exhausted(mocker, cli
 
 @pytest.mark.asyncio
 async def test_should_chunk_and_reassemble_long_text(mocker, client):
-    # client.chunk_size is 100
     long_text = (
         "Đoạn văn thứ nhất dài vừa đủ để kiểm tra hệ thống.\n"
         "Đoạn văn thứ hai cũng dài vừa đủ tiếp theo để vượt qua ngưỡng giới hạn một trăm ký tự.\n"
@@ -112,3 +137,92 @@ async def test_should_translate_exhibit_narrative_fields(mocker, client):
     assert narrative["title"] == "Bếp Hoàng Cầm in ja"
     assert narrative["short_description"] == "Bếp dã chiến giấu khói in ja"
     assert narrative["description"] == "Sáng chế bếp độc đáo thời kháng chiến in ja"
+
+
+@pytest.mark.asyncio
+async def test_should_translate_via_gemini_and_rotate_keys_on_rate_limit():
+    mock_http = MagicMock(spec=httpx.AsyncClient)
+    # First key gets 429 Rate Limit, Second key gets 200 with translation
+    resp_429 = MagicMock(status_code=429, text="Rate limit exceeded")
+    resp_200 = MagicMock(
+        status_code=200,
+        json=lambda: {
+            "candidates": [
+                {
+                    "content": {
+                        "parts": [
+                            {"text": "Hoang Cam smokeless stove - historic field stove"}
+                        ]
+                    }
+                }
+            ]
+        },
+    )
+    mock_http.post = AsyncMock(side_effect=[resp_429, resp_200])
+
+    client = DeepTranslatorClient(
+        gemini_keys=["gemini_key_1", "gemini_key_2"],
+        http_client=mock_http,
+    )
+
+    result = await client.translate_text("Bếp Hoàng Cầm", target_lang="en")
+    assert result == "Hoang Cam smokeless stove - historic field stove"
+    assert mock_http.post.call_count == 2
+    # Check that both keys were queried
+    first_url = mock_http.post.call_args_list[0][0][0]
+    second_url = mock_http.post.call_args_list[1][0][0]
+    assert "key=gemini_key_1" in first_url
+    assert "key=gemini_key_2" in second_url
+
+
+@pytest.mark.asyncio
+async def test_should_fallback_from_gemini_to_google_cloud_on_error():
+    mock_http = MagicMock(spec=httpx.AsyncClient)
+    # Gemini fails with 500, Google Cloud succeeds with 200
+    gemini_resp = MagicMock(status_code=500, text="Internal Gemini error")
+    google_resp = MagicMock(
+        status_code=200,
+        json=lambda: {
+            "data": {
+                "translations": [{"translatedText": "Cu Chi Tunnels &amp; History"}]
+            }
+        },
+    )
+    mock_http.post = AsyncMock(side_effect=[gemini_resp, google_resp])
+
+    client = DeepTranslatorClient(
+        gemini_keys=["gemini_key_1"],
+        google_translate_keys=["google_key_1"],
+        http_client=mock_http,
+    )
+
+    result = await client.translate_text("Địa đạo Củ Chi", target_lang="en")
+    # html.unescape should unescape &amp;
+    assert result == "Cu Chi Tunnels & History"
+    assert mock_http.post.call_count == 2
+
+
+@pytest.mark.asyncio
+async def test_should_fallback_to_free_translator_when_all_cloud_keys_fail(mocker):
+    mock_http = MagicMock(spec=httpx.AsyncClient)
+    # All cloud services return 500 error
+    mock_http.post = AsyncMock(
+        return_value=MagicMock(status_code=500, text="Quota exhausted")
+    )
+
+    client = DeepTranslatorClient(
+        gemini_keys=["gemini_key_1"],
+        google_translate_keys=["google_key_1"],
+        http_client=mock_http,
+        max_retries=1,
+    )
+
+    mocker.patch.object(
+        client,
+        "_translate_sync",
+        return_value="Free fallback translation result",
+    )
+
+    result = await client.translate_text("Địa đạo", target_lang="en")
+    assert result == "Free fallback translation result"
+    client._translate_sync.assert_called_once()
