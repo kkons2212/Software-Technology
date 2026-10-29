@@ -367,7 +367,7 @@ export default function VisitorTourPage({
         </div>
       )}
 
-      {errorMessage && (
+      {errorMessage && !errorMessage.includes('outside the museum grounds') && (
         <div className="visitor-location-banner" role="status">
           <span className="visitor-location-banner-dot" aria-hidden="true" />
           <span>{errorMessage}</span>
@@ -397,6 +397,7 @@ export default function VisitorTourPage({
           isActivated={isPoiActivated(selectedPoi.poi_id || selectedPoi.id)}
           onDirectionsClick={handleDirectionsClick}
           isRoutingActive={!!isRoutingToSelectedPoi}
+          language={selectedLanguage}
         />
       )}
 
@@ -412,6 +413,7 @@ export default function VisitorTourPage({
         isOpen={isRestoreOpen}
         onClose={() => setIsRestoreOpen(false)}
         onSuccess={handleRestoreSuccess}
+        language={selectedLanguage}
       />
     </main>
   );

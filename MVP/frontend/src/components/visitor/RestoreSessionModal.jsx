@@ -10,11 +10,13 @@ import { createPortal } from 'react-dom';
 import { AlertCircle, CheckCircle2, KeyRound, Loader2, X } from 'lucide-react';
 import { restoreSession } from '../../api/sessionApi.js';
 import { useVisitorSession } from '../../contexts/VisitorSessionContext.jsx';
+import { getVisitorText } from '../../locales/visitorTranslations.js';
 
 export default function RestoreSessionModal({
   isOpen = false,
   onClose,
   onSuccess,
+  language = 'vi',
 }) {
   const [sessionCodeInput, setSessionCodeInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -157,10 +159,10 @@ export default function RestoreSessionModal({
               id="restore-modal-title"
               className="text-lg font-bold text-slate-900 leading-tight"
             >
-              Khôi phục quyền truy cập
+              {getVisitorText('restoreModalTitle', language)}
             </h2>
             <p className="text-xs text-slate-500 mt-0.5">
-              Nhập mã phiên để tiếp tục sử dụng audio guide
+              {getVisitorText('restoreModalSubtitle', language)}
             </p>
           </div>
         </div>
@@ -246,7 +248,7 @@ export default function RestoreSessionModal({
                   <span>Đã khôi phục</span>
                 </>
               ) : (
-                <span>Khôi phục phiên</span>
+                <span>{getVisitorText('restoreSessionBtn', language)}</span>
               )}
             </button>
           </div>
