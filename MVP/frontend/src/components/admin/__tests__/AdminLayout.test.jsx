@@ -23,3 +23,4 @@ describe('AdminLayout', () => {
     expect(screen.getByText('Child Page Content')).toBeInTheDocument();
   });
 });
+

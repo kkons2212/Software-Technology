@@ -64,11 +64,10 @@ export default function AdminNavbar() {
                 <Link
                   key={path}
                   to={path}
-                  className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
-                    isActive
-                      ? 'bg-slate-100 text-slate-900 font-semibold'
-                      : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-                  }`}
+                  className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${isActive
+                    ? 'bg-slate-100 text-slate-900 font-semibold'
+                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                    }`}
                 >
                   {label}
                 </Link>
@@ -102,3 +101,4 @@ export default function AdminNavbar() {
     </>
   );
 }
+

@@ -74,8 +74,8 @@ export default function StorageHealthBanner({
                 {isCritical ? 'Critical Alert: ' : 'Warning: '}
               </span>
               {isCritical
-                ? 'Audio cache capacity exceeds 95%. Media uploads and audio generation are restricted.'
-                : 'Audio cache capacity exceeds 85%. Please prune orphaned files or expand storage quota.'}
+                ? 'Audio cache capacity exceeds 95%. Please prune files before generating new audio or uploading media.'
+                : 'Audio cache capacity exceeds 85%. Please prune orphaned files.'}
             </div>
           </div>
 

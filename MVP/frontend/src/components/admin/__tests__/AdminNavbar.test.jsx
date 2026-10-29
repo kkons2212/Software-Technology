@@ -69,3 +69,4 @@ describe('AdminNavbar', () => {
     expect(brandLink).toHaveAttribute('href', '/admin');
   });
 });
+
