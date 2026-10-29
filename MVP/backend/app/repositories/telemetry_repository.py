@@ -3,7 +3,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import func
+from sqlalchemy import and_, func
 from sqlalchemy.orm import Session
 
 from app.models.language import LanguageCode
@@ -57,7 +57,7 @@ class TelemetryRepository:
         return trigger
 
     # -------------------------------------------------------------------------
-    # Read-only analytics aggregations (US 05.2)
+    # Read-only analytics aggregations (US 05.2 & US 05.1)
     # Each query filters or groups on an existing DDL index so the admin summary
     # stays sub-second: idx_POITrigger_Trigger_at, idx_POITrigger_PoiID and
     # idx_VisitorSession_PreferredLanguage.
@@ -143,3 +143,35 @@ class TelemetryRepository:
             .all()
         )
         return [(row[0], row[1], int(row[2])) for row in rows]
+
+    def list_heatmap_poi_triggers(
+        self, range_start: datetime
+    ) -> list[tuple[str, str, float, float, int]]:
+        """Aggregate POI trigger coordinates and volumes for heatmap (US 05.1).
+
+        Uses OUTER JOIN so all active exhibits appear on the map. Exhibits with zero
+        triggers are returned with trigger_count = 0 (rendered as gray markers).
+        """
+        rows = (
+            self.db.query(
+                POI.PoiID,
+                POI.Title,
+                POI.Latitude,
+                POI.Longitude,
+                func.count(POITrigger.TriggerID).label("trigger_count"),
+            )
+            .outerjoin(
+                POITrigger,
+                and_(
+                    POITrigger.PoiID == POI.PoiID,
+                    POITrigger.Trigger_at >= range_start,
+                ),
+            )
+            .filter(POI.is_active.is_(True))
+            .group_by(POI.PoiID, POI.Title, POI.Latitude, POI.Longitude)
+            .order_by(func.count(POITrigger.TriggerID).desc(), POI.Title.asc())
+            .all()
+        )
+        return [
+            (row[0], row[1], float(row[2]), float(row[3]), int(row[4])) for row in rows
+        ]

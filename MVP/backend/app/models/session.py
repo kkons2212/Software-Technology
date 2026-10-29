@@ -4,7 +4,7 @@ import datetime
 import uuid
 
 from sqlalchemy import Column, DateTime, ForeignKey, String, func
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, synonym
 
 from app.core.database import Base
 
@@ -41,3 +41,14 @@ class VisitorSession(Base):
     triggers = relationship(
         "POITrigger", back_populates="session", cascade="all, delete-orphan"
     )
+
+    # Synonyms for snake_case attribute access
+    session_id = synonym("SessionID")
+    session_code = synonym("SessionCode")
+    session_token = synonym("SessionToken")
+    device_fingerprint = synonym("DeviceFingerPrint")
+    status = synonym("Status")
+    activate_at = synonym("Activate_at")
+    expire_at = synonym("Expire_at")
+    create_at = synonym("Create_at")
+    preferred_language = synonym("PreferredLanguage")

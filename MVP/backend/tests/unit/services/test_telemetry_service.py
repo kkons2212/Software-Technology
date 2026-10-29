@@ -282,3 +282,71 @@ def test_should_reject_unknown_time_range(db_session):
 
     with pytest.raises(ValueError, match="Unsupported analytics time range"):
         service.get_analytics_summary("LAST_QUARTER")
+
+
+# ---------------------------------------------------------------------------
+# US 05.1: Real-Time Visitor Density Heatmap Service Tests
+# ---------------------------------------------------------------------------
+def test_should_return_empty_heatmap_data_when_no_records_exist(
+    db_session, frozen_clock
+):
+    service = build_service(db_session)
+    heatmap = service.get_heatmap_data("LAST_7_DAYS")
+
+    assert heatmap.time_range == "LAST_7_DAYS"
+    assert heatmap.total_points == 0
+    assert heatmap.max_trigger_count == 0
+    assert heatmap.points == []
+
+
+def test_should_aggregate_heatmap_points_and_calculate_normalized_intensity(
+    db_session, frozen_clock
+):
+    service = build_service(db_session)
+    # Seed 2 POIs with coordinates
+    seed_poi(db_session, "poi_heat_1", "Commanding Bunker")
+    seed_poi(db_session, "poi_heat_2", "Fighting Bunker")
+    seed_session(db_session, "sess_heat", "vi", FROZEN_NOW - timedelta(days=1))
+
+    # Seed 3 triggers for poi_heat_1 and 1 trigger for poi_heat_2
+    for idx in range(3):
+        seed_trigger(
+            db_session,
+            f"trg_heat_1_{idx}",
+            "sess_heat",
+            "poi_heat_1",
+            100,
+            FROZEN_NOW - timedelta(hours=2),
+        )
+    seed_trigger(
+        db_session,
+        "trg_heat_2_0",
+        "sess_heat",
+        "poi_heat_2",
+        50,
+        FROZEN_NOW - timedelta(hours=2),
+    )
+
+    heatmap = service.get_heatmap_data("LAST_7_DAYS")
+
+    assert heatmap.total_points == 2
+    assert heatmap.max_trigger_count == 3
+
+    p1 = next(p for p in heatmap.points if p.poi_id == "poi_heat_1")
+    assert p1.poi_title == "Commanding Bunker"
+    assert p1.trigger_count == 3
+    assert p1.intensity == 1.0
+    assert p1.lat == 11.1432
+    assert p1.lng == 106.4631
+
+    p2 = next(p for p in heatmap.points if p.poi_id == "poi_heat_2")
+    assert p2.poi_title == "Fighting Bunker"
+    assert p2.trigger_count == 1
+    assert p2.intensity == round(1 / 3, 3)
+
+
+def test_should_reject_unknown_time_range_in_get_heatmap_data(db_session):
+    service = build_service(db_session)
+
+    with pytest.raises(ValueError, match="Unsupported analytics time range"):
+        service.get_heatmap_data("INVALID_RANGE")

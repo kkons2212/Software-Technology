@@ -14,6 +14,7 @@ from app.core.database import SessionLocal, get_db
 from app.repositories.audit_repository import AuditRepository
 from app.repositories.language_repository import LanguageRepository
 from app.repositories.poi_repository import POIRepository
+from app.repositories.session_repository import SessionRepository
 from app.repositories.transaction_repository import TransactionRepository
 from app.repositories.translation_repository import TranslationRepository
 from app.repositories.user_repository import UserRepository
@@ -112,11 +113,20 @@ def get_transaction_repository(db: Session = Depends(get_db)) -> TransactionRepo
     return TransactionRepository(db)
 
 
+def get_session_repository(db: Session = Depends(get_db)) -> SessionRepository:
+    """Build a SessionRepository bound to the request session."""
+    return SessionRepository(db)
+
+
 def get_payment_service(
     transaction_repo: TransactionRepository = Depends(get_transaction_repository),
+    session_repo: SessionRepository = Depends(get_session_repository),
 ) -> PaymentService:
-    """Build the PaymentService for checkout order creation and polling."""
-    return PaymentService(transaction_repo=transaction_repo)
+    """Build the PaymentService for checkout order creation, polling, and webhook activation."""
+    return PaymentService(
+        transaction_repo=transaction_repo,
+        session_repo=session_repo,
+    )
 
 
 def get_storage_service(db: Session = Depends(get_db)):

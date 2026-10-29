@@ -1,8 +1,9 @@
 // =============================================================================
-// TIER 1 - ADMIN VISITOR ANALYTICS DASHBOARD (US 05.2)
-// Renders the 4 KPI summary cards, the Top 10 exhibit ranking and the visitor
-// language distribution. All network access is delegated to the Tier-3 API
-// layer (`api/analyticsApi.js`) to preserve the frontend 3-tier boundary.
+// TIER 1 - ADMIN VISITOR ANALYTICS DASHBOARD (US 05.2 & US 05.1)
+// Renders the 4 KPI summary cards, the visitor density heatmap, the Top 10
+// exhibit ranking and the visitor language distribution. All network access is
+// delegated to the Tier-3 API layer (`api/analyticsApi.js`) to preserve the
+// frontend 3-tier boundary.
 // =============================================================================
 
 import { useEffect, useMemo, useState } from 'react';
@@ -10,6 +11,7 @@ import {
   ANALYTICS_TIME_RANGES,
   getAnalyticsSummary,
 } from '../../api/analyticsApi.js';
+import AnalyticsHeatmap from '../../components/admin/AnalyticsHeatmap.jsx';
 
 // Reporting windows exposed by the segmented control, in display order.
 const RANGE_OPTIONS = [
@@ -109,8 +111,8 @@ export default function AnalyticsDashboard() {
           Visitor Analytics &amp; Exhibition Impact
         </h1>
         <p className="mt-1 text-sm text-slate-600">
-          Aggregated visitor KPIs, Top 10 exhibit rankings, average tour duration and
-          language demographics (US 05.2).
+          Aggregated visitor KPIs, Top 10 exhibit rankings, average tour duration,
+          spatial density heatmap and language demographics (US 05.1 &amp; US 05.2).
         </p>
       </div>
 
@@ -132,8 +134,8 @@ export default function AnalyticsDashboard() {
               onClick={() => handleRangeChange(option.value)}
               className={`inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded px-4 text-sm font-semibold ${
                 isActive
-                  ? 'bg-slate-800 text-white'
-                  : 'bg-white text-slate-700 hover:bg-slate-100'
+                  ? 'bg-slate-900 text-white'
+                  : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900'
               }`}
             >
               {option.label}
@@ -142,29 +144,44 @@ export default function AnalyticsDashboard() {
         })}
       </div>
 
-      {/* Loading State */}
+      {/* Loading Skeleton */}
       {isLoading && (
         <div
           role="status"
-          data-testid="analytics-loading-state"
-          className="mt-8 py-12 text-center text-sm text-slate-500"
+          aria-live="polite"
+          data-testid="analytics-loading-skeleton"
+          className="mt-6 space-y-4"
         >
-          Loading visitor analytics...
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {[...Array(4)].map((_, index) => (
+              <div
+                key={index}
+                className="h-24 animate-pulse rounded-md bg-slate-200"
+              />
+            ))}
+          </div>
+          <div className="h-64 animate-pulse rounded-md bg-slate-200" />
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+            <div className="h-64 animate-pulse rounded-md bg-slate-200" />
+            <div className="h-64 animate-pulse rounded-md bg-slate-200" />
+          </div>
+          <span className="sr-only">Loading visitor analytics...</span>
         </div>
       )}
 
-      {/* Non-blocking Error State with Retry */}
+      {/* Error state */}
       {!isLoading && errorMessage && (
         <div
           role="alert"
           data-testid="analytics-error-state"
-          className="mt-8 flex flex-wrap items-center justify-between gap-3 rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-700"
+          className="mt-6 rounded-md border border-red-200 bg-red-50 p-4 text-red-900"
         >
-          <span>{errorMessage}</span>
+          <p className="text-sm font-medium">{errorMessage}</p>
           <button
             type="button"
+            data-testid="analytics-retry-button"
             onClick={handleRetry}
-            className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-md border border-red-300 bg-white px-4 text-sm font-semibold text-red-700 hover:bg-red-100"
+            className="mt-3 inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded bg-red-700 px-4 text-sm font-semibold text-white hover:bg-red-800"
           >
             Retry
           </button>
@@ -221,6 +238,9 @@ export default function AnalyticsDashboard() {
               </p>
             </div>
           </div>
+
+          {/* AC-05.1.1 & AC-05.1.2: Real-Time Visitor Density Heatmap Component */}
+          <AnalyticsHeatmap range={range} onRangeChange={handleRangeChange} />
 
           <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
             {/* AC-05.2.2: Top 10 POI ranking as a flat horizontal bar list */}

@@ -7,6 +7,7 @@ import { getPublishedLanguages } from '../../api/languageApi.js';
 import { getMapPois } from '../../api/poiApi.js';
 import { getWalkingRoute } from '../../api/tourApi.js';
 import { useAudioPlayer } from '../../contexts/AudioPlayerContext.jsx';
+import { useVisitorSession } from '../../contexts/VisitorSessionContext.jsx';
 import { useGeofenceTrigger } from '../../hooks/useGeofenceTrigger.js';
 import { reportPoiTrigger } from '../../api/telemetryApi.js';
 import useGeolocation from '../../hooks/useGeolocation.js';
@@ -14,9 +15,6 @@ import { calculateHaversineDistance } from '../../utils/haversine.js';
 import { MAIN_ENTRANCE } from '../../utils/museumBounds.js';
 
 const PREFERRED_LANGUAGE_KEY = 'museum_preferred_lang';
-const VISITOR_SESSION_CODE_KEY = 'visitor_session_code';
-const VISITOR_SESSION_TOKEN_KEY = 'visitor_session_token';
-const VISITOR_EXPIRES_AT_KEY = 'visitor_expires_at';
 const DEFAULT_LANGUAGE = 'vi';
 const MILLISECONDS_PER_SECOND = 1000;
 
@@ -34,12 +32,6 @@ export default function VisitorTourPage({
   const [poiError, setPoiError] = useState('');
   const [poiRetryCount, setPoiRetryCount] = useState(0);
   const [selectedPoiId, setSelectedPoiId] = useState(null);
-  const [internalSessionCode, setInternalSessionCode] = useState(() => {
-    return window.localStorage.getItem(VISITOR_SESSION_CODE_KEY) || '';
-  });
-  const [internalExpiresAt, setInternalExpiresAt] = useState(() => {
-    return window.localStorage.getItem(VISITOR_EXPIRES_AT_KEY) || null;
-  });
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [activeRoute, setActiveRoute] = useState(null);
   const { currentPoi, isPlaying, completedPoiIds, play } = useAudioPlayer();
@@ -48,19 +40,19 @@ export default function VisitorTourPage({
   // duration cannot be measured at the moment of entry.
   const dwellStartByPoiIdRef = useRef({});
 
-  const effectiveSessionCode = sessionCode || internalSessionCode;
-  const effectiveExpiresAt = expiresAt || internalExpiresAt;
-
-  const handleProximityTrigger = useCallback((poi) => {
-    play(poi);
-    // The language is captured alongside the entry instant: the backend mints
-    // the visitor session from this value, so it must be the visitor's choice at
-    // the time the exhibit was actually triggered.
-    dwellStartByPoiIdRef.current[String(poi.poi_id || poi.id)] = {
-      startedAtMs: Date.now(),
-      language: selectedLanguage,
-    };
-  }, [play, selectedLanguage]);
+  const handleProximityTrigger = useCallback(
+    (poi) => {
+      play(poi);
+      // The language is captured alongside the entry instant: the backend mints
+      // the visitor session from this value, so it must be the visitor's choice at
+      // the time the exhibit was actually triggered.
+      dwellStartByPoiIdRef.current[String(poi.poi_id || poi.id)] = {
+        startedAtMs: Date.now(),
+        language: selectedLanguage,
+      };
+    },
+    [play, selectedLanguage]
+  );
 
   const { activeGeofencePois } = useGeofenceTrigger({
     userLocation: location,
@@ -129,9 +121,9 @@ export default function VisitorTourPage({
           }
 
           return (
-            availableLanguages.find(({ code }) => code === DEFAULT_LANGUAGE)?.code
-            ?? availableLanguages[0]?.code
-            ?? ''
+            availableLanguages.find(({ code }) => code === DEFAULT_LANGUAGE)?.code ??
+            availableLanguages[0]?.code ??
+            ''
           );
         });
       })
@@ -264,15 +256,11 @@ export default function VisitorTourPage({
       ? new Date(rawExpiry).toISOString()
       : new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
 
-    if (code) {
-      window.localStorage.setItem(VISITOR_SESSION_CODE_KEY, code);
-      setInternalSessionCode(code);
-    }
-    if (token) {
-      window.localStorage.setItem(VISITOR_SESSION_TOKEN_KEY, token);
-    }
-    window.localStorage.setItem(VISITOR_EXPIRES_AT_KEY, expiry);
-    setInternalExpiresAt(expiry);
+    activateSession({
+      sessionCode: code,
+      sessionToken: token,
+      expiresAt: expiry,
+    });
   };
 
   return (
