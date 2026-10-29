@@ -41,6 +41,7 @@ export function MiniAudioPlayer() {
     skip,
     seek,
     setPlaybackRate,
+    stop,
   } = useAudioPlayer();
 
   if (!currentPoi) {
@@ -66,6 +67,10 @@ export function MiniAudioPlayer() {
 
   const handleSpeedSelect = (rate) => {
     setPlaybackRate(rate);
+  };
+
+  const handleClose = () => {
+    stop?.();
   };
 
   return (
@@ -147,36 +152,65 @@ export function MiniAudioPlayer() {
           )}
         </div>
 
-        {/* Speed Controls (0.8x | 1.0x | 1.2x) */}
-        <div
-          data-testid="playback-speed-controls"
-          style={{ display: 'flex', gap: '4px', flexShrink: 0 }}
-        >
-          {SPEED_OPTIONS.map((rate) => {
-            const isSelected = playbackRate === rate;
-            return (
-              <button
-                key={rate}
-                type="button"
-                onClick={() => handleSpeedSelect(rate)}
-                data-testid={`speed-button-${rate}`}
-                aria-label={`Set playback speed ${rate}x`}
-                style={{
-                  fontSize: '11px',
-                  fontWeight: isSelected ? 700 : 500,
-                  padding: '2px 6px',
-                  borderRadius: '4px',
-                  border: isSelected ? '1px solid #1E293B' : '1px solid #CBD5E1',
-                  backgroundColor: isSelected ? '#1E293B' : '#F8FAFC',
-                  color: isSelected ? '#FFFFFF' : '#475569',
-                  cursor: 'pointer',
-                  minHeight: '26px',
-                }}
-              >
-                {rate}x
-              </button>
-            );
-          })}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+          {/* Speed Controls (0.8x | 1.0x | 1.2x) */}
+          <div
+            data-testid="playback-speed-controls"
+            style={{ display: 'flex', gap: '4px' }}
+          >
+            {SPEED_OPTIONS.map((rate) => {
+              const isSelected = playbackRate === rate;
+              return (
+                <button
+                  key={rate}
+                  type="button"
+                  onClick={() => handleSpeedSelect(rate)}
+                  data-testid={`speed-button-${rate}`}
+                  aria-label={`Set playback speed ${rate}x`}
+                  style={{
+                    fontSize: '11px',
+                    fontWeight: isSelected ? 700 : 500,
+                    padding: '2px 6px',
+                    borderRadius: '4px',
+                    border: isSelected ? '1px solid #1E293B' : '1px solid #CBD5E1',
+                    backgroundColor: isSelected ? '#1E293B' : '#F8FAFC',
+                    color: isSelected ? '#FFFFFF' : '#475569',
+                    cursor: 'pointer',
+                    minHeight: '26px',
+                  }}
+                >
+                  {rate}x
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Close/Dismiss Audio Player */}
+          <button
+            type="button"
+            onClick={handleClose}
+            data-testid="close-player-button"
+            aria-label="Close audio player"
+            title="Đóng audio player"
+            style={{
+              width: '26px',
+              height: '26px',
+              borderRadius: '50%',
+              border: '1px solid #CBD5E1',
+              backgroundColor: '#F8FAFC',
+              color: '#64748B',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              fontSize: '13px',
+              fontWeight: 700,
+              padding: 0,
+              lineHeight: 1,
+            }}
+          >
+            ✕
+          </button>
         </div>
       </div>
 

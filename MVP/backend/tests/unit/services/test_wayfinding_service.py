@@ -93,10 +93,11 @@ def test_should_calculate_dynamic_walking_route(mock_poi_repository, active_poi)
     assert result.properties.origin.lng == origin_lng
 
 
-def test_should_meet_calculation_latency_sla(mock_poi_repository, active_poi):
+def test_should_meet_calculation_latency_sla(mock_poi_repository, active_poi, monkeypatch):
     """Validates calculation latency is strictly < 500ms (DoD requirement)."""
     mock_poi_repository.get_by_id.return_value = active_poi
     service = WayfindingService(poi_repository=mock_poi_repository)
+    monkeypatch.setattr(service, "_try_osrm_foot_route", lambda *args, **kwargs: None)
 
     start_time = time.perf_counter()
     for _ in range(10):

@@ -99,7 +99,9 @@ async def test_should_translate_exhibit_narrative_fields(mocker, client):
     mocker.patch.object(
         client,
         "translate_text",
-        side_effect=lambda text, target_lang, source_lang="vi": f"{text} in {target_lang}",
+        side_effect=lambda text,
+        target_lang,
+        source_lang="vi": f"{text} in {target_lang}",
     )
 
     narrative = await client.translate_exhibit_narrative(

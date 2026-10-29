@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
 from app.core.database import SessionLocal, get_db
+from app.repositories.audio_repository import AudioRepository
 from app.repositories.audit_repository import AuditRepository
 from app.repositories.language_repository import LanguageRepository
 from app.repositories.poi_repository import POIRepository
@@ -19,6 +20,7 @@ from app.repositories.transaction_repository import TransactionRepository
 from app.repositories.translation_repository import TranslationRepository
 from app.repositories.user_repository import UserRepository
 from app.schemas.auth_schema import AdminProfileResponse
+from app.services.audio_service import AudioService
 from app.services.auth_service import AuthService
 from app.services.language_service import LanguageService
 from app.services.payment_service import PaymentService
@@ -67,11 +69,23 @@ def get_current_admin(authorization: str | None = Header(None)) -> str:
     return "admin"
 
 
-def get_poi_service(db: Session = Depends(get_db)) -> POIService:
-    """Dependency provider injecting POIRepository & AuditRepository into POIService."""
+def get_session_repository(db: Session = Depends(get_db)) -> SessionRepository:
+    """Build a SessionRepository bound to the request session."""
+    return SessionRepository(db)
+
+
+def get_poi_service(
+    db: Session = Depends(get_db),
+    session_repo: SessionRepository = Depends(get_session_repository),
+) -> POIService:
+    """Dependency provider injecting POIRepository, AuditRepository & SessionRepository into POIService."""
     poi_repo = POIRepository(db)
     audit_repo = AuditRepository(db)
-    return POIService(poi_repo=poi_repo, audit_repo=audit_repo)
+    return POIService(
+        poi_repo=poi_repo,
+        audit_repo=audit_repo,
+        session_repo=session_repo,
+    )
 
 
 def get_telemetry_service(db: Session = Depends(get_db)):
@@ -158,6 +172,22 @@ def get_storage_service(db: Session = Depends(get_db)):
         audit_repository=AuditRepository(db),
         audio_dir=audio_dir,
         settings=settings,
+    )
+
+
+def get_audio_repository(db: Session = Depends(get_db)) -> AudioRepository:
+    """Build an AudioRepository bound to the request session."""
+    return AudioRepository(db)
+
+
+def get_audio_service(
+    audio_repo: AudioRepository = Depends(get_audio_repository),
+    session_repo: SessionRepository = Depends(get_session_repository),
+) -> AudioService:
+    """Build the AudioService for protected audio streaming."""
+    return AudioService(
+        audio_repository=audio_repo,
+        session_repository=session_repo,
     )
 
 

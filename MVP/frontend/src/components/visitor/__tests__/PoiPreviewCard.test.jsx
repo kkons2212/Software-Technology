@@ -6,6 +6,7 @@ const poi = {
   id: 'poi-1',
   title: 'Cu Chi Tunnel',
   short_description: 'Explore the underground tunnel system.',
+  description: 'Full unredacted historical narrative of the tunnels.',
   image_url: 'https://example.test/tunnel.jpg',
   latitude: 11.14,
   longitude: 106.46,
@@ -78,6 +79,41 @@ describe('PoiPreviewCard', () => {
 
     fireEvent.keyDown(window, { key: 'Escape' });
     expect(onDismiss).toHaveBeenCalledTimes(2);
+  });
+
+  it('renders content paywall gate and calls onUnlock when unlock button is clicked', () => {
+    const onUnlock = vi.fn();
+    render(
+      <PoiPreviewCard
+        poi={poi}
+        location={null}
+        onPlayAudio={vi.fn()}
+        onDismiss={vi.fn()}
+        onUnlock={onUnlock}
+        isUnlocked={false}
+      />,
+    );
+
+    expect(screen.getByTestId('content-paywall-gate')).toBeInTheDocument();
+    const unlockBtn = screen.getByTestId('paywall-unlock-btn');
+    fireEvent.click(unlockBtn);
+    expect(onUnlock).toHaveBeenCalledOnce();
+  });
+
+  it('renders unlocked full description when visitor session is active', () => {
+    render(
+      <PoiPreviewCard
+        poi={poi}
+        location={null}
+        onPlayAudio={vi.fn()}
+        onDismiss={vi.fn()}
+        isUnlocked={true}
+      />,
+    );
+
+    expect(screen.queryByTestId('content-paywall-gate')).not.toBeInTheDocument();
+    expect(screen.getByTestId('content-unlocked')).toBeInTheDocument();
+    expect(screen.getByText(poi.description)).toBeInTheDocument();
   });
 
   it('toggles button label from Directions to Clear Route when routing is active', () => {

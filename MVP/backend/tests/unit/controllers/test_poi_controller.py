@@ -55,7 +55,7 @@ def test_should_create_poi_via_json_payload(client, db_session):
 def test_should_create_poi_via_multipart_form_data_with_image(client, db_session):
     _ensure_admin_user(db_session)
 
-    image_content = b"\xFF\xD8\xFF\xE0" + b"0" * 500  # Minimal valid JPG header bytes
+    image_content = b"\xff\xd8\xff\xe0" + b"0" * 500  # Minimal valid JPG header bytes
     files = {"image": ("test_cover.jpg", io.BytesIO(image_content), "image/jpeg")}
     data = {
         "title": "Địa đạo Bến Dược",
@@ -297,3 +297,92 @@ def test_should_return_404_when_updating_nonexistent_poi(client, db_session):
         json={"title": "Non-existent"},
     )
     assert res.status_code == 404
+
+
+def test_should_gate_content_for_unpaid_visitor(client, db_session):
+    _ensure_admin_user(db_session)
+    create_res = client.post(
+        "/api/v1/admin/pois",
+        json={
+            "title": "Hầm Bí Mật",
+            "short_description": "Tóm tắt ngắn gọn",
+            "description": "Nội dung lịch sử chuyên sâu cần bảo vệ",
+            "latitude": 11.1440,
+            "longitude": 106.4640,
+            "radius": 30,
+        },
+    )
+    assert create_res.status_code == 201
+    poi_id = create_res.json()["poi_id"]
+
+    # 1. Unpaid GET /api/v1/pois
+    res_list = client.get("/api/v1/pois")
+    assert res_list.status_code == 200
+    items = res_list.json()["data"]
+    target = next((item for item in items if item["id"] == poi_id), None)
+    assert target is not None
+    assert target.get("is_locked") is not False
+    assert target.get("description") is None
+    assert target.get("audio_url") is None
+    assert target["short_description"] == "Tóm tắt ngắn gọn"
+
+    # 2. Unpaid GET /api/v1/pois/{poi_id}
+    res_detail = client.get(f"/api/v1/pois/{poi_id}")
+    assert res_detail.status_code == 200
+    detail = res_detail.json()["data"]
+    assert detail.get("is_locked") is not False
+    assert detail.get("description") is None
+    assert detail.get("audio_url") is None
+
+
+def test_should_unlock_content_for_paid_visitor_with_active_session(client, db_session):
+    from datetime import datetime, timedelta
+
+    from app.models.session import VisitorSession
+
+    _ensure_admin_user(db_session)
+    create_res = client.post(
+        "/api/v1/admin/pois",
+        json={
+            "title": "Bệnh Viện Dã Chiến",
+            "short_description": "Tóm tắt bệnh viện",
+            "description": "Toàn văn lịch sử bệnh viện dã chiến dưới lòng đất",
+            "latitude": 11.1442,
+            "longitude": 106.4642,
+            "radius": 30,
+        },
+    )
+    poi_id = create_res.json()["poi_id"]
+
+    # Create active session
+    session = VisitorSession(
+        SessionID="SES_PAID_GATE",
+        SessionCode="CCT-GATE01",
+        SessionToken="paid_gate_token_123",
+        Status="ACTIVE",
+        Activate_at=datetime.utcnow(),
+        Expire_at=datetime.utcnow() + timedelta(hours=24),
+    )
+    db_session.add(session)
+    db_session.commit()
+
+    # 1. Paid GET /api/v1/pois with token query param
+    res_list = client.get(f"/api/v1/pois?token={session.SessionToken}")
+    assert res_list.status_code == 200
+    items = res_list.json()["data"]
+    target = next((item for item in items if item["id"] == poi_id), None)
+    assert target is not None
+    assert target["is_locked"] is False
+    assert target["description"] == "Toàn văn lịch sử bệnh viện dã chiến dưới lòng đất"
+    assert "/api/v1/audio/" in target["audio_url"]
+
+    # 2. Paid GET /api/v1/pois/{poi_id} with X-Session-Token header
+    res_detail = client.get(
+        f"/api/v1/pois/{poi_id}",
+        headers={"X-Session-Token": session.SessionToken},
+    )
+    assert res_detail.status_code == 200
+    detail = res_detail.json()["data"]
+    assert detail["is_locked"] is False
+    assert detail["description"] == "Toàn văn lịch sử bệnh viện dã chiến dưới lòng đất"
+    assert "/api/v1/audio/" in detail["audio_url"]
