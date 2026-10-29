@@ -29,6 +29,7 @@ export default function CheckoutModal({
   onClose,
   onSuccess,
   preferredLanguage = 'vi',
+  onOpenRestore,
 }) {
   const [paymentMethod, setPaymentMethod] = useState('VIETQR');
   const [order, setOrder] = useState(null);
@@ -404,9 +405,23 @@ export default function CheckoutModal({
               </div>
             )}
 
+            {/* Restore Session Prompt Link */}
+            <div className="mt-4 pt-3 border-t border-slate-100 text-center">
+              <button
+                type="button"
+                onClick={() => {
+                  onClose?.();
+                  onOpenRestore?.();
+                }}
+                className="text-xs text-blue-600 hover:text-blue-800 font-medium inline-flex items-center gap-1 hover:underline transition"
+              >
+                <span>Đã mua vé trước đó? Nhập mã phiên để khôi phục</span>
+              </button>
+            </div>
+
             {/* Sandbox Simulation Bar (Dev & Test Convenience) */}
             {order && (
-              <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
+              <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between">
                 <span className="text-[10px] text-slate-400">Sandbox Test Mode:</span>
                 <button
                   type="button"
