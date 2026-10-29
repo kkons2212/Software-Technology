@@ -1,7 +1,5 @@
 import { useEffect, useRef } from 'react';
 import { calculateHaversineDistance } from '../../utils/haversine.js';
-import ContentPaywallGate from './ContentPaywallGate.jsx';
-import { useVisitorSession } from '../../contexts/VisitorSessionContext.jsx';
 
 const SWIPE_DISMISS_DISTANCE_PX = 48;
 
@@ -22,18 +20,10 @@ export default function PoiPreviewCard({
   location,
   onPlayAudio,
   onDismiss,
-  onUnlock,
-  isUnlocked: propIsUnlocked,
   onDirectionsClick,
   isRoutingActive = false,
 }) {
   const touchStartYRef = useRef(null);
-  const session = useVisitorSession();
-  const isUnlocked =
-    typeof propIsUnlocked === 'boolean'
-      ? propIsUnlocked
-      : Boolean(session?.isUnlocked || (poi && poi.is_locked === false));
-
   const distance = calculateHaversineDistance(location, {
     lat: poi.latitude,
     lng: poi.longitude,
@@ -92,12 +82,7 @@ export default function PoiPreviewCard({
           <div className="poi-preview-copy">
             <h2 id="poi-preview-title">{poi.title}</h2>
             <p className="poi-preview-distance">{formatDistance(distance)}</p>
-            <ContentPaywallGate
-              isUnlocked={isUnlocked}
-              shortDescription={poi.short_description || 'No preview summary available.'}
-              fullDescription={poi.description}
-              onUnlock={onUnlock}
-            />
+            <p className="poi-preview-summary">{poi.short_description || 'No preview summary available.'}</p>
           </div>
         </div>
         <div className="poi-preview-actions">

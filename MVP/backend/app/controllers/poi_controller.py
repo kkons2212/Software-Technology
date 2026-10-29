@@ -6,7 +6,6 @@ from fastapi import (
     APIRouter,
     BackgroundTasks,
     Depends,
-    Header,
     Query,
     Request,
     status,
@@ -25,65 +24,19 @@ from app.services.poi_service import POIService
 router = APIRouter(tags=["POI Management"])
 
 
-def _extract_session_token(
-    token: str | None = None,
-    x_session_token: str | None = None,
-    authorization: str | None = None,
-) -> str | None:
-    if token and token.strip():
-        return token.strip()
-    if x_session_token and x_session_token.strip():
-        return x_session_token.strip()
-    if authorization and authorization.startswith("Bearer "):
-        bearer_token = authorization[7:].strip()
-        if bearer_token:
-            return bearer_token
-    return None
-
-
 @router.get(
     "/api/v1/pois",
     response_model=APIResponse[list[POIMapItem]],
-    response_model_exclude_none=True,
     tags=["visitor"],
-    summary="Get active POIs for visitor map with content gating",
+    summary="Get active POIs for visitor map",
 )
 def get_map_pois(
     service: Annotated[POIService, Depends(get_poi_service)],
     language: Annotated[str | None, Query(min_length=1, max_length=20)] = None,
-    token: Annotated[str | None, Query(description="Session token")] = None,
-    x_session_token: Annotated[str | None, Header(alias="X-Session-Token")] = None,
-    authorization: Annotated[str | None, Header()] = None,
 ) -> APIResponse[list[POIMapItem]]:
-    """Return active exhibits for the visitor interactive map, optionally localized and gated."""
-    session_token = _extract_session_token(token, x_session_token, authorization)
-    pois = service.list_map_pois(language, session_token=session_token)
+    """Return active exhibits for the visitor interactive map, optionally localized."""
+    pois = service.list_map_pois(language)
     return APIResponse(data=pois)
-
-
-@router.get(
-    "/api/v1/pois/{poi_id}",
-    response_model=APIResponse[POIMapItem],
-    response_model_exclude_none=True,
-    tags=["visitor"],
-    summary="Get active exhibit detail for visitor with content gating (TSK-06.4.2)",
-)
-def get_visitor_poi_detail(
-    poi_id: str,
-    service: Annotated[POIService, Depends(get_poi_service)],
-    language: Annotated[str | None, Query(min_length=1, max_length=20)] = None,
-    token: Annotated[str | None, Query(description="Session token")] = None,
-    x_session_token: Annotated[str | None, Header(alias="X-Session-Token")] = None,
-    authorization: Annotated[str | None, Header()] = None,
-) -> APIResponse[POIMapItem]:
-    """Fetch exhibit profile for visitor with content gating based on session token."""
-    session_token = _extract_session_token(token, x_session_token, authorization)
-    poi_item = service.get_visitor_poi_detail(
-        poi_id=poi_id,
-        language_code=language,
-        session_token=session_token,
-    )
-    return APIResponse(data=poi_item)
 
 
 @router.post(

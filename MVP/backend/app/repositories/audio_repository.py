@@ -148,33 +148,6 @@ class AudioRepository:
         rows = self.db.query(POIAudio.audio_url).all()
         return {r[0] for r in rows if r[0]}
 
-    def get_audio_by_poi_and_language(
-        self, poi_id: str, language_id: str = "vi"
-    ) -> POIAudio | None:
-        """Find active audio record for a specific POI and language, with fallback to 'vi'."""
-        audio = (
-            self.db.query(POIAudio)
-            .join(POITranslation, POIAudio.stran_id == POITranslation.stran_id)
-            .filter(
-                POITranslation.poi_id == poi_id,
-                POITranslation.language_id == language_id,
-                POIAudio.status == AUDIO_STATUS_READY,
-            )
-            .first()
-        )
-        if not audio and language_id != "vi":
-            audio = (
-                self.db.query(POIAudio)
-                .join(POITranslation, POIAudio.stran_id == POITranslation.stran_id)
-                .filter(
-                    POITranslation.poi_id == poi_id,
-                    POITranslation.language_id == "vi",
-                    POIAudio.status == AUDIO_STATUS_READY,
-                )
-                .first()
-            )
-        return audio
-
     def ping_database(self) -> float:
         """Measure database connection round-trip latency in milliseconds."""
         start = time.perf_counter()

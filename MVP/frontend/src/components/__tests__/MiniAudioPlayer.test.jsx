@@ -21,7 +21,6 @@ describe('MiniAudioPlayer (US 01.3.3 Floating Mini Audio Player UI)', () => {
     skip: vi.fn(),
     seek: vi.fn(),
     setPlaybackRate: vi.fn(),
-    stop: vi.fn(),
   };
 
   const renderWithContext = (contextOverrides = {}) => {
@@ -135,17 +134,6 @@ describe('MiniAudioPlayer (US 01.3.3 Floating Mini Audio Player UI)', () => {
     renderWithContext({ error: 'Network playback failed' });
 
     expect(screen.getByTestId('player-error')).toHaveTextContent('Network playback failed');
-  });
-
-  it('invokes stop when close button is clicked', () => {
-    const stop = vi.fn();
-    renderWithContext({ stop });
-
-    const closeBtn = screen.getByTestId('close-player-button');
-    expect(closeBtn).toBeInTheDocument();
-    fireEvent.click(closeBtn);
-
-    expect(stop).toHaveBeenCalledTimes(1);
   });
 
   it('formatTime helper properly formats edge values', () => {

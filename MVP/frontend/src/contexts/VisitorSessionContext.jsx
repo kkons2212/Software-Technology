@@ -28,22 +28,8 @@ export function formatSessionCountdown(milliseconds) {
   return `${hours}h ${String(minutes).padStart(2, '0')}m`;
 }
 
-function shouldClearFromUrl() {
-  if (typeof window === 'undefined' || !window.location?.search) {
-    return false;
-  }
-  const params = new URLSearchParams(window.location.search);
-  return (
-    params.get('reset') === '1' ||
-    params.get('reset') === 'true' ||
-    params.get('clear') === '1' ||
-    params.get('clear') === 'true' ||
-    params.has('reset_session')
-  );
-}
-
 function getStoredValue(primaryKey, fallbackKey) {
-  if (typeof window === 'undefined' || !window.localStorage || shouldClearFromUrl()) {
+  if (typeof window === 'undefined' || !window.localStorage) {
     return '';
   }
   return (
@@ -149,15 +135,6 @@ export function VisitorSessionProvider({ children }) {
 
   // Interval timer for real-time countdown and automatic expiration
   useEffect(() => {
-    // Check if URL requests a reset (e.g. ?reset=1 or ?reset_session=1)
-    if (shouldClearFromUrl()) {
-      clearSession();
-      if (window.history?.replaceState) {
-        window.history.replaceState({}, '', window.location.pathname);
-      }
-      return undefined;
-    }
-
     if (!expiresAt || !sessionCode) {
       setTimeRemaining(0);
       return undefined;

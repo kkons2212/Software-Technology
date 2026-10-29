@@ -39,15 +39,13 @@ export default function VisitorTourPage({
 
   const {
     sessionCode: contextSessionCode,
-    sessionToken: contextSessionToken,
     expiresAt: contextExpiresAt,
-    isUnlocked,
     activateSession,
-    clearSession,
   } = useVisitorSession();
 
   const effectiveSessionCode = sessionCode || contextSessionCode;
   const effectiveExpiresAt = expiresAt || contextExpiresAt;
+
   const { currentPoi, isPlaying, completedPoiIds, play } = useAudioPlayer();
   // Dwell windows opened by a real geofence trigger, keyed by POI id. The
   // telemetry row is only reported once the visitor leaves the zone, because a
@@ -163,11 +161,7 @@ export default function VisitorTourPage({
     setSelectedPoiId(null);
     setPoiError('');
     const controller = new AbortController();
-    getMapPois({
-      language: selectedLanguage,
-      token: contextSessionToken,
-      signal: controller.signal,
-    })
+    getMapPois({ language: selectedLanguage, signal: controller.signal })
       .then((availablePois) => {
         setPois(availablePois);
         setPoiError('');
@@ -181,7 +175,7 @@ export default function VisitorTourPage({
       });
 
     return () => controller.abort();
-  }, [poiRetryCount, selectedLanguage, contextSessionToken]);
+  }, [poiRetryCount, selectedLanguage]);
 
   const selectedPoi = pois.find(({ id }) => String(id) === String(selectedPoiId));
   const playingPoiId = isPlaying ? currentPoi?.id ?? null : null;
@@ -306,7 +300,6 @@ export default function VisitorTourPage({
         sessionCode={effectiveSessionCode}
         expiresAt={effectiveExpiresAt}
         onUnlock={handleUnlockClick}
-        onClearSession={clearSession}
         onRestoreSession={() => setIsRestoreOpen(true)}
       />
 
@@ -353,8 +346,6 @@ export default function VisitorTourPage({
           location={hasLiveLocation ? location : null}
           onPlayAudio={handlePlayAudio}
           onDismiss={handleDismissPOIPreview}
-          onUnlock={handleUnlockClick}
-          isUnlocked={isUnlocked || Boolean(effectiveSessionCode)}
           onDirectionsClick={handleDirectionsClick}
           isRoutingActive={!!isRoutingToSelectedPoi}
         />

@@ -11,11 +11,8 @@ const POIS_ENDPOINT = '/api/v1/pois';
 /**
  * Public visitor API: Load POIs configured for the map.
  */
-export async function getMapPois({ language, token, signal } = {}) {
-  const params = new URLSearchParams();
-  if (language) params.set('language', language);
-  if (token) params.set('token', token);
-  const query = params.toString() ? `?${params.toString()}` : '';
+export async function getMapPois({ language, signal } = {}) {
+  const query = language ? `?language=${encodeURIComponent(language)}` : '';
   const response = await apiClient.get(`${POIS_ENDPOINT}${query}`, { signal });
 
   if (Array.isArray(response)) {
@@ -26,22 +23,6 @@ export async function getMapPois({ language, token, signal } = {}) {
   }
 
   throw new Error('The map POIs response has an invalid format.');
-}
-
-/**
- * Public visitor API: Load detailed POI exhibit profile with visitor content gating.
- */
-export async function getVisitorPoiDetail(poiId, { language, token, signal } = {}) {
-  const params = new URLSearchParams();
-  if (language) params.set('language', language);
-  if (token) params.set('token', token);
-  const query = params.toString() ? `?${params.toString()}` : '';
-  const response = await apiClient.get(`${POIS_ENDPOINT}/${poiId}${query}`, { signal });
-
-  if (response?.data) {
-    return response.data;
-  }
-  return response;
 }
 
 /**

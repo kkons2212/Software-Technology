@@ -11,7 +11,9 @@ from app.models.translation import POITranslation
 
 
 class POIRepository:
+
     def __init__(self, db: Session):
+
         self.db = db
 
     def create(self, poi: POI) -> POI:
@@ -37,9 +39,11 @@ class POIRepository:
         query = self.db.query(POI)
 
         if is_active_only:
+
             query = query.filter(POI.is_active.is_(True))
 
         if search:
+
             query = query.filter(POI.title.ilike(f"%{search}%"))
 
         total = query.count()
@@ -72,6 +76,7 @@ class POIRepository:
         """List active POIs for public visitor map, optionally localized with published translations and ready audio."""
 
         if not language_code:
+
             statement = select(POI).where(POI.is_active.is_(True)).order_by(POI.poi_id)
 
             return [(poi, None) for poi in self.db.scalars(statement)]
@@ -117,12 +122,15 @@ class POIRepository:
         """
 
         if latitude is not None:
+
             poi.latitude = Decimal(str(latitude))
 
         if longitude is not None:
+
             poi.longitude = Decimal(str(longitude))
 
         if radius is not None:
+
             poi.radius = radius
 
         self.db.commit()
@@ -145,24 +153,31 @@ class POIRepository:
         """Update exhibit metadata, coordinates, and radius."""
 
         if title is not None:
+
             poi.title = title
 
         if short_description is not None:
+
             poi.short_description = short_description
 
         if description is not None:
+
             poi.description = description
 
         if image_url is not None:
+
             poi.image_url = image_url
 
         if latitude is not None:
+
             poi.latitude = Decimal(str(latitude))
 
         if longitude is not None:
+
             poi.longitude = Decimal(str(longitude))
 
         if radius is not None:
+
             poi.radius = radius
 
         self.db.commit()
@@ -195,13 +210,17 @@ class POIRepository:
         )
 
         if vi_trans:
+
             if title is not None:
+
                 vi_trans.title = title
 
             if short_description is not None:
+
                 vi_trans.short_description = short_description
 
             if description is not None:
+
                 vi_trans.description = description
 
         foreign_translations = (
@@ -211,6 +230,7 @@ class POIRepository:
         )
 
         for trans in foreign_translations:
+
             trans.status = "NEEDS_UPDATE"
 
         self.db.commit()

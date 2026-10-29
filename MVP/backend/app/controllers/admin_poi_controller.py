@@ -27,9 +27,7 @@ router = APIRouter(
 )
 
 
-@router.put(
-    "/{poi_id}", response_model=POIUpdateResponse, response_model_exclude_none=True
-)
+@router.put("/{poi_id}", response_model=POIUpdateResponse)
 def update_poi(
     poi_id: str,
     payload: POIUpdateRequest,

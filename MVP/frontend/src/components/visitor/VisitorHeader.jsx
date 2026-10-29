@@ -17,7 +17,6 @@ export default function VisitorHeader({
   sessionCode = '',
   expiresAt = null,
   onUnlock,
-  onClearSession,
   onRestoreSession,
 }) {
   const [remainingMilliseconds, setRemainingMilliseconds] = useState(0);
@@ -68,36 +67,10 @@ export default function VisitorHeader({
         </select>
 
         {hasActiveSession ? (
-          <div
-            className="visitor-session-badge"
-            aria-label={`Session ${sessionCode}, ${formatTimeRemaining(remainingMilliseconds)} remaining`}
-            style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
-          >
+          <div className="visitor-session-badge" aria-label={`Session ${sessionCode}, ${formatTimeRemaining(remainingMilliseconds)} remaining`}>
             <span>{sessionCode}</span>
             <span aria-hidden="true">·</span>
             <span>{formatTimeRemaining(remainingMilliseconds)}</span>
-            {onClearSession && (
-              <button
-                type="button"
-                className="visitor-clear-session-btn"
-                onClick={onClearSession}
-                title="Reset session"
-                aria-label="Clear session"
-                style={{
-                  background: 'rgba(0, 0, 0, 0.1)',
-                  border: 'none',
-                  color: 'inherit',
-                  cursor: 'pointer',
-                  padding: '2px 6px',
-                  lineHeight: 1,
-                  fontSize: '11px',
-                  fontWeight: 'bold',
-                  borderRadius: '9999px',
-                }}
-              >
-                ✕
-              </button>
-            )}
           </div>
         ) : (
           <div className="flex items-center gap-1.5">

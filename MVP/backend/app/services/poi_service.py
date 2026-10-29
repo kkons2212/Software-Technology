@@ -20,7 +20,6 @@ from app.models.poi import POI
 from app.models.translation import POITranslation
 from app.repositories.audit_repository import AuditRepository
 from app.repositories.poi_repository import POIRepository
-from app.repositories.session_repository import SessionRepository
 from app.schemas.poi_schema import (
     POICreateRequest,
     POIListResponse,
@@ -122,7 +121,6 @@ class POIService:
         audit_repo: AuditRepository | None = None,
         repository: POIRepository | None = None,
         audit_repository: AuditRepository | None = None,
-        session_repo: SessionRepository | None = None,
     ):
         # `poi_repo`/`audit_repo` are the dependency-injection names, while
 
@@ -139,7 +137,6 @@ class POIService:
         self.audit_repo = audit_repo or audit_repository
 
         self.audit_repository = self.audit_repo
-        self.session_repo = session_repo
 
     async def save_cover_image(self, file: UploadFile) -> str:
         """Validate and write uploaded image to disk."""
@@ -311,61 +308,13 @@ class POIService:
 
         return self._build_poi_response(poi, status_list)
 
-    def list_map_pois(
-        self,
-        language_code: str | None = None,
-        session_token: str | None = None,
-    ) -> list[POIMapItem]:
-        """List active POIs for visitor map with content gating based on session token (US 06.4)."""
-        is_unlocked = False
-        if session_token and self.session_repo:
-            is_unlocked = self.session_repo.is_session_active(session_token.strip())
+    def list_map_pois(self, language_code: str | None = None) -> list[POIMapItem]:
+        """List active POIs for visitor map, localized for the requested language."""
 
         return [
-            self._to_map_item(
-                poi,
-                translation,
-                is_unlocked=is_unlocked,
-                session_token=session_token if is_unlocked else None,
-                lang=language_code,
-            )
+            self._to_map_item(poi, translation)
             for poi, translation in self.repository.list_active_pois(language_code)
         ]
-
-    def get_visitor_poi_detail(
-        self,
-        poi_id: str,
-        language_code: str | None = None,
-        session_token: str | None = None,
-    ) -> POIMapItem:
-        """Fetch active exhibit detail for visitor with content gating (US 06.4)."""
-        poi = self.repository.get_by_id(poi_id)
-        if poi is None or not poi.is_active:
-            raise ApiError(
-                status_code=status.HTTP_404_NOT_FOUND,
-                code=POI_NOT_FOUND_ERROR_CODE,
-                message=POI_NOT_FOUND_ERROR_MESSAGE,
-            )
-
-        selected_trans = None
-        if language_code:
-            translations = self.repository.get_translations_by_poi_id(poi_id)
-            for t in translations:
-                if t.language_id == language_code and t.status == "PUBLISHED":
-                    selected_trans = t
-                    break
-
-        is_unlocked = False
-        if session_token and self.session_repo:
-            is_unlocked = self.session_repo.is_session_active(session_token.strip())
-
-        return self._to_map_item(
-            poi,
-            selected_trans,
-            is_unlocked=is_unlocked,
-            session_token=session_token if is_unlocked else None,
-            lang=language_code,
-        )
 
     def update_poi(
         self,
@@ -550,40 +499,17 @@ class POIService:
         return self._build_poi_response(updated_poi, status_list)
 
     @staticmethod
-    def _to_map_item(
-        poi: POI,
-        translation: POITranslation | None = None,
-        is_unlocked: bool = False,
-        session_token: str | None = None,
-        lang: str | None = None,
-    ) -> POIMapItem:
-        title = translation.title if translation else poi.title
-        short_desc = (
-            translation.short_description if translation else poi.short_description
-        )
-        full_desc = translation.description if translation else poi.description
-        selected_lang = lang or (translation.language_id if translation else "vi")
-
-        if is_unlocked:
-            desc = full_desc
-            audio_url = f"/api/v1/audio/{poi.poi_id}?language={selected_lang}&token={session_token}"
-            locked_state = False
-        else:
-            desc = None
-            audio_url = None
-            locked_state = None
-
+    def _to_map_item(poi: POI, translation: POITranslation | None = None) -> POIMapItem:
         return POIMapItem(
             id=poi.poi_id,
-            title=title,
-            short_description=short_desc,
-            description=desc,
+            title=translation.title if translation else poi.title,
+            short_description=(
+                translation.short_description if translation else poi.short_description
+            ),
             image_url=poi.image_url,
             latitude=float(poi.latitude),
             longitude=float(poi.longitude),
             trigger_radius=poi.radius,
-            audio_url=audio_url,
-            is_locked=locked_state,
         )
 
     @staticmethod

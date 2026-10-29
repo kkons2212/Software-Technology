@@ -147,4 +147,3 @@ describe('VisitorSessionContext', () => {
     expect(formatSessionCountdown(86400000)).toBe('24h 00m');
   });
 });
-
