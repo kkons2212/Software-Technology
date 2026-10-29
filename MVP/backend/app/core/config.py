@@ -43,6 +43,9 @@ DEFAULT_AUDIO_GUIDE_SERVICE_FEE = int(os.getenv("AUDIO_GUIDE_SERVICE_FEE", "5000
 DEFAULT_SERVICE_FEE_CURRENCY = os.getenv("SERVICE_FEE_CURRENCY", "VND")
 DEFAULT_CLOUDFLARE_TUNNEL_URL = os.getenv("CLOUDFLARE_TUNNEL_URL", "").strip()
 DEFAULT_TRANSLATION_PACING_DELAY = float(os.getenv("TRANSLATION_PACING_DELAY", "1.5"))
+DEFAULT_OFFLINE_TRANSLATOR_URL = os.getenv(
+    "OFFLINE_TRANSLATOR_URL", "http://localhost:8001"
+).strip()
 
 
 class Settings(BaseSettings):
@@ -98,6 +101,7 @@ class Settings(BaseSettings):
     GEMINI_API_KEYS: str = os.getenv("GEMINI_API_KEYS", "")
     GOOGLE_TRANSLATE_API_KEYS: str = os.getenv("GOOGLE_TRANSLATE_API_KEYS", "")
     GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
+    OFFLINE_TRANSLATOR_URL: str = DEFAULT_OFFLINE_TRANSLATOR_URL
 
     @property
     def gemini_keys_list(self) -> list[str]:

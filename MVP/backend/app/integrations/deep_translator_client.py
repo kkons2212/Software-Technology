@@ -1,4 +1,4 @@
-"""Integration client for automated text translation using Gemini AI, Google Translate Cloud REST, and deep-translator."""
+"""Integration client for automated text translation using Gemini AI, Google Translate Cloud REST, Offline Translator Container, and deep-translator."""
 
 import asyncio
 import html
@@ -45,13 +45,17 @@ class KeyPool:
         return key
 
 
+_DEFAULT_SENTINEL = object()
+
+
 class DeepTranslatorClient:
     """Multi-provider asynchronous translation client with cascade fallback and key rotation.
 
     Hierarchy:
     1. Gemini AI (Prompt-engineered museum & cultural heritage translation).
     2. Google Cloud Translation REST API (Round-robin API Key pool).
-    3. deep-translator GoogleTranslator (Free web fallback, 0 config required).
+    3. Offline Translator API (Local/LAN Docker container kocoten/offline-translator-api).
+    4. deep-translator GoogleTranslator (Free web fallback, 0 config required).
     """
 
     NARRATIVE_DELIMITER: ClassVar[str] = "\n<<<---POI_FIELD_BREAK--->>>\n"
@@ -70,6 +74,7 @@ class DeepTranslatorClient:
         self,
         gemini_keys: list[str] | None = None,
         google_translate_keys: list[str] | None = None,
+        offline_url: str | None | object = _DEFAULT_SENTINEL,
         gemini_model: str | None = None,
         max_retries: int = DEFAULT_MAX_RETRIES,
         base_delay: float = DEFAULT_BASE_DELAY,
@@ -89,6 +94,12 @@ class DeepTranslatorClient:
 
         self.gemini_pool = KeyPool(resolved_gemini_keys)
         self.google_pool = KeyPool(resolved_google_keys)
+        if offline_url is not _DEFAULT_SENTINEL:
+            self.offline_url = offline_url
+        else:
+            self.offline_url = getattr(
+                settings, "OFFLINE_TRANSLATOR_URL", "http://localhost:8001"
+            )
         self.gemini_model = gemini_model or getattr(
             settings, "GEMINI_MODEL", "gemini-1.5-flash"
         )
@@ -99,14 +110,24 @@ class DeepTranslatorClient:
 
     async def _get_http_client(self) -> httpx.AsyncClient:
         """Return shared or new non-blocking HTTP client."""
-        if self._http_client is None:
-            self._http_client = httpx.AsyncClient(timeout=DEFAULT_HTTP_TIMEOUT)
+        if self._http_client is not None:
+            is_closed = getattr(self._http_client, "is_closed", False)
+            if is_closed is not True:
+                return self._http_client
+        self._http_client = httpx.AsyncClient(timeout=DEFAULT_HTTP_TIMEOUT)
         return self._http_client
 
     def _resolve_target_language(self, language_id: str) -> str:
         """Resolve database LanguageID to target language code."""
         normalized = language_id.strip().lower()
         return self.LANGUAGE_MAPPING.get(normalized, normalized)
+
+    def _resolve_offline_target_language(self, language_id: str) -> str:
+        """Resolve database language code to offline container supported format."""
+        normalized = language_id.strip().lower()
+        if normalized in ("zh-cn", "zh-tw", "zh"):
+            return "zh"
+        return normalized
 
     async def _translate_with_gemini(
         self, text: str, source_lang: str, target_lang: str
@@ -436,6 +457,90 @@ class DeepTranslatorClient:
         )
         return None
 
+    async def _translate_with_offline_api(
+        self, text: str, source_lang: str, target_lang: str
+    ) -> str | None:
+        """Translate text using local/LAN Offline Translator Docker container API."""
+        if not self.offline_url:
+            return None
+
+        resolved_target = self._resolve_offline_target_language(target_lang)
+        resolved_source = self._resolve_offline_target_language(source_lang)
+
+        supported_offline = {"vi", "en", "ja", "zh", "fr", "ko"}
+        if (
+            resolved_target not in supported_offline
+            or resolved_source not in supported_offline
+        ):
+            return None
+
+        client = await self._get_http_client()
+        url = f"{self.offline_url.rstrip('/')}/translate"
+        payload = {
+            "text": text,
+            "source_lang": resolved_source,
+            "target_lang": resolved_target,
+        }
+
+        try:
+            response = await client.post(url, json=payload)
+            if response.status_code == 200:
+                data = response.json()
+                translated = data.get("translated")
+                if translated:
+                    logger.info(
+                        "Successfully translated via Offline Translator API (%s -> %s)",
+                        source_lang,
+                        target_lang,
+                    )
+                    return translated.strip()
+            logger.warning(
+                "Offline Translator API returned status %d: %s",
+                response.status_code,
+                response.text[:200],
+            )
+        except Exception as exc:
+            logger.warning(
+                "Offline Translator API unavailable or error at %s: %s",
+                url,
+                exc,
+            )
+
+        return None
+
+    async def _translate_narrative_with_offline_api(
+        self,
+        title: str,
+        short_description: str | None,
+        description: str | None,
+        source_lang: str,
+        target_lang: str,
+    ) -> dict[str, str | None] | None:
+        """Translate exhibit narrative fields using local Offline Translator API."""
+        tr_title = await self._translate_with_offline_api(
+            title, source_lang, target_lang
+        )
+        if tr_title is None:
+            return None
+
+        tr_short = None
+        if short_description and short_description.strip():
+            tr_short = await self._translate_with_offline_api(
+                short_description, source_lang, target_lang
+            )
+
+        tr_desc = None
+        if description and description.strip():
+            tr_desc = await self._translate_with_offline_api(
+                description, source_lang, target_lang
+            )
+
+        return {
+            "title": tr_title,
+            "short_description": tr_short,
+            "description": tr_desc,
+        }
+
     def _split_text_into_chunks(self, text: str) -> list[str]:
         """Split text exceeding GoogleTranslator character limit into manageable chunks."""
         if len(text) <= self.chunk_size:
@@ -617,7 +722,7 @@ class DeepTranslatorClient:
         target_lang: str,
         source_lang: str = "vi",
     ) -> str:
-        """Translate text through cascade providers: Gemini -> Google Cloud -> Free Web fallback.
+        """Translate text through cascade providers: Gemini -> Google Cloud -> Offline Container -> Free Web fallback.
 
         US 04.4 - AC-04.4.1: Seamless multi-provider fault tolerance.
         """
@@ -643,7 +748,15 @@ class DeepTranslatorClient:
             if cloud_result is not None:
                 return cloud_result
 
-        # 3. Cascade Tier 3: Free deep-translator (Guaranteed zero-configuration fallback)
+        # 3. Cascade Tier 3: Local Offline Translator Container API
+        if self.offline_url:
+            offline_result = await self._translate_with_offline_api(
+                text, resolved_source, resolved_target
+            )
+            if offline_result is not None:
+                return offline_result
+
+        # 4. Cascade Tier 4: Free deep-translator (Guaranteed zero-configuration fallback)
         return await self._translate_with_free_deep_translator(
             text, resolved_source, resolved_target
         )
@@ -656,12 +769,13 @@ class DeepTranslatorClient:
         target_lang: str,
         source_lang: str = "vi",
     ) -> dict[str, str | None]:
-        """Translate all fields of an exhibit narrative in 1 batched request per tier (Direction 1).
+        """Translate all fields of an exhibit narrative in 1 batched request per tier.
 
         Hierarchy:
         1. Gemini AI: 1 prompt returning JSON with title, short_description, description.
         2. Google Cloud REST: 1 HTTP call with q=[title, short_desc, desc].
-        3. deep-translator: 1 HTTP call with delimited text.
+        3. Offline Container API: Local/LAN call with sub-millisecond response.
+        4. deep-translator: 1 HTTP call with delimited text.
         """
         resolved_target = self._resolve_target_language(target_lang)
         resolved_source = self._resolve_target_language(source_lang)
@@ -682,7 +796,15 @@ class DeepTranslatorClient:
             if cloud_result is not None:
                 return cloud_result
 
-        # 3. Cascade Tier 3: Free deep-translator
+        # 3. Cascade Tier 3: Local Offline Translator Container API
+        if self.offline_url:
+            offline_result = await self._translate_narrative_with_offline_api(
+                title, short_description, description, resolved_source, resolved_target
+            )
+            if offline_result is not None:
+                return offline_result
+
+        # 4. Cascade Tier 4: Free deep-translator
         return await self._translate_narrative_with_free_deep_translator(
             title, short_description, description, resolved_source, resolved_target
         )
