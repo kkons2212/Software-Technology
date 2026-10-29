@@ -186,3 +186,15 @@ def test_should_use_osrm_foot_route_when_available(
 
     assert result.geometry.coordinates == mock_curved_coords
     assert result.properties.total_distance_meters == 210.0
+
+
+def test_should_traverse_38_nodes_trail_graph_with_dijkstra(mock_poi_repository):
+    """Verifies complete 38-node connectivity and Dijkstra pathfinding across distant waypoints."""
+    service = WayfindingService(poi_repository=mock_poi_repository)
+    assert len(service._graph) == 38
+
+    # Path from TRAIL_NODE_01 (Entrance) to TRAIL_NODE_38 (Southernmost point)
+    path = service._dijkstra_shortest_path("TRAIL_NODE_01", "TRAIL_NODE_38")
+    assert len(path) >= 5
+    assert path[0] == "TRAIL_NODE_01"
+    assert path[-1] == "TRAIL_NODE_38"
