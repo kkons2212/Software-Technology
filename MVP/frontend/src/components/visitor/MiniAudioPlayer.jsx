@@ -27,7 +27,7 @@ export function formatTime(totalSeconds) {
   return `${formattedMinutes}:${formattedSeconds}`;
 }
 
-export function MiniAudioPlayer({ inline = false, poiId = null }) {
+export function MiniAudioPlayer({ inline = false, poiId = null, onPlay = null }) {
   const audioContext = useAudioPlayer();
   const {
     currentPoi,
@@ -76,7 +76,13 @@ export function MiniAudioPlayer({ inline = false, poiId = null }) {
   };
 
   const handleTogglePlay = () => {
-    togglePlay();
+    if (isPlaying) {
+      togglePlay();
+    } else if (inline && onPlay) {
+      onPlay();
+    } else {
+      togglePlay();
+    }
   };
 
   const handleSpeedSelect = (rate) => {

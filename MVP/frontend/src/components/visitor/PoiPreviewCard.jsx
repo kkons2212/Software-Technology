@@ -121,7 +121,7 @@ export default function PoiPreviewCard({
         </div>
 
         {/* Embedded audio player between the preview content and action buttons */}
-        <MiniAudioPlayer inline poiId={poi.id || poi.poi_id} />
+        <MiniAudioPlayer inline poiId={poi.id || poi.poi_id} onPlay={onPlayAudio} />
 
         <div className="poi-preview-actions">
           <button
