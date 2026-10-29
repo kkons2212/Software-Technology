@@ -49,12 +49,14 @@ export default function StorageHealthBanner({
       : 'bg-emerald-500';
 
   return (
-    <div className="w-full space-y-4" data-testid="storage-health-banner">
+    <div className={`w-full ${stickyOnly ? '' : 'space-y-4'}`} data-testid="storage-health-banner">
       {hasAlert && (
         <aside
           role="alert"
           aria-live="assertive"
-          className={`flex flex-col items-start justify-between gap-3 rounded-lg border p-4 sm:flex-row sm:items-center ${alertClasses}`}
+          className={`flex flex-col items-start justify-between gap-3 rounded-lg border ${
+            stickyOnly ? 'p-2 sm:px-3 sm:py-1.5' : 'p-4'
+          } sm:flex-row sm:items-center ${alertClasses}`}
         >
           <div className="flex items-center space-x-3">
             <svg
@@ -98,52 +100,60 @@ export default function StorageHealthBanner({
           className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
         >
           <div>
-            <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-500">
-              Audio Cache Disk Capacity
-            </h2>
-            <p className="mt-1 text-2xl font-bold text-slate-900">
-              {percent.toFixed(1)}%
-              <span className="ml-2 text-xs font-normal text-slate-500">
-                ({thresholdStatus || (isCritical ? 'CRITICAL' : isWarning ? 'WARNING' : 'NORMAL')})
+            <div className="flex items-center justify-between text-sm">
+              <span className="font-semibold text-slate-800">Static Audio Cache Disk Usage</span>
+              <span className="font-medium text-slate-600">
+                {percent.toFixed(1)}%
+                <span className="ml-1 text-xs text-slate-500">
+                  ({thresholdStatus || (isCritical ? 'CRITICAL' : isWarning ? 'WARNING' : 'NORMAL')})
+                </span>
               </span>
-            </p>
-          </div>
+            </div>
 
-          <div
-            className="mt-4 h-3 w-full overflow-hidden rounded-full bg-slate-100"
-            role="progressbar"
-            aria-valuenow={percent}
-            aria-valuemin="0"
-            aria-valuemax="100"
-            aria-label="Storage Capacity"
-          >
+            {/* Meter Bar */}
             <div
-              className={`h-full transition-all duration-500 ${meterBarColor}`}
-              style={{ width: `${Math.min(100, Math.max(0, percent))}%` }}
-            />
+              role="progressbar"
+              aria-valuenow={percent}
+              aria-valuemin="0"
+              aria-valuemax="100"
+              aria-label="Audio cache storage disk usage"
+              className="mt-2 h-3.5 w-full overflow-hidden rounded-full bg-slate-100 p-0.5"
+            >
+              <div
+                className={`h-full rounded-full transition-all duration-300 ${meterBarColor}`}
+                style={{ width: `${Math.min(100, Math.max(0, percent))}%` }}
+              />
+            </div>
+
+            <div className="mt-2 flex justify-between text-xs text-slate-500">
+              <span>Used: {formatBytes(usedBytes)}</span>
+              <span>Total: {formatBytes(totalBytes)}</span>
+            </div>
           </div>
 
-          <dl className="mt-6 grid grid-cols-2 gap-4 border-t border-slate-100 pt-4 text-xs sm:grid-cols-4">
+          {/* Stats summary breakdown */}
+          <div className="mt-6 grid grid-cols-2 gap-4 border-t border-slate-100 pt-4 sm:grid-cols-4">
             <div>
-              <dt className="text-slate-500">Total Disk</dt>
-              <dd className="font-semibold text-slate-900">{formatBytes(totalBytes)}</dd>
+              <p className="text-xs text-slate-600">Free Space</p>
+              <p className="mt-0.5 text-sm font-semibold text-slate-800">{formatBytes(freeBytes)}</p>
             </div>
             <div>
-              <dt className="text-slate-500">Used Space</dt>
-              <dd className="font-semibold text-slate-900">{formatBytes(usedBytes)}</dd>
+              <p className="text-xs text-slate-600">Audio Cache Size</p>
+              <p className="mt-0.5 text-sm font-semibold text-slate-800">{formatBytes(audioCacheBytes)}</p>
             </div>
             <div>
-              <dt className="text-slate-500">Free Space</dt>
-              <dd className="font-semibold text-slate-900">{formatBytes(freeBytes)}</dd>
+              <p className="text-xs text-slate-600">Audio Cache Files</p>
+              <p className="mt-0.5 text-sm font-semibold text-slate-800">
+                {audioCacheFiles !== undefined && audioCacheFiles !== null ? `${audioCacheFiles} files` : '—'}
+              </p>
             </div>
             <div>
-              <dt className="text-slate-500">Audio Cache</dt>
-              <dd className="font-semibold text-slate-900">
-                {formatBytes(audioCacheBytes)}{' '}
-                {audioCacheFiles !== undefined && `(${audioCacheFiles} files)`}
-              </dd>
+              <p className="text-xs text-slate-600">Threshold Alert</p>
+              <p className={`mt-0.5 text-sm font-semibold ${isCritical ? 'text-red-600' : isWarning ? 'text-amber-600' : 'text-emerald-600'}`}>
+                {isCritical ? 'Critical (≥95%)' : isWarning ? 'Warning (≥85%)' : 'Healthy (<85%)'}
+              </p>
             </div>
-          </dl>
+          </div>
         </section>
       )}
     </div>
@@ -162,4 +172,3 @@ StorageHealthBanner.propTypes = {
   stickyOnly: PropTypes.bool,
   showMeter: PropTypes.bool,
 };
-
