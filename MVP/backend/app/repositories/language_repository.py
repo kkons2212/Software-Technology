@@ -17,7 +17,9 @@ class LanguageRepository:
 
     def list_all(self) -> list[LanguageCode]:
         """Return all language codes."""
-        return list(self.db.scalars(select(LanguageCode)))
+        return list(
+            self.db.scalars(select(LanguageCode).order_by(LanguageCode.language_id))
+        )
 
     def list_published(self) -> list[LanguageCode]:
         """Return languages that have at least one active, published POI translation with ready audio."""

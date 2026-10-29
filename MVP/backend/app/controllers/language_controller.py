@@ -2,7 +2,7 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 
 from app.core.dependencies import get_language_service
 from app.schemas.poi_schema import APIResponse, PublishedLanguage
@@ -14,6 +14,7 @@ router = APIRouter(prefix="/api/v1/languages", tags=["Languages"])
 @router.get("", response_model=APIResponse[list[PublishedLanguage]])
 def get_published_languages(
     service: Annotated[LanguageService, Depends(get_language_service)],
+    all: bool = Query(False, description="Whether to include all catalog languages"),
 ) -> APIResponse[list[PublishedLanguage]]:
-    languages = service.list_published()
+    languages = service.list_all() if all else service.list_published()
     return APIResponse(data=languages)

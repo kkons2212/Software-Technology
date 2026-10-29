@@ -5,7 +5,7 @@ vi.mock('../apiClient.js', () => ({
 }));
 
 import { apiClient } from '../apiClient.js';
-import { getPublishedLanguages } from '../languageApi.js';
+import { getPublishedLanguages, getSupportedLanguages } from '../languageApi.js';
 
 describe('getPublishedLanguages', () => {
   it('returns only published languages and normalizes language fields', async () => {
@@ -40,5 +40,25 @@ describe('getPublishedLanguages', () => {
     await expect(getPublishedLanguages()).rejects.toThrow(
       'The languages response has an invalid format.',
     );
+  });
+});
+
+describe('getSupportedLanguages', () => {
+  it('returns all catalog languages regardless of publication status', async () => {
+    apiClient.get.mockResolvedValue([
+      { language_id: 'vi', language_name: 'Tiếng Việt', status: 'SUPPORTED' },
+      { code: 'en', native_name: 'English', status: 'SUPPORTED' },
+      { language_id: 'ja', language_name: 'Japanese', status: 'SUPPORTED' },
+      { language_id: 'fr', language_name: 'French', status: 'SUPPORTED' },
+    ]);
+
+    const result = await getSupportedLanguages();
+    expect(result).toEqual([
+      { code: 'vi', name: 'Tiếng Việt', status: 'SUPPORTED' },
+      { code: 'en', name: 'English', status: 'SUPPORTED' },
+      { code: 'ja', name: 'Japanese', status: 'SUPPORTED' },
+      { code: 'fr', name: 'French', status: 'SUPPORTED' },
+    ]);
+    expect(apiClient.get).toHaveBeenCalledWith('/api/v1/languages?all=true', { signal: undefined });
   });
 });
