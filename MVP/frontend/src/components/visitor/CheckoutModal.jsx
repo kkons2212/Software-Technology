@@ -381,7 +381,7 @@ export default function CheckoutModal({
                   Cổng thanh toán thẻ quốc tế
                 </h3>
                 <p className="mt-1 text-xs text-slate-500 max-w-xs mx-auto">
-                  Hỗ trợ Visa, Mastercard, JCB qua chuẩn mã hoá bảo mật Stripe.
+                  Hỗ trợ tài khoản PayPal và thẻ quốc tế Visa, Mastercard qua cổng bảo mật PayPal Sandbox.
                 </p>
 
                 {order?.checkout_url ? (
@@ -389,17 +389,17 @@ export default function CheckoutModal({
                     href={order.checkout_url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="mt-5 inline-flex w-full items-center justify-center rounded-xl bg-blue-600 py-3 px-4 text-xs font-semibold text-white shadow-md hover:bg-blue-700 transition"
+                    className="mt-5 inline-flex w-full items-center justify-center rounded-xl bg-[#0070ba] py-3 px-4 text-xs font-semibold text-white shadow-md hover:bg-[#005ea6] transition"
                   >
-                    Tiếp tục thanh toán qua Stripe ({formattedAmount} đ)
+                    Tiếp tục thanh toán qua PayPal Sandbox ({formattedAmount} đ)
                   </a>
                 ) : (
                   <button
                     type="button"
                     onClick={handleSimulate}
-                    className="mt-5 w-full rounded-xl bg-blue-600 py-3 px-4 text-xs font-semibold text-white shadow-md hover:bg-blue-700 transition"
+                    className="mt-5 w-full rounded-xl bg-[#0070ba] py-3 px-4 text-xs font-semibold text-white shadow-md hover:bg-[#005ea6] transition"
                   >
-                    Thanh toán thẻ thử nghiệm ({formattedAmount} đ)
+                    Thanh toán qua PayPal Sandbox ({formattedAmount} đ)
                   </button>
                 )}
               </div>

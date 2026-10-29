@@ -161,3 +161,39 @@ async def test_process_payment_webhook_lookup_by_description_memo(
     assert res.success is True
     assert res.order_id == order_id
     assert res.session_code.startswith("CCT-")
+
+
+@pytest.mark.asyncio
+async def test_create_checkout_order_card_fallback(payment_service):
+    checkout_res = await payment_service.create_checkout_order(
+        CheckoutCreateRequest(payment_method="CARD", preferred_language="en")
+    )
+    assert checkout_res.order_id.startswith("TXN_")
+    assert checkout_res.payment_method == "CARD"
+    assert "/api/v1/payments/paypal-checkout" in checkout_res.checkout_url
+
+
+@pytest.mark.asyncio
+async def test_create_checkout_order_paypal_mocked_live(payment_service, monkeypatch):
+    from app.integrations.paypal_client import paypal_client
+
+    monkeypatch.setattr(settings, "PAYPAL_CLIENT_ID", "mock_client_id")
+    monkeypatch.setattr(settings, "PAYPAL_CLIENT_SECRET", "mock_client_secret")
+
+    async def mock_create_order(*args, **kwargs):
+        return {
+            "paypal_order_id": "PP-12345678",
+            "approve_url": "https://www.sandbox.paypal.com/checkoutnow?token=PP-12345678",
+            "amount_usd": "2.00",
+            "status": "CREATED",
+        }
+
+    monkeypatch.setattr(paypal_client, "create_order", mock_create_order)
+
+    checkout_res = await payment_service.create_checkout_order(
+        CheckoutCreateRequest(payment_method="CARD", preferred_language="en")
+    )
+    assert (
+        checkout_res.checkout_url
+        == "https://www.sandbox.paypal.com/checkoutnow?token=PP-12345678"
+    )

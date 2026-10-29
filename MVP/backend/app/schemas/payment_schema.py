@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field
 class CheckoutCreateRequest(BaseModel):
     """Payload to initiate a digital admission checkout order."""
 
-    payment_method: Literal["VIETQR", "CARD"] = Field(
+    payment_method: Literal["VIETQR", "CARD", "PAYPAL"] = Field(
         default="VIETQR",
         description="Selected payment method: VIETQR for domestic banking or CARD for international credit/debit.",
     )
@@ -33,7 +33,7 @@ class CheckoutCreateResponse(BaseModel):
     )
     checkout_url: str | None = Field(
         default=None,
-        description="Hosted checkout URL (for Stripe international card payments).",
+        description="Hosted checkout URL (for PayPal Sandbox international card/account payments).",
     )
     transfer_bank: str | None = Field(
         default=None,
