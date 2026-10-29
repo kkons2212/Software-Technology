@@ -98,14 +98,9 @@ class EdgeTTSClient:
             if matches:
                 # Prefer standard region matching code (e.g. es-ES for es, de-DE for de)
                 standard_target = f"{prefix}-{prefix}"
-                pool = (
-                    [
-                        v
-                        for v in matches
-                        if v.get("Locale", "").lower() == standard_target
-                    ]
-                    or matches
-                )
+                pool = [
+                    v for v in matches if v.get("Locale", "").lower() == standard_target
+                ] or matches
                 # Prefer female voice persona if available
                 females = [v for v in pool if v.get("Gender") == "Female"]
                 chosen = (females or pool)[0]
