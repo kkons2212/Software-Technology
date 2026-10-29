@@ -11,7 +11,7 @@
 | [**US 01.1**](#-us-011-interactive-outdoor-map-header--real-time-gps-tracking) | Interactive Outdoor Map, Header & Real-Time GPS Tracking | UC-01 | Must Have | 5 SP | 7 Tasks | [x] 7/7 |
 | [**US 01.2**](#-us-012-tap-map-marker-for-teaser-preview-bottom-sheet) | Tap Map Marker for Teaser Preview Bottom Sheet | UC-01 | Must Have | 3 SP | 3 Tasks | [x] 3/3 |
 | [**US 01.3**](#-us-013-automated-voice-narration-on-gps-proximity--mini-audio-player) | Automated Voice Narration on GPS Proximity & Mini Audio Player | UC-01 | Must Have | 8 SP | 6 Tasks | [x] 6/6 |
-| [**US 01.4**](#-us-014-intelligent-recommended-walking-route-wayfinding) | Intelligent Recommended Walking Route Wayfinding | UC-01 | Should Have | 5 SP | 3 Tasks | [ ] 0/3 |
+| [**US 01.4**](#-us-014-intelligent-recommended-walking-route-wayfinding) | Intelligent Recommended Walking Route Wayfinding | UC-01 | Should Have | 5 SP | 3 Tasks | [x] 3/3 |
 | [**US 02.1**](#-us-021-administrator-authentication--portal-login) | Administrator Authentication & Portal Login | UC-02 | Must Have | 5 SP | 5 Tasks | [x] 5/5 |
 | [**US 02.2**](#-us-022-brute-force-protection--account-lockout) | Brute-Force Protection & Account Lockout | UC-02 | Must Have | 3 SP | 4 Tasks | [x] 4/4 |
 | [**US 02.3**](#-us-023-secure-session-management--inactivity-logout) | Secure Session Management & Inactivity Logout | UC-02 | Should Have | 2 SP | 3 Tasks | [x] 3/3 |
@@ -31,7 +31,7 @@
 | [**US 06.2**](#-us-062-webhook-driven-24-hour-visiting-session-activation) | Webhook-Driven 24-Hour Visiting Session Activation | UC-06 | Must Have | 5 SP | 4 Tasks | [ ] 0/4 |
 | [**US 06.3**](#-us-063-multi-device-session-recovery-via-session-code) | Multi-Device Session Recovery via Session Code | UC-06 | Should Have | 3 SP | 3 Tasks | [ ] 0/3 |
 | [**US 06.4**](#-us-064-content-protection--narrativeaudio-decryption-access-control) | Content Protection & Narrative/Audio Decryption Access Control | UC-06 | Must Have | 5 SP | 4 Tasks | [ ] 0/4 |
-| **TOTAL** | **23 User Stories (17 Complete)** | — | — | **102 SP** | **92 Tasks** | **[x] 72/92 Tasks** |
+| **TOTAL** | **23 User Stories (18 Complete)** | — | — | **102 SP** | **92 Tasks** | **[x] 75/92 Tasks** |
 
 ---
 
@@ -162,22 +162,22 @@
 > **So that** I do not get lost within the dense tunnel complex and can optimize my visit duration.
 >
 > * **Priority:** Should Have | **Estimate:** 5 SP
-> * **Progress:** [ ] 0/3 Tasks Completed
+> * **Progress:** [x] 3/3 Tasks Completed
 
 #### Acceptance Criteria:
-- [ ] **AC-01.4.1:** When a visitor clicks "Directions" on any POI card, system computes and renders a 4px solid blue polyline `#1D4ED8` connecting current GPS to destination.
-- [ ] **AC-01.4.2:** Banner displays remaining distance (e.g., "120m to destination") alongside a "Clear Route" button.
+- [x] **AC-01.4.1:** When a visitor clicks "Directions" on any POI card, system computes and renders a 4px solid blue polyline `#1D4ED8` connecting current GPS to destination.
+- [x] **AC-01.4.2:** Banner displays remaining distance (e.g., "120m to destination") alongside a "Clear Route" button.
 
 #### Task Checklist:
-- [ ] `TSK-01.4.1` `[Backend]` **Waypoint Walking Route Calculator (`wayfinding_service.py`)**
+- [x] `TSK-01.4.1` `[Backend]` **Waypoint Walking Route Calculator (`wayfinding_service.py`)**
   - **Scope:** Compute optimal path waypoints connecting visitor's current location with destination POI within Cu Chi relic boundaries.
   - **DoD:** Returns valid GeoJSON LineString payload with calculation latency $< 500\text{ms}$.
   - **Paired Unit Test:** `tests/unit/services/test_wayfinding_service.py`
-- [ ] `TSK-01.4.2` `[Frontend]` **Walking Route Polyline Overlay (`RouteOverlay.jsx`)**
+- [x] `TSK-01.4.2` `[Frontend]` **Walking Route Polyline Overlay (`RouteOverlay.jsx`)**
   - **Scope:** Draw Leaflet `L.polyline` (4px `#1D4ED8`). Display floating top banner with remaining distance counter and "Clear Route" button.
   - **DoD:** Clears polyline overlay cleanly upon cancel button tap or upon reaching the target geofence.
   - **Paired Unit Test:** `src/components/__tests__/RouteOverlay.test.jsx`
-- [ ] `TSK-01.4.3` `[Test]` **Unit Test Suite for US 01.4 (`test_wayfinding_service.py`, `RouteOverlay.test.jsx`)**
+- [x] `TSK-01.4.3` `[Test]` **Unit Test Suite for US 01.4 (`test_wayfinding_service.py`, `RouteOverlay.test.jsx`)**
   - **Scope:** Test path waypoint calculation algorithms in service, polyline rendering on map, distance banner updates, and clear route interactions.
   - **DoD:** 100% test pass in Pytest and Vitest, $\ge 80\%$ line & branch code coverage.
   - **Execution:** `pytest tests/unit/services/test_wayfinding_service.py` && `npm run test -- RouteOverlay`

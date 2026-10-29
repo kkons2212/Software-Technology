@@ -18,6 +18,7 @@ from app.controllers.payment_controller import router as payment_router
 from app.controllers.poi_controller import router as poi_router
 from app.controllers.system_controller import router as system_router
 from app.controllers.telemetry_controller import router as telemetry_router
+from app.controllers.tour_controller import router as tour_router
 from app.controllers.translation_controller import router as translation_router
 from app.core.config import settings
 from app.core.exceptions import register_error_handlers
@@ -67,6 +68,7 @@ def create_app() -> FastAPI:
     application.include_router(analytics_router)
     application.include_router(payment_router)
     application.include_router(system_router)
+    application.include_router(tour_router)
 
     @application.get("/health", tags=["System Health"])
     def health_check():

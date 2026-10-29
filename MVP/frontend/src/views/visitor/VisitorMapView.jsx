@@ -3,6 +3,7 @@ import L from 'leaflet';
 import { LocateFixed } from 'lucide-react';
 import VisitorLocationMarker from '../../components/visitor/VisitorLocationMarker.jsx';
 import VisitorPoiMarkers from '../../components/visitor/VisitorPoiMarkers.jsx';
+import RouteOverlay from '../../components/visitor/RouteOverlay.jsx';
 import { MAIN_ENTRANCE, MUSEUM_BOUNDS } from '../../utils/museumBounds.js';
 
 const DEFAULT_ZOOM = 17;
@@ -22,6 +23,8 @@ export default function VisitorMapView({
   onDismissPOIPreview,
   playingPoiId = null,
   visitedPoiIds = [],
+  activeRoute = null,
+  onClearRoute,
 }) {
   const mapElementRef = useRef(null);
   const mapRef = useRef(null);
@@ -113,6 +116,16 @@ export default function VisitorMapView({
             playingPoiId={playingPoiId}
             visitedPoiIds={visitedPoiIds}
           />
+          {activeRoute && (
+            <RouteOverlay
+              map={mapRef.current}
+              routeCoordinates={activeRoute.coordinates}
+              destinationTitle={activeRoute.destinationTitle}
+              userLocation={hasLiveLocation ? location : null}
+              destinationLocation={activeRoute.destinationLocation}
+              onClearRoute={onClearRoute}
+            />
+          )}
           <div className="visitor-map-zoom-controls" aria-label="Map zoom controls">
             <button type="button" aria-label="Zoom in" onClick={handleZoomIn}>+</button>
             <button type="button" aria-label="Zoom out" onClick={handleZoomOut}>−</button>
