@@ -3,6 +3,7 @@ import VisitorMapView from './VisitorMapView.jsx';
 import VisitorHeader from '../../components/visitor/VisitorHeader.jsx';
 import PoiPreviewCard from '../../components/visitor/PoiPreviewCard.jsx';
 import CheckoutModal from '../../components/visitor/CheckoutModal.jsx';
+import RestoreSessionModal from '../../components/visitor/RestoreSessionModal.jsx';
 import { getPublishedLanguages } from '../../api/languageApi.js';
 import { getMapPois } from '../../api/poiApi.js';
 import { getWalkingRoute } from '../../api/tourApi.js';
@@ -33,6 +34,7 @@ export default function VisitorTourPage({
   const [poiRetryCount, setPoiRetryCount] = useState(0);
   const [selectedPoiId, setSelectedPoiId] = useState(null);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
+  const [isRestoreOpen, setIsRestoreOpen] = useState(false);
   const [activeRoute, setActiveRoute] = useState(null);
 
   const {
@@ -274,6 +276,21 @@ export default function VisitorTourPage({
     });
   };
 
+  const handleRestoreSuccess = (sessionData) => {
+    const code = sessionData?.session_code || sessionData?.SessionCode || '';
+    const token = sessionData?.session_token || sessionData?.SessionToken || '';
+    const rawExpiry = sessionData?.expires_at || sessionData?.Expire_at;
+    const expiry = rawExpiry
+      ? new Date(rawExpiry).toISOString()
+      : new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+
+    activateSession({
+      sessionCode: code,
+      sessionToken: token,
+      expiresAt: expiry,
+    });
+  };
+
   return (
     <main className="visitor-tour-page">
       <VisitorHeader
@@ -283,6 +300,7 @@ export default function VisitorTourPage({
         sessionCode={effectiveSessionCode}
         expiresAt={effectiveExpiresAt}
         onUnlock={handleUnlockClick}
+        onRestoreSession={() => setIsRestoreOpen(true)}
       />
 
       {languageError && (
@@ -338,6 +356,13 @@ export default function VisitorTourPage({
         onClose={() => setIsCheckoutOpen(false)}
         onSuccess={handleCheckoutSuccess}
         preferredLanguage={selectedLanguage || DEFAULT_LANGUAGE}
+        onOpenRestore={() => setIsRestoreOpen(true)}
+      />
+
+      <RestoreSessionModal
+        isOpen={isRestoreOpen}
+        onClose={() => setIsRestoreOpen(false)}
+        onSuccess={handleRestoreSuccess}
       />
     </main>
   );

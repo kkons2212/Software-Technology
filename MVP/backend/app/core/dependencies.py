@@ -23,6 +23,7 @@ from app.services.auth_service import AuthService
 from app.services.language_service import LanguageService
 from app.services.payment_service import PaymentService
 from app.services.poi_service import POIService
+from app.services.session_service import SessionService
 from app.services.translation_service import TranslationService
 from app.services.tts_service import TTSService
 
@@ -125,6 +126,13 @@ def get_transaction_repository(db: Session = Depends(get_db)) -> TransactionRepo
 def get_session_repository(db: Session = Depends(get_db)) -> SessionRepository:
     """Build a SessionRepository bound to the request session."""
     return SessionRepository(db)
+
+
+def get_session_service(
+    session_repo: SessionRepository = Depends(get_session_repository),
+) -> SessionService:
+    """Build the SessionService for visitor session recovery and access validation."""
+    return SessionService(session_repository=session_repo)
 
 
 def get_payment_service(
