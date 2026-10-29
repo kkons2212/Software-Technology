@@ -52,9 +52,9 @@ class DeepTranslatorClient:
     """Multi-provider asynchronous translation client with cascade fallback and key rotation.
 
     Hierarchy:
-    1. Gemini AI (Prompt-engineered museum & cultural heritage translation).
+    1. Offline Translator API (Local/LAN Docker container kocoten/offline-translator-api - Top Priority).
     2. Google Cloud Translation REST API (Round-robin API Key pool).
-    3. Offline Translator API (Local/LAN Docker container kocoten/offline-translator-api).
+    3. Gemini AI (Prompt-engineered museum & cultural heritage translation).
     4. deep-translator GoogleTranslator (Free web fallback, 0 config required).
     """
 
@@ -732,13 +732,13 @@ class DeepTranslatorClient:
         resolved_target = self._resolve_target_language(target_lang)
         resolved_source = self._resolve_target_language(source_lang)
 
-        # 1. Cascade Tier 1: Gemini AI (Highest cultural & narrative fidelity)
-        if self.gemini_pool.has_keys():
-            gemini_result = await self._translate_with_gemini(
+        # 1. Cascade Tier 1 (Top Priority): Local Offline Translator Container API
+        if self.offline_url:
+            offline_result = await self._translate_with_offline_api(
                 text, resolved_source, resolved_target
             )
-            if gemini_result is not None:
-                return gemini_result
+            if offline_result is not None:
+                return offline_result
 
         # 2. Cascade Tier 2: Google Cloud Translation REST API (Key pool rotation)
         if self.google_pool.has_keys():
@@ -748,15 +748,7 @@ class DeepTranslatorClient:
             if cloud_result is not None:
                 return cloud_result
 
-        # 3. Cascade Tier 3: Local Offline Translator Container API
-        if self.offline_url:
-            offline_result = await self._translate_with_offline_api(
-                text, resolved_source, resolved_target
-            )
-            if offline_result is not None:
-                return offline_result
-
-        # 4. Cascade Tier 4: Free deep-translator (Guaranteed zero-configuration fallback)
+        # 3. Cascade Tier 3: Free deep-translator (Guaranteed zero-configuration fallback)
         return await self._translate_with_free_deep_translator(
             text, resolved_source, resolved_target
         )
@@ -780,13 +772,13 @@ class DeepTranslatorClient:
         resolved_target = self._resolve_target_language(target_lang)
         resolved_source = self._resolve_target_language(source_lang)
 
-        # 1. Cascade Tier 1: Gemini AI
-        if self.gemini_pool.has_keys():
-            gemini_result = await self._translate_narrative_with_gemini(
+        # 1. Cascade Tier 1 (Top Priority): Local Offline Translator Container API
+        if self.offline_url:
+            offline_result = await self._translate_narrative_with_offline_api(
                 title, short_description, description, resolved_source, resolved_target
             )
-            if gemini_result is not None:
-                return gemini_result
+            if offline_result is not None:
+                return offline_result
 
         # 2. Cascade Tier 2: Google Cloud Translation REST API
         if self.google_pool.has_keys():
@@ -796,15 +788,7 @@ class DeepTranslatorClient:
             if cloud_result is not None:
                 return cloud_result
 
-        # 3. Cascade Tier 3: Local Offline Translator Container API
-        if self.offline_url:
-            offline_result = await self._translate_narrative_with_offline_api(
-                title, short_description, description, resolved_source, resolved_target
-            )
-            if offline_result is not None:
-                return offline_result
-
-        # 4. Cascade Tier 4: Free deep-translator
+        # 3. Cascade Tier 3: Free deep-translator
         return await self._translate_narrative_with_free_deep_translator(
             title, short_description, description, resolved_source, resolved_target
         )
