@@ -18,6 +18,7 @@ def client():
     return DeepTranslatorClient(
         gemini_keys=[],
         google_translate_keys=[],
+        offline_url=None,
         max_retries=3,
         base_delay=0.001,
         chunk_size=100,
@@ -164,13 +165,15 @@ async def test_should_batch_translate_narrative_via_gemini_json():
 
     client = DeepTranslatorClient(
         gemini_keys=["gemini_key_1"],
+        offline_url=None,
         http_client=mock_http,
     )
 
-    narrative = await client.translate_exhibit_narrative(
+    narrative = await client._translate_narrative_with_gemini(
         title="Bếp Hoàng Cầm",
         short_description="Bếp dã chiến",
         description="Bếp không khói",
+        source_lang="vi",
         target_lang="en",
     )
 
@@ -200,6 +203,7 @@ async def test_should_batch_translate_narrative_via_google_cloud():
     client = DeepTranslatorClient(
         gemini_keys=[],
         google_translate_keys=["google_key_1"],
+        offline_url=None,
         http_client=mock_http,
     )
 
@@ -214,6 +218,94 @@ async def test_should_batch_translate_narrative_via_google_cloud():
     assert narrative["short_description"] == "Secret & Smokeless"
     assert narrative["description"] == "Historical exhibit"
     assert mock_http.post.call_count == 1
+
+
+@pytest.mark.asyncio
+async def test_should_translate_via_offline_translator_api():
+    mock_http = MagicMock(spec=httpx.AsyncClient)
+    resp_200 = MagicMock(
+        status_code=200,
+        json=lambda: {
+            "text": "Địa đạo Củ Chi",
+            "source_lang": "vi",
+            "target_lang": "en",
+            "translated": "Cu Chi Tunnels",
+        },
+    )
+    mock_http.post = AsyncMock(return_value=resp_200)
+
+    client = DeepTranslatorClient(
+        gemini_keys=[],
+        google_translate_keys=[],
+        offline_url="http://localhost:8001",
+        http_client=mock_http,
+    )
+
+    result = await client.translate_text("Địa đạo Củ Chi", target_lang="en")
+    assert result == "Cu Chi Tunnels"
+    assert mock_http.post.call_count == 1
+    call_args = mock_http.post.call_args
+    assert "http://localhost:8001/translate" in call_args[0][0]
+    assert call_args[1]["json"]["target_lang"] == "en"
+
+
+@pytest.mark.asyncio
+async def test_should_batch_translate_narrative_via_offline_translator_api():
+    mock_http = MagicMock(spec=httpx.AsyncClient)
+
+    def mock_post(url, json):
+        text = json.get("text", "")
+        return MagicMock(
+            status_code=200,
+            json=lambda: {"translated": f"[OFFLINE] {text}"},
+        )
+
+    mock_http.post = AsyncMock(side_effect=mock_post)
+
+    client = DeepTranslatorClient(
+        gemini_keys=[],
+        google_translate_keys=[],
+        offline_url="http://localhost:8001",
+        http_client=mock_http,
+    )
+
+    narrative = await client.translate_exhibit_narrative(
+        title="Bếp Hoàng Cầm",
+        short_description="Bếp dã chiến",
+        description="Bếp không khói",
+        target_lang="zh-CN",
+    )
+
+    assert narrative["title"] == "[OFFLINE] Bếp Hoàng Cầm"
+    assert narrative["short_description"] == "[OFFLINE] Bếp dã chiến"
+    assert narrative["description"] == "[OFFLINE] Bếp không khói"
+    assert mock_http.post.call_count == 3
+    # Check that zh-CN was resolved to zh for offline container
+    assert mock_http.post.call_args_list[0][1]["json"]["target_lang"] == "zh"
+
+
+@pytest.mark.asyncio
+async def test_should_fallback_to_free_when_offline_translator_api_fails(mocker):
+    mock_http = MagicMock(spec=httpx.AsyncClient)
+    mock_http.post = AsyncMock(side_effect=httpx.ConnectError("Connection refused"))
+
+    client = DeepTranslatorClient(
+        gemini_keys=[],
+        google_translate_keys=[],
+        offline_url="http://localhost:8001",
+        http_client=mock_http,
+        max_retries=1,
+    )
+
+    mocker.patch.object(
+        client,
+        "_translate_sync",
+        return_value="Free fallback result",
+    )
+
+    result = await client.translate_text("Xin chào", target_lang="en")
+    assert result == "Free fallback result"
+    client._translate_sync.assert_called_once()
 
 
 @pytest.mark.asyncio
@@ -262,10 +354,13 @@ async def test_should_translate_via_gemini_and_rotate_keys_on_rate_limit():
 
     client = DeepTranslatorClient(
         gemini_keys=["gemini_key_1", "gemini_key_2"],
+        offline_url=None,
         http_client=mock_http,
     )
 
-    result = await client.translate_text("Bếp Hoàng Cầm", target_lang="en")
+    result = await client._translate_with_gemini(
+        "Bếp Hoàng Cầm", source_lang="vi", target_lang="en"
+    )
     assert result == "Hoang Cam smokeless stove - historic field stove"
     assert mock_http.post.call_count == 2
     # Check that both keys were queried
@@ -276,10 +371,10 @@ async def test_should_translate_via_gemini_and_rotate_keys_on_rate_limit():
 
 
 @pytest.mark.asyncio
-async def test_should_fallback_from_gemini_to_google_cloud_on_error():
+async def test_should_fallback_from_offline_to_google_cloud_on_error():
     mock_http = MagicMock(spec=httpx.AsyncClient)
-    # Gemini fails with 500, Google Cloud succeeds with 200
-    gemini_resp = MagicMock(status_code=500, text="Internal Gemini error")
+    # Offline API fails with 500, Google Cloud succeeds with 200
+    offline_resp = MagicMock(status_code=500, text="Internal Offline error")
     google_resp = MagicMock(
         status_code=200,
         json=lambda: {
@@ -288,11 +383,11 @@ async def test_should_fallback_from_gemini_to_google_cloud_on_error():
             }
         },
     )
-    mock_http.post = AsyncMock(side_effect=[gemini_resp, google_resp])
+    mock_http.post = AsyncMock(side_effect=[offline_resp, google_resp])
 
     client = DeepTranslatorClient(
-        gemini_keys=["gemini_key_1"],
         google_translate_keys=["google_key_1"],
+        offline_url="http://localhost:8001",
         http_client=mock_http,
     )
 
@@ -313,6 +408,7 @@ async def test_should_fallback_to_free_translator_when_all_cloud_keys_fail(mocke
     client = DeepTranslatorClient(
         gemini_keys=["gemini_key_1"],
         google_translate_keys=["google_key_1"],
+        offline_url=None,
         http_client=mock_http,
         max_retries=1,
     )
