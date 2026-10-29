@@ -173,6 +173,5 @@ class TelemetryRepository:
             .all()
         )
         return [
-            (row[0], row[1], float(row[2]), float(row[3]), int(row[4]))
-            for row in rows
+            (row[0], row[1], float(row[2]), float(row[3]), int(row[4])) for row in rows
         ]
