@@ -33,15 +33,8 @@ from app.schemas.poi_schema import (
 
 GEO_OUT_OF_BOUNDS_ERROR_CODE = "GEO_OUT_OF_BOUNDS"
 
-GLOBAL_COORDINATE_BOUNDS = {
-    "min_lat": -90.0,
-    "max_lat": 90.0,
-    "min_lng": -180.0,
-    "max_lng": 180.0,
-}
-
 GEO_OUT_OF_BOUNDS_ERROR_MESSAGE = (
-    "Coordinates must be valid latitude (-90 to 90) and longitude (-180 to 180)."
+    "Coordinates must fall inside the Cu Chi Tunnels boundary."
 )
 
 POI_NOT_FOUND_ERROR_CODE = "POI_NOT_FOUND"
@@ -57,22 +50,48 @@ TARGET_FOREIGN_LANGUAGES = ["en", "ja", "ko", "zh"]
 
 
 def _is_within_cu_chi_bounds(latitude: float, longitude: float) -> bool:
-    """Validate coordinate pair falls within valid global WGS84 range (-90..90, -180..180)."""
-    return -90.0 <= latitude <= 90.0 and -180.0 <= longitude <= 180.0
+    """Single perimeter predicate shared by the create and geofence flows.
+
+
+
+    The bounds live in `settings.CU_CHI_BOUNDS` and are kept in sync with the
+
+    frontend constant in `src/utils/museumBounds.js`.
+
+    """
+
+    if getattr(settings, "ALLOW_GLOBAL_COORDINATES", False):
+        return -90.0 <= latitude <= 90.0 and -180.0 <= longitude <= 180.0
+
+    bounds = settings.CU_CHI_BOUNDS
+
+    return (
+        bounds["min_lat"] <= latitude <= bounds["max_lat"]
+        and bounds["min_lng"] <= longitude <= bounds["max_lng"]
+    )
 
 
 def validate_coordinates_in_bounds(lat: float, lng: float) -> None:
-    """Enforce valid coordinates guardrail (-90 to 90 lat, -180 to 180 lng)."""
+    """Enforce boundary guardrail ensuring POI is within Cu Chi Tunnels complex.
+
+
+
+    Used by the exhibit creation flow, which reports the rejected position and
+
+    the permitted perimeter back to the caller.
+
+    """
+
     if not _is_within_cu_chi_bounds(lat, lng):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail={
                 "code": GEO_OUT_OF_BOUNDS_ERROR_CODE,
-                "message": GEO_OUT_OF_BOUNDS_ERROR_MESSAGE,
+                "message": "Coordinates fall outside the permitted perimeter of Cu Chi Tunnels.",
                 "details": {
                     "latitude": lat,
                     "longitude": lng,
-                    "allowed_bounds": GLOBAL_COORDINATE_BOUNDS,
+                    "allowed_bounds": settings.CU_CHI_BOUNDS,
                 },
             },
         )
