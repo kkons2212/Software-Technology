@@ -113,19 +113,41 @@ def test_should_meet_calculation_latency_sla(
     assert elapsed_ms < 500.0  # Must be well below 500ms
 
 
-def test_should_raise_422_when_origin_out_of_bounds(mock_poi_repository, active_poi):
-    """Origin coordinate outside Cu Chi boundaries raises ApiError 422."""
+def test_should_calculate_route_from_outside_museum(mock_poi_repository, active_poi):
+    """Origin coordinate outside Cu Chi boundaries successfully routes into the exhibit."""
+    mock_poi_repository.get_by_id.return_value = active_poi
+    service = WayfindingService(poi_repository=mock_poi_repository)
+
+    # Coordinates outside museum perimeter (e.g. approaching from highway or nearby city)
+    origin_lat, origin_lng = 10.8231, 106.6297
+    result = service.calculate_walking_route(
+        origin_lat=origin_lat,
+        origin_lng=origin_lng,
+        destination_poi_id="POI_BEN_DUOC",
+    )
+    assert result.type == "Feature"
+    assert result.geometry.type == "LineString"
+    assert len(result.geometry.coordinates) >= 2
+    assert result.properties.destination.poi_id == "POI_BEN_DUOC"
+    assert result.properties.origin.lat == origin_lat
+    assert result.properties.origin.lng == origin_lng
+
+
+def test_should_raise_422_when_origin_coordinates_invalid(
+    mock_poi_repository, active_poi
+):
+    """Geographically invalid coordinates (< -90, > 90) raises ApiError 422."""
     mock_poi_repository.get_by_id.return_value = active_poi
     service = WayfindingService(poi_repository=mock_poi_repository)
 
     with pytest.raises(ApiError) as exc_info:
         service.calculate_walking_route(
-            origin_lat=10.0,
+            origin_lat=95.0,
             origin_lng=106.0,
             destination_poi_id="POI_BEN_DUOC",
         )
     assert exc_info.value.status_code == 422
-    assert exc_info.value.detail["code"] == "COORDINATES_OUT_OF_BOUNDS"
+    assert exc_info.value.detail["code"] == "INVALID_COORDINATES"
 
 
 def test_should_raise_404_when_poi_does_not_exist(mock_poi_repository):

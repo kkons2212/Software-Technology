@@ -45,7 +45,7 @@ beforeEach(() => {
 });
 
 describe('VisitorMapView', () => {
-  it('initializes a bounded, touch-enabled OpenStreetMap with custom controls', () => {
+  it('initializes a touch-enabled OpenStreetMap with custom controls and unrestricted bounds', () => {
     render(
       <VisitorMapView
         location={{ lat: 11.144, lng: 106.464 }}
@@ -59,11 +59,11 @@ describe('VisitorMapView', () => {
       expect.objectContaining({
         zoomControl: false,
         touchZoom: true,
-        minZoom: 15,
+        minZoom: 10,
         maxZoom: 19,
-        maxBounds: { bounds: true },
       }),
     );
+    expect(leafletMocks.map.mock.calls[0][1].maxBounds).toBeUndefined();
     expect(leafletMocks.tileLayerFactory).toHaveBeenCalledWith(
       expect.stringContaining('tile.openstreetmap.org'),
       expect.any(Object),

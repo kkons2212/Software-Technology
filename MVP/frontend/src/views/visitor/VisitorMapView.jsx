@@ -4,15 +4,10 @@ import { LocateFixed } from 'lucide-react';
 import VisitorLocationMarker from '../../components/visitor/VisitorLocationMarker.jsx';
 import VisitorPoiMarkers from '../../components/visitor/VisitorPoiMarkers.jsx';
 import RouteOverlay from '../../components/visitor/RouteOverlay.jsx';
-import { MAIN_ENTRANCE, MUSEUM_BOUNDS } from '../../utils/museumBounds.js';
+import { MAIN_ENTRANCE } from '../../utils/museumBounds.js';
 
 const DEFAULT_ZOOM = 17;
 const TILE_LAYER_URL = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
-
-const SITE_BOUNDS = L.latLngBounds(
-  [MUSEUM_BOUNDS.minLat, MUSEUM_BOUNDS.minLng],
-  [MUSEUM_BOUNDS.maxLat, MUSEUM_BOUNDS.maxLng],
-);
 
 export default function VisitorMapView({
   location = MAIN_ENTRANCE,
@@ -43,9 +38,7 @@ export default function VisitorMapView({
       zoom: DEFAULT_ZOOM,
       zoomControl: false,
       touchZoom: true,
-      maxBounds: SITE_BOUNDS,
-      maxBoundsViscosity: 0.85,
-      minZoom: 15,
+      minZoom: 10,
       maxZoom: 19,
     });
 
