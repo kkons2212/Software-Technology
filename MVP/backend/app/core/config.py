@@ -24,6 +24,7 @@ DEFAULT_DB_MAX_OVERFLOW = 20
 DEFAULT_DB_POOL_RECYCLE_SECONDS = 1800
 
 BACKEND_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+ENV_FILE_PATH = os.path.join(BACKEND_DIR, ".env")
 DEFAULT_STATIC_DIR = os.path.join(BACKEND_DIR, "static")
 DEFAULT_IMAGE_UPLOAD_DIR = os.path.join(DEFAULT_STATIC_DIR, "images")
 
@@ -47,7 +48,7 @@ class Settings(BaseSettings):
     """Runtime configuration (environment variables override every default)."""
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=ENV_FILE_PATH,
         env_file_encoding="utf-8",
         case_sensitive=True,
         extra="ignore",
