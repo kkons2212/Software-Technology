@@ -8,7 +8,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+
+// Ensure global window.L is bound for leaflet.heat in modern Vite ESM environments
+if (typeof window !== 'undefined' && !window.L) {
+  window.L = L;
+}
 import 'leaflet.heat';
+
 import {
   ANALYTICS_TIME_RANGES,
   DEFAULT_ANALYTICS_RANGE,
@@ -33,7 +39,7 @@ export const HEATMAP_GRADIENT = {
   0.8: '#EF4444', // Red - Congestion Alert
 };
 
-export const DEFAULT_HEAT_RADIUS = 25;
+export const DEFAULT_HEAT_RADIUS = 28;
 export const DEFAULT_HEAT_BLUR = 18;
 
 const RANGE_OPTIONS = [
@@ -159,7 +165,7 @@ export default function AnalyticsHeatmap({
       heatLayerRef.current = null;
     }
 
-    // Clean up marker tooltips
+    // Clean up marker overlays
     if (markersLayerGroupRef.current && typeof markersLayerGroupRef.current.clearLayers === 'function') {
       try {
         markersLayerGroupRef.current.clearLayers();
@@ -171,12 +177,13 @@ export default function AnalyticsHeatmap({
     const points = heatmapData?.points || [];
     if (points.length === 0) return;
 
-    // Format points array: [lat, lng, intensity]
+    // 1. Render leaflet.heat Layer
     const heatPoints = points.map((p) => [p.lat, p.lng, p.intensity]);
+    const heatLayerFactory = L.heatLayer || (window.L && window.L.heatLayer);
 
-    if (typeof L.heatLayer === 'function') {
+    if (typeof heatLayerFactory === 'function') {
       try {
-        const heat = L.heatLayer(heatPoints, {
+        const heat = heatLayerFactory(heatPoints, {
           radius: Number(radius),
           blur: Number(blur),
           maxZoom: MAX_MAP_ZOOM,
@@ -191,28 +198,56 @@ export default function AnalyticsHeatmap({
       }
     }
 
-    // Add lightweight clickable POI dots to inspect details
-    if (markersLayerGroupRef.current && typeof L.circleMarker === 'function') {
+    // 2. Render prominent circular visual indicators on top of the heat map
+    if (markersLayerGroupRef.current) {
       points.forEach((point) => {
         try {
-          const marker = L.circleMarker([point.lat, point.lng], {
-            radius: 6,
-            color: point.intensity >= 0.7 ? '#EF4444' : point.intensity >= 0.4 ? '#EAB308' : '#22C55E',
-            fillColor: '#FFFFFF',
-            fillOpacity: 0.9,
-            weight: 2,
-          });
+          const isCongested = point.intensity >= 0.7;
+          const isModerate = point.intensity >= 0.4;
+          const tierColor = isCongested ? '#EF4444' : isModerate ? '#EAB308' : '#22C55E';
 
-          if (marker && typeof marker.bindPopup === 'function') {
-            marker.bindPopup(`
-              <div class="text-xs font-sans">
-                <strong class="text-slate-900 block mb-1">${point.poi_title}</strong>
-                <span class="text-slate-600">Triggers: </span><strong>${point.trigger_count}</strong><br/>
-                <span class="text-slate-600">Density: </span><strong>${(point.intensity * 100).toFixed(0)}%</strong>
-              </div>
-            `);
+          // Pulsing / glowing background circle for high density
+          if (typeof L.circle === 'function') {
+            const glowCircle = L.circle([point.lat, point.lng], {
+              radius: isCongested ? 40 : 25,
+              color: tierColor,
+              fillColor: tierColor,
+              fillOpacity: isCongested ? 0.35 : 0.2,
+              weight: 1,
+            });
+            markersLayerGroupRef.current.addLayer(glowCircle);
           }
-          if (marker && markersLayerGroupRef.current && typeof markersLayerGroupRef.current.addLayer === 'function') {
+
+          // Center interactive dot marker
+          if (typeof L.circleMarker === 'function') {
+            const marker = L.circleMarker([point.lat, point.lng], {
+              radius: isCongested ? 9 : 7,
+              color: '#FFFFFF',
+              fillColor: tierColor,
+              fillOpacity: 1,
+              weight: 2,
+            });
+
+            if (marker && typeof marker.bindPopup === 'function') {
+              marker.bindPopup(`
+                <div class="text-xs font-sans min-w-[160px] p-1">
+                  <strong class="text-slate-900 block font-bold text-sm mb-1">${point.poi_title}</strong>
+                  <div class="flex justify-between text-slate-600 mb-0.5">
+                    <span>Triggers recorded:</span>
+                    <strong class="text-slate-900 font-mono">${point.trigger_count}</strong>
+                  </div>
+                  <div class="flex justify-between text-slate-600 mb-1">
+                    <span>Relative density:</span>
+                    <strong style="color: ${tierColor};">${(point.intensity * 100).toFixed(0)}%</strong>
+                  </div>
+                  <span class="inline-block mt-1 px-1.5 py-0.5 rounded text-[10px] font-bold text-white ${
+                    isCongested ? 'bg-red-600' : isModerate ? 'bg-amber-500' : 'bg-emerald-600'
+                  }">
+                    ${isCongested ? 'CONGESTION ALERT' : isModerate ? 'MODERATE DENSITY' : 'NORMAL'}
+                  </span>
+                </div>
+              `);
+            }
             markersLayerGroupRef.current.addLayer(marker);
           }
         } catch {
@@ -249,30 +284,32 @@ export default function AnalyticsHeatmap({
           </p>
         </div>
 
-        {/* Reporting range buttons */}
-        <div
-          role="group"
-          aria-label="Heatmap reporting window"
-          data-testid="heatmap-range-controls"
-          className="inline-flex flex-wrap gap-1 rounded-md border border-slate-200 bg-slate-50 p-1"
-        >
-          {RANGE_OPTIONS.map((opt) => (
-            <button
-              key={opt.value}
-              type="button"
-              data-testid={`heatmap-range-${opt.value}`}
-              aria-pressed={activeRange === opt.value}
-              onClick={() => handleRangeSelect(opt.value)}
-              className={`min-h-[36px] min-w-[70px] rounded px-3 text-xs font-semibold transition-colors ${
-                activeRange === opt.value
-                  ? 'bg-white text-slate-900 shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              {opt.label}
-            </button>
-          ))}
-        </div>
+        {/* Range controls only when standalone (not controlled by parent dashboard) */}
+        {!externalRange && (
+          <div
+            role="group"
+            aria-label="Heatmap reporting window"
+            data-testid="heatmap-range-controls"
+            className="inline-flex flex-wrap gap-1 rounded-md border border-slate-200 bg-slate-50 p-1"
+          >
+            {RANGE_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                data-testid={`heatmap-range-${opt.value}`}
+                aria-pressed={activeRange === opt.value}
+                onClick={() => handleRangeSelect(opt.value)}
+                className={`min-h-[36px] min-w-[70px] rounded px-3 text-xs font-semibold transition-colors ${
+                  activeRange === opt.value
+                    ? 'bg-white text-slate-900 shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Congestion Alert Notification Card */}
@@ -297,7 +334,7 @@ export default function AnalyticsHeatmap({
         <div
           ref={mapContainerRef}
           data-testid="heatmap-leaflet-map"
-          className="h-[360px] w-full bg-slate-100"
+          className="h-[420px] w-full bg-slate-100"
           aria-label="Visitor density heatmap leaflet canvas"
         />
 
@@ -367,7 +404,7 @@ export default function AnalyticsHeatmap({
             data-testid="heatmap-radius-slider"
             type="range"
             min="10"
-            max="50"
+            max="60"
             step="1"
             value={radius}
             onChange={(e) => setRadius(Number(e.target.value))}
@@ -384,7 +421,7 @@ export default function AnalyticsHeatmap({
             data-testid="heatmap-blur-slider"
             type="range"
             min="5"
-            max="30"
+            max="35"
             step="1"
             value={blur}
             onChange={(e) => setBlur(Number(e.target.value))}
