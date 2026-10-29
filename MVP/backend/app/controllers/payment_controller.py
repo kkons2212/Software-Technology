@@ -74,7 +74,9 @@ def handle_payment_webhook(
 
 @router.get("/paypal-checkout", response_class=HTMLResponse)
 def paypal_sandbox_checkout_page(
-    order_id: str = Query(..., description="Order ID to simulate PayPal Sandbox payment"),
+    order_id: str = Query(
+        ..., description="Order ID to simulate PayPal Sandbox payment"
+    ),
 ) -> HTMLResponse:
     """Interactive PayPal Sandbox Mock Checkout Page for testing without live keys."""
     html_content = f"""<!DOCTYPE html>

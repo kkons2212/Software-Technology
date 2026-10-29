@@ -433,4 +433,3 @@ class PaymentService:
             session_token=session.SessionToken,
             expires_at=session.Expire_at,
         )
-
