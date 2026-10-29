@@ -1,20 +1,24 @@
-"""PaymentService orchestrating digital admission checkout, VietQR generation, and order polling (US 06.1)."""
+"""PaymentService orchestrating digital admission checkout, VietQR generation, order polling, and webhook activation (US 06.1, US 06.2)."""
 
 import hashlib
 import hmac
 import logging
 import urllib.parse
 from datetime import datetime, timedelta
+from typing import Any
 
 import httpx
 from fastapi import HTTPException, status
 
 from app.core.config import settings
+from app.repositories.session_repository import SessionRepository
 from app.repositories.transaction_repository import TransactionRepository
 from app.schemas.payment_schema import (
     CheckoutCreateRequest,
     CheckoutCreateResponse,
     OrderStatusResponse,
+    PayOSWebhookPayload,
+    WebhookResponse,
 )
 
 logger = logging.getLogger(__name__)
@@ -31,8 +35,13 @@ QR_EXPIRATION_MINUTES = 15
 
 
 class PaymentService:
-    def __init__(self, transaction_repo: TransactionRepository):
+    def __init__(
+        self,
+        transaction_repo: TransactionRepository,
+        session_repo: SessionRepository | None = None,
+    ):
         self.transaction_repo = transaction_repo
+        self.session_repo = session_repo
 
     def _has_payos_credentials(self) -> bool:
         """Check if production/sandbox PayOS API keys are configured in environment."""
@@ -42,7 +51,7 @@ class PaymentService:
             and settings.PAYOS_CHECKSUM_KEY
         )
 
-    def _generate_payos_signature(self, data: dict, checksum_key: str) -> str:
+    def _generate_payos_signature(self, data: dict[str, Any], checksum_key: str) -> str:
         """Compute HMAC-SHA256 signature required by PayOS payment gateway."""
         sorted_keys = sorted(data.keys())
         sign_string = "&".join(
@@ -53,6 +62,20 @@ class PaymentService:
             sign_string.encode("utf-8"),
             hashlib.sha256,
         ).hexdigest()
+
+    def verify_payos_webhook_signature(
+        self, data: dict[str, Any], signature: str
+    ) -> bool:
+        """Verify HMAC-SHA256 signature against PayOS payload data using PAYOS_CHECKSUM_KEY."""
+        checksum_key = settings.PAYOS_CHECKSUM_KEY
+        if not checksum_key or not signature:
+            logger.warning(
+                "Checksum key or signature missing for webhook verification."
+            )
+            return False
+
+        expected_sig = self._generate_payos_signature(data, checksum_key)
+        return hmac.compare_digest(expected_sig.lower(), signature.lower())
 
     async def _call_payos_sandbox(
         self,
@@ -158,6 +181,8 @@ class PaymentService:
                 if payos_data:
                     qr_code_url = payos_data.get("qrCode")
                     checkout_url = payos_data.get("checkoutUrl")
+                    txn.gateway_transaction_id = str(numeric_order_code)
+                    self.transaction_repo.db.commit()
 
             # Graceful Fallback: Build standard Napas247 VietQR if PayOS returned None or credentials missing
             if not qr_code_url:
@@ -254,5 +279,95 @@ class PaymentService:
             session_code=session.SessionCode,
             session_token=session.SessionToken,
             session_expires_at=session.Expire_at,
+            expires_at=session.Expire_at,
+        )
+
+    def process_payment_webhook(
+        self,
+        payload: PayOSWebhookPayload | dict[str, Any],
+    ) -> WebhookResponse:
+        """Process incoming payment gateway webhook, verify cryptographic signature, and activate 24h session."""
+        if isinstance(payload, PayOSWebhookPayload):
+            data = payload.data
+            signature = payload.signature
+        elif isinstance(payload, dict):
+            data = payload.get("data", {})
+            signature = payload.get("signature", "")
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid webhook payload format.",
+            )
+
+        # Step 1: Verify HMAC-SHA256 signature
+        if not self.verify_payos_webhook_signature(data, signature):
+            logger.warning("INVALID_WEBHOOK_SIGNATURE: Webhook signature mismatch.")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="INVALID_WEBHOOK_SIGNATURE: Cryptographic HMAC signature mismatch.",
+            )
+
+        # Step 2: Locate transaction record
+        txn = None
+        # Check explicit order_id
+        if data.get("order_id"):
+            txn = self.transaction_repo.get_by_id(str(data["order_id"]))
+
+        # Check orderCode
+        if not txn and data.get("orderCode"):
+            txn = self.transaction_repo.find_by_reference(str(data["orderCode"]))
+
+        # Check description/memo
+        if not txn and data.get("description"):
+            txn = self.transaction_repo.find_by_reference(str(data["description"]))
+
+        if not txn:
+            ref_info = f"orderCode={data.get('orderCode')}, description={data.get('description')}"
+            logger.warning("Webhook transaction not found for %s", ref_info)
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Transaction not found for payment reference ({ref_info}).",
+            )
+
+        # Step 3: Idempotency check - if already marked PAID, return existing session immediately
+        if txn.status == "PAID":
+            logger.info(
+                "Transaction '%s' already marked as PAID (idempotent duplicate webhook).",
+                txn.transaction_id,
+            )
+            session = txn.session
+            return WebhookResponse(
+                success=True,
+                message="Transaction already processed (idempotent)",
+                order_id=txn.transaction_id,
+                session_code=session.SessionCode if session else None,
+                session_token=session.SessionToken if session else None,
+                expires_at=session.Expire_at if session else None,
+            )
+
+        # Step 4: Mark transaction as PAID and activate 24-hour VisitorSession
+        gateway_tx_id = (
+            str(data.get("reference"))
+            or str(data.get("orderCode"))
+            or f"WH_{txn.transaction_id}"
+        )
+        updated_txn, session = self.transaction_repo.mark_as_paid(
+            transaction_id=txn.transaction_id,
+            preferred_language="vi",
+            gateway_transaction_id=gateway_tx_id,
+        )
+
+        logger.info(
+            "Transaction '%s' successfully marked as PAID via webhook. Session '%s' activated.",
+            updated_txn.transaction_id,
+            session.SessionCode,
+        )
+
+        return WebhookResponse(
+            success=True,
+            message="Session activated successfully",
+            order_id=updated_txn.transaction_id,
+            session_code=session.SessionCode,
+            session_token=session.SessionToken,
             expires_at=session.Expire_at,
         )

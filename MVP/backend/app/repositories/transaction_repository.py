@@ -1,6 +1,7 @@
-"""TransactionRepository encapsulating SQLAlchemy ORM data access for Transaction (US 06.1)."""
+"""TransactionRepository encapsulating SQLAlchemy ORM data access for Transaction (US 06.1, US 06.2)."""
 
 import uuid
+from datetime import datetime, timedelta
 from typing import Any
 
 from sqlalchemy import func
@@ -51,6 +52,42 @@ class TransactionRepository:
             .first()
         )
 
+    def get_by_gateway_id(self, gateway_transaction_id: str) -> Transaction | None:
+        """Retrieve a transaction by payment gateway transaction identifier."""
+        return (
+            self.db.query(Transaction)
+            .options(joinedload(Transaction.session))
+            .filter(Transaction.gateway_transaction_id == str(gateway_transaction_id))
+            .first()
+        )
+
+    def find_by_reference(self, reference: str) -> Transaction | None:
+        """Find a transaction by transaction_id, gateway_transaction_id, or memo suffix."""
+        cleaned = str(reference).strip()
+        # Direct ID match
+        txn = self.get_by_id(cleaned)
+        if txn:
+            return txn
+
+        # Gateway transaction ID match
+        txn = self.get_by_gateway_id(cleaned)
+        if txn:
+            return txn
+
+        # Suffix matching for memo (e.g. "CCT A1B2C3" -> "A1B2C3")
+        memo_code = cleaned.replace("CCT", "").replace("-", "").strip()
+        if len(memo_code) >= 6:
+            txn = (
+                self.db.query(Transaction)
+                .options(joinedload(Transaction.session))
+                .filter(Transaction.transaction_id.endswith(memo_code))
+                .first()
+            )
+            if txn:
+                return txn
+
+        return None
+
     def mark_as_paid(
         self,
         transaction_id: str,
@@ -61,6 +98,9 @@ class TransactionRepository:
         txn = self.get_by_id(transaction_id)
         if not txn:
             raise ValueError(f"Transaction '{transaction_id}' not found.")
+
+        now = datetime.utcnow()
+        expire_at = now + timedelta(hours=24)
 
         # Create or reuse active visitor session
         if not txn.session:
@@ -74,18 +114,21 @@ class TransactionRepository:
                 SessionToken=session_token,
                 Status="ACTIVE",
                 PreferredLanguage=preferred_language,
-                Activate_at=func.now(),
+                Activate_at=now,
+                Expire_at=expire_at,
             )
             self.db.add(session)
             self.db.flush()
             txn.session_id = session.SessionID
         else:
             session = txn.session
+            session.Status = "ACTIVE"
+            session.Expire_at = expire_at
 
         txn.status = "PAID"
-        txn.paid_at = func.now()
+        txn.paid_at = now
         if gateway_transaction_id:
-            txn.gateway_transaction_id = gateway_transaction_id
+            txn.gateway_transaction_id = str(gateway_transaction_id)
 
         self.db.commit()
         self.db.refresh(txn)

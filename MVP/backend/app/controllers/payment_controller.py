@@ -1,6 +1,7 @@
-"""Payment & Checkout Controller (US 06.1).
+"""Payment & Checkout Controller (US 06.1, US 06.2).
 
-Handles digital admission pass checkout, VietQR code generation, and client polling for order status.
+Handles digital admission pass checkout, VietQR code generation, client polling for order status,
+and cryptographic webhook processing.
 """
 
 from fastapi import APIRouter, Depends, status
@@ -10,6 +11,8 @@ from app.schemas.payment_schema import (
     CheckoutCreateRequest,
     CheckoutCreateResponse,
     OrderStatusResponse,
+    PayOSWebhookPayload,
+    WebhookResponse,
 )
 from app.services.payment_service import PaymentService
 
@@ -53,3 +56,16 @@ def simulate_payment_success(
 ) -> OrderStatusResponse:
     """Simulate payment success for developer testing and interactive demo."""
     return payment_service.simulate_payment_success(order_id=order_id)
+
+
+@router.post(
+    "/webhook",
+    response_model=WebhookResponse,
+    status_code=status.HTTP_200_OK,
+)
+def handle_payment_webhook(
+    payload: PayOSWebhookPayload,
+    payment_service: PaymentService = Depends(get_payment_service),
+) -> WebhookResponse:
+    """Secure webhook endpoint receiving payment confirmations from PayOS (TSK-06.2.1)."""
+    return payment_service.process_payment_webhook(payload=payload)
