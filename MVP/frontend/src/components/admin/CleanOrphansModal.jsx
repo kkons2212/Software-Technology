@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import PropTypes from 'prop-types';
 import { cleanOrphanedAudio } from '../../api/systemApi.js';
 
@@ -22,12 +23,12 @@ export default function CleanOrphansModal({ isOpen, onClose, onSuccess }) {
     }
   };
 
-  return (
+  const modalContent = (
     <div
       role="dialog"
       aria-modal="true"
       aria-labelledby="clean-orphans-title"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm"
+      className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm"
     >
       <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-2xl ring-1 ring-slate-900/10">
         <div className="flex items-center space-x-3 text-amber-600">
@@ -82,6 +83,12 @@ export default function CleanOrphansModal({ isOpen, onClose, onSuccess }) {
       </div>
     </div>
   );
+
+  if (typeof document !== 'undefined' && document.body) {
+    return createPortal(modalContent, document.body);
+  }
+
+  return modalContent;
 }
 
 CleanOrphansModal.propTypes = {
