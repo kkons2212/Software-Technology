@@ -45,11 +45,31 @@ class TranslationPipelineService:
         """Run translation and audio synthesis for all configured foreign languages.
 
         US 04.4 - AC-04.4.1 through AC-04.4.4:
-        Dispatches background worker jobs for all target languages, translates text with
+        Dispatches background worker jobs for all target languages dynamically from
+        the LanguageCode catalog table (excluding 'vi'). Translates text with
         exponential backoff, synthesizes MP3s with SHA-256 deduplication, and strictly
         enforces short-lived JIT database sessions.
         """
-        languages = target_languages or DEFAULT_TARGET_LANGUAGES
+        if target_languages is None:
+            try:
+                with self.session_factory() as db:
+                    from app.repositories.language_repository import LanguageRepository
+
+                    lang_repo = LanguageRepository(db)
+                    db_langs = lang_repo.list_target_foreign_language_ids(
+                        source_language="vi"
+                    )
+                    languages = db_langs if db_langs else DEFAULT_TARGET_LANGUAGES
+            except Exception as exc:
+                logger.warning(
+                    "Could not retrieve dynamic languages from database for POI %s: %s. Using default targets.",
+                    poi_id,
+                    exc,
+                )
+                languages = DEFAULT_TARGET_LANGUAGES
+        else:
+            languages = target_languages
+
         results: dict[str, dict[str, bool]] = {}
 
         logger.info(

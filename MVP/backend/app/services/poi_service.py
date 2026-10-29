@@ -19,6 +19,7 @@ from app.models.audit import AUDIT_STATUS_SUCCESS
 from app.models.poi import POI
 from app.models.translation import POITranslation
 from app.repositories.audit_repository import AuditRepository
+from app.repositories.language_repository import LanguageRepository
 from app.repositories.poi_repository import POIRepository
 from app.repositories.session_repository import SessionRepository
 from app.schemas.poi_schema import (
@@ -112,7 +113,11 @@ def validate_image_file(file: UploadFile, content_bytes: bytes) -> None:
 def get_poi_service(
     db: Annotated[Session, Depends(get_db)],
 ) -> "POIService":
-    return POIService(poi_repo=POIRepository(db), audit_repo=AuditRepository(db))
+    return POIService(
+        poi_repo=POIRepository(db),
+        audit_repo=AuditRepository(db),
+        language_repo=LanguageRepository(db),
+    )
 
 
 class POIService:
@@ -123,23 +128,33 @@ class POIService:
         repository: POIRepository | None = None,
         audit_repository: AuditRepository | None = None,
         session_repo: SessionRepository | None = None,
+        language_repo: LanguageRepository | None = None,
     ):
-        # `poi_repo`/`audit_repo` are the dependency-injection names, while
-
-        # `repository`/`audit_repository` are the explicit constructor names
-
-        # used by the geofence calibration suite. Both are accepted so no
-
-        # caller has to know which convention the other one picked.
-
         self.poi_repo = poi_repo or repository
-
         self.repository = self.poi_repo
-
         self.audit_repo = audit_repo or audit_repository
-
         self.audit_repository = self.audit_repo
         self.session_repo = session_repo
+        self.language_repo = language_repo
+        if (
+            self.language_repo is None
+            and self.poi_repo
+            and hasattr(self.poi_repo, "db")
+        ):
+            self.language_repo = LanguageRepository(self.poi_repo.db)
+
+    def _get_target_foreign_languages(self) -> list[str]:
+        """Fetch target foreign languages dynamically from LanguageCode table (excluding 'vi')."""
+        if self.language_repo is not None:
+            try:
+                languages = self.language_repo.list_target_foreign_language_ids(
+                    source_language="vi"
+                )
+                if languages:
+                    return languages
+            except Exception:
+                pass
+        return list(TARGET_FOREIGN_LANGUAGES)
 
     async def save_cover_image(self, file: UploadFile) -> str:
         """Validate and write uploaded image to disk."""
@@ -210,6 +225,7 @@ class POIService:
         self.poi_repo.create_translation(vi_trans)
 
         # 4. Dispatch background foreign language translation pipeline (Status = PENDING)
+        target_languages = self._get_target_foreign_languages()
 
         translation_responses = [
             POITranslationStatusResponse(
@@ -217,7 +233,7 @@ class POIService:
             )
         ]
 
-        for lang in TARGET_FOREIGN_LANGUAGES:
+        for lang in target_languages:
             foreign_trans = POITranslation(
                 stran_id=f"TR_{uuid.uuid4().hex[:12].upper()}",
                 title=f"[{lang.upper()}] {payload.title}",
@@ -256,7 +272,9 @@ class POIService:
             )
 
             background_tasks.add_task(
-                execute_poi_pipeline_background_task, created_poi.poi_id
+                execute_poi_pipeline_background_task,
+                created_poi.poi_id,
+                target_languages,
             )
 
         return self._build_poi_response(created_poi, translation_responses)
@@ -446,7 +464,10 @@ class POIService:
                     execute_poi_pipeline_background_task,
                 )
 
-                background_tasks.add_task(execute_poi_pipeline_background_task, poi_id)
+                target_languages = self._get_target_foreign_languages()
+                background_tasks.add_task(
+                    execute_poi_pipeline_background_task, poi_id, target_languages
+                )
 
         # Audit logging (dev_rules Section 3.3)
 

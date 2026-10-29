@@ -36,12 +36,21 @@ def test_engine() -> Engine:
         for code, name in [
             ("vi", "Tiếng Việt"),
             ("en", "English"),
-            ("ja", "Japanese"),
-            ("ko", "Korean"),
-            ("zh", "Chinese"),
+            ("ja", "日本語"),
+            ("ko", "한국어"),
+            ("fr", "Français"),
+            ("zh", "中文"),
         ]:
             if code not in existing:
                 session.add(LanguageCode(language_id=code, language_name=name))
+            else:
+                lang = (
+                    session.query(LanguageCode)
+                    .filter(LanguageCode.language_id == code)
+                    .first()
+                )
+                if lang:
+                    lang.language_name = name
         session.commit()
     yield engine
     engine.dispose()

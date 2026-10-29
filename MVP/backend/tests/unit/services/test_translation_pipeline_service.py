@@ -174,3 +174,38 @@ async def test_execute_poi_pipeline_background_task_catches_unhandled_exceptions
 
     # Must complete cleanly without raising unhandled exception
     await execute_poi_pipeline_background_task("POI_TEST_CRASH")
+
+
+@pytest.mark.asyncio
+async def test_pipeline_service_should_dynamically_load_languages_from_database(
+    db_session, mocker
+):
+    poi, _ = _seed_poi_with_vi_source(db_session)
+    if not db_session.query(LanguageCode).filter_by(language_id="fr").first():
+        db_session.add(LanguageCode(language_id="fr", language_name="Français"))
+        db_session.commit()
+
+    processed_languages = []
+
+    async def mock_process(poi_id, target_lang):
+        processed_languages.append(target_lang)
+        return True, f"TR_{target_lang.upper()}"
+
+    mock_trans_worker = mocker.MagicMock(spec=TranslationWorker)
+    mock_trans_worker.process_translation = AsyncMock(side_effect=mock_process)
+
+    mock_audio_worker = mocker.MagicMock(spec=AudioSynthesisWorker)
+    mock_audio_worker.process_audio_synthesis = AsyncMock(return_value=True)
+
+    pipeline = TranslationPipelineService(
+        session_factory=lambda: db_session,
+        translation_worker=mock_trans_worker,
+        audio_worker=mock_audio_worker,
+    )
+
+    results = await pipeline.run_pipeline_for_poi(poi.poi_id)
+
+    assert "fr" in results
+    assert "en" in results
+    assert "vi" not in results
+    assert "fr" in processed_languages

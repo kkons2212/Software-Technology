@@ -29,6 +29,7 @@ class DeepTranslatorClient:
         "ja": "ja",
         "ko": "ko",
         "zh": "zh-CN",
+        "fr": "fr",
     }
 
     def __init__(

@@ -40,13 +40,23 @@ class EdgeTTSClient:
         "ko": "ko-KR-SunHiNeural",
         "zh": "zh-CN-XiaoxiaoNeural",
         "vi": "vi-VN-HoaiMyNeural",
+        "fr": "fr-FR-DeniseNeural",
     }
 
     def get_voice(self, language_id: str) -> str:
-        """Resolve voice identifier for language code."""
-        voice = self.VOICE_BY_LANGUAGE.get(language_id.lower())
+        """Resolve voice identifier for language code with prefix check and safe fallback."""
+        normalized = language_id.strip().lower()
+        voice = self.VOICE_BY_LANGUAGE.get(normalized)
         if voice is None:
-            raise ValueError(f"No Edge-TTS voice is configured for '{language_id}'.")
+            prefix = normalized.split("-")[0]
+            voice = self.VOICE_BY_LANGUAGE.get(prefix)
+
+        if voice is None:
+            logger.warning(
+                "No specific Edge-TTS voice configured for '%s', falling back to 'en-US-AriaNeural'",
+                language_id,
+            )
+            return "en-US-AriaNeural"
         return voice
 
     async def generate_audio(
@@ -69,36 +79,31 @@ class EdgeTTSClient:
     ) -> tuple[str, int, bool]:
         """Synthesize MP3 narration or reuse existing cached file if SHA-256 matches.
 
-        US 04.4 - AC-04.4.3: Prevents redundant TTS calls for identical content.
+        US 04.4 - AC-04.4.2 & AC-04.4.3:
         Returns:
-            tuple[audio_url, file_size, is_reused]
+            tuple[file_url, file_size_bytes, was_cached]
         """
-        filename = f"audio_{audio_hash}.mp3"
-        output_path = audio_dir / filename
-        audio_url = f"/static/audio/{filename}"
-
-        # 1. Check existing storage cache
-        if output_path.is_file() and output_path.stat().st_size > 0:
-            logger.info(
-                "Audio cache hit for hash %s (%s). Reusing existing MP3 file.",
-                audio_hash,
-                language_id,
-            )
-            return audio_url, output_path.stat().st_size, True
-
-        # 2. Synthesize new audio via Edge-TTS
         audio_dir.mkdir(parents=True, exist_ok=True)
-        temporary_path = audio_dir / f".{filename}.tmp"
-        try:
-            await self.generate_audio(
-                text=text,
-                language_id=language_id,
-                output_path=temporary_path,
-            )
-            if not temporary_path.is_file() or temporary_path.stat().st_size == 0:
-                raise RuntimeError("Edge-TTS generated an empty audio file.")
-            temporary_path.replace(output_path)
-            file_size = output_path.stat().st_size
-            return audio_url, file_size, False
-        finally:
-            temporary_path.unlink(missing_ok=True)
+        filename = f"{audio_hash[:16]}_{language_id.lower()}.mp3"
+        file_path = audio_dir / filename
+        relative_url = f"/static/audio/{filename}"
+
+        # AC-04.4.3: Check if identical content hash audio file already exists on disk
+        if file_path.exists() and file_path.stat().st_size > 0:
+            logger.info("Audio cache HIT for hash %s (%s)", audio_hash, relative_url)
+            return relative_url, file_path.stat().st_size, True
+
+        # Cache MISS: Synthesize fresh neural MP3 via EdgeTTS
+        logger.info(
+            "Audio cache MISS for hash %s, synthesizing via Edge-TTS (%s)",
+            audio_hash,
+            relative_url,
+        )
+        await self.generate_audio(
+            text=text,
+            language_id=language_id,
+            output_path=file_path,
+        )
+
+        file_size = file_path.stat().st_size
+        return relative_url, file_size, False
