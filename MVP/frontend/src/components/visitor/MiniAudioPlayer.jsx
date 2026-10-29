@@ -27,7 +27,8 @@ export function formatTime(totalSeconds) {
   return `${formattedMinutes}:${formattedSeconds}`;
 }
 
-export function MiniAudioPlayer() {
+export function MiniAudioPlayer({ inline = false, poiId = null }) {
+  const audioContext = useAudioPlayer();
   const {
     currentPoi,
     isPlaying,
@@ -42,9 +43,22 @@ export function MiniAudioPlayer() {
     seek,
     setPlaybackRate,
     stop,
-  } = useAudioPlayer();
+  } = audioContext || {};
 
   if (!currentPoi) {
+    return null;
+  }
+
+  // If in inline mode for a specific POI, only render if currentPoi matches this POI
+  if (inline && poiId) {
+    const activeId = String(currentPoi.id ?? currentPoi.poi_id ?? '');
+    if (activeId !== String(poiId)) {
+      return null;
+    }
+  }
+
+  // If floating player at viewport bottom, hide if a POI preview card is currently open
+  if (!inline && typeof document !== 'undefined' && document.querySelector('.poi-preview-sheet')) {
     return null;
   }
 
@@ -78,18 +92,32 @@ export function MiniAudioPlayer() {
       data-testid="mini-audio-player"
       role="region"
       aria-label="Audio Guide Player"
-      style={{
-        position: 'fixed',
-        bottom: 0,
-        left: 0,
-        right: 0,
-        zIndex: 40,
-        backgroundColor: '#FFFFFF',
-        borderTop: '1px solid #CBD5E1',
-        padding: '10px 16px',
-        boxShadow: '0 -2px 10px rgba(0, 0, 0, 0.06)',
-        fontFamily: 'Inter, system-ui, -apple-system, sans-serif',
-      }}
+      style={
+        inline
+          ? {
+              backgroundColor: '#F8FAFC',
+              borderRadius: '12px',
+              border: '1px solid #E2E8F0',
+              padding: '10px 12px',
+              marginTop: '12px',
+              marginBottom: '6px',
+              fontFamily: 'Inter, system-ui, -apple-system, sans-serif',
+              boxSizing: 'border-box',
+              width: '100%',
+            }
+          : {
+              position: 'fixed',
+              bottom: 0,
+              left: 0,
+              right: 0,
+              zIndex: 40,
+              backgroundColor: '#FFFFFF',
+              borderTop: '1px solid #CBD5E1',
+              padding: '10px 16px',
+              boxShadow: '0 -2px 10px rgba(0, 0, 0, 0.06)',
+              fontFamily: 'Inter, system-ui, -apple-system, sans-serif',
+            }
+      }
     >
       {/* Row 1: Title, Status Badges & Speed Selector */}
       <div

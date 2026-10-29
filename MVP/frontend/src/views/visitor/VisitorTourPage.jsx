@@ -42,9 +42,24 @@ export default function VisitorTourPage({
     sessionToken: contextSessionToken,
     expiresAt: contextExpiresAt,
     isUnlocked,
+    isPoiActivated: rawIsPoiActivated,
+    markPoiActivated: rawMarkPoiActivated,
     activateSession,
     clearSession,
   } = useVisitorSession();
+
+  const isPoiActivated = useCallback(
+    (poiId) => (typeof rawIsPoiActivated === 'function' ? rawIsPoiActivated(poiId) : false),
+    [rawIsPoiActivated]
+  );
+  const markPoiActivated = useCallback(
+    (poiId) => {
+      if (typeof rawMarkPoiActivated === 'function') {
+        rawMarkPoiActivated(poiId);
+      }
+    },
+    [rawMarkPoiActivated]
+  );
 
   const effectiveSessionCode = sessionCode || contextSessionCode;
   const effectiveExpiresAt = expiresAt || contextExpiresAt;
@@ -56,16 +71,20 @@ export default function VisitorTourPage({
 
   const handleProximityTrigger = useCallback(
     (poi) => {
+      const poiId = String(poi.poi_id || poi.id);
+      if (isUnlocked) {
+        markPoiActivated(poiId);
+      }
       play(poi);
       // The language is captured alongside the entry instant: the backend mints
       // the visitor session from this value, so it must be the visitor's choice at
       // the time the exhibit was actually triggered.
-      dwellStartByPoiIdRef.current[String(poi.poi_id || poi.id)] = {
+      dwellStartByPoiIdRef.current[poiId] = {
         startedAtMs: Date.now(),
         language: selectedLanguage,
       };
     },
-    [play, selectedLanguage]
+    [isUnlocked, markPoiActivated, play, selectedLanguage]
   );
 
   const { activeGeofencePois } = useGeofenceTrigger({
@@ -247,8 +266,28 @@ export default function VisitorTourPage({
       return;
     }
 
+    const poiId = String(selectedPoi.poi_id || selectedPoi.id);
+    const hasActivated = isPoiActivated(poiId);
+
+    if (isUnlocked && hasActivated) {
+      const fullAudioUrl =
+        selectedPoi.audio_url ||
+        (contextSessionToken
+          ? `/api/v1/audio/${poiId}?token=${encodeURIComponent(contextSessionToken)}&language=${encodeURIComponent(selectedLanguage || 'vi')}`
+          : null);
+
+      play({
+        ...selectedPoi,
+        audio_url: fullAudioUrl,
+        text: selectedPoi.description || selectedPoi.short_description || selectedPoi.title,
+        lang: selectedLanguage,
+      });
+      return;
+    }
+
     play({
       ...selectedPoi,
+      audio_url: null,
       text: selectedPoi.short_description || selectedPoi.title,
       lang: selectedLanguage,
     });
@@ -355,6 +394,7 @@ export default function VisitorTourPage({
           onDismiss={handleDismissPOIPreview}
           onUnlock={handleUnlockClick}
           isUnlocked={isUnlocked || Boolean(effectiveSessionCode)}
+          isActivated={isPoiActivated(selectedPoi.poi_id || selectedPoi.id)}
           onDirectionsClick={handleDirectionsClick}
           isRoutingActive={!!isRoutingToSelectedPoi}
         />

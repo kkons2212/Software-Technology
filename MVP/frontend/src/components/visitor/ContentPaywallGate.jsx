@@ -5,17 +5,31 @@
  */
 export default function ContentPaywallGate({
   isUnlocked = false,
+  isActivated = true,
   shortDescription = '',
   fullDescription = '',
   onUnlock,
   className = '',
 }) {
   if (isUnlocked) {
+    if (isActivated) {
+      return (
+        <div data-testid="content-unlocked" className={`content-unlocked ${className}`}>
+          <p className="poi-preview-summary text-slate-700 dark:text-slate-200">
+            {fullDescription || shortDescription || 'No description available.'}
+          </p>
+        </div>
+      );
+    }
+
     return (
-      <div data-testid="content-unlocked" className={`content-unlocked ${className}`}>
-        <p className="poi-preview-summary text-slate-700 dark:text-slate-200">
-          {fullDescription || shortDescription || 'No description available.'}
+      <div data-testid="content-teaser-paid" className={`content-teaser-paid ${className}`}>
+        <p className="poi-preview-summary text-slate-700 dark:text-slate-200 line-clamp-2">
+          {shortDescription || 'Historical chronicle preview...'}
         </p>
+        <span className="mt-1.5 inline-flex items-center gap-1 rounded bg-amber-50 border border-amber-200 px-2 py-0.5 text-[11px] font-medium text-amber-800">
+          📍 Đến gần điểm (&le;15m) để kích hoạt thuyết minh đầy đủ
+        </span>
       </div>
     );
   }
@@ -23,14 +37,13 @@ export default function ContentPaywallGate({
   return (
     <div
       data-testid="content-paywall-gate"
-      className={`content-paywall-gate relative overflow-hidden ${className}`}
+      className={`content-paywall-gate ${className}`}
     >
-      <p className="poi-preview-summary text-slate-600 line-clamp-3 select-none">
+      <p className="poi-preview-summary text-slate-600 line-clamp-2 select-none">
         {shortDescription || 'Historical chronicle preview...'}
       </p>
 
-      {/* Smooth fade gradient overlay */}
-      <div className="absolute inset-0 flex flex-col items-center justify-end bg-gradient-to-b from-transparent via-white/80 to-white dark:via-slate-900/80 dark:to-slate-900 pt-6 pb-0.5">
+      <div className="mt-2 flex items-center">
         <button
           type="button"
           onClick={onUnlock}
@@ -54,4 +67,3 @@ export default function ContentPaywallGate({
     </div>
   );
 }
-

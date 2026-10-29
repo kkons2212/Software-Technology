@@ -127,6 +127,7 @@ export default function AdminMapPicker({
         weight: 2,
         fillColor: GEOFENCE_OUTLINE_COLOR,
         fillOpacity: 0.15,
+        interactive: false,
       });
       circle.addTo(map);
 
@@ -144,9 +145,32 @@ export default function AdminMapPicker({
       marker.on('drag', handleMarkerMove);
       marker.on('dragend', handleMarkerMove);
 
+      const handleMapClick = (event) => {
+        if (!event?.latlng) return;
+        const { lat, lng } = event.latlng;
+        const nextLat = roundCoordinate(lat);
+        const nextLng = roundCoordinate(lng);
+        marker.setLatLng([lat, lng]);
+        circle.setLatLng([lat, lng]);
+        setLatitude(nextLat);
+        setLongitude(nextLng);
+        onChangeRef.current?.({ latitude: nextLat, longitude: nextLng, radius: radiusRef.current });
+      };
+      if (typeof map.on === 'function') {
+        map.on('click', handleMapClick);
+      }
+
       mapRef.current = map;
       markerRef.current = marker;
       circleRef.current = circle;
+
+      setTimeout(() => {
+        try {
+          map.invalidateSize();
+        } catch {
+          // Safe ignore in headless tests
+        }
+      }, 150);
     } catch {
       // # FALLBACK-LOGIC: Safe fallback when rendered in headless test runner (jsdom) without WebGL/DOM layout
     }
@@ -157,7 +181,33 @@ export default function AdminMapPicker({
       markerRef.current = null;
       circleRef.current = null;
     };
-  }, [initialLatitude, initialLongitude, initialRadius]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [poiId]);
+
+  // Synchronize pin position when parent updates initialLatitude/initialLongitude (e.g. form reset or switch)
+  useEffect(() => {
+    if (Number.isFinite(initialLatitude) && Number.isFinite(initialLongitude)) {
+      setLatitude(initialLatitude);
+      setLongitude(initialLongitude);
+      if (markerRef.current && circleRef.current) {
+        const currentPos = markerRef.current.getLatLng();
+        if (
+          roundCoordinate(currentPos.lat) !== roundCoordinate(initialLatitude) ||
+          roundCoordinate(currentPos.lng) !== roundCoordinate(initialLongitude)
+        ) {
+          const nextPos = [initialLatitude, initialLongitude];
+          markerRef.current.setLatLng(nextPos);
+          circleRef.current.setLatLng(nextPos);
+        }
+      }
+    }
+  }, [initialLatitude, initialLongitude]);
+
+  useEffect(() => {
+    if (typeof initialRadius === 'number') {
+      setRadius(initialRadius);
+    }
+  }, [initialRadius]);
 
   // AC-03.2.2: the geofence circle resizes live as the slider moves.
   useEffect(() => {
@@ -221,7 +271,7 @@ export default function AdminMapPicker({
         role="application"
         aria-label="Interactive geofence map with draggable pin"
         data-testid="admin-map-picker-canvas"
-        className="w-full rounded-md border bg-slate-100"
+        className="w-full rounded-md border bg-slate-100 touch-none relative z-0 cursor-crosshair"
         style={{
           height: `${mapHeight}px`,
           borderColor: isOutOfBounds ? OUT_OF_BOUNDS_COLOR : DEFAULT_MAP_BORDER_COLOR,

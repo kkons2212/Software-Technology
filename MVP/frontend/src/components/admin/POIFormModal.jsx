@@ -280,6 +280,7 @@ export default function POIFormModal({
               Geofence Calibration (Pin & Radius: 10m–50m)
             </span>
             <AdminMapPicker
+              key={poi.poi_id || poi.id}
               poiId={poi.poi_id || poi.id}
               initialLatitude={latitude}
               initialLongitude={longitude}

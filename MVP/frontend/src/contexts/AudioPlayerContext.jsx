@@ -369,7 +369,24 @@ export function AudioPlayerProvider({ children }) {
 export function useAudioPlayer() {
   const context = useContext(AudioPlayerContext);
   if (!context) {
-    throw new Error('useAudioPlayer must be used within an AudioPlayerProvider');
+    return {
+      currentPoi: null,
+      isPlaying: false,
+      currentTime: 0,
+      duration: 0,
+      playbackRate: 1.0,
+      isBuffering: false,
+      isOfflineFallback: false,
+      error: null,
+      play: () => {},
+      pause: () => {},
+      resume: () => {},
+      togglePlay: () => {},
+      seek: () => {},
+      skip: () => {},
+      setPlaybackRate: () => {},
+      stop: () => {},
+    };
   }
   return context;
 }

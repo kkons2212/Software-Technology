@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { calculateHaversineDistance } from '../../utils/haversine.js';
 import ContentPaywallGate from './ContentPaywallGate.jsx';
 import { useVisitorSession } from '../../contexts/VisitorSessionContext.jsx';
+import MiniAudioPlayer from './MiniAudioPlayer.jsx';
 
 const SWIPE_DISMISS_DISTANCE_PX = 48;
 
@@ -24,15 +25,27 @@ export default function PoiPreviewCard({
   onDismiss,
   onUnlock,
   isUnlocked: propIsUnlocked,
+  isActivated: propIsActivated,
   onDirectionsClick,
   isRoutingActive = false,
 }) {
   const touchStartYRef = useRef(null);
   const session = useVisitorSession();
+  const poiId = String(poi?.id || poi?.poi_id || '');
+
   const isUnlocked =
     typeof propIsUnlocked === 'boolean'
       ? propIsUnlocked
       : Boolean(session?.isUnlocked || (poi && poi.is_locked === false));
+
+  const isActivated =
+    typeof propIsActivated === 'boolean'
+      ? propIsActivated
+      : Boolean(
+          (typeof session?.isPoiActivated === 'function' && session.isPoiActivated(poiId)) ||
+          (poi && poi.is_locked === false) ||
+          (typeof propIsActivated === 'undefined' && propIsUnlocked === true)
+        );
 
   const distance = calculateHaversineDistance(location, {
     lat: poi.latitude,
@@ -94,12 +107,17 @@ export default function PoiPreviewCard({
             <p className="poi-preview-distance">{formatDistance(distance)}</p>
             <ContentPaywallGate
               isUnlocked={isUnlocked}
+              isActivated={isActivated}
               shortDescription={poi.short_description || 'No preview summary available.'}
               fullDescription={poi.description}
               onUnlock={onUnlock}
             />
           </div>
         </div>
+
+        {/* Embedded audio player between the preview content and action buttons */}
+        <MiniAudioPlayer inline poiId={poi.id || poi.poi_id} />
+
         <div className="poi-preview-actions">
           <button
             className={`poi-preview-directions ${isRoutingActive ? 'poi-preview-directions--active' : ''}`}
@@ -108,8 +126,13 @@ export default function PoiPreviewCard({
           >
             {isRoutingActive ? 'Clear Route' : 'Directions'}
           </button>
-          <button className="poi-preview-play" type="button" onClick={onPlayAudio}>
-            Play Narration
+          <button
+            className="poi-preview-play"
+            type="button"
+            onClick={onPlayAudio}
+            data-testid="poi-preview-play-btn"
+          >
+            {isUnlocked && isActivated ? 'Replay' : 'Play Narration'}
           </button>
         </div>
       </section>

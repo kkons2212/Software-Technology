@@ -16,6 +16,8 @@ export const VISITOR_STORAGE_KEYS = {
   LEGACY_EXPIRES: 'visitor_expires_at',
 };
 
+export const ACTIVATED_POIS_STORAGE_PREFIX = 'museum_activated_pois_';
+
 const COUNTDOWN_INTERVAL_MS = 1000;
 
 export function formatSessionCountdown(milliseconds) {
@@ -53,6 +55,18 @@ function getStoredValue(primaryKey, fallbackKey) {
   );
 }
 
+function getStoredActivatedPois(code) {
+  if (!code || typeof window === 'undefined' || !window.localStorage || shouldClearFromUrl()) {
+    return [];
+  }
+  try {
+    const raw = window.localStorage.getItem(`${ACTIVATED_POIS_STORAGE_PREFIX}${code}`);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
 const defaultSessionState = {
   isUnlocked: false,
   sessionCode: '',
@@ -60,6 +74,9 @@ const defaultSessionState = {
   expiresAt: null,
   timeRemaining: 0,
   formattedCountdown: '0h 00m',
+  activatedPoiIds: [],
+  markPoiActivated: () => {},
+  isPoiActivated: () => false,
   activateSession: () => {},
   clearSession: () => {},
 };
@@ -91,6 +108,15 @@ export function VisitorSessionProvider({ children }) {
     return isNaN(parsed.getTime()) ? null : parsed.toISOString();
   });
 
+  const [activatedPoiIds, setActivatedPoiIds] = useState(() =>
+    getStoredActivatedPois(
+      getStoredValue(
+        VISITOR_STORAGE_KEYS.SESSION_CODE,
+        VISITOR_STORAGE_KEYS.LEGACY_CODE
+      )
+    )
+  );
+
   const [timeRemaining, setTimeRemaining] = useState(() => {
     if (!expiresAt) return 0;
     const diff = new Date(expiresAt).getTime() - Date.now();
@@ -102,8 +128,12 @@ export function VisitorSessionProvider({ children }) {
     setSessionToken('');
     setExpiresAt(null);
     setTimeRemaining(0);
+    setActivatedPoiIds([]);
 
     if (typeof window !== 'undefined' && window.localStorage) {
+      if (sessionCode) {
+        window.localStorage.removeItem(`${ACTIVATED_POIS_STORAGE_PREFIX}${sessionCode}`);
+      }
       window.localStorage.removeItem(VISITOR_STORAGE_KEYS.SESSION_CODE);
       window.localStorage.removeItem(VISITOR_STORAGE_KEYS.SESSION_TOKEN);
       window.localStorage.removeItem(VISITOR_STORAGE_KEYS.EXPIRES_AT);
@@ -111,7 +141,7 @@ export function VisitorSessionProvider({ children }) {
       window.localStorage.removeItem(VISITOR_STORAGE_KEYS.LEGACY_TOKEN);
       window.localStorage.removeItem(VISITOR_STORAGE_KEYS.LEGACY_EXPIRES);
     }
-  }, []);
+  }, [sessionCode]);
 
   const activateSession = useCallback(
     ({ sessionCode: code, sessionToken: token, expiresAt: rawExpiry }) => {
@@ -131,6 +161,9 @@ export function VisitorSessionProvider({ children }) {
       const remaining = Math.max(0, new Date(expiryIso).getTime() - Date.now());
       setTimeRemaining(remaining);
 
+      const storedActivated = getStoredActivatedPois(codeVal);
+      setActivatedPoiIds(storedActivated);
+
       if (typeof window !== 'undefined' && window.localStorage) {
         if (codeVal) {
           window.localStorage.setItem(VISITOR_STORAGE_KEYS.SESSION_CODE, codeVal);
@@ -145,6 +178,33 @@ export function VisitorSessionProvider({ children }) {
       }
     },
     []
+  );
+
+  const markPoiActivated = useCallback(
+    (poiId) => {
+      if (!poiId) return;
+      const idStr = String(poiId);
+      setActivatedPoiIds((prev) => {
+        if (prev.includes(idStr)) return prev;
+        const next = [...prev, idStr];
+        if (sessionCode && typeof window !== 'undefined' && window.localStorage) {
+          window.localStorage.setItem(
+            `${ACTIVATED_POIS_STORAGE_PREFIX}${sessionCode}`,
+            JSON.stringify(next)
+          );
+        }
+        return next;
+      });
+    },
+    [sessionCode]
+  );
+
+  const isPoiActivated = useCallback(
+    (poiId) => {
+      if (!poiId) return false;
+      return activatedPoiIds.includes(String(poiId));
+    },
+    [activatedPoiIds]
   );
 
   // Interval timer for real-time countdown and automatic expiration
@@ -200,6 +260,9 @@ export function VisitorSessionProvider({ children }) {
       expiresAt,
       timeRemaining,
       formattedCountdown,
+      activatedPoiIds,
+      markPoiActivated,
+      isPoiActivated,
       activateSession,
       clearSession,
     }),
@@ -210,6 +273,9 @@ export function VisitorSessionProvider({ children }) {
       expiresAt,
       timeRemaining,
       formattedCountdown,
+      activatedPoiIds,
+      markPoiActivated,
+      isPoiActivated,
       activateSession,
       clearSession,
     ]
