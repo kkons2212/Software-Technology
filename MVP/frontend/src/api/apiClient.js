@@ -86,8 +86,38 @@ async function requestJson(path, { method = 'GET', body, headers, signal } = {})
   return payload?.data ?? payload;
 }
 
+async function requestBlob(path, { headers, signal } = {}) {
+  let response;
+  try {
+    response = await fetch(buildRequestUrl(path), {
+      method: 'GET',
+      credentials: REQUEST_CREDENTIALS,
+      headers: { ...headers },
+      signal,
+    });
+  } catch (error) {
+    if (error.name === 'AbortError') {
+      throw error;
+    }
+    throw new ApiError({ code: NETWORK_ERROR_CODE, message: NETWORK_ERROR_MESSAGE });
+  }
+
+  if (!response.ok) {
+    const payload = await readResponsePayload(response);
+    throw buildErrorFromResponse(response, payload);
+  }
+
+  const blob = await response.blob();
+  const disposition = response.headers?.get?.('Content-Disposition') || '';
+  const match = disposition.match(/filename="?([^";]+)"?/i);
+  const filename = match ? match[1] : 'export_file';
+
+  return { blob, filename };
+}
+
 export const apiClient = {
   get: (path, options) => requestJson(path, { ...options, method: 'GET' }),
+  getBlob: (path, options) => requestBlob(path, options),
   post: (path, body, options) => requestJson(path, { ...options, method: 'POST', body }),
   put: (path, body, options) => requestJson(path, { ...options, method: 'PUT', body }),
   patch: (path, body, options) => requestJson(path, { ...options, method: 'PATCH', body }),

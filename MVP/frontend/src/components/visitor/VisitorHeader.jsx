@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { LockKeyhole } from 'lucide-react';
+import { KeyRound, LockKeyhole } from 'lucide-react';
 
 const COUNTDOWN_INTERVAL_MS = 1000;
 
@@ -18,6 +18,7 @@ export default function VisitorHeader({
   expiresAt = null,
   onUnlock,
   onClearSession,
+  onRestoreSession,
 }) {
   const [remainingMilliseconds, setRemainingMilliseconds] = useState(0);
   const expirationTime = expiresAt ? new Date(expiresAt).getTime() : 0;
@@ -99,10 +100,21 @@ export default function VisitorHeader({
             )}
           </div>
         ) : (
-          <button className="visitor-unlock-button" type="button" onClick={onUnlock}>
-            <LockKeyhole size={15} aria-hidden="true" />
-            <span>Unlock audio</span>
-          </button>
+          <div className="flex items-center gap-1.5">
+            <button
+              className="visitor-restore-button inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition"
+              type="button"
+              onClick={onRestoreSession}
+              title="Khôi phục phiên đã mua"
+            >
+              <KeyRound size={13} aria-hidden="true" />
+              <span className="hidden sm:inline">Khôi phục</span>
+            </button>
+            <button className="visitor-unlock-button" type="button" onClick={onUnlock}>
+              <LockKeyhole size={15} aria-hidden="true" />
+              <span>Unlock audio</span>
+            </button>
+          </div>
         )}
       </div>
     </header>

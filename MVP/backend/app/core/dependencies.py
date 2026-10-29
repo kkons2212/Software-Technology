@@ -25,6 +25,7 @@ from app.services.auth_service import AuthService
 from app.services.language_service import LanguageService
 from app.services.payment_service import PaymentService
 from app.services.poi_service import POIService
+from app.services.session_service import SessionService
 from app.services.translation_service import TranslationService
 from app.services.tts_service import TTSService
 
@@ -96,6 +97,15 @@ def get_telemetry_service(db: Session = Depends(get_db)):
     return TelemetryService(telemetry_repo=telemetry_repo)
 
 
+def get_export_service(db: Session = Depends(get_db)):
+    """Dependency provider injecting TelemetryRepository into ExportService."""
+    from app.repositories.telemetry_repository import TelemetryRepository
+    from app.services.export_service import ExportService
+
+    telemetry_repo = TelemetryRepository(db)
+    return ExportService(telemetry_repo=telemetry_repo)
+
+
 def get_language_service(db: Session = Depends(get_db)) -> LanguageService:
     """Dependency provider injecting LanguageRepository into LanguageService."""
     language_repo = LanguageRepository(db)
@@ -125,6 +135,18 @@ def get_tts_service() -> TTSService:
 def get_transaction_repository(db: Session = Depends(get_db)) -> TransactionRepository:
     """Build a TransactionRepository bound to the request session."""
     return TransactionRepository(db)
+
+
+def get_session_repository(db: Session = Depends(get_db)) -> SessionRepository:
+    """Build a SessionRepository bound to the request session."""
+    return SessionRepository(db)
+
+
+def get_session_service(
+    session_repo: SessionRepository = Depends(get_session_repository),
+) -> SessionService:
+    """Build the SessionService for visitor session recovery and access validation."""
+    return SessionService(session_repository=session_repo)
 
 
 def get_payment_service(

@@ -57,6 +57,16 @@ vi.mock('../../../contexts/AudioPlayerContext.jsx', () => ({
   useAudioPlayer: () => audioPlayerMock,
 }));
 
+const visitorSessionMock = vi.hoisted(() => ({
+  sessionCode: '',
+  expiresAt: null,
+  activateSession: vi.fn(),
+}));
+
+vi.mock('../../../contexts/VisitorSessionContext.jsx', () => ({
+  useVisitorSession: () => visitorSessionMock,
+}));
+
 vi.mock('../VisitorMapView.jsx', () => ({
   default: ({ onSelectPOI }) => (
     <div aria-label="Interactive map">
