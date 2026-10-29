@@ -1,7 +1,7 @@
-"""Pydantic schemas for Payment Gateway and Digital Checkout (US 06.1)."""
+"""Pydantic schemas for Payment Gateway, Digital Checkout, and Webhook Activation (US 06.1, US 06.2)."""
 
 from datetime import datetime
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -106,4 +106,73 @@ class OrderStatusResponse(BaseModel):
     expires_at: datetime | None = Field(
         default=None,
         description="Direct alias for session_expires_at for seamless frontend consumption.",
+    )
+
+
+class PayOSWebhookData(BaseModel):
+    """Inner data payload delivered by PayOS webhook."""
+
+    orderCode: int | None = Field(default=None, description="Numeric order code.")
+    amount: int | None = Field(default=None, description="Transaction amount paid.")
+    description: str | None = Field(
+        default=None, description="Transfer memo/description."
+    )
+    accountNumber: str | None = Field(default=None, description="Bank account number.")
+    reference: str | None = Field(
+        default=None, description="Transaction reference code."
+    )
+    transactionDateTime: str | None = Field(
+        default=None, description="Transaction timestamp."
+    )
+    currency: str | None = Field(default="VND", description="Currency code.")
+    paymentLinkId: str | None = Field(
+        default=None, description="PayOS payment link ID."
+    )
+    code: str | None = Field(
+        default=None, description="PayOS transaction status code ('00' = success)."
+    )
+    desc: str | None = Field(
+        default=None, description="PayOS transaction status message."
+    )
+    order_id: str | None = Field(
+        default=None, description="Optional direct order identifier."
+    )
+
+    model_config = {"extra": "allow"}
+
+
+class PayOSWebhookPayload(BaseModel):
+    """Full PayOS webhook payload envelope."""
+
+    code: str = Field(default="00", description="Overall response code.")
+    desc: str = Field(default="success", description="Overall description.")
+    data: dict[str, Any] = Field(
+        ...,
+        description="Inner transaction data object used for HMAC-SHA256 signature.",
+    )
+    signature: str = Field(
+        ..., description="Cryptographic HMAC-SHA256 signature for verification."
+    )
+
+    model_config = {"extra": "allow"}
+
+
+class WebhookResponse(BaseModel):
+    """Standardized response returned to payment gateway upon webhook ingestion."""
+
+    success: bool = Field(
+        default=True, description="Whether webhook was processed successfully."
+    )
+    message: str = Field(
+        default="Webhook processed successfully", description="Status message."
+    )
+    order_id: str | None = Field(
+        default=None, description="Associated transaction order ID."
+    )
+    session_code: str | None = Field(
+        default=None, description="Issued 24-hour session code."
+    )
+    session_token: str | None = Field(default=None, description="Issued session token.")
+    expires_at: datetime | None = Field(
+        default=None, description="Session expiration timestamp."
     )

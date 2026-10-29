@@ -1,4 +1,19 @@
-"""Unit tests for PaymentController (US 06.1)."""
+"""Unit tests for PaymentController (US 06.1, US 06.2)."""
+
+import hashlib
+import hmac
+
+from app.core.config import settings
+
+
+def _generate_sig(data: dict, checksum_key: str) -> str:
+    sorted_keys = sorted(data.keys())
+    sign_string = "&".join(f"{k}={data[k]}" for k in sorted_keys if data[k] is not None)
+    return hmac.new(
+        checksum_key.encode("utf-8"),
+        sign_string.encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()
 
 
 def test_should_create_checkout_order_for_vietqr(client, db_session):
@@ -75,3 +90,88 @@ def test_should_simulate_payment_success_and_activate_session(client, db_session
 def test_should_return_404_when_querying_unknown_order(client, db_session):
     response = client.get("/api/v1/payments/order/TXN_DOES_NOT_EXIST/status")
     assert response.status_code == 404
+
+
+def test_should_handle_webhook_success_and_activate_session(
+    client, db_session, monkeypatch
+):
+    test_key = "test_webhook_secret_key"
+    monkeypatch.setattr(settings, "PAYOS_CHECKSUM_KEY", test_key)
+
+    # 1. Create order
+    create_res = client.post(
+        "/api/v1/payments/create-checkout",
+        json={"payment_method": "VIETQR", "preferred_language": "vi"},
+    )
+    order_id = create_res.json()["order_id"]
+
+    # 2. Call Webhook
+    data = {
+        "order_id": order_id,
+        "amount": 50000,
+        "description": f"CCT {order_id[-6:]}",
+    }
+    sig = _generate_sig(data, test_key)
+    payload = {
+        "code": "00",
+        "desc": "success",
+        "data": data,
+        "signature": sig,
+    }
+
+    res = client.post("/api/v1/payments/webhook", json=payload)
+    assert res.status_code == 200
+    res_data = res.json()
+    assert res_data["success"] is True
+    assert res_data["order_id"] == order_id
+    assert res_data["session_code"].startswith("CCT-")
+    assert res_data["session_token"] is not None
+    assert res_data["expires_at"] is not None
+
+
+def test_should_reject_webhook_with_invalid_signature_401(
+    client, db_session, monkeypatch
+):
+    monkeypatch.setattr(settings, "PAYOS_CHECKSUM_KEY", "test_key")
+    payload = {
+        "code": "00",
+        "desc": "success",
+        "data": {"orderCode": 12345},
+        "signature": "bad_signature_hex",
+    }
+    res = client.post("/api/v1/payments/webhook", json=payload)
+    assert res.status_code == 401
+    body = res.json()
+    error_msg = (
+        body.get("error", {}).get("message", "")
+        if "error" in body
+        else body.get("detail", "")
+    )
+    assert "INVALID_WEBHOOK_SIGNATURE" in error_msg
+
+
+def test_should_handle_idempotent_duplicate_webhook(client, db_session, monkeypatch):
+    test_key = "test_webhook_secret_key"
+    monkeypatch.setattr(settings, "PAYOS_CHECKSUM_KEY", test_key)
+
+    create_res = client.post(
+        "/api/v1/payments/create-checkout",
+        json={"payment_method": "VIETQR"},
+    )
+    order_id = create_res.json()["order_id"]
+
+    data = {"order_id": order_id, "amount": 50000}
+    sig = _generate_sig(data, test_key)
+    payload = {"code": "00", "desc": "success", "data": data, "signature": sig}
+
+    # Delivery 1
+    res1 = client.post("/api/v1/payments/webhook", json=payload)
+    assert res1.status_code == 200
+    session_code = res1.json()["session_code"]
+
+    # Delivery 2 (Idempotent duplicate)
+    res2 = client.post("/api/v1/payments/webhook", json=payload)
+    assert res2.status_code == 200
+    assert res2.json()["success"] is True
+    assert res2.json()["session_code"] == session_code
+    assert "idempotent" in res2.json()["message"].lower()
