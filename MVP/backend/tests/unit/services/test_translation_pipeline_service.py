@@ -148,6 +148,7 @@ async def test_pipeline_service_should_orchestrate_all_target_languages(
         session_factory=lambda: db_session,
         translation_worker=mock_trans_worker,
         audio_worker=mock_audio_worker,
+        pacing_delay=0.0,
     )
 
     results = await pipeline.run_pipeline_for_poi(
@@ -201,6 +202,7 @@ async def test_pipeline_service_should_dynamically_load_languages_from_database(
         session_factory=lambda: db_session,
         translation_worker=mock_trans_worker,
         audio_worker=mock_audio_worker,
+        pacing_delay=0.0,
     )
 
     results = await pipeline.run_pipeline_for_poi(poi.poi_id)
@@ -209,3 +211,30 @@ async def test_pipeline_service_should_dynamically_load_languages_from_database(
     assert "en" in results
     assert "vi" not in results
     assert "fr" in processed_languages
+
+
+@pytest.mark.asyncio
+async def test_pipeline_service_should_apply_pacing_delay_between_languages(
+    db_session, mocker
+):
+    poi, _ = _seed_poi_with_vi_source(db_session)
+    mock_trans_worker = mocker.MagicMock(spec=TranslationWorker)
+    mock_trans_worker.process_translation = AsyncMock(return_value=(True, "TR_EN"))
+
+    mock_audio_worker = mocker.MagicMock(spec=AudioSynthesisWorker)
+    mock_audio_worker.process_audio_synthesis = AsyncMock(return_value=True)
+
+    mock_sleep = mocker.patch("asyncio.sleep", new_callable=AsyncMock)
+
+    pipeline = TranslationPipelineService(
+        session_factory=lambda: db_session,
+        translation_worker=mock_trans_worker,
+        audio_worker=mock_audio_worker,
+        pacing_delay=2.0,
+    )
+
+    await pipeline.run_pipeline_for_poi(poi.poi_id, target_languages=["en", "ja", "ko"])
+
+    # 3 languages means 2 inter-language delays
+    assert mock_sleep.call_count == 2
+    mock_sleep.assert_called_with(2.0)
