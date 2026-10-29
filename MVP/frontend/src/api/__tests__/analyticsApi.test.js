@@ -1,10 +1,9 @@
 /**
- * Paired unit tests for `src/api/analyticsApi.js` (US 05.2 / TSK-05.2.2).
+ * Paired unit tests for `src/api/analyticsApi.js` (US 05.2 & US 05.1).
  *
  * `apiClient` is exercised through a stubbed global `fetch` so these assertions
- * cover the exact HTTP contract of `GET /api/v1/admin/analytics/summary`:
- * the reporting window query string, the cookie credentials and the `{data}`
- * envelope unwrapping that the dashboard relies on.
+ * cover the exact HTTP contract of `GET /api/v1/admin/analytics/summary` and
+ * `GET /api/v1/admin/analytics/heatmap`.
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -12,7 +11,9 @@ import {
   ANALYTICS_SUMMARY_ENDPOINT,
   ANALYTICS_TIME_RANGES,
   DEFAULT_ANALYTICS_RANGE,
+  HEATMAP_ENDPOINT,
   getAnalyticsSummary,
+  getHeatmapData,
 } from '../analyticsApi.js';
 
 const ANALYTICS_SUMMARY_PAYLOAD = {
@@ -28,6 +29,23 @@ const ANALYTICS_SUMMARY_PAYLOAD = {
   language_distribution: [
     { language_id: 'vi', language_name: 'Vietnamese', visitor_count: 620, percentage: 50.0 },
   ],
+};
+
+const HEATMAP_PAYLOAD = {
+  time_range: 'LAST_7_DAYS',
+  generated_at: '2026-10-27T06:30:00',
+  points: [
+    {
+      poi_id: 'poi-1',
+      poi_title: 'Ben Duoc Tunnels',
+      lat: 11.1432,
+      lng: 106.4631,
+      trigger_count: 320,
+      intensity: 1.0,
+    },
+  ],
+  total_points: 1,
+  max_trigger_count: 320,
 };
 
 function stubJsonResponse(body, { ok = true, status = 200 } = {}) {
@@ -100,5 +118,41 @@ describe('analyticsApi.getAnalyticsSummary', () => {
       code: 'UNAUTHENTICATED',
       message: 'Administrator session is required.',
     });
+  });
+});
+
+describe('analyticsApi.getHeatmapData', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('requests the default LAST_7_DAYS window and unwraps the heatmap data envelope', async () => {
+    const fetchMock = stubJsonResponse({ data: HEATMAP_PAYLOAD });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const result = await getHeatmapData();
+
+    expect(result).toEqual(HEATMAP_PAYLOAD);
+    expect(fetchMock).toHaveBeenCalledWith(
+      `${HEATMAP_ENDPOINT}?range=LAST_7_DAYS`,
+      expect.objectContaining({ method: 'GET', credentials: 'include' })
+    );
+  });
+
+  it('encodes the custom range into the heatmap query string and forwards abort signal', async () => {
+    const fetchMock = stubJsonResponse({ data: HEATMAP_PAYLOAD });
+    vi.stubGlobal('fetch', fetchMock);
+    const abortController = new AbortController();
+
+    await getHeatmapData({ range: ANALYTICS_TIME_RANGES.TODAY, signal: abortController.signal });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      `${HEATMAP_ENDPOINT}?range=TODAY`,
+      expect.objectContaining({ signal: abortController.signal })
+    );
   });
 });

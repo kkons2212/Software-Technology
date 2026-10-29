@@ -57,7 +57,7 @@ class TelemetryRepository:
         return trigger
 
     # -------------------------------------------------------------------------
-    # Read-only analytics aggregations (US 05.2)
+    # Read-only analytics aggregations (US 05.2 & US 05.1)
     # Each query filters or groups on an existing DDL index so the admin summary
     # stays sub-second: idx_POITrigger_Trigger_at, idx_POITrigger_PoiID and
     # idx_VisitorSession_PreferredLanguage.
@@ -143,3 +143,28 @@ class TelemetryRepository:
             .all()
         )
         return [(row[0], row[1], int(row[2])) for row in rows]
+
+    def list_heatmap_poi_triggers(
+        self, range_start: datetime
+    ) -> list[tuple[str, str, float, float, int]]:
+        """Aggregate POI trigger coordinates and volumes for heatmap (US 05.1).
+
+        Returns (poi_id, title, latitude, longitude, trigger_count) for triggered exhibits.
+        """
+        rows = (
+            self.db.query(
+                POI.PoiID,
+                POI.Title,
+                POI.Latitude,
+                POI.Longitude,
+                func.count(POITrigger.TriggerID).label("trigger_count"),
+            )
+            .join(POITrigger, POITrigger.PoiID == POI.PoiID)
+            .filter(POITrigger.Trigger_at >= range_start)
+            .group_by(POI.PoiID, POI.Title, POI.Latitude, POI.Longitude)
+            .order_by(func.count(POITrigger.TriggerID).desc(), POI.Title.asc())
+            .all()
+        )
+        return [
+            (row[0], row[1], float(row[2]), float(row[3]), int(row[4])) for row in rows
+        ]

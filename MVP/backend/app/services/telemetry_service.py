@@ -5,6 +5,8 @@ from datetime import datetime, timedelta, timezone
 from app.repositories.telemetry_repository import TelemetryRepository
 from app.schemas.analytics_schema import (
     AnalyticsSummaryDTO,
+    HeatmapDataDTO,
+    HeatmapPointDTO,
     KpiSummaryDTO,
     LanguageDistributionEntryDTO,
     PoiRankingEntryDTO,
@@ -157,4 +159,46 @@ class TelemetryService:
             kpis=kpis,
             top_pois=top_pois,
             language_distribution=language_distribution,
+        )
+
+    def get_heatmap_data(
+        self, time_range: str = DEFAULT_ANALYTICS_RANGE
+    ) -> HeatmapDataDTO:
+        """Aggregate POITrigger coordinates and normalize intensity for US 05.1 heatmap."""
+        range_start = _resolve_range_start(time_range)
+        rows = self.telemetry_repo.list_heatmap_poi_triggers(range_start)
+
+        if not rows:
+            return HeatmapDataDTO(
+                time_range=time_range,
+                generated_at=_current_utc_time(),
+                points=[],
+                total_points=0,
+                max_trigger_count=0,
+            )
+
+        max_trigger_count = max(row[4] for row in rows)
+        points: list[HeatmapPointDTO] = []
+        for poi_id, title, lat, lng, count in rows:
+            # Normalized intensity between 0.0 and 1.0 (AC-05.1.1)
+            intensity = (
+                round(count / max_trigger_count, 3) if max_trigger_count > 0 else 0.0
+            )
+            points.append(
+                HeatmapPointDTO(
+                    poi_id=poi_id,
+                    poi_title=title,
+                    lat=lat,
+                    lng=lng,
+                    trigger_count=count,
+                    intensity=intensity,
+                )
+            )
+
+        return HeatmapDataDTO(
+            time_range=time_range,
+            generated_at=_current_utc_time(),
+            points=points,
+            total_points=len(points),
+            max_trigger_count=max_trigger_count,
         )
