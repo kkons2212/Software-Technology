@@ -73,7 +73,7 @@ def test_should_calculate_dynamic_walking_route(mock_poi_repository, active_poi)
 
     assert result.type == "Feature"
     assert result.geometry.type == "LineString"
-    assert len(result.geometry.coordinates) == 2
+    assert len(result.geometry.coordinates) >= 3
 
     # GeoJSON coordinates format is [lng, lat]
     first_coord = result.geometry.coordinates[0]
@@ -153,3 +153,33 @@ def test_should_raise_404_when_poi_is_deactivated(mock_poi_repository, deactivat
         )
     assert exc_info.value.status_code == 404
     assert exc_info.value.detail["code"] == "POI_DEACTIVATED"
+
+
+def test_should_use_osrm_foot_route_when_available(
+    mock_poi_repository, active_poi, monkeypatch
+):
+    """When OSRM foot routing succeeds, returns curved OSM geometry directly."""
+    mock_poi_repository.get_by_id.return_value = active_poi
+    service = WayfindingService(poi_repository=mock_poi_repository)
+
+    # Mock OSRM result returning a 4-point curved polyline
+    mock_curved_coords = [
+        [106.4631, 11.1432],
+        [106.4628, 11.1435],
+        [106.4620, 11.1440],
+        [106.4614, 11.1445],
+    ]
+    monkeypatch.setattr(
+        service,
+        "_try_osrm_foot_route",
+        lambda *args, **kwargs: (mock_curved_coords, 210.0),
+    )
+
+    result = service.calculate_walking_route(
+        origin_lat=11.1432,
+        origin_lng=106.4631,
+        destination_poi_id="POI_BEN_DUOC",
+    )
+
+    assert result.geometry.coordinates == mock_curved_coords
+    assert result.properties.total_distance_meters == 210.0

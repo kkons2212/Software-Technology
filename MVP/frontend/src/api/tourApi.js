@@ -1,4 +1,4 @@
-import apiClient from './apiClient.js';
+import { apiClient } from './apiClient.js';
 
 /**
  * Calculate walking route from visitor's GPS location to a destination POI.
@@ -7,13 +7,12 @@ import apiClient from './apiClient.js';
  * @returns {Promise<object>} GeoJSON Feature with LineString geometry and route properties
  */
 export async function getWalkingRoute({ originLat, originLng, destinationPoiId, signal }) {
-  const response = await apiClient.get('/api/v1/tour/route', {
-    params: {
-      origin_lat: originLat,
-      origin_lng: originLng,
-      destination_poi_id: destinationPoiId,
-    },
-    signal,
+  const query = new URLSearchParams({
+    origin_lat: String(originLat),
+    origin_lng: String(originLng),
+    destination_poi_id: String(destinationPoiId),
   });
-  return response.data?.data ?? response.data;
+
+  const payload = await apiClient.get(`/api/v1/tour/route?${query.toString()}`, { signal });
+  return payload?.data ?? payload;
 }

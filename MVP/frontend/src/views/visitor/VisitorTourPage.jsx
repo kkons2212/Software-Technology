@@ -11,6 +11,7 @@ import { useGeofenceTrigger } from '../../hooks/useGeofenceTrigger.js';
 import { reportPoiTrigger } from '../../api/telemetryApi.js';
 import useGeolocation from '../../hooks/useGeolocation.js';
 import { calculateHaversineDistance } from '../../utils/haversine.js';
+import { MAIN_ENTRANCE } from '../../utils/museumBounds.js';
 
 const PREFERRED_LANGUAGE_KEY = 'museum_preferred_lang';
 const VISITOR_SESSION_CODE_KEY = 'visitor_session_code';
@@ -190,18 +191,19 @@ export default function VisitorTourPage({
       return;
     }
 
-    if (!location) {
-      return;
-    }
-
+    const effectiveLocation = location || MAIN_ENTRANCE;
     const controller = new AbortController();
     getWalkingRoute({
-      originLat: location.lat,
-      originLng: location.lng,
+      originLat: effectiveLocation.lat,
+      originLng: effectiveLocation.lng,
       destinationPoiId: String(selectedPoi.id),
       signal: controller.signal,
     })
       .then((routeFeature) => {
+        if (!routeFeature?.geometry?.coordinates) {
+          console.warn('Invalid route payload:', routeFeature);
+          return;
+        }
         setActiveRoute({
           coordinates: routeFeature.geometry.coordinates,
           destinationTitle: routeFeature.properties.destination.title,
@@ -216,8 +218,8 @@ export default function VisitorTourPage({
         });
         setSelectedPoiId(null);
       })
-      .catch(() => {
-        // Silently fail — route is a convenience feature
+      .catch((err) => {
+        console.error('Failed to get walking route:', err);
       });
   }, [selectedPoi, isRoutingToSelectedPoi, location]);
 

@@ -1,12 +1,15 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { getWalkingRoute } from '../tourApi.js';
-import apiClient from '../apiClient.js';
+
+const { mockApiClient } = vi.hoisted(() => ({
+  mockApiClient: { get: vi.fn() },
+}));
 
 vi.mock('../apiClient.js', () => ({
-  default: {
-    get: vi.fn(),
-  },
+  default: mockApiClient,
+  apiClient: mockApiClient,
 }));
+
+import { getWalkingRoute } from '../tourApi.js';
 
 afterEach(() => vi.restoreAllMocks());
 
@@ -16,14 +19,17 @@ describe('tourApi', () => {
       type: 'Feature',
       geometry: {
         type: 'LineString',
-        coordinates: [[106.4631, 11.1432], [106.4614, 11.1445]],
+        coordinates: [
+          [106.4631, 11.1432],
+          [106.4614, 11.1445],
+        ],
       },
       properties: {
         total_distance_meters: 185.5,
         destination: { poi_id: 'POI_01', title: 'Test Exhibit' },
       },
     };
-    apiClient.get.mockResolvedValue({ data: { data: mockFeature } });
+    mockApiClient.get.mockResolvedValue(mockFeature);
 
     const result = await getWalkingRoute({
       originLat: 11.1432,
@@ -31,32 +37,27 @@ describe('tourApi', () => {
       destinationPoiId: 'POI_01',
     });
 
-    expect(apiClient.get).toHaveBeenCalledWith('/api/v1/tour/route', {
-      params: {
-        origin_lat: 11.1432,
-        origin_lng: 106.4631,
-        destination_poi_id: 'POI_01',
-      },
-      signal: undefined,
-    });
+    expect(mockApiClient.get).toHaveBeenCalledWith(
+      '/api/v1/tour/route?origin_lat=11.1432&origin_lng=106.4631&destination_poi_id=POI_01',
+      expect.objectContaining({}),
+    );
     expect(result).toEqual(mockFeature);
   });
 
   it('passes abort signal to the API client', async () => {
-    apiClient.get.mockResolvedValue({ data: { data: {} } });
+    mockApiClient.get.mockResolvedValue({});
     const controller = new AbortController();
 
     await getWalkingRoute({
       originLat: 11.1432,
       originLng: 106.4631,
-      destinationPoiId: 'POI_02',
+      destinationPoiId: 'POI_01',
       signal: controller.signal,
     });
 
-    expect(apiClient.get).toHaveBeenCalledWith(
-      '/api/v1/tour/route',
+    expect(mockApiClient.get).toHaveBeenCalledWith(
+      '/api/v1/tour/route?origin_lat=11.1432&origin_lng=106.4631&destination_poi_id=POI_01',
       expect.objectContaining({ signal: controller.signal }),
     );
   });
 });
-
