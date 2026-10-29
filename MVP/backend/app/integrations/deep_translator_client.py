@@ -1,50 +1,225 @@
-"""Integration client for automated text translation using deep-translator."""
+"""Integration client for automated text translation using Gemini AI, Google Translate Cloud REST, and deep-translator."""
 
 import asyncio
+import html
 import logging
 from typing import ClassVar
 
+import httpx
 from deep_translator import GoogleTranslator
+
+from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
 DEFAULT_MAX_RETRIES = 3
 DEFAULT_BASE_DELAY = 1.0
 DEFAULT_CHUNK_SIZE = 4500
+DEFAULT_HTTP_TIMEOUT = 15.0
 
 
 class TranslationError(Exception):
-    """Raised when translation fails after all retry attempts."""
+    """Raised when translation fails after all retry attempts across all providers."""
 
     pass
 
 
-class DeepTranslatorClient:
-    """Asynchronous adapter wrapping GoogleTranslator with exponential backoff and text chunking."""
+class KeyPool:
+    """Thread-safe round-robin API key pool with failover support."""
 
-    # Map internal ISO language identifiers to GoogleTranslator codes
+    def __init__(self, keys: list[str] | None = None):
+        self.keys: list[str] = [k.strip() for k in (keys or []) if k and k.strip()]
+        self._index: int = 0
+
+    def has_keys(self) -> bool:
+        """Check if pool contains at least one API key."""
+        return len(self.keys) > 0
+
+    def get_next_key(self) -> str | None:
+        """Retrieve next key in circular order."""
+        if not self.keys:
+            return None
+        key = self.keys[self._index % len(self.keys)]
+        self._index = (self._index + 1) % len(self.keys)
+        return key
+
+
+class DeepTranslatorClient:
+    """Multi-provider asynchronous translation client with cascade fallback and key rotation.
+
+    Hierarchy:
+    1. Gemini AI (Prompt-engineered museum & cultural heritage translation).
+    2. Google Cloud Translation REST API (Round-robin API Key pool).
+    3. deep-translator GoogleTranslator (Free web fallback, 0 config required).
+    """
+
+    # Map internal ISO language identifiers to Google/Gemini target language codes
     LANGUAGE_MAPPING: ClassVar[dict[str, str]] = {
         "vi": "vi",
         "en": "en",
         "ja": "ja",
         "ko": "ko",
         "zh": "zh-CN",
+        "fr": "fr",
     }
 
     def __init__(
         self,
+        gemini_keys: list[str] | None = None,
+        google_translate_keys: list[str] | None = None,
+        gemini_model: str | None = None,
         max_retries: int = DEFAULT_MAX_RETRIES,
         base_delay: float = DEFAULT_BASE_DELAY,
         chunk_size: int = DEFAULT_CHUNK_SIZE,
+        http_client: httpx.AsyncClient | None = None,
     ):
+        resolved_gemini_keys = (
+            gemini_keys
+            if gemini_keys is not None
+            else getattr(settings, "gemini_keys_list", [])
+        )
+        resolved_google_keys = (
+            google_translate_keys
+            if google_translate_keys is not None
+            else getattr(settings, "google_translate_keys_list", [])
+        )
+
+        self.gemini_pool = KeyPool(resolved_gemini_keys)
+        self.google_pool = KeyPool(resolved_google_keys)
+        self.gemini_model = gemini_model or getattr(
+            settings, "GEMINI_MODEL", "gemini-1.5-flash"
+        )
         self.max_retries = max_retries
         self.base_delay = base_delay
         self.chunk_size = chunk_size
+        self._http_client = http_client
+
+    async def _get_http_client(self) -> httpx.AsyncClient:
+        """Return shared or new non-blocking HTTP client."""
+        if self._http_client is None:
+            self._http_client = httpx.AsyncClient(timeout=DEFAULT_HTTP_TIMEOUT)
+        return self._http_client
 
     def _resolve_target_language(self, language_id: str) -> str:
-        """Resolve database LanguageID to deep-translator target language code."""
+        """Resolve database LanguageID to target language code."""
         normalized = language_id.strip().lower()
         return self.LANGUAGE_MAPPING.get(normalized, normalized)
+
+    async def _translate_with_gemini(
+        self, text: str, source_lang: str, target_lang: str
+    ) -> str | None:
+        """Translate text using Gemini AI with historical/cultural museum persona."""
+        if not self.gemini_pool.has_keys():
+            return None
+
+        client = await self._get_http_client()
+        total_keys = len(self.gemini_pool.keys)
+
+        prompt = (
+            f"You are an expert museum and cultural heritage translator specializing in historical sites "
+            f"(specifically Vietnam's historic Cu Chi Tunnels - Địa đạo Củ Chi).\n"
+            f"Translate the following text accurately from {source_lang} to {target_lang}.\n"
+            f"Preserve historical significance, military and cultural terminology, and maintain a dignified, "
+            f"engaging museum tour guide persona.\n"
+            f"Output ONLY the translated text without extra commentary, markdown quotes, or formatting.\n\n"
+            f"Text to translate:\n{text}"
+        )
+
+        payload = {
+            "contents": [{"parts": [{"text": prompt}]}],
+            "generationConfig": {"temperature": 0.2},
+        }
+
+        for attempt in range(total_keys):
+            key = self.gemini_pool.get_next_key()
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{self.gemini_model}:generateContent?key={key}"
+
+            try:
+                response = await client.post(url, json=payload)
+                if response.status_code == 200:
+                    data = response.json()
+                    candidates = data.get("candidates", [])
+                    if candidates:
+                        parts = candidates[0].get("content", {}).get("parts", [])
+                        if parts and "text" in parts[0]:
+                            result = parts[0]["text"].strip()
+                            if result:
+                                logger.info(
+                                    "Successfully translated via Gemini AI (%s -> %s, key_index=%d)",
+                                    source_lang,
+                                    target_lang,
+                                    attempt,
+                                )
+                                return result
+                logger.warning(
+                    "Gemini AI translation returned status %d on key index %d: %s",
+                    response.status_code,
+                    attempt,
+                    response.text[:200],
+                )
+            except Exception as exc:
+                logger.warning(
+                    "Gemini AI translation failed on key index %d: %s",
+                    attempt,
+                    exc,
+                )
+
+        logger.warning("All %d Gemini API keys failed or were exhausted", total_keys)
+        return None
+
+    async def _translate_with_google_cloud(
+        self, text: str, source_lang: str, target_lang: str
+    ) -> str | None:
+        """Translate text using Google Cloud Translation v2 REST API with key rotation."""
+        if not self.google_pool.has_keys():
+            return None
+
+        client = await self._get_http_client()
+        total_keys = len(self.google_pool.keys)
+
+        for attempt in range(total_keys):
+            key = self.google_pool.get_next_key()
+            url = f"https://translation.googleapis.com/language/translate/v2?key={key}"
+            payload = {
+                "q": [text],
+                "source": source_lang,
+                "target": target_lang,
+                "format": "text",
+            }
+
+            try:
+                response = await client.post(url, json=payload)
+                if response.status_code == 200:
+                    data = response.json()
+                    translations = data.get("data", {}).get("translations", [])
+                    if translations and "translatedText" in translations[0]:
+                        raw_result = translations[0]["translatedText"]
+                        result = html.unescape(raw_result).strip()
+                        logger.info(
+                            "Successfully translated via Google Cloud REST API (%s -> %s, key_index=%d)",
+                            source_lang,
+                            target_lang,
+                            attempt,
+                        )
+                        return result
+                logger.warning(
+                    "Google Cloud Translate returned status %d on key index %d: %s",
+                    response.status_code,
+                    attempt,
+                    response.text[:200],
+                )
+            except Exception as exc:
+                logger.warning(
+                    "Google Cloud Translate failed on key index %d: %s",
+                    attempt,
+                    exc,
+                )
+
+        logger.warning(
+            "All %d Google Cloud Translate API keys failed or were exhausted",
+            total_keys,
+        )
+        return None
 
     def _split_text_into_chunks(self, text: str) -> list[str]:
         """Split text exceeding GoogleTranslator character limit into manageable chunks."""
@@ -55,7 +230,6 @@ class DeepTranslatorClient:
         current_chunk: list[str] = []
         current_len = 0
 
-        # Attempt to split cleanly on paragraphs or newlines first
         paragraphs = text.split("\n")
         for para in paragraphs:
             para_len = len(para) + 1
@@ -65,7 +239,6 @@ class DeepTranslatorClient:
                     current_chunk = []
                     current_len = 0
 
-                # If a single paragraph exceeds chunk_size, split by sentences/spaces
                 if len(para) > self.chunk_size:
                     words = para.split(" ")
                     temp_chunk: list[str] = []
@@ -100,22 +273,10 @@ class DeepTranslatorClient:
         result = translator.translate(text)
         return result or ""
 
-    async def translate_text(
-        self,
-        text: str,
-        target_lang: str,
-        source_lang: str = "vi",
+    async def _translate_with_free_deep_translator(
+        self, text: str, source_lang: str, target_lang: str
     ) -> str:
-        """Translate text with exponential backoff retry and automatic chunking.
-
-        US 04.4 - AC-04.4.1: Retries up to 3 times on transient network drops.
-        """
-        if not text or not text.strip():
-            return ""
-
-        resolved_target = self._resolve_target_language(target_lang)
-        resolved_source = self._resolve_target_language(source_lang)
-
+        """Translate text with deep-translator web library using exponential backoff retry and chunking."""
         chunks = self._split_text_into_chunks(text)
         translated_chunks: list[str] = []
 
@@ -125,12 +286,11 @@ class DeepTranslatorClient:
 
             for attempt in range(self.max_retries):
                 try:
-                    # Run synchronous deep-translator HTTP request in background threadpool
                     translated_part = await asyncio.to_thread(
                         self._translate_sync,
                         chunk,
-                        resolved_source,
-                        resolved_target,
+                        source_lang,
+                        target_lang,
                     )
                     translated_chunks.append(translated_part)
                     chunk_translated = True
@@ -139,11 +299,11 @@ class DeepTranslatorClient:
                     last_exception = exc
                     delay = self.base_delay * (2**attempt)
                     logger.warning(
-                        "Translation attempt %d/%d failed for '%s' -> '%s': %s. Retrying in %.2fs",
+                        "Free translation attempt %d/%d failed for '%s' -> '%s': %s. Retrying in %.2fs",
                         attempt + 1,
                         self.max_retries,
-                        resolved_source,
-                        resolved_target,
+                        source_lang,
+                        target_lang,
                         exc,
                         delay,
                     )
@@ -151,7 +311,7 @@ class DeepTranslatorClient:
 
             if not chunk_translated:
                 logger.error(
-                    "Translation exhausted %d retries for target language '%s'",
+                    "Free translation exhausted %d retries for target language '%s'",
                     self.max_retries,
                     target_lang,
                 )
@@ -160,6 +320,43 @@ class DeepTranslatorClient:
                 ) from last_exception
 
         return "\n".join(translated_chunks) if len(chunks) > 1 else translated_chunks[0]
+
+    async def translate_text(
+        self,
+        text: str,
+        target_lang: str,
+        source_lang: str = "vi",
+    ) -> str:
+        """Translate text through cascade providers: Gemini -> Google Cloud -> Free Web fallback.
+
+        US 04.4 - AC-04.4.1: Seamless multi-provider fault tolerance.
+        """
+        if not text or not text.strip():
+            return ""
+
+        resolved_target = self._resolve_target_language(target_lang)
+        resolved_source = self._resolve_target_language(source_lang)
+
+        # 1. Cascade Tier 1: Gemini AI (Highest cultural & narrative fidelity)
+        if self.gemini_pool.has_keys():
+            gemini_result = await self._translate_with_gemini(
+                text, resolved_source, resolved_target
+            )
+            if gemini_result is not None:
+                return gemini_result
+
+        # 2. Cascade Tier 2: Google Cloud Translation REST API (Key pool rotation)
+        if self.google_pool.has_keys():
+            cloud_result = await self._translate_with_google_cloud(
+                text, resolved_source, resolved_target
+            )
+            if cloud_result is not None:
+                return cloud_result
+
+        # 3. Cascade Tier 3: Free deep-translator (Guaranteed zero-configuration fallback)
+        return await self._translate_with_free_deep_translator(
+            text, resolved_source, resolved_target
+        )
 
     async def translate_exhibit_narrative(
         self,

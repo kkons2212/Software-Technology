@@ -32,7 +32,12 @@ def test_engine() -> Engine:
     engine = create_database_engine(settings)
     Base.metadata.create_all(bind=engine, checkfirst=True)
     with Session(bind=engine) as session:
-        existing = {lang.language_id for lang in session.query(LanguageCode).all()}
+        # Standard baseline 5 languages expected by controller and analytics unit test suites
+        baseline_codes = {"vi", "en", "ja", "ko", "zh"}
+        session.query(LanguageCode).filter(
+            LanguageCode.language_id.notin_(baseline_codes)
+        ).delete(synchronize_session=False)
+
         for code, name in [
             ("vi", "Tiếng Việt"),
             ("en", "English"),
@@ -40,8 +45,15 @@ def test_engine() -> Engine:
             ("ko", "Korean"),
             ("zh", "Chinese"),
         ]:
-            if code not in existing:
+            lang = (
+                session.query(LanguageCode)
+                .filter(LanguageCode.language_id == code)
+                .first()
+            )
+            if not lang:
                 session.add(LanguageCode(language_id=code, language_name=name))
+            else:
+                lang.language_name = name
         session.commit()
     yield engine
     engine.dispose()
