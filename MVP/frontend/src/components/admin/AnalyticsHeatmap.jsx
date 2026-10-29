@@ -29,10 +29,11 @@ const DEFAULT_MAP_ZOOM = 16;
 const MIN_MAP_ZOOM = 14;
 const MAX_MAP_ZOOM = 18;
 
-// AC-05.1.1: Three gradient tiers
+// AC-05.1.1: Three gradient tiers + Gray for 0 visitors
 // 0.0 - 0.4: Green (Low Density)
 // 0.4 - 0.7: Yellow (Moderate)
 // 0.7 - 1.0: Red (Congestion Alert)
+// 0 triggers: Gray (#94A3B8)
 export const HEATMAP_GRADIENT = {
   0.2: '#22C55E', // Green - Low
   0.5: '#EAB308', // Yellow - Moderate
@@ -177,11 +178,12 @@ export default function AnalyticsHeatmap({
     const points = heatmapData?.points || [];
     if (points.length === 0) return;
 
-    // 1. Render leaflet.heat Layer
-    const heatPoints = points.map((p) => [p.lat, p.lng, p.intensity]);
+    // 1. Render leaflet.heat Layer (only points with activity > 0)
+    const activePoints = points.filter((p) => (Number(p.trigger_count) || 0) > 0);
+    const heatPoints = activePoints.map((p) => [p.lat, p.lng, p.intensity]);
     const heatLayerFactory = L.heatLayer || (window.L && window.L.heatLayer);
 
-    if (typeof heatLayerFactory === 'function') {
+    if (heatPoints.length > 0 && typeof heatLayerFactory === 'function') {
       try {
         const heat = heatLayerFactory(heatPoints, {
           radius: Number(radius),
@@ -199,15 +201,26 @@ export default function AnalyticsHeatmap({
     }
 
     // 2. Render prominent circular visual indicators on top of the heat map
+    // Points with triggers: Red/Yellow/Green. Points with 0 triggers: Gray (#94A3B8).
     if (markersLayerGroupRef.current) {
       points.forEach((point) => {
         try {
-          const isCongested = point.intensity >= 0.7;
-          const isModerate = point.intensity >= 0.4;
-          const tierColor = isCongested ? '#EF4444' : isModerate ? '#EAB308' : '#22C55E';
+          const count = Number(point.trigger_count) || 0;
+          const hasVisitors = count > 0;
+          const isCongested = hasVisitors && point.intensity >= 0.7;
+          const isModerate = hasVisitors && point.intensity >= 0.4;
 
-          // Pulsing / glowing background circle for high density
-          if (typeof L.circle === 'function') {
+          // Color tiering: Congested (Red), Moderate (Yellow), Low (Green), Zero (Gray)
+          const tierColor = !hasVisitors
+            ? '#94A3B8'
+            : isCongested
+              ? '#EF4444'
+              : isModerate
+                ? '#EAB308'
+                : '#22C55E';
+
+          // Pulsing / glowing background circle for active points
+          if (hasVisitors && typeof L.circle === 'function') {
             const glowCircle = L.circle([point.lat, point.lng], {
               radius: isCongested ? 40 : 25,
               color: tierColor,
@@ -221,29 +234,43 @@ export default function AnalyticsHeatmap({
           // Center interactive dot marker
           if (typeof L.circleMarker === 'function') {
             const marker = L.circleMarker([point.lat, point.lng], {
-              radius: isCongested ? 9 : 7,
+              radius: hasVisitors ? (isCongested ? 9 : 7) : 6,
               color: '#FFFFFF',
               fillColor: tierColor,
-              fillOpacity: 1,
-              weight: 2,
+              fillOpacity: hasVisitors ? 1 : 0.85,
+              weight: hasVisitors ? 2 : 1.5,
             });
 
             if (marker && typeof marker.bindPopup === 'function') {
               marker.bindPopup(`
-                <div class="text-xs font-sans min-w-[160px] p-1">
+                <div class="text-xs font-sans min-w-[170px] p-1">
                   <strong class="text-slate-900 block font-bold text-sm mb-1">${point.poi_title}</strong>
                   <div class="flex justify-between text-slate-600 mb-0.5">
-                    <span>Triggers recorded:</span>
-                    <strong class="text-slate-900 font-mono">${point.trigger_count}</strong>
+                    <span>Lượt khách:</span>
+                    <strong class="text-slate-900 font-mono">${count} lượt</strong>
                   </div>
                   <div class="flex justify-between text-slate-600 mb-1">
-                    <span>Relative density:</span>
+                    <span>Mật độ tương đối:</span>
                     <strong style="color: ${tierColor};">${(point.intensity * 100).toFixed(0)}%</strong>
                   </div>
                   <span class="inline-block mt-1 px-1.5 py-0.5 rounded text-[10px] font-bold text-white ${
-                    isCongested ? 'bg-red-600' : isModerate ? 'bg-amber-500' : 'bg-emerald-600'
+                    !hasVisitors
+                      ? 'bg-slate-400'
+                      : isCongested
+                        ? 'bg-red-600'
+                        : isModerate
+                          ? 'bg-amber-500'
+                          : 'bg-emerald-600'
                   }">
-                    ${isCongested ? 'CONGESTION ALERT' : isModerate ? 'MODERATE DENSITY' : 'NORMAL'}
+                    ${
+                      !hasVisitors
+                        ? 'CHƯA CÓ KHÁCH (0 lượt)'
+                        : isCongested
+                          ? 'CẢNH BÁO ÙN TẮC'
+                          : isModerate
+                            ? 'MẬT ĐỘ VỪA PHẢI'
+                            : 'THÔNG THOÁNG'
+                    }
                   </span>
                 </div>
               `);
@@ -262,7 +289,7 @@ export default function AnalyticsHeatmap({
     const points = heatmapData?.points || [];
     if (points.length === 0) return null;
     const top = [...points].sort((a, b) => b.trigger_count - a.trigger_count)[0];
-    return top && top.intensity >= 0.7 ? top : null;
+    return top && top.trigger_count > 0 && top.intensity >= 0.7 ? top : null;
   }, [heatmapData]);
 
   return (
@@ -374,21 +401,32 @@ export default function AnalyticsHeatmap({
           </div>
         )}
 
-        {/* Bottom Legend Overlay (AC-05.1.1) */}
+        {/* Bottom Legend Overlay (AC-05.1.1 + Gray for 0 visitors) */}
         <div
           data-testid="heatmap-legend"
           className="absolute bottom-3 left-3 z-[1000] rounded-md bg-white/95 px-3 py-2 shadow-md border border-slate-200 text-xs backdrop-blur-sm"
         >
           <div className="font-semibold text-slate-800 mb-1">Density Scale</div>
-          <div className="flex items-center gap-1.5">
-            <span className="h-2.5 w-2.5 rounded-full bg-[#22C55E]" />
-            <span className="text-[11px] text-slate-600 mr-2">Low (0 - 40%)</span>
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-1">
+              <span className="h-2.5 w-2.5 rounded-full bg-[#22C55E]" />
+              <span className="text-[11px] text-slate-600">Low (0 - 40%)</span>
+            </div>
 
-            <span className="h-2.5 w-2.5 rounded-full bg-[#EAB308]" />
-            <span className="text-[11px] text-slate-600 mr-2">Moderate (40 - 70%)</span>
+            <div className="flex items-center gap-1">
+              <span className="h-2.5 w-2.5 rounded-full bg-[#EAB308]" />
+              <span className="text-[11px] text-slate-600">Moderate (40 - 70%)</span>
+            </div>
 
-            <span className="h-2.5 w-2.5 rounded-full bg-[#EF4444]" />
-            <span className="text-[11px] text-slate-600 font-semibold">Congestion (&gt; 70%)</span>
+            <div className="flex items-center gap-1">
+              <span className="h-2.5 w-2.5 rounded-full bg-[#EF4444]" />
+              <span className="text-[11px] text-slate-600 font-semibold">Congestion (&gt; 70%)</span>
+            </div>
+
+            <div className="flex items-center gap-1 border-l border-slate-200 pl-2">
+              <span className="h-2.5 w-2.5 rounded-full bg-[#94A3B8]" />
+              <span className="text-[11px] text-slate-500">Chưa có khách (0)</span>
+            </div>
           </div>
         </div>
       </div>

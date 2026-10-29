@@ -3,7 +3,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import func
+from sqlalchemy import and_, func
 from sqlalchemy.orm import Session
 
 from app.models.language import LanguageCode
@@ -149,7 +149,8 @@ class TelemetryRepository:
     ) -> list[tuple[str, str, float, float, int]]:
         """Aggregate POI trigger coordinates and volumes for heatmap (US 05.1).
 
-        Returns (poi_id, title, latitude, longitude, trigger_count) for triggered exhibits.
+        Uses OUTER JOIN so all active exhibits appear on the map. Exhibits with zero
+        triggers are returned with trigger_count = 0 (rendered as gray markers).
         """
         rows = (
             self.db.query(
@@ -159,12 +160,19 @@ class TelemetryRepository:
                 POI.Longitude,
                 func.count(POITrigger.TriggerID).label("trigger_count"),
             )
-            .join(POITrigger, POITrigger.PoiID == POI.PoiID)
-            .filter(POITrigger.Trigger_at >= range_start)
+            .outerjoin(
+                POITrigger,
+                and_(
+                    POITrigger.PoiID == POI.PoiID,
+                    POITrigger.Trigger_at >= range_start,
+                ),
+            )
+            .filter(POI.is_active.is_(True))
             .group_by(POI.PoiID, POI.Title, POI.Latitude, POI.Longitude)
             .order_by(func.count(POITrigger.TriggerID).desc(), POI.Title.asc())
             .all()
         )
         return [
-            (row[0], row[1], float(row[2]), float(row[3]), int(row[4])) for row in rows
+            (row[0], row[1], float(row[2]), float(row[3]), int(row[4]))
+            for row in rows
         ]
