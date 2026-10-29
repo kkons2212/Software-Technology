@@ -20,6 +20,8 @@ from app.controllers.poi_controller import router as poi_router
 from app.controllers.session_controller import router as session_router
 from app.controllers.system_controller import (
     public_router as public_system_router,
+)
+from app.controllers.system_controller import (
     router as system_router,
 )
 from app.controllers.telemetry_controller import router as telemetry_router

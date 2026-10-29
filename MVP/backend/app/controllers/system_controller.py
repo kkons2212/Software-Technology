@@ -10,9 +10,9 @@ database telemetry, and business logic to `StorageService`.
 
 from fastapi import APIRouter, Depends, Request
 
+from app.core.config import settings
 from app.core.dependencies import get_current_admin_profile, get_storage_service
 from app.schemas.auth_schema import AdminProfileResponse
-from app.core.config import settings
 from app.schemas.system_schema import (
     CleanOrphansResponse,
     PublicConfigData,
