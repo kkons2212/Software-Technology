@@ -55,12 +55,17 @@ export async function getOrderStatus(orderId, { signal } = {}) {
  * @param {string} orderId
  * @param {object} [options]
  * @param {AbortSignal} [options.signal]
+ * @param {string} [options.preferredLanguage='vi'] - Visitor's selected language code.
  * @returns {Promise<object>} Updated order status with active visitor session
  */
-export async function simulatePaymentSuccess(orderId, { signal } = {}) {
+export async function simulatePaymentSuccess(orderId, { signal, preferredLanguage = 'vi' } = {}) {
   if (!orderId) {
     throw new Error('orderId is required to simulate payment');
   }
-  const payload = await apiClient.post(ORDER_SIMULATE_ENDPOINT(orderId), {}, { signal });
+  const payload = await apiClient.post(
+    ORDER_SIMULATE_ENDPOINT(orderId),
+    { preferred_language: preferredLanguage },
+    { signal }
+  );
   return payload;
 }

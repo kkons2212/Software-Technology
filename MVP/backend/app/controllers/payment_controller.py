@@ -13,6 +13,7 @@ from app.schemas.payment_schema import (
     CheckoutCreateResponse,
     OrderStatusResponse,
     PayOSWebhookPayload,
+    SimulatePaymentRequest,
     WebhookResponse,
 )
 from app.services.payment_service import PaymentService
@@ -53,10 +54,14 @@ def get_order_status(
 )
 def simulate_payment_success(
     order_id: str,
+    body: SimulatePaymentRequest = SimulatePaymentRequest(),
     payment_service: PaymentService = Depends(get_payment_service),
 ) -> OrderStatusResponse:
     """Simulate payment success for developer testing and interactive demo."""
-    return payment_service.simulate_payment_success(order_id=order_id)
+    return payment_service.simulate_payment_success(
+        order_id=order_id,
+        preferred_language=body.preferred_language,
+    )
 
 
 @router.post(
@@ -151,10 +156,14 @@ def confirm_paypal_mock_payment(
 async def capture_paypal_payment(
     order_id: str,
     paypal_order_id: str | None = None,
+    preferred_language: str = Query(
+        default="vi", description="Visitor preferred language code."
+    ),
     payment_service: PaymentService = Depends(get_payment_service),
 ) -> OrderStatusResponse:
     """Capture PayPal Sandbox order (TSK-06.1.1)."""
     return await payment_service.capture_paypal_order(
         order_id=order_id,
         paypal_order_id=paypal_order_id,
+        preferred_language=preferred_language,
     )

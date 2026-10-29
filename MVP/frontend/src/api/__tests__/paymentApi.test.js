@@ -90,7 +90,7 @@ describe('paymentApi', () => {
   });
 
   describe('simulatePaymentSuccess', () => {
-    it('posts simulation request to test endpoint', async () => {
+    it('posts simulation with default vi language in body', async () => {
       const mockResponse = {
         order_id: 'cct-order-123',
         status: 'PAID',
@@ -101,7 +101,24 @@ describe('paymentApi', () => {
       const result = await simulatePaymentSuccess('cct-order-123');
       expect(apiClient.post).toHaveBeenCalledWith(
         '/api/v1/payments/order/cct-order-123/simulate-success',
-        {},
+        { preferred_language: 'vi' },
+        { signal: undefined }
+      );
+      expect(result).toEqual(mockResponse);
+    });
+
+    it('forwards preferredLanguage to request body', async () => {
+      const mockResponse = {
+        order_id: 'cct-order-456',
+        status: 'PAID',
+        session_code: 'EN-5678',
+      };
+      apiClient.post.mockResolvedValueOnce(mockResponse);
+
+      const result = await simulatePaymentSuccess('cct-order-456', { preferredLanguage: 'en' });
+      expect(apiClient.post).toHaveBeenCalledWith(
+        '/api/v1/payments/order/cct-order-456/simulate-success',
+        { preferred_language: 'en' },
         { signal: undefined }
       );
       expect(result).toEqual(mockResponse);

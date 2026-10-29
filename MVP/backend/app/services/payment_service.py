@@ -413,9 +413,13 @@ class PaymentService:
             or str(data.get("orderCode"))
             or f"WH_{txn.transaction_id}"
         )
+        # NOTE: PayOS webhook carries no visitor language context.
+        # preferred_language is read from the Transaction if stored at order creation,
+        # otherwise defaults to "vi" (most likely language for domestic VietQR payers).
+        webhook_language = getattr(txn, "preferred_language", None) or "vi"
         updated_txn, session = self.transaction_repo.mark_as_paid(
             transaction_id=txn.transaction_id,
-            preferred_language="vi",
+            preferred_language=webhook_language,
             gateway_transaction_id=gateway_tx_id,
         )
 
