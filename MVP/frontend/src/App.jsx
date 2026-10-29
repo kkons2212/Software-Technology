@@ -47,6 +47,9 @@ const GeofenceCalibPage = lazy(() => import('./views/admin/GeofenceCalibPage.jsx
 const TranslationPage = lazy(() => import('./views/admin/TranslationPage.jsx'));
 const SystemHealthPage = lazy(() => import('./views/admin/SystemHealthPage.jsx'));
 
+// Fallback / Error Domain
+const NotFoundPage = lazy(() => import('./views/NotFoundPage.jsx'));
+
 export default function App() {
   return (
     <VisitorSessionProvider>
@@ -62,10 +65,8 @@ export default function App() {
           }
         >
           <Routes>
-            {/* Default Root Redirect: Points to Admin during active dev/MVP */}
-            <Route path="/" element={<Navigate to={ADMIN_ROUTES.DASHBOARD} replace />} />
-
-            {/* Visitor Web App Routes (Mobile-First, Public) */}
+            {/* Visitor Web App Routes (Mobile-First, Public Access) */}
+            <Route path="/" element={<VisitorTourPage />} />
             <Route path={VISITOR_ROUTES.HOME} element={<VisitorTourPage />} />
             <Route path={VISITOR_ROUTES.TOUR} element={<Navigate to={VISITOR_ROUTES.HOME} replace />} />
             <Route path={VISITOR_ROUTES.CHECKOUT_SUCCESS} element={<CheckoutSuccessPage />} />
@@ -130,8 +131,8 @@ export default function App() {
               }
             />
 
-            {/* Catch-all Wildcard Route */}
-            <Route path="*" element={<Navigate to={ADMIN_ROUTES.DASHBOARD} replace />} />
+            {/* Catch-all Wildcard Route: User-Friendly 404 Page */}
+            <Route path="*" element={<NotFoundPage />} />
           </Routes>
         </Suspense>
         <MiniAudioPlayer />

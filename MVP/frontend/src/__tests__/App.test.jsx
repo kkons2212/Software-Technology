@@ -54,12 +54,13 @@ describe('App', () => {
     vi.unstubAllGlobals();
   });
 
-  it('redirects the root path into the protected admin route', async () => {
+  it('renders the visitor tour page on the root path', async () => {
     renderApp('/');
 
     expect(
-      await screen.findByRole('heading', { level: 1, name: /administrator sign in/i }),
+      await screen.findByRole('heading', { level: 1, name: /cu chi tunnels/i }),
     ).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: /outdoor museum map/i })).toBeInTheDocument();
   });
 
   it('renders the administrator sign-in screen on the admin login route', async () => {
@@ -102,5 +103,15 @@ describe('App', () => {
     expect(
       await screen.findByRole('heading', { level: 1, name: /administrator sign in/i }),
     ).toBeInTheDocument();
+  });
+
+  it('renders the 404 not found page on any unknown wildcard route', async () => {
+    renderApp('/unknown/non-existent-page');
+
+    expect(
+      await screen.findByRole('heading', { level: 1, name: /không tìm thấy trang/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /về bản đồ tham quan/i })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /cổng quản trị viên/i })).toBeInTheDocument();
   });
 });
