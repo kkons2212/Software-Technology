@@ -341,17 +341,13 @@ class WayfindingService:
         destination_poi_id: str,
     ) -> GeoJsonRouteFeature:
         """Calculate intelligent walking route using hybrid OSM curvature + trail graph."""
-        # 1. Validate origin coordinates
-        if not self._is_within_museum_bounds(origin_lat, origin_lng):
+        # 1. Validate geographic coordinates
+        if not (-90.0 <= origin_lat <= 90.0 and -180.0 <= origin_lng <= 180.0):
             raise ApiError(
-                code="COORDINATES_OUT_OF_BOUNDS",
-                message="Origin coordinates are outside Cu Chi Historical Relic Site boundaries.",
+                code="INVALID_COORDINATES",
+                message="Origin coordinates are outside valid geographic range (-90..90, -180..180).",
                 status_code=422,
-                details={
-                    "origin_lat": origin_lat,
-                    "origin_lng": origin_lng,
-                    "bounds": settings.CU_CHI_BOUNDS,
-                },
+                details={"origin_lat": origin_lat, "origin_lng": origin_lng},
             )
 
         # 2. Look up destination POI dynamically from DB

@@ -47,6 +47,7 @@ describe('useGeolocation', () => {
     expect(result.current.location).toEqual({ lat: 11.144, lng: 106.464 });
     expect(result.current.accuracy).toBe(12);
     expect(result.current.hasLiveLocation).toBe(true);
+    expect(result.current.isOutsideMuseum).toBe(false);
 
     unmount();
     expect(geolocation.clearWatch).toHaveBeenCalledWith(42);
@@ -72,7 +73,7 @@ describe('useGeolocation', () => {
     expect(result.current.errorMessage).toContain(message);
   });
 
-  it('falls back when the visitor is outside the museum boundary', () => {
+  it('tracks real coordinates when the visitor is outside the museum boundary', () => {
     const geolocation = mockGeolocation();
     let onPosition;
     geolocation.watchPosition.mockImplementation((success) => {
@@ -81,10 +82,13 @@ describe('useGeolocation', () => {
     });
 
     const { result } = renderHook(() => useGeolocation());
-    act(() => onPosition({ coords: { latitude: 10, longitude: 106, accuracy: 50 } }));
+    act(() => onPosition({ coords: { latitude: 10.8231, longitude: 106.6297, accuracy: 25 } }));
 
-    expect(result.current.location).toEqual(MAIN_ENTRANCE);
-    expect(result.current.errorMessage).toContain('outside the museum grounds');
+    expect(result.current.location).toEqual({ lat: 10.8231, lng: 106.6297 });
+    expect(result.current.accuracy).toBe(25);
+    expect(result.current.hasLiveLocation).toBe(true);
+    expect(result.current.errorMessage).toBe('');
+    expect(result.current.isOutsideMuseum).toBe(true);
   });
 
   it('uses the Main Entrance when browser geolocation is unsupported', () => {

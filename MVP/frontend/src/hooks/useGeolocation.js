@@ -44,13 +44,6 @@ export default function useGeolocation() {
     const watchId = geolocation.watchPosition(
       (position) => {
         const { latitude, longitude, accuracy: positionAccuracy } = position.coords;
-        if (!isWithinMuseumBounds(latitude, longitude)) {
-          setLocation(MAIN_ENTRANCE);
-          setAccuracy(null);
-          setErrorMessage('You are outside the museum grounds. Showing the map from the Main Entrance.');
-          return;
-        }
-
         setLocation({ lat: latitude, lng: longitude });
         setAccuracy(positionAccuracy);
         setErrorMessage('');
@@ -66,10 +59,13 @@ export default function useGeolocation() {
     return () => geolocation.clearWatch(watchId);
   }, []);
 
+  const isOutside = location ? !isWithinMuseumBounds(location.lat, location.lng) : false;
+
   return {
     location: location ?? MAIN_ENTRANCE,
     accuracy,
     errorMessage,
     hasLiveLocation: location !== null && errorMessage === '',
+    isOutsideMuseum: isOutside,
   };
 }
