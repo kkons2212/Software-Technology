@@ -77,6 +77,21 @@ describe('MiniAudioPlayer (US 01.3.3 Floating Mini Audio Player UI)', () => {
     expect(togglePlay).toHaveBeenCalledTimes(1);
   });
 
+  it('invokes onPlay callback when clicked in inline mode while not playing', () => {
+    const onPlay = vi.fn();
+    const value = { ...baseMockContext, isPlaying: false };
+    render(
+      <AudioPlayerContext.Provider value={value}>
+        <MiniAudioPlayer inline poiId={1} onPlay={onPlay} />
+      </AudioPlayerContext.Provider>
+    );
+
+    const playPauseBtn = screen.getByTestId('play-pause-button');
+    fireEvent.click(playPauseBtn);
+
+    expect(onPlay).toHaveBeenCalledTimes(1);
+  });
+
   it('renders pause icon when playing', () => {
     renderWithContext({ isPlaying: true });
 

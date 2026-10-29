@@ -265,17 +265,32 @@ export function AudioPlayerProvider({ children }) {
   const resume = useCallback(() => {
     if (isOfflineFallback) {
       if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-        window.speechSynthesis.resume();
-        setIsPlaying(true);
+        if (window.speechSynthesis.speaking && window.speechSynthesis.paused) {
+          window.speechSynthesis.resume();
+          setIsPlaying(true);
+        } else if (currentPoi) {
+          triggerWebSpeechFallback(currentPoi);
+        }
       }
     } else if (audioRef.current && audioRef.current.src) {
-      audioRef.current.play().then(() => {
-        setIsPlaying(true);
-      }).catch((err) => {
-        console.warn('Error resuming audio:', err);
-      });
+      if (audioRef.current.ended) {
+        audioRef.current.currentTime = 0;
+      }
+      audioRef.current
+        .play()
+        .then(() => {
+          setIsPlaying(true);
+        })
+        .catch((err) => {
+          console.warn('Error resuming audio, falling back to Web Speech:', err);
+          if (currentPoi) {
+            triggerWebSpeechFallback(currentPoi);
+          }
+        });
+    } else if (currentPoi) {
+      play(currentPoi);
     }
-  }, [isOfflineFallback]);
+  }, [isOfflineFallback, currentPoi, triggerWebSpeechFallback, play]);
 
   // Toggle play/pause
   const togglePlay = useCallback(() => {
