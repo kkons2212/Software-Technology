@@ -112,11 +112,11 @@ class POIUpdateRequest(BaseModel):
     )
 
     latitude: float | None = Field(
-        default=None, ge=-90.0, le=90.0, description="WGS84 latitude coordinate"
+        default=None, description="WGS84 latitude coordinate"
     )
 
     longitude: float | None = Field(
-        default=None, ge=-180.0, le=180.0, description="WGS84 longitude coordinate"
+        default=None, description="WGS84 longitude coordinate"
     )
 
     radius: int | None = Field(
@@ -175,13 +175,9 @@ class POICreateRequest(BaseModel):
         None, description="Detailed historical narration content"
     )
 
-    latitude: float = Field(
-        ..., ge=-90.0, le=90.0, description="WGS84 latitude coordinate"
-    )
+    latitude: float = Field(..., description="WGS84 latitude coordinate")
 
-    longitude: float = Field(
-        ..., ge=-180.0, le=180.0, description="WGS84 longitude coordinate"
-    )
+    longitude: float = Field(..., description="WGS84 longitude coordinate")
 
     radius: int = Field(
         30,

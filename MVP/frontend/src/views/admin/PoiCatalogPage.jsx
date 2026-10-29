@@ -4,22 +4,15 @@ import DeactivateConfirmModal from '../../components/admin/DeactivateConfirmModa
 import AdminMapPicker from '../../components/admin/AdminMapPicker.jsx';
 import POIFormModal from '../../components/admin/POIFormModal.jsx';
 
-const CU_CHI_BOUNDS = {
-  minLat: 11.136361,
-  maxLat: 11.149306,
-  minLng: 106.455139,
-  maxLng: 106.467639,
-};
-
 function isOutOfBounds(lat, lng) {
   const numLat = parseFloat(lat);
   const numLng = parseFloat(lng);
   if (isNaN(numLat) || isNaN(numLng)) return true;
   return (
-    numLat < CU_CHI_BOUNDS.minLat ||
-    numLat > CU_CHI_BOUNDS.maxLat ||
-    numLng < CU_CHI_BOUNDS.minLng ||
-    numLng > CU_CHI_BOUNDS.maxLng
+    numLat < -90 ||
+    numLat > 90 ||
+    numLng < -180 ||
+    numLng > 180
   );
 }
 
@@ -125,7 +118,7 @@ export default function PoiCatalogPage() {
     }
 
     if (isOutOfBounds(latitude, longitude)) {
-      setFormError('Coordinates fall outside the permitted perimeter of Cu Chi Tunnels.');
+      setFormError('Tọa độ không hợp lệ (Vĩ độ: [-90, 90], Kinh độ: [-180, 180]).');
       return;
     }
 
@@ -422,7 +415,7 @@ export default function PoiCatalogPage() {
                   latitudeLabel="Latitude (WGS84) *"
                   longitudeLabel="Longitude (WGS84) *"
                   radiusLabel="Proximity Trigger Radius"
-                  outOfBoundsMessage="Warning: Coordinates must reside within Cu Chi site boundary (Lat: [11.136361, 11.149306], Lng: [106.455139, 106.467639])."
+                  outOfBoundsMessage="Cảnh báo: Tọa độ không hợp lệ (Vĩ độ: [-90, 90], Kinh độ: [-180, 180])."
                   onChange={({ latitude: nextLat, longitude: nextLng, radius: nextRad }) => {
                     setLatitude(String(nextLat));
                     setLongitude(String(nextLng));

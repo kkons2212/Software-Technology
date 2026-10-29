@@ -119,7 +119,7 @@ describe('POIFormModal', () => {
   });
 
   it('disables save button and blocks submit when coordinates are out of bounds', () => {
-    const outOfBoundsPoi = { ...mockPoi, latitude: 10.0000 };
+    const outOfBoundsPoi = { ...mockPoi, latitude: 95.0000 };
     render(<POIFormModal isOpen={true} poi={outOfBoundsPoi} onClose={vi.fn()} />);
 
     const saveButton = screen.getByRole('button', { name: /save changes/i });

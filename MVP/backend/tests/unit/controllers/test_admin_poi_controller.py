@@ -34,8 +34,8 @@ EXISTING_LATITUDE = 11.1445
 EXISTING_LONGITUDE = 106.4645
 EXISTING_RADIUS = 30
 
-OUT_OF_BOUNDS_LATITUDE = 10.0
-OUT_OF_BOUNDS_LONGITUDE = 106.0
+OUT_OF_BOUNDS_LATITUDE = 95.0
+OUT_OF_BOUNDS_LONGITUDE = 195.0
 
 # `TestClient` does not populate `request.client`, so the originating address is
 # supplied the same way the reverse proxy does in production. This also proves
@@ -198,7 +198,7 @@ def test_should_return_400_envelope_when_coordinates_leave_the_perimeter(
         "success": False,
         "error": {
             "code": "GEO_OUT_OF_BOUNDS",
-            "message": "Coordinates must fall inside the Cu Chi Tunnels boundary.",
+            "message": "Coordinates must be valid latitude (-90 to 90) and longitude (-180 to 180).",
             "details": None,
         },
     }

@@ -138,9 +138,9 @@ describe('AdminMapPicker', () => {
     const onSave = vi.fn();
     renderPicker({ onSave });
 
-    fireEvent.change(screen.getByLabelText('Latitude'), { target: { value: '10' } });
+    fireEvent.change(screen.getByLabelText('Latitude'), { target: { value: '95' } });
 
-    expect(screen.getByRole('alert')).toHaveTextContent('Cu Chi Tunnels boundary');
+    expect(screen.getByRole('alert')).toHaveTextContent('valid latitude');
     expect(screen.getByTestId('admin-map-picker-canvas')).toHaveStyle({
       borderColor: '#B91C1C',
     });

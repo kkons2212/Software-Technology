@@ -80,7 +80,7 @@ def test_should_return_400_when_coordinates_out_of_bounds(client, db_session):
 
     payload = {
         "title": "Out of Bounds POI",
-        "latitude": 10.0000,  # Invalid: outside Cu Chi boundary
+        "latitude": 95.0000,  # Invalid: outside valid -90..90
         "longitude": 106.4631,
         "radius": 30,
     }
@@ -285,7 +285,7 @@ def test_should_return_400_when_updating_coordinates_out_of_bounds(client, db_se
 
     res = client.put(
         f"/api/v1/admin/pois/{poi_id}",
-        json={"latitude": 10.0000},
+        json={"latitude": 95.0000},
     )
     assert res.status_code == 400
 

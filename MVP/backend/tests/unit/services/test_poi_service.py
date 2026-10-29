@@ -252,10 +252,10 @@ def test_should_accept_perimeter_corners_in_the_static_validator(latitude, longi
 @pytest.mark.parametrize(
     ("latitude", "longitude"),
     [
-        (MIN_LATITUDE - 0.0001, EXISTING_LONGITUDE),
-        (MAX_LATITUDE + 0.0001, EXISTING_LONGITUDE),
-        (EXISTING_LATITUDE, MIN_LONGITUDE - 0.0001),
-        (EXISTING_LATITUDE, MAX_LONGITUDE + 0.0001),
+        (-90.1, EXISTING_LONGITUDE),
+        (90.1, EXISTING_LONGITUDE),
+        (EXISTING_LATITUDE, -180.1),
+        (EXISTING_LATITUDE, 180.1),
     ],
 )
 def test_should_reject_coordinates_outside_the_perimeter(
@@ -285,7 +285,7 @@ def test_should_validate_the_combined_position_on_a_partial_update(
     with pytest.raises(ApiError) as raised_error:
         poi_service.update_poi_geofence(
             EXISTING_POI_ID,
-            POIUpdateRequest(longitude=MAX_LONGITUDE + 0.01),
+            POIUpdateRequest(longitude=185.0),
             admin_user_name=ADMIN_USER_NAME,
         )
 
@@ -311,7 +311,7 @@ def test_should_raise_not_found_when_the_exhibit_does_not_exist(
 
 @pytest.mark.parametrize(
     ("latitude", "longitude"),
-    [(-90.0, 0.0), (90.0, 0.0), (0.0, -180.0), (0.0, 180.0)],
+    [(-90.1, 0.0), (90.1, 0.0), (0.0, -180.1), (0.0, 180.1)],
 )
 def test_should_reject_far_away_coordinates_in_the_static_validator(
     latitude, longitude
@@ -356,12 +356,12 @@ async def test_should_create_poi_and_seed_foreign_translations_with_pending_stat
 def test_should_raise_400_when_coordinates_outside_cu_chi_bounds():
     # Outside latitude boundary
     with pytest.raises(HTTPException) as exc_info:
-        validate_coordinates_in_bounds(10.5000, 106.4631)
+        validate_coordinates_in_bounds(95.0000, 106.4631)
     assert exc_info.value.status_code == 400
 
     # Outside longitude boundary
     with pytest.raises(HTTPException) as exc_info:
-        validate_coordinates_in_bounds(11.1432, 105.0000)
+        validate_coordinates_in_bounds(11.1432, 195.0000)
     assert exc_info.value.status_code == 400
 
 
