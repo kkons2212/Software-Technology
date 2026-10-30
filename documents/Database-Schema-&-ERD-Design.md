@@ -13,7 +13,7 @@ The system runs exclusively on **MySQL 8.0+ (InnoDB)** for local development, te
 
 ## 2. Entity Relationship Diagram now with MYSQL (ERD)
 
-<img width="2246" height="1563" alt="Untitled (2)" src="https://github.com/user-attachments/assets/c8c96762-d194-4539-a52a-4a6fc08b7aa8" />
+<img width="2778" height="1496" alt="Untitled (4)" src="https://github.com/user-attachments/assets/3f7b4a53-7c0c-4033-b064-92618edf5429" />
 
 
 ### 2.1. MySQL Schema DDL Script
