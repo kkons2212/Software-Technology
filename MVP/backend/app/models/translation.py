@@ -24,6 +24,49 @@ TRANSLATION_STATUS_PUBLISHED = "PUBLISHED"
 TRANSLATION_STATUS_FAILED = "FAILED"
 
 
+class _AudioProxy:
+    """Compatibility proxy presenting audio metadata from POITranslation."""
+
+    def __init__(self, translation: "POITranslation"):
+        self._t = translation
+
+    @property
+    def audio_id(self) -> str:
+        return f"AUD_{self._t.stran_id}"
+
+    @property
+    def audio_url(self) -> str | None:
+        return self._t.audio_url
+
+    @audio_url.setter
+    def audio_url(self, value: str | None) -> None:
+        self._t.audio_url = value
+
+    @property
+    def duration(self) -> Decimal | None:
+        return self._t.duration
+
+    @duration.setter
+    def duration(self, value: Decimal | None) -> None:
+        self._t.duration = value
+
+    @property
+    def file_size(self) -> int | None:
+        return self._t.file_size
+
+    @file_size.setter
+    def file_size(self, value: int | None) -> None:
+        self._t.file_size = value
+
+    @property
+    def status(self) -> str:
+        return "READY" if self._t.audio_url else "PENDING"
+
+    @status.setter
+    def status(self, value: str) -> None:
+        pass
+
+
 class POITranslation(Base):
     __tablename__ = "POITranslation"
 
@@ -116,13 +159,15 @@ class POITranslation(Base):
         UniqueConstraint(
             "PoiID", "LanguageID", name="UQ_POITranslation_PoiID_LanguageID"
         ),
+        {"mysql_charset": "utf8mb4", "mysql_collate": "utf8mb4_unicode_ci"},
     )
 
     poi = relationship("POI", back_populates="translations")
     language = relationship("LanguageCode")
-    audio = relationship(
-        "POIAudio",
-        back_populates="translation",
-        uselist=False,
-        cascade="all, delete-orphan",
-    )
+
+    @property
+    def audio(self) -> _AudioProxy | None:
+        """Compatibility accessor returning audio metadata as proxy."""
+        if self.audio_url is not None:
+            return _AudioProxy(self)
+        return None

@@ -14,7 +14,7 @@ from app.services.translation_worker import TranslationWorker
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_TARGET_LANGUAGES = ["en", "ja", "ko", "zh"]
+DEFAULT_TARGET_LANGUAGES = ["en", "ja", "ko", "zh", "fr"]
 
 
 class TranslationPipelineService:
