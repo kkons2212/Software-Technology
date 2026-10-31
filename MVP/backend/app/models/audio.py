@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
+from typing import ClassVar
 
 AUDIO_STATUS_PENDING = "PENDING"
 AUDIO_STATUS_READY = "READY"
