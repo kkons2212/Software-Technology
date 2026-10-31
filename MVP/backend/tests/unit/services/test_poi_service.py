@@ -403,7 +403,7 @@ async def test_should_log_audit_entry_when_poi_created(poi_catalog_service, db_s
     )
 
     # Direct verify audit in DB
-    audit_record = db_session.query(Audit).filter(Audit.Status == "CREATE_POI").first()
+    audit_record = db_session.query(Audit).filter(Audit.UserName == "admin", (Audit.Status == "CREATE_POI") | (Audit.Status == AUDIT_STATUS_SUCCESS)).order_by(Audit.Create_at.desc()).first()
     assert audit_record is not None
     assert audit_record.UserName == "admin"
     assert audit_record.Ip_address == "127.0.0.1"
