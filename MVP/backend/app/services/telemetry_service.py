@@ -167,24 +167,13 @@ class TelemetryService:
         """Aggregate POITrigger coordinates and normalize intensity for US 05.1 heatmap."""
         range_start = _resolve_range_start(time_range)
         rows = self.telemetry_repo.list_heatmap_poi_triggers(range_start)
-
-        if not rows:
-            return HeatmapDataDTO(
-                time_range=time_range,
-                generated_at=_current_utc_time(),
-                points=[],
-                total_points=0,
-                max_trigger_count=0,
-            )
-
-        max_trigger_count = max(row[4] for row in rows)
-        points: list[HeatmapPointDTO] = []
+        max_trigger_count = max((row[4] for row in rows), default=0)
+        points_accumulator: list[HeatmapPointDTO] = []
         for poi_id, title, lat, lng, count in rows:
-            # Normalized intensity between 0.0 and 1.0 (AC-05.1.1)
             intensity = (
                 round(count / max_trigger_count, 3) if max_trigger_count > 0 else 0.0
             )
-            points.append(
+            points_accumulator.append(
                 HeatmapPointDTO(
                     poi_id=poi_id,
                     poi_title=title,
@@ -198,7 +187,7 @@ class TelemetryService:
         return HeatmapDataDTO(
             time_range=time_range,
             generated_at=_current_utc_time(),
-            points=points,
-            total_points=len(points),
+            points=points_accumulator,
+            total_points=len(points_accumulator),
             max_trigger_count=max_trigger_count,
         )

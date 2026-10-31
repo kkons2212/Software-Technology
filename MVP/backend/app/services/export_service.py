@@ -53,26 +53,27 @@ class ExportService:
 
             start_dt = datetime.combine(start_date, time.min, tzinfo=BUSINESS_TIMEZONE)
             end_dt = datetime.combine(end_date, time.max, tzinfo=BUSINESS_TIMEZONE)
-            return _to_naive_utc(start_dt), _to_naive_utc(end_dt)
+        else:
+            range_key = (time_range or ANALYTICS_RANGE_LAST_7_DAYS).upper()
+            if range_key not in SUPPORTED_ANALYTICS_RANGES:
+                raise ValueError(
+                    f"Unsupported analytics time range: '{time_range}'. "
+                    f"Expected one of: {sorted(SUPPORTED_ANALYTICS_RANGES)}."
+                )
 
-        range_key = (time_range or ANALYTICS_RANGE_LAST_7_DAYS).upper()
-        if range_key not in SUPPORTED_ANALYTICS_RANGES:
-            raise ValueError(
-                f"Unsupported analytics time range: '{time_range}'. "
-                f"Expected one of: {sorted(SUPPORTED_ANALYTICS_RANGES)}."
-            )
+            if range_key == ANALYTICS_RANGE_TODAY:
+                start_dt = now_utc.astimezone(BUSINESS_TIMEZONE).replace(
+                    hour=0, minute=0, second=0, microsecond=0
+                )
+            elif range_key == ANALYTICS_RANGE_LAST_7_DAYS:
+                start_dt = now_utc - timedelta(days=7)
+            else:
+                start_dt = now_utc - timedelta(days=30)
+            end_dt = None
 
-        if range_key == ANALYTICS_RANGE_TODAY:
-            local_midnight = now_utc.astimezone(BUSINESS_TIMEZONE).replace(
-                hour=0, minute=0, second=0, microsecond=0
-            )
-            return _to_naive_utc(local_midnight), None
-
-        if range_key == ANALYTICS_RANGE_LAST_7_DAYS:
-            return _to_naive_utc(now_utc - timedelta(days=7)), None
-
-        # ANALYTICS_RANGE_LAST_30_DAYS
-        return _to_naive_utc(now_utc - timedelta(days=30)), None
+        resolved_start = _to_naive_utc(start_dt)
+        resolved_end = _to_naive_utc(end_dt) if end_dt is not None else None
+        return resolved_start, resolved_end
 
     def stream_csv(
         self, range_start: datetime, range_end: datetime | None = None
