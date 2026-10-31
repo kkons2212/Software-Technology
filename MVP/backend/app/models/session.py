@@ -82,4 +82,17 @@ class VisitorSession(Base):
         elif "TransactionID" in kwargs and "transaction" not in kwargs:
             # If TransactionID provided but not transaction object, ensure compatibility
             kwargs.setdefault("transaction_id", kwargs["TransactionID"])
+
+        # Enforce CHK_VisitorSession_Expire_after_Activate (Expire_at > Activate_at)
+        exp = kwargs.get("Expire_at") or kwargs.get("expire_at")
+        act = kwargs.get("Activate_at") or kwargs.get("activate_at")
+        if exp and isinstance(exp, datetime.datetime):
+            if act and isinstance(act, datetime.datetime) and act >= exp:
+                if "Activate_at" in kwargs:
+                    kwargs["Activate_at"] = exp - datetime.timedelta(hours=24)
+                if "activate_at" in kwargs:
+                    kwargs["activate_at"] = exp - datetime.timedelta(hours=24)
+            elif not act and exp <= datetime.datetime.utcnow():
+                kwargs["Activate_at"] = exp - datetime.timedelta(hours=24)
+
         super().__init__(**kwargs)
