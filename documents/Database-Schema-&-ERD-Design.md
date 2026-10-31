@@ -272,7 +272,6 @@ The full MySQL initialization DDL script is provided in section [2.1. MySQL Sche
 | `latitude` | `NUMERIC(10, 7)` | `NOT NULL, CHECK (-90..90)` | Outdoor GPS latitude |
 | `longitude` | `NUMERIC(10, 7)` | `NOT NULL, CHECK (-180..180)` | Outdoor GPS longitude |
 | `radius` | `INTEGER` | `DEFAULT 30, CHECK (> 0)` | Automatic trigger geofence radius (meters) |
-| `area_zone` | `VARCHAR(255)` | `DEFAULT 'GROUND'` | Terrain zone / tunnel level classification |
 | `is_active` | `BOOLEAN` | `DEFAULT TRUE` | Visibility flag for visitors |
 | `create_by` | `VARCHAR(255)` | `FK -> users(user_name)` | POI creator username (ON DELETE SET NULL) |
 | `create_at` | `TIMESTAMPTZ` | `DEFAULT CURRENT_TIMESTAMP` | Record creation timestamp |
