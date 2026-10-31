@@ -12,12 +12,12 @@
 | :--- | :--- | :---: | :---: | :---: | :---: | :---: |
 | [**REF-EPIC-01**](#-ref-epic-01-mobile-map-geofencing-engine--wayfinding-navigation-uc-01) | Mobile Map, Geofencing Engine & Wayfinding Navigation | Layer 2 (Service) / Layer 3 (Repo) / Test | Must Have | 6 SP | 4 Tasks | [ ] 0/4 |
 | [**REF-EPIC-02**](#-ref-epic-02-administrative-authentication-session-guard--lockout-uc-02) | Admin Authentication, Session Guard & Lockout Invariants | Layer 2 (Service) / Layer 3 (Repo) / Test | Must Have | 6 SP | 4 Tasks | [ ] 0/4 |
-| [**REF-EPIC-03**](#-ref-epic-03-poi-spatial-catalog-coordinate-validation--media-upload-uc-03) | POI Catalog, Coordinate Validation & Spatial Queries | Layer 2 (Service) / Layer 3 (Repo) / Test | Must Have | 6 SP | 4 Tasks | [x] 4/4 |
-| [**REF-EPIC-04**](#-ref-epic-04-automated-ai-translation-pipeline-tts-engine--audit-curation-uc-04) | AI Translation Pipeline, TTS Engine & Audio Curation | Layer 2 (Service) / Layer 3 (Repo/Client) / Test | Must Have | 10 SP | 6 Tasks | [ ] 0/6 |
+| [**REF-EPIC-03**](#-ref-epic-03-poi-spatial-catalog-coordinate-validation--media-upload-uc-03) | POI Catalog, Coordinate Validation & Spatial Queries | Layer 2 (Service) / Layer 3 (Repo) / Test | Must Have | 6 SP | 4 Tasks | [x] 4/4 (DONE) |
+| [**REF-EPIC-04**](#-ref-epic-04-automated-ai-translation-pipeline-tts-engine--audit-curation-uc-04) | AI Translation Pipeline, TTS Engine & Audio Curation | Layer 2 (Service) / Layer 3 (Repo/Client) / Test | Must Have | 10 SP | 6 Tasks | [x] 6/6 (DONE) |
 | [**REF-EPIC-05**](#-ref-epic-05-operational-telemetry-heatmap-aggregation--system-health-uc-05) | Telemetry Ingestion, Heatmap Aggregation & Data Export | Layer 2 (Service) / Layer 3 (Repo) / Test | Should Have | 6 SP | 4 Tasks | [ ] 0/4 |
 | [**REF-EPIC-06**](#-ref-epic-06-digital-admission-payment-webhook-verification--visiting-session-uc-06) | Payment Webhook Verification, Session Gating & Recovery | Layer 2 (Service) / Layer 3 (Repo/Client) / Test | Must Have | 8 SP | 5 Tasks | [ ] 0/5 |
 | [**REF-EPIC-07**](#-ref-epic-07-cross-cutting-infrastructure-orm-schema-defense--ci-gates) | Infrastructure, ORM-DDL Defense & Control Flow CI Gates | Layer 3 (Core/DB) / AST Linter / CI | Must Have | 5 SP | 4 Tasks | [ ] 0/4 |
-| **TOTAL** | **7 Refactoring Epics (Layer 2 & 3 Backend + Tests)** | — | — | **47 SP** | **31 Tasks** | **[ ] 0/31 Tasks** |
+| **TOTAL** | **7 Refactoring Epics (Layer 2 & 3 Backend + Tests)** | — | — | **47 SP** | **31 Tasks** | **[ ] 10/31 Tasks** |
 
 ---
 
@@ -160,7 +160,7 @@ Every refactoring task in this backlog must strictly comply with the quantitativ
 *Focus: Eliminating unhandled retry loops, standardizing SHA-256 text hashing, linearizing background worker orchestration, and harmonizing ORM models with MySQL DDL.*
 
 ### 📌 Tasks Breakdown:
-- [ ] `REF-04.1` `[Layer 3 - Integration]` **Refactor Deep-Translator Client with Explicit Backoff Gate (`app/integrations/deep_translator_client.py`)**
+- [x] `REF-04.1` `[Layer 3 - Integration]` **Refactor Deep-Translator Client with Explicit Backoff Gate (`app/integrations/deep_translator_client.py`)**
   - **Smells & Anti-patterns:** Deeply nested `try/except` inside `while attempt < max_retries` with multiple mid-loop returns and broad exception suppression ($M = 8$).
   - **Refactoring Scope:**
     1. Phase 1 Gate: Validate non-empty source text and target language code.
@@ -168,14 +168,14 @@ Every refactoring task in this backlog must strictly comply with the quantitativ
     3. Phase 3 Exit: Unconditional return of `translated_text`; if loop exhausts without result, raise explicit `TranslationServiceError`.
   - **Metric Target:** $K \le 2$, $M \le 5$, Nesting Depth $\le 2$.
 
-- [ ] `REF-04.2` `[Layer 3 - Integration]` **Refactor Edge-TTS Synthesis Client & Audio Caching (`app/integrations/edge_tts_client.py`)**
+- [x] `REF-04.2` `[Layer 3 - Integration]` **Refactor Edge-TTS Synthesis Client & Audio Caching (`app/integrations/edge_tts_client.py`)**
   - **Smells & Anti-patterns:** File path formatting, content hashing, and TTS voice selection tangled in a single 90-line function with multiple early returns.
   - **Refactoring Scope:**
     1. Decompose into `_resolve_voice_for_language(lang_code)` ($M \le 3$) and `_compute_sha256_hash(text)` ($M \le 2$).
     2. In `synthesize_audio`: Phase 1 Gate (validate text/lang) $\rightarrow$ Phase 2 (synthesize audio stream to disk) $\rightarrow$ Phase 3 (return `AudioMetadataDTO(audio_url, duration, file_size)`).
   - **Metric Target:** $K = 2$, $M \le 5$.
 
-- [ ] `REF-04.3` `[Layer 2 - Service]` **Refactor Translation Service & Audio Service (`app/services/translation_service.py` & `audio_service.py`)**
+- [x] `REF-04.3` `[Layer 2 - Service]` **Refactor Translation Service & Audio Service (`app/services/translation_service.py` & `audio_service.py`)**
   - **Smells & Anti-patterns:** Direct access to obsolete `UserName` column; scattered status update calls; tangled TTS re-generation triggers.
   - **Refactoring Scope:**
     1. `translation_service.py`: Linearize status transitions (`DRAFT` $\rightarrow$ `NEEDS_UPDATE` $\rightarrow$ `PUBLISHED`). Update reviewer field to `review_by` matching MySQL schema.
@@ -183,7 +183,7 @@ Every refactoring task in this backlog must strictly comply with the quantitativ
   - **Layer 1 Fit:** Interfaces consumed by `translation_controller.py` and `audio_controller.py` remain identical.
   - **Metric Target:** $K \le 2$, $M \le 5$.
 
-- [ ] `REF-04.4` `[Layer 2 - Service]` **Refactor Background Translation Pipeline Service & Workers (`app/services/translation_pipeline_service.py` & `translation_worker.py`)**
+- [x] `REF-04.4` `[Layer 2 - Service]` **Refactor Background Translation Pipeline Service & Workers (`app/services/translation_pipeline_service.py` & `translation_worker.py`)**
   - **Smells & Anti-patterns:** Background task swallows individual language errors or aborts entire pipeline prematurely on first error.
   - **Refactoring Scope:**
     1. Loop through target languages (`en`, `ja`, `ko`, `zh`) sequentially; accumulate per-language outcomes in `pipeline_results: dict[str, PipelineStatus]`.
@@ -191,7 +191,7 @@ Every refactoring task in this backlog must strictly comply with the quantitativ
     3. Return consolidated `PipelineExecutionSummary` at single terminal exit.
   - **Metric Target:** $K = 1$, $M \le 5$, Nesting Depth $\le 2$.
 
-- [ ] `REF-04.5` `[Layer 3 - Repository]` **Refactor Translation & Audio Repositories (`app/repositories/translation_repository.py` & `audio_repository.py`)**
+- [x] `REF-04.5` `[Layer 3 - Repository]` **Refactor Translation & Audio Repositories (`app/repositories/translation_repository.py` & `audio_repository.py`)**
   - **Smells & Anti-patterns:** Querying non-existent `UserName` field; dynamic filter branching modifying query in place.
   - **Refactoring Scope:**
     1. Update queries in `TranslationRepository` to remove `user_name` column reference; query only valid columns (`Review_by`, `PoiID`, `LanguageID`, `Status`).
@@ -199,7 +199,7 @@ Every refactoring task in this backlog must strictly comply with the quantitativ
     3. Enforce deterministic returns for all repository lookup methods.
   - **Metric Target:** $K = 1$, $M \le 4$.
 
-- [ ] `REF-04.6` `[Test - Unit Suite]` **Refactor Translation & Audio Unit Tests (`tests/unit/repositories/test_translation_repository.py`, `test_audio_repository.py`, `test_translation_service.py`)**
+- [x] `REF-04.6` `[Test - Unit Suite]` **Refactor Translation & Audio Unit Tests (`tests/unit/repositories/test_translation_repository.py`, `test_audio_repository.py`, `test_translation_service.py`)**
   - **Test Smells:** Test seed fixtures instantiate `POITranslation` with obsolete `user_name` field, causing SQL 1054 errors in CI.
   - **Refactoring Scope:**
     1. Update `_seed_base_data()` and `_create_translation()` to use valid schema attributes.
