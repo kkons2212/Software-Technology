@@ -92,13 +92,6 @@ class POITranslation(Base):
     file_size: Mapped[int | None] = mapped_column(
         "File_size", BigInteger, nullable=True
     )
-    audio_url: Mapped[str | None] = mapped_column("Audio_url", Text, nullable=True)
-    duration: Mapped[Decimal | None] = mapped_column(
-        "Duration", Numeric(6, 1), nullable=True
-    )
-    file_size: Mapped[int | None] = mapped_column(
-        "File_size", BigInteger, nullable=True
-    )
     review_at: Mapped[datetime | None] = mapped_column(
         "Review_at", DateTime, nullable=True
     )
@@ -145,6 +138,23 @@ class POITranslation(Base):
     PoiID = synonym("poi_id")
     LanguageID = synonym("language_id")
 
+    # Backward compatibility property for legacy code referencing user_name
+    @property
+    def user_name(self) -> str | None:
+        return self.review_by
+
+    @user_name.setter
+    def user_name(self, value: str | None) -> None:
+        self.review_by = value
+
+    @property
+    def UserName(self) -> str | None:
+        return self.review_by
+
+    @UserName.setter
+    def UserName(self, value: str | None) -> None:
+        self.review_by = value
+
     __table_args__ = (
         UniqueConstraint(
             "PoiID", "LanguageID", name="UQ_POITranslation_PoiID_LanguageID"
@@ -154,15 +164,6 @@ class POITranslation(Base):
 
     poi = relationship("POI", back_populates="translations")
     language = relationship("LanguageCode")
-
-    @property
-    def user_name(self) -> str | None:
-        """Backward compatibility alias for review_by."""
-        return self.review_by
-
-    @user_name.setter
-    def user_name(self, value: str | None) -> None:
-        self.review_by = value
 
     @property
     def audio(self) -> _AudioProxy | None:

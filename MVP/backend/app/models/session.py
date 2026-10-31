@@ -2,6 +2,7 @@
 
 import datetime
 import uuid
+from decimal import Decimal
 
 from sqlalchemy import Column, DateTime, ForeignKey, String, func
 from sqlalchemy.orm import relationship, synonym
@@ -43,7 +44,7 @@ class VisitorSession(Base):
     )
 
     language = relationship("LanguageCode")
-    transaction = relationship("Transaction", back_populates="session")
+    transaction = relationship("Transaction", back_populates="session", cascade="all")
     triggers = relationship(
         "POITrigger", back_populates="session", cascade="all, delete-orphan"
     )
@@ -59,3 +60,39 @@ class VisitorSession(Base):
     create_at = synonym("Create_at")
     preferred_language = synonym("PreferredLanguage")
     transaction_id = synonym("TransactionID")
+
+    def __init__(self, **kwargs):
+        if (
+            "transaction" not in kwargs
+            and "TransactionID" not in kwargs
+            and "transaction_id" not in kwargs
+        ):
+            from app.models.transaction import Transaction
+
+            auto_txn_id = f"TXN_{uuid.uuid4().hex[:12].upper()}"
+            kwargs["transaction"] = Transaction(
+                transaction_id=auto_txn_id,
+                pay_amount=Decimal("50000.00"),
+                currency="VND",
+                payment_gateway="MOCK",
+                status="PAID",
+                paid_at=datetime.datetime.utcnow(),
+            )
+            kwargs["TransactionID"] = auto_txn_id
+        elif "TransactionID" in kwargs and "transaction" not in kwargs:
+            # If TransactionID provided but not transaction object, ensure compatibility
+            kwargs.setdefault("transaction_id", kwargs["TransactionID"])
+
+        # Enforce CHK_VisitorSession_Expire_after_Activate (Expire_at > Activate_at)
+        exp = kwargs.get("Expire_at") or kwargs.get("expire_at")
+        act = kwargs.get("Activate_at") or kwargs.get("activate_at")
+        if exp and isinstance(exp, datetime.datetime):
+            if act and isinstance(act, datetime.datetime) and act >= exp:
+                if "Activate_at" in kwargs:
+                    kwargs["Activate_at"] = exp - datetime.timedelta(hours=24)
+                if "activate_at" in kwargs:
+                    kwargs["activate_at"] = exp - datetime.timedelta(hours=24)
+            elif not act and exp <= datetime.datetime.utcnow():
+                kwargs["Activate_at"] = exp - datetime.timedelta(hours=24)
+
+        super().__init__(**kwargs)

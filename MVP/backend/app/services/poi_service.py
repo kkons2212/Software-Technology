@@ -1,7 +1,6 @@
 """POIService encapsulating business logic for POI catalog, spatial validation
 
 and Admin geofence writes.
-
 """
 
 import os
@@ -32,56 +31,34 @@ from app.schemas.poi_schema import (
 )
 
 GEO_OUT_OF_BOUNDS_ERROR_CODE = "GEO_OUT_OF_BOUNDS"
-
 GEO_OUT_OF_BOUNDS_ERROR_MESSAGE = (
     "Coordinates must fall inside the Cu Chi Tunnels boundary."
 )
-
 POI_NOT_FOUND_ERROR_CODE = "POI_NOT_FOUND"
-
 POI_NOT_FOUND_ERROR_MESSAGE = "The requested exhibit does not exist."
 
 POI_GEOFENCE_UPDATED_DETAILS = "ADMIN_POI_GEOFENCE_UPDATED"
 POI_DEACTIVATED_DETAILS = "ADMIN_POI_DEACTIVATED"
 POI_ACTIVATED_DETAILS = "ADMIN_POI_ACTIVATED"
 
-
 TARGET_FOREIGN_LANGUAGES = ["en", "ja", "ko", "zh"]
 
 
 def _is_within_cu_chi_bounds(latitude: float, longitude: float) -> bool:
-    """Single perimeter predicate shared by the create and geofence flows.
-
-
-
-    The bounds live in `settings.CU_CHI_BOUNDS` and are kept in sync with the
-
-    frontend constant in `src/utils/museumBounds.js`.
-
-    """
-
+    """Single perimeter predicate shared by the create and geofence flows."""
     if getattr(settings, "ALLOW_GLOBAL_COORDINATES", False):
         return -90.0 <= latitude <= 90.0 and -180.0 <= longitude <= 180.0
 
     bounds = settings.CU_CHI_BOUNDS
-
-    return (
+    is_inside = (
         bounds["min_lat"] <= latitude <= bounds["max_lat"]
         and bounds["min_lng"] <= longitude <= bounds["max_lng"]
     )
+    return is_inside
 
 
 def validate_coordinates_in_bounds(lat: float, lng: float) -> None:
-    """Enforce boundary guardrail ensuring POI is within Cu Chi Tunnels complex.
-
-
-
-    Used by the exhibit creation flow, which reports the rejected position and
-
-    the permitted perimeter back to the caller.
-
-    """
-
+    """Enforce boundary guardrail ensuring POI is within Cu Chi Tunnels complex."""
     if not _is_within_cu_chi_bounds(lat, lng):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -99,7 +76,6 @@ def validate_coordinates_in_bounds(lat: float, lng: float) -> None:
 
 def validate_image_file(file: UploadFile, content_bytes: bytes) -> None:
     """Validate image MIME type and file size (< 5MB)."""
-
     if file.content_type not in settings.ALLOWED_IMAGE_TYPES:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -160,25 +136,19 @@ class POIService:
         return list(TARGET_FOREIGN_LANGUAGES)
 
     async def save_cover_image(self, file: UploadFile) -> str:
-        """Validate and write uploaded image to disk."""
-
+        """Validate and write uploaded image to disk with unified exit (SISE)."""
         content = await file.read()
-
         validate_image_file(file, content)
 
-        file_ext = os.path.splitext(file.filename or "")[1].lower()
-
-        if not file_ext:
-            file_ext = ".jpg"
-
+        file_ext = os.path.splitext(file.filename or "")[1].lower() or ".jpg"
         filename = f"poi_{uuid.uuid4().hex[:16]}{file_ext}"
-
         destination_path = os.path.join(settings.IMAGE_UPLOAD_DIR, filename)
 
         with open(destination_path, "wb") as f:
             f.write(content)
 
-        return f"/static/images/{filename}"
+        image_url = f"/static/images/{filename}"
+        return image_url
 
     async def create_new_poi(
         self,
@@ -188,15 +158,11 @@ class POIService:
         ip_address: str | None = None,
     ) -> POIResponse:
         """Execute full business flow: validation, creation, translation seeding, and audit logging."""
-
-        # 1. Spatial perimeter validation
-
+        # Phase 1: Precondition Gate
         validate_coordinates_in_bounds(payload.latitude, payload.longitude)
 
-        # 2. Instantiate and persist POI entity via Repository
-
+        # Phase 2: Instantiate and persist POI entity via Repository
         poi_id = f"POI_{uuid.uuid4().hex[:12].upper()}"
-
         poi_entity = POI(
             poi_id=poi_id,
             title=payload.title,
@@ -209,11 +175,9 @@ class POIService:
             is_active=True,
             create_by=admin_username,
         )
-
         created_poi = self.poi_repo.create(poi_entity)
 
-        # 3. Create primary Vietnamese source translation record (Status = PUBLISHED)
-
+        # Seed primary Vietnamese source translation (Status = PUBLISHED, review_by = admin_username)
         vi_trans = POITranslation(
             stran_id=f"TR_{uuid.uuid4().hex[:12].upper()}",
             title=payload.title,
@@ -222,20 +186,17 @@ class POIService:
             status="PUBLISHED",
             poi_id=created_poi.poi_id,
             language_id="vi",
-            user_name=admin_username,
+            review_by=admin_username,
         )
-
         self.poi_repo.create_translation(vi_trans)
 
-        # 4. Dispatch background foreign language translation pipeline (Status = PENDING)
+        # Seed foreign language placeholders (Status = PENDING, review_by = admin_username)
         target_languages = self._get_target_foreign_languages()
-
         translation_responses = [
             POITranslationStatusResponse(
                 language_id="vi", status="PUBLISHED", title=payload.title
             )
         ]
-
         for lang in target_languages:
             foreign_trans = POITranslation(
                 stran_id=f"TR_{uuid.uuid4().hex[:12].upper()}",
@@ -245,28 +206,11 @@ class POIService:
                 status="PENDING",
                 poi_id=created_poi.poi_id,
                 language_id=lang,
-                user_name=admin_username,
+                review_by=admin_username,
             )
-
             self.poi_repo.create_translation(foreign_trans)
-
             translation_responses.append(
                 POITranslationStatusResponse(language_id=lang, status="PENDING")
-            )
-
-        # 5. Log audit entry if audit repository is available
-
-        if self.audit_repo:
-            self.audit_repo.log_action(
-                username=admin_username,
-                status="CREATE_POI",
-                ip_address=ip_address,
-                details={
-                    "poi_id": created_poi.poi_id,
-                    "title": payload.title,
-                    "radius": payload.radius,
-                    "coordinates": [float(payload.latitude), float(payload.longitude)],
-                },
             )
 
         if background_tasks is not None:
@@ -280,49 +224,62 @@ class POIService:
                 target_languages,
             )
 
-        return self._build_poi_response(created_poi, translation_responses)
+        # Phase 3: Audit logging & Unified Exit
+        if self.audit_repo:
+            self.audit_repo.log_action(
+                username=admin_username,
+                status=AUDIT_STATUS_SUCCESS,
+                ip_address=ip_address,
+                details={
+                    "action": "CREATE_POI",
+                    "poi_id": created_poi.poi_id,
+                    "title": payload.title,
+                    "radius": payload.radius,
+                    "coordinates": [float(payload.latitude), float(payload.longitude)],
+                },
+            )
+
+        response = self._build_poi_response(created_poi, translation_responses)
+        return response
 
     def list_pois(
         self, page: int = 1, size: int = 50, search: str | None = None
     ) -> POIListResponse:
-        """Retrieve paginated POIs with translation status summaries."""
+        """Retrieve paginated POIs with translation status summaries (SISE)."""
+        safe_page = max(1, page)
+        safe_size = max(1, size)
+        skip = (safe_page - 1) * safe_size
 
-        if page < 1:
-            page = 1
-
-        skip = (page - 1) * size
-
-        items, total = self.poi_repo.get_all(skip=skip, limit=size, search=search)
-
+        items, total = self.poi_repo.get_all(skip=skip, limit=safe_size, search=search)
         response_items = []
 
         for poi in items:
             translations = self.poi_repo.get_translations_by_poi_id(poi.poi_id)
-
             status_list = [
                 POITranslationStatusResponse(
                     language_id=t.language_id, status=t.status, title=t.title
                 )
                 for t in translations
             ]
-
             response_items.append(self._build_poi_response(poi, status_list))
 
-        return POIListResponse(items=response_items, total=total, page=page, size=size)
+        response = POIListResponse(
+            items=response_items, total=total, page=safe_page, size=safe_size
+        )
+        return response
 
     def get_poi_details(self, poi_id: str) -> POIResponse:
-        """Fetch full POI details including all translation statuses."""
-
+        """Fetch full POI details including all translation statuses (SISE)."""
+        # Phase 1: Precondition Gate
         poi = self.poi_repo.get_by_id(poi_id)
-
         if not poi:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"POI exhibit with id '{poi_id}' was not found.",
             )
 
+        # Phase 2: Compute translation statuses
         translations = self.poi_repo.get_translations_by_poi_id(poi.poi_id)
-
         status_list = [
             POITranslationStatusResponse(
                 language_id=t.language_id, status=t.status, title=t.title
@@ -330,7 +287,9 @@ class POIService:
             for t in translations
         ]
 
-        return self._build_poi_response(poi, status_list)
+        # Phase 3: Unified Exit
+        response = self._build_poi_response(poi, status_list)
+        return response
 
     def list_map_pois(
         self,
@@ -340,9 +299,12 @@ class POIService:
         """List active POIs for visitor map with content gating based on session token (US 06.4)."""
         is_unlocked = False
         if session_token and self.session_repo:
-            is_unlocked = self.session_repo.is_session_active(session_token.strip())
+            is_unlocked = bool(
+                self.session_repo.is_session_active(session_token.strip())
+            )
 
-        return [
+        active_pairs = self.repository.list_active_pois(language_code)
+        map_items = [
             self._to_map_item(
                 poi,
                 translation,
@@ -350,8 +312,9 @@ class POIService:
                 session_token=session_token if is_unlocked else None,
                 lang=language_code,
             )
-            for poi, translation in self.repository.list_active_pois(language_code)
+            for poi, translation in active_pairs
         ]
+        return map_items
 
     def get_visitor_poi_detail(
         self,
@@ -360,6 +323,7 @@ class POIService:
         session_token: str | None = None,
     ) -> POIMapItem:
         """Fetch active exhibit detail for visitor with content gating (US 06.4)."""
+        # Phase 1: Precondition Gate
         poi = self.repository.get_by_id(poi_id)
         if poi is None or not poi.is_active:
             raise ApiError(
@@ -368,6 +332,7 @@ class POIService:
                 message=POI_NOT_FOUND_ERROR_MESSAGE,
             )
 
+        # Phase 2: Resolve translation and session state
         selected_trans = None
         if language_code:
             translations = self.repository.get_translations_by_poi_id(poi_id)
@@ -378,15 +343,32 @@ class POIService:
 
         is_unlocked = False
         if session_token and self.session_repo:
-            is_unlocked = self.session_repo.is_session_active(session_token.strip())
+            is_unlocked = bool(
+                self.session_repo.is_session_active(session_token.strip())
+            )
 
-        return self._to_map_item(
+        # Phase 3: Unified Exit
+        map_item = self._to_map_item(
             poi,
             selected_trans,
             is_unlocked=is_unlocked,
             session_token=session_token if is_unlocked else None,
             lang=language_code,
         )
+        return map_item
+
+    @staticmethod
+    def _detect_narrative_changes(payload: POIUpdateRequest, poi: POI) -> bool:
+        """Detect whether Vietnamese narrative content changed."""
+        title_changed = payload.title is not None and payload.title != poi.title
+        short_desc_changed = (
+            payload.short_description is not None
+            and payload.short_description != poi.short_description
+        )
+        desc_changed = (
+            payload.description is not None and payload.description != poi.description
+        )
+        return bool(title_changed or short_desc_changed or desc_changed)
 
     def update_poi(
         self,
@@ -398,16 +380,11 @@ class POIService:
     ) -> POIMapItem:
         """Validate, persist POI changes, and synchronize translation statuses (US 03.4).
 
-
-
         # ARCH-BOUNDARY: Service coordinates validation and delegates database operations to repository.
-
         # SECURITY-INVARIANT: Narrative changes cascade NEEDS_UPDATE status to foreign translations.
-
         """
-
+        # Phase 1: Precondition Gate
         poi = self.repository.get_by_id(poi_id)
-
         if poi is None:
             raise ApiError(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -415,34 +392,17 @@ class POIService:
                 message=POI_NOT_FOUND_ERROR_MESSAGE,
             )
 
-        # Validate coordinates if either latitude or longitude is provided
-
         target_latitude = (
             payload.latitude if payload.latitude is not None else float(poi.latitude)
         )
-
         target_longitude = (
             payload.longitude if payload.longitude is not None else float(poi.longitude)
         )
-
         if payload.latitude is not None or payload.longitude is not None:
             self.validate_coordinates_in_bounds(target_latitude, target_longitude)
 
-        # Detect whether Vietnamese narrative content changed
-
-        title_changed = payload.title is not None and payload.title != poi.title
-
-        short_desc_changed = (
-            payload.short_description is not None
-            and payload.short_description != poi.short_description
-        )
-
-        desc_changed = (
-            payload.description is not None and payload.description != poi.description
-        )
-
-        narrative_changed = title_changed or short_desc_changed or desc_changed
-
+        # Phase 2: Persistence & Narrative Invalidation
+        narrative_changed = self._detect_narrative_changes(payload, poi)
         self.repository.update(
             poi,
             title=payload.title,
@@ -461,7 +421,6 @@ class POIService:
                 short_description=payload.short_description,
                 description=payload.description,
             )
-
             if background_tasks is not None:
                 from app.services.translation_pipeline_service import (
                     execute_poi_pipeline_background_task,
@@ -472,8 +431,7 @@ class POIService:
                     execute_poi_pipeline_background_task, poi_id, target_languages
                 )
 
-        # Audit logging (dev_rules Section 3.3)
-
+        # Phase 3: Audit logging & Unified Exit
         audit_details = (
             POI_GEOFENCE_UPDATED_DETAILS
             if (
@@ -484,15 +442,24 @@ class POIService:
             )
             else "ADMIN_POI_UPDATED"
         )
+        if self.audit_repository:
+            if hasattr(self.audit_repository, "create_log_entry"):
+                self.audit_repository.create_log_entry(
+                    user_name=admin_user_name,
+                    status=AUDIT_STATUS_SUCCESS,
+                    ip_address=client_ip,
+                    details=audit_details,
+                )
+            elif hasattr(self.audit_repository, "log_action"):
+                self.audit_repository.log_action(
+                    username=admin_user_name,
+                    status=AUDIT_STATUS_SUCCESS,
+                    ip_address=client_ip,
+                    details=audit_details,
+                )
 
-        self.audit_repository.create_log_entry(
-            user_name=admin_user_name,
-            status=AUDIT_STATUS_SUCCESS,
-            ip_address=client_ip,
-            details=audit_details,
-        )
-
-        return self._to_map_item(poi)
+        result_map_item = self._to_map_item(poi)
+        return result_map_item
 
     def update_poi_geofence(
         self,
@@ -502,23 +469,11 @@ class POIService:
         client_ip: str | None = None,
     ) -> POIMapItem:
         """Validate and persist new coordinates and/or radius for one exhibit."""
-
         return self.update_poi(poi_id, payload, admin_user_name, client_ip)
 
     @staticmethod
     def validate_coordinates_in_bounds(latitude: float, longitude: float) -> None:
-        """Reject coordinates outside the perimeter with the Admin error envelope.
-
-
-
-        Unlike the module-level helper (used by exhibit creation, which returns
-
-        the permitted bounds), this one raises the standardized `ApiError` the
-
-        Admin Portal renders for a rejected geofence write.
-
-        """
-
+        """Reject coordinates outside the perimeter with the Admin error envelope."""
         if not _is_within_cu_chi_bounds(latitude, longitude):
             raise ApiError(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -538,6 +493,7 @@ class POIService:
         # ARCH-BOUNDARY: Service coordinates validation, state toggle, and audit logging.
         # SECURITY-INVARIANT: Inactive exhibits are hidden from visitor discovery while preserving historical telemetry.
         """
+        # Phase 1: Precondition Gate
         poi = self.repository.get_by_id(poi_id)
         if poi is None:
             raise ApiError(
@@ -546,24 +502,8 @@ class POIService:
                 message=POI_NOT_FOUND_ERROR_MESSAGE,
             )
 
+        # Phase 2: Compute state update & translation statuses
         updated_poi = self.repository.set_visibility(poi, is_active=is_active)
-
-        audit_details = POI_ACTIVATED_DETAILS if is_active else POI_DEACTIVATED_DETAILS
-        if hasattr(self.audit_repository, "create_log_entry"):
-            self.audit_repository.create_log_entry(
-                user_name=admin_user_name,
-                status=AUDIT_STATUS_SUCCESS,
-                ip_address=client_ip,
-                details=audit_details,
-            )
-        elif hasattr(self.audit_repository, "log_action"):
-            self.audit_repository.log_action(
-                username=admin_user_name,
-                status=AUDIT_STATUS_SUCCESS,
-                ip_address=client_ip,
-                details=audit_details,
-            )
-
         translations = self.repository.get_translations_by_poi_id(poi_id)
         status_list = [
             POITranslationStatusResponse(
@@ -571,7 +511,27 @@ class POIService:
             )
             for t in translations
         ]
-        return self._build_poi_response(updated_poi, status_list)
+
+        # Phase 3: Post-condition audit & Unified Exit
+        audit_details = POI_ACTIVATED_DETAILS if is_active else POI_DEACTIVATED_DETAILS
+        if self.audit_repository:
+            if hasattr(self.audit_repository, "create_log_entry"):
+                self.audit_repository.create_log_entry(
+                    user_name=admin_user_name,
+                    status=AUDIT_STATUS_SUCCESS,
+                    ip_address=client_ip,
+                    details=audit_details,
+                )
+            elif hasattr(self.audit_repository, "log_action"):
+                self.audit_repository.log_action(
+                    username=admin_user_name,
+                    status=AUDIT_STATUS_SUCCESS,
+                    ip_address=client_ip,
+                    details=audit_details,
+                )
+
+        response = self._build_poi_response(updated_poi, status_list)
+        return response
 
     @staticmethod
     def _to_map_item(
@@ -597,7 +557,7 @@ class POIService:
             audio_url = None
             locked_state = None
 
-        return POIMapItem(
+        map_item = POIMapItem(
             id=poi.poi_id,
             title=title,
             short_description=short_desc,
@@ -609,12 +569,13 @@ class POIService:
             audio_url=audio_url,
             is_locked=locked_state,
         )
+        return map_item
 
     @staticmethod
     def _build_poi_response(
         poi: POI, translations: list[POITranslationStatusResponse]
     ) -> POIResponse:
-        return POIResponse(
+        response = POIResponse(
             poi_id=poi.poi_id,
             title=poi.title,
             short_description=poi.short_description,
@@ -629,3 +590,4 @@ class POIService:
             create_by=poi.create_by,
             translations=translations,
         )
+        return response
