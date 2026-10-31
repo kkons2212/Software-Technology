@@ -1,13 +1,13 @@
 """SQLAlchemy model for Transaction table (US 06.1)."""
 
 from datetime import datetime
+from decimal import Decimal
 from typing import Any
 
 from sqlalchemy import (
     JSON,
     DateTime,
-    ForeignKey,
-    Integer,
+    Numeric,
     String,
     func,
 )
@@ -22,9 +22,11 @@ class Transaction(Base):
     transaction_id: Mapped[str] = mapped_column(
         "TransactionID", String(20), primary_key=True, index=True
     )
-    pay_amount: Mapped[int] = mapped_column("PayAmount", Integer, nullable=False)
+    pay_amount: Mapped[Decimal] = mapped_column(
+        "PayAmount", Numeric(12, 2), nullable=False
+    )
     currency: Mapped[str] = mapped_column(
-        "Currency", String(20), nullable=False, default="VND"
+        "Currency", String(3), nullable=False, default="VND"
     )
     payment_gateway: Mapped[str] = mapped_column(
         "PaymentGateway", String(255), nullable=False
@@ -45,13 +47,6 @@ class Transaction(Base):
     create_at: Mapped[datetime] = mapped_column(
         "Create_at", DateTime, nullable=False, default=func.now()
     )
-    session_id: Mapped[str | None] = mapped_column(
-        "SessionID",
-        String(20),
-        ForeignKey("VisitorSession.SessionID", ondelete="SET NULL"),
-        nullable=True,
-        index=True,
-    )
 
     # Synonyms for exact PascalCase column names matching MySQL schema DDL
     TransactionID = synonym("transaction_id")
@@ -64,7 +59,13 @@ class Transaction(Base):
     GatewayPayload = synonym("gateway_payload")
     Paid_at = synonym("paid_at")
     Create_at = synonym("create_at")
-    SessionID = synonym("session_id")
 
-    # Relationship to visitor session
-    session = relationship("VisitorSession", foreign_keys=[session_id])
+    # Relationship to visitor session (VisitorSession.TransactionID -> Transaction.TransactionID)
+    session = relationship(
+        "VisitorSession", back_populates="transaction", uselist=False
+    )
+
+    @property
+    def session_id(self) -> str | None:
+        """Backward compatibility alias."""
+        return self.session.session_id if self.session else None
