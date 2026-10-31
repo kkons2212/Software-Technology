@@ -5,7 +5,6 @@ from decimal import Decimal
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.models.audio import POIAudio
 from app.models.poi import POI
 from app.models.translation import POITranslation
 
@@ -79,12 +78,11 @@ class POIRepository:
         statement = (
             select(POI, POITranslation)
             .join(POITranslation, POITranslation.poi_id == POI.poi_id)
-            .join(POIAudio, POIAudio.stran_id == POITranslation.stran_id)
             .where(
                 POI.is_active.is_(True),
                 POITranslation.language_id == language_code,
                 func.upper(POITranslation.status) == "PUBLISHED",
-                func.upper(POIAudio.status) == "READY",
+                POITranslation.audio_url.is_not(None),
             )
             .distinct()
             .order_by(POI.poi_id)

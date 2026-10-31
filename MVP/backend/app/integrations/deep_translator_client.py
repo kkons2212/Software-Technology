@@ -593,52 +593,72 @@ class DeepTranslatorClient:
         result = translator.translate(text)
         return result or ""
 
+    async def _translate_chunk_with_retry(
+        self, chunk: str, source_lang: str, target_lang: str
+    ) -> str:
+        """Translate a single text chunk with explicit exponential backoff retry (REF-04.1)."""
+        # Phase 1 Gate: Validate non-empty chunk
+        if not chunk or not chunk.strip():
+            return ""
+
+        # Phase 2 Compute: Retry loop with explicit exponential backoff
+        translated_text: str | None = None
+        last_exception: Exception | None = None
+
+        for attempt in range(self.max_retries):
+            try:
+                translated_text = await asyncio.to_thread(
+                    self._translate_sync,
+                    chunk,
+                    source_lang,
+                    target_lang,
+                )
+                break
+            except Exception as exc:
+                last_exception = exc
+                delay = self.base_delay * (2**attempt)
+                logger.warning(
+                    "Free translation attempt %d/%d failed for '%s' -> '%s': %s. Retrying in %.2fs",
+                    attempt + 1,
+                    self.max_retries,
+                    source_lang,
+                    target_lang,
+                    exc,
+                    delay,
+                )
+                await asyncio.sleep(delay)
+
+        # Phase 3 Exit: Unconditional return or explicit error
+        if translated_text is not None:
+            return translated_text
+
+        logger.error(
+            "Free translation exhausted %d retries for target language '%s'",
+            self.max_retries,
+            target_lang,
+        )
+        raise TranslationError(
+            f"Failed to translate text to '{target_lang}' after {self.max_retries} attempts: {last_exception}"
+        ) from last_exception
+
     async def _translate_with_free_deep_translator(
         self, text: str, source_lang: str, target_lang: str
     ) -> str:
         """Translate text with deep-translator web library using exponential backoff retry and chunking."""
+        # Phase 1 Gate
+        if not text or not text.strip():
+            return ""
+
+        # Phase 2 Compute
         chunks = self._split_text_into_chunks(text)
         translated_chunks: list[str] = []
-
         for chunk in chunks:
-            chunk_translated = False
-            last_exception: Exception | None = None
+            part = await self._translate_chunk_with_retry(
+                chunk, source_lang, target_lang
+            )
+            translated_chunks.append(part)
 
-            for attempt in range(self.max_retries):
-                try:
-                    translated_part = await asyncio.to_thread(
-                        self._translate_sync,
-                        chunk,
-                        source_lang,
-                        target_lang,
-                    )
-                    translated_chunks.append(translated_part)
-                    chunk_translated = True
-                    break
-                except Exception as exc:
-                    last_exception = exc
-                    delay = self.base_delay * (2**attempt)
-                    logger.warning(
-                        "Free translation attempt %d/%d failed for '%s' -> '%s': %s. Retrying in %.2fs",
-                        attempt + 1,
-                        self.max_retries,
-                        source_lang,
-                        target_lang,
-                        exc,
-                        delay,
-                    )
-                    await asyncio.sleep(delay)
-
-            if not chunk_translated:
-                logger.error(
-                    "Free translation exhausted %d retries for target language '%s'",
-                    self.max_retries,
-                    target_lang,
-                )
-                raise TranslationError(
-                    f"Failed to translate text to '{target_lang}' after {self.max_retries} attempts: {last_exception}"
-                ) from last_exception
-
+        # Phase 3 Exit
         return "\n".join(translated_chunks) if len(chunks) > 1 else translated_chunks[0]
 
     async def _translate_narrative_with_free_deep_translator(
@@ -722,36 +742,39 @@ class DeepTranslatorClient:
         target_lang: str,
         source_lang: str = "vi",
     ) -> str:
-        """Translate text through cascade providers: Gemini -> Google Cloud -> Offline Container -> Free Web fallback.
+        """Translate text through cascade providers: Offline Container -> Google Cloud -> Free Web fallback (REF-04.1).
 
         US 04.4 - AC-04.4.1: Seamless multi-provider fault tolerance.
         """
+        # Phase 1: Precondition Gate
         if not text or not text.strip():
             return ""
 
         resolved_target = self._resolve_target_language(target_lang)
         resolved_source = self._resolve_target_language(source_lang)
+        translated_result: str | None = None
 
+        # Phase 2: Compute via sequential cascade tiers
         # 1. Cascade Tier 1 (Top Priority): Local Offline Translator Container API
         if self.offline_url:
-            offline_result = await self._translate_with_offline_api(
+            translated_result = await self._translate_with_offline_api(
                 text, resolved_source, resolved_target
             )
-            if offline_result is not None:
-                return offline_result
 
         # 2. Cascade Tier 2: Google Cloud Translation REST API (Key pool rotation)
-        if self.google_pool.has_keys():
-            cloud_result = await self._translate_with_google_cloud(
+        if translated_result is None and self.google_pool.has_keys():
+            translated_result = await self._translate_with_google_cloud(
                 text, resolved_source, resolved_target
             )
-            if cloud_result is not None:
-                return cloud_result
 
         # 3. Cascade Tier 3: Free deep-translator (Guaranteed zero-configuration fallback)
-        return await self._translate_with_free_deep_translator(
-            text, resolved_source, resolved_target
-        )
+        if translated_result is None:
+            translated_result = await self._translate_with_free_deep_translator(
+                text, resolved_source, resolved_target
+            )
+
+        # Phase 3: Single unified exit
+        return translated_result
 
     async def translate_exhibit_narrative(
         self,

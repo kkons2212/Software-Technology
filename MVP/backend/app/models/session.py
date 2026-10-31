@@ -36,8 +36,14 @@ class VisitorSession(Base):
     PreferredLanguage = Column(
         String(20), ForeignKey("LanguageCode.LanguageID"), nullable=False, default="vi"
     )
+    TransactionID = Column(
+        String(20),
+        ForeignKey("Transaction.TransactionID", ondelete="RESTRICT"),
+        nullable=False,
+    )
 
     language = relationship("LanguageCode")
+    transaction = relationship("Transaction", back_populates="session")
     triggers = relationship(
         "POITrigger", back_populates="session", cascade="all, delete-orphan"
     )
@@ -52,3 +58,4 @@ class VisitorSession(Base):
     expire_at = synonym("Expire_at")
     create_at = synonym("Create_at")
     preferred_language = synonym("PreferredLanguage")
+    transaction_id = synonym("TransactionID")

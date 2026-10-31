@@ -7,6 +7,8 @@ from app.models.translation import POITranslation
 
 
 class TranslationRepository:
+    """Repository managing CRUD operations for multilingual POITranslation entities."""
+
     def __init__(self, db: Session):
         self.db = db
 
@@ -18,16 +20,18 @@ class TranslationRepository:
         skip: int = 0,
         limit: int = 50,
     ) -> tuple[list[POITranslation], int]:
-        """Fetch filtered POITranslation records with total count."""
-        query = self.db.query(POITranslation)
-
+        """Fetch filtered POITranslation records with total count using explicit filter accumulator."""
+        filter_conditions = []
         if poi_id:
-            query = query.filter(POITranslation.poi_id == poi_id)
+            filter_conditions.append(POITranslation.poi_id == poi_id)
         if language_id:
-            query = query.filter(POITranslation.language_id == language_id)
+            filter_conditions.append(POITranslation.language_id == language_id)
         if status:
-            query = query.filter(func.upper(POITranslation.status) == status.upper())
+            filter_conditions.append(
+                func.upper(POITranslation.status) == status.upper()
+            )
 
+        query = self.db.query(POITranslation).filter(*filter_conditions)
         total = query.count()
         items = (
             query.order_by(POITranslation.create_at.desc())
@@ -39,6 +43,8 @@ class TranslationRepository:
 
     def get_by_id(self, stran_id: str) -> POITranslation | None:
         """Query a single POITranslation by primary key identifier."""
+        if not stran_id:
+            return None
         return (
             self.db.query(POITranslation)
             .filter(POITranslation.stran_id == stran_id)
@@ -49,6 +55,8 @@ class TranslationRepository:
         self, poi_id: str, language_id: str
     ) -> POITranslation | None:
         """Retrieve a translation by POI ID and Language ID."""
+        if not poi_id or not language_id:
+            return None
         return (
             self.db.query(POITranslation)
             .filter(
@@ -60,6 +68,8 @@ class TranslationRepository:
 
     def get_source_translation(self, poi_id: str) -> POITranslation | None:
         """Retrieve the primary Vietnamese source translation for a given POI."""
+        if not poi_id:
+            return None
         return (
             self.db.query(POITranslation)
             .filter(
@@ -77,10 +87,11 @@ class TranslationRepository:
         description: str | None = None,
         status: str | None = None,
         user_name: str | None = None,
+        review_by: str | None = None,
     ) -> POITranslation | None:
         """Atomically update translation fields and review status."""
         translation = self.get_by_id(stran_id)
-        if not translation:
+        if translation is None:
             return None
 
         if title is not None:
@@ -91,8 +102,10 @@ class TranslationRepository:
             translation.description = description
         if status is not None:
             translation.status = status
-        if user_name is not None:
-            translation.user_name = user_name
+
+        effective_reviewer = review_by if review_by is not None else user_name
+        if effective_reviewer is not None:
+            translation.review_by = effective_reviewer
 
         translation.update_at = func.now()
         self.db.commit()
@@ -106,17 +119,13 @@ class TranslationRepository:
     ) -> POITranslation | None:
         """Atomically set translation status to PUBLISHED and record reviewer metadata."""
         translation = self.get_by_id(stran_id)
-        if not translation:
+        if translation is None:
             return None
 
         translation.status = "PUBLISHED"
         translation.review_by = admin_username
         translation.review_at = func.now()
         translation.update_at = func.now()
-
-        if translation.audio:
-            translation.audio.status = "READY"
-            translation.audio.update_at = func.now()
 
         self.db.commit()
         self.db.refresh(translation)

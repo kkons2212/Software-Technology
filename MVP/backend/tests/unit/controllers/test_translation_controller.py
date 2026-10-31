@@ -2,7 +2,6 @@
 
 import uuid
 
-from app.models.audio import POIAudio
 from app.models.language import LanguageCode
 from app.models.poi import POI
 from app.models.translation import POITranslation
@@ -148,15 +147,9 @@ def test_should_return_404_when_updating_nonexistent_translation(client, db_sess
 def test_should_publish_translation_when_audio_is_ready(client, db_session):
     _, _, tr_en = _ensure_admin_and_seed_data(db_session)
 
-    audio = POIAudio(
-        audio_id=f"AUD_{uuid.uuid4().hex[:8].upper()}",
-        stran_id=tr_en.stran_id,
-        audio_url="/static/audio/field_surgery_en.mp3",
-        duration=45.2,
-        file_size=72000,
-        status="READY",
-    )
-    db_session.add(audio)
+    tr_en.audio_url = "/static/audio/field_surgery_en.mp3"
+    tr_en.duration = 45.2
+    tr_en.file_size = 72000
     db_session.commit()
 
     response = client.post(f"/api/v1/admin/translations/{tr_en.stran_id}/publish")
@@ -174,13 +167,7 @@ def test_should_reject_publish_when_status_is_needs_update(client, db_session):
     tr_en.status = "NEEDS_UPDATE"
     db_session.commit()
 
-    audio = POIAudio(
-        audio_id=f"AUD_{uuid.uuid4().hex[:8].upper()}",
-        stran_id=tr_en.stran_id,
-        audio_url="/static/audio/old_audio.mp3",
-        status="READY",
-    )
-    db_session.add(audio)
+    tr_en.audio_url = "/static/audio/old_audio.mp3"
     db_session.commit()
 
     response = client.post(f"/api/v1/admin/translations/{tr_en.stran_id}/publish")

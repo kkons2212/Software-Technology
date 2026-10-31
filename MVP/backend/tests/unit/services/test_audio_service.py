@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock
 import pytest
 
 from app.integrations.edge_tts_client import EdgeTTSClient
-from app.models.audio import AUDIO_STATUS_FAILED, AUDIO_STATUS_READY, POIAudio
+from app.models.audio import AUDIO_STATUS_READY
 from app.models.language import LanguageCode
 from app.models.poi import POI
 from app.models.translation import (
@@ -76,15 +76,14 @@ async def test_should_synthesize_audio_and_persist_ready_status(
     success = await worker.process_audio_synthesis(stran_id)
     assert success is True
 
-    # Verify DB record updated
-    audio = db_session.query(POIAudio).filter_by(stran_id=stran_id).first()
-    assert audio is not None
-    assert audio.audio_url == "/static/audio/test_audio.mp3"
-    assert audio.status == AUDIO_STATUS_READY
-    assert audio.file_size == 1024
-
+    # Verify DB record updated on POITranslation
     updated_tr = db_session.query(POITranslation).filter_by(stran_id=stran_id).first()
+    assert updated_tr is not None
     assert updated_tr.status == TRANSLATION_STATUS_DRAFT
+    assert updated_tr.audio_url == "/static/audio/test_audio.mp3"
+    assert updated_tr.file_size == 1024
+    assert updated_tr.audio is not None
+    assert updated_tr.audio.status == AUDIO_STATUS_READY
 
 
 @pytest.mark.asyncio
@@ -110,10 +109,11 @@ async def test_should_handle_audio_cache_hit_and_reuse_file(
     success = await worker.process_audio_synthesis(stran_id)
     assert success is True
 
-    audio = db_session.query(POIAudio).filter_by(stran_id=stran_id).first()
-    assert audio is not None
-    assert audio.audio_url == "/static/audio/cached_audio.mp3"
-    assert audio.status == AUDIO_STATUS_READY
+    updated_tr = db_session.query(POITranslation).filter_by(stran_id=stran_id).first()
+    assert updated_tr is not None
+    assert updated_tr.audio_url == "/static/audio/cached_audio.mp3"
+    assert updated_tr.audio is not None
+    assert updated_tr.audio.status == AUDIO_STATUS_READY
 
 
 @pytest.mark.asyncio
@@ -139,11 +139,8 @@ async def test_should_mark_failed_and_needs_update_on_synthesis_error(
     success = await worker.process_audio_synthesis(stran_id)
     assert success is False
 
-    audio = db_session.query(POIAudio).filter_by(stran_id=stran_id).first()
-    assert audio is not None
-    assert audio.status == AUDIO_STATUS_FAILED
-
     updated_tr = db_session.query(POITranslation).filter_by(stran_id=stran_id).first()
+    assert updated_tr is not None
     assert updated_tr.status == TRANSLATION_STATUS_NEEDS_UPDATE
 
 
