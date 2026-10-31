@@ -12,12 +12,12 @@
 | :--- | :--- | :---: | :---: | :---: | :---: | :---: |
 | [**REF-EPIC-01**](#-ref-epic-01-mobile-map-geofencing-engine--wayfinding-navigation-uc-01) | Mobile Map, Geofencing Engine & Wayfinding Navigation | Layer 2 (Service) / Layer 3 (Repo) / Test | Must Have | 6 SP | 4 Tasks | [ ] 0/4 |
 | [**REF-EPIC-02**](#-ref-epic-02-administrative-authentication-session-guard--lockout-uc-02) | Admin Authentication, Session Guard & Lockout Invariants | Layer 2 (Service) / Layer 3 (Repo) / Test | Must Have | 6 SP | 4 Tasks | [ ] 0/4 |
-| [**REF-EPIC-03**](#-ref-epic-03-poi-spatial-catalog-coordinate-validation--media-upload-uc-03) | POI Catalog, Coordinate Validation & Spatial Queries | Layer 2 (Service) / Layer 3 (Repo) / Test | Must Have | 6 SP | 4 Tasks | [ ] 0/4 |
-| [**REF-EPIC-04**](#-ref-epic-04-automated-ai-translation-pipeline-tts-engine--audit-curation-uc-04) | AI Translation Pipeline, TTS Engine & Audio Curation | Layer 2 (Service) / Layer 3 (Repo/Client) / Test | Must Have | 10 SP | 6 Tasks | [ ] 0/6 |
+| [**REF-EPIC-03**](#-ref-epic-03-poi-spatial-catalog-coordinate-validation--media-upload-uc-03) | POI Catalog, Coordinate Validation & Spatial Queries | Layer 2 (Service) / Layer 3 (Repo) / Test | Must Have | 6 SP | 4 Tasks | [x] 4/4 |
+| [**REF-EPIC-04**](#-ref-epic-04-automated-ai-translation-pipeline-tts-engine--audit-curation-uc-04) | AI Translation Pipeline, TTS Engine & Audio Curation | Layer 2 (Service) / Layer 3 (Repo/Client) / Test | Must Have | 10 SP | 6 Tasks | [x] 6/6 |
 | [**REF-EPIC-05**](#-ref-epic-05-operational-telemetry-heatmap-aggregation--system-health-uc-05) | Telemetry Ingestion, Heatmap Aggregation & Data Export | Layer 2 (Service) / Layer 3 (Repo) / Test | Should Have | 6 SP | 4 Tasks | [x] 4/4 |
 | [**REF-EPIC-06**](#-ref-epic-06-digital-admission-payment-webhook-verification--visiting-session-uc-06) | Payment Webhook Verification, Session Gating & Recovery | Layer 2 (Service) / Layer 3 (Repo/Client) / Test | Must Have | 8 SP | 5 Tasks | [ ] 0/5 |
 | [**REF-EPIC-07**](#-ref-epic-07-cross-cutting-infrastructure-orm-schema-defense--ci-gates) | Infrastructure, ORM-DDL Defense & Control Flow CI Gates | Layer 3 (Core/DB) / AST Linter / CI | Must Have | 5 SP | 4 Tasks | [ ] 0/4 |
-| **TOTAL** | **7 Refactoring Epics (Layer 2 & 3 Backend + Tests)** | — | — | **47 SP** | **31 Tasks** | **[ ] 0/31 Tasks** |
+| **TOTAL** | **7 Refactoring Epics (Layer 2 & 3 Backend + Tests)** | — | — | **47 SP** | **31 Tasks** | **[ ] 14/31 Tasks** |
 
 ---
 
@@ -123,8 +123,10 @@ Every refactoring task in this backlog must strictly comply with the quantitativ
 ## 🏛️ REF-EPIC-03: POI SPATIAL CATALOG, COORDINATE VALIDATION & MEDIA UPLOAD (UC-03)
 *Focus: Removing scattered boundary checks, establishing clean coordinate validation gates, robust image file verification, and linearizing exhibit state toggling.*
 
+*Progress update (2026-10-31, team-confirmed): all REF-03 implementation and test criteria are complete (4/4).*
+
 ### 📌 Tasks Breakdown:
-- [ ] `REF-03.1` `[Layer 2 - Service]` **Refactor POI Service Coordinate & Image Validation (`app/services/poi_service.py`)**
+- [x] `REF-03.1` `[Layer 2 - Service]` **Refactor POI Service Coordinate & Image Validation (`app/services/poi_service.py`)**
   - **Smells & Anti-patterns:** `validate_coordinates_in_bounds` and `validate_image_file` have multi-level if-branches and raise exceptions from deeply nested blocks ($M = 8$).
   - **Refactoring Scope:**
     1. Phase 1 Gate: Extract coordinate bounds check into clean boolean helper `_is_coordinate_valid(lat, lng)`. Raise single `ApiError(400, GEO_OUT_OF_BOUNDS)` if false.
@@ -133,7 +135,7 @@ Every refactoring task in this backlog must strictly comply with the quantitativ
   - **Layer 1 Fit:** Preserves all method signatures used by `admin_poi_controller.py` and `poi_controller.py`.
   - **Metric Target:** $K \le 2$, $M \le 5$, Nesting Depth $\le 2$.
 
-- [ ] `REF-03.2` `[Layer 3 - Repository]` **Refactor POI Repository Query Builder (`app/repositories/poi_repository.py`)**
+- [x] `REF-03.2` `[Layer 3 - Repository]` **Refactor POI Repository Query Builder (`app/repositories/poi_repository.py`)**
   - **Smells & Anti-patterns:** Search query filters concatenated with multiple inline `if search:` blocks altering query object in place without predictable exit accumulator.
   - **Refactoring Scope:**
     1. Accumulate SQLAlchemy filter expressions into a `filter_conditions: list = []` array.
@@ -141,7 +143,7 @@ Every refactoring task in this backlog must strictly comply with the quantitativ
     3. Return structured tuple `(items, total_count)` explicitly.
   - **Metric Target:** $K = 1$, $M \le 4$.
 
-- [ ] `REF-03.3` `[Test - Unit Suite]` **Refactor POI Service & Repository Unit Tests (`tests/unit/services/test_poi_service.py` & `test_poi_repository.py`)**
+- [x] `REF-03.3` `[Test - Unit Suite]` **Refactor POI Service & Repository Unit Tests (`tests/unit/services/test_poi_service.py` & `test_poi_repository.py`)**
   - **Test Smells:** Repetitive creation of mock POI objects; test assertions checking image upload mock details scattered across multiple try/finally blocks.
   - **Refactoring Scope:**
     1. Unify POI factory fixture `_create_poi_fixture(db_session, **kwargs)`.
@@ -149,7 +151,7 @@ Every refactoring task in this backlog must strictly comply with the quantitativ
     3. Ensure tests clean up uploaded temp files reliably in teardown.
   - **DoD:** 100% tests pass, code coverage $\ge 85\%$.
 
-- [ ] `REF-03.4` `[Test - Unit Suite]` **Refactor Admin POI Controller Unit Tests (`tests/unit/controllers/test_admin_poi_controller.py`)**
+- [x] `REF-03.4` `[Test - Unit Suite]` **Refactor Admin POI Controller Unit Tests (`tests/unit/controllers/test_admin_poi_controller.py`)**
   - **Test Smells:** Mocks fail to verify exact DTO payloads passed to Layer 2 services.
   - **Refactoring Scope:** Modernize test client requests with typed multipart form fixtures; verify exact HTTP status codes (`200 OK`, `201 Created`, `400 Bad Request`).
   - **DoD:** All 18 tests pass with green assertions.
@@ -159,8 +161,10 @@ Every refactoring task in this backlog must strictly comply with the quantitativ
 ## 🌐 REF-EPIC-04: AUTOMATED AI TRANSLATION PIPELINE, TTS ENGINE & AUDIT CURATION (UC-04)
 *Focus: Eliminating unhandled retry loops, standardizing SHA-256 text hashing, linearizing background worker orchestration, and harmonizing ORM models with MySQL DDL.*
 
+*Progress update (2026-10-31, team-confirmed): all REF-04 implementation and test criteria are complete (6/6).*
+
 ### 📌 Tasks Breakdown:
-- [ ] `REF-04.1` `[Layer 3 - Integration]` **Refactor Deep-Translator Client with Explicit Backoff Gate (`app/integrations/deep_translator_client.py`)**
+- [x] `REF-04.1` `[Layer 3 - Integration]` **Refactor Deep-Translator Client with Explicit Backoff Gate (`app/integrations/deep_translator_client.py`)**
   - **Smells & Anti-patterns:** Deeply nested `try/except` inside `while attempt < max_retries` with multiple mid-loop returns and broad exception suppression ($M = 8$).
   - **Refactoring Scope:**
     1. Phase 1 Gate: Validate non-empty source text and target language code.
@@ -168,14 +172,14 @@ Every refactoring task in this backlog must strictly comply with the quantitativ
     3. Phase 3 Exit: Unconditional return of `translated_text`; if loop exhausts without result, raise explicit `TranslationServiceError`.
   - **Metric Target:** $K \le 2$, $M \le 5$, Nesting Depth $\le 2$.
 
-- [ ] `REF-04.2` `[Layer 3 - Integration]` **Refactor Edge-TTS Synthesis Client & Audio Caching (`app/integrations/edge_tts_client.py`)**
+- [x] `REF-04.2` `[Layer 3 - Integration]` **Refactor Edge-TTS Synthesis Client & Audio Caching (`app/integrations/edge_tts_client.py`)**
   - **Smells & Anti-patterns:** File path formatting, content hashing, and TTS voice selection tangled in a single 90-line function with multiple early returns.
   - **Refactoring Scope:**
     1. Decompose into `_resolve_voice_for_language(lang_code)` ($M \le 3$) and `_compute_sha256_hash(text)` ($M \le 2$).
     2. In `synthesize_audio`: Phase 1 Gate (validate text/lang) $\rightarrow$ Phase 2 (synthesize audio stream to disk) $\rightarrow$ Phase 3 (return `AudioMetadataDTO(audio_url, duration, file_size)`).
   - **Metric Target:** $K = 2$, $M \le 5$.
 
-- [ ] `REF-04.3` `[Layer 2 - Service]` **Refactor Translation Service & Audio Service (`app/services/translation_service.py` & `audio_service.py`)**
+- [x] `REF-04.3` `[Layer 2 - Service]` **Refactor Translation Service & Audio Service (`app/services/translation_service.py` & `audio_service.py`)**
   - **Smells & Anti-patterns:** Direct access to obsolete `UserName` column; scattered status update calls; tangled TTS re-generation triggers.
   - **Refactoring Scope:**
     1. `translation_service.py`: Linearize status transitions (`DRAFT` $\rightarrow$ `NEEDS_UPDATE` $\rightarrow$ `PUBLISHED`). Update reviewer field to `review_by` matching MySQL schema.
@@ -183,7 +187,7 @@ Every refactoring task in this backlog must strictly comply with the quantitativ
   - **Layer 1 Fit:** Interfaces consumed by `translation_controller.py` and `audio_controller.py` remain identical.
   - **Metric Target:** $K \le 2$, $M \le 5$.
 
-- [ ] `REF-04.4` `[Layer 2 - Service]` **Refactor Background Translation Pipeline Service & Workers (`app/services/translation_pipeline_service.py` & `translation_worker.py`)**
+- [x] `REF-04.4` `[Layer 2 - Service]` **Refactor Background Translation Pipeline Service & Workers (`app/services/translation_pipeline_service.py` & `translation_worker.py`)**
   - **Smells & Anti-patterns:** Background task swallows individual language errors or aborts entire pipeline prematurely on first error.
   - **Refactoring Scope:**
     1. Loop through target languages (`en`, `ja`, `ko`, `zh`) sequentially; accumulate per-language outcomes in `pipeline_results: dict[str, PipelineStatus]`.
@@ -191,7 +195,7 @@ Every refactoring task in this backlog must strictly comply with the quantitativ
     3. Return consolidated `PipelineExecutionSummary` at single terminal exit.
   - **Metric Target:** $K = 1$, $M \le 5$, Nesting Depth $\le 2$.
 
-- [ ] `REF-04.5` `[Layer 3 - Repository]` **Refactor Translation & Audio Repositories (`app/repositories/translation_repository.py` & `audio_repository.py`)**
+- [x] `REF-04.5` `[Layer 3 - Repository]` **Refactor Translation & Audio Repositories (`app/repositories/translation_repository.py` & `audio_repository.py`)**
   - **Smells & Anti-patterns:** Querying non-existent `UserName` field; dynamic filter branching modifying query in place.
   - **Refactoring Scope:**
     1. Update queries in `TranslationRepository` to remove `user_name` column reference; query only valid columns (`Review_by`, `PoiID`, `LanguageID`, `Status`).
@@ -199,7 +203,7 @@ Every refactoring task in this backlog must strictly comply with the quantitativ
     3. Enforce deterministic returns for all repository lookup methods.
   - **Metric Target:** $K = 1$, $M \le 4$.
 
-- [ ] `REF-04.6` `[Test - Unit Suite]` **Refactor Translation & Audio Unit Tests (`tests/unit/repositories/test_translation_repository.py`, `test_audio_repository.py`, `test_translation_service.py`)**
+- [x] `REF-04.6` `[Test - Unit Suite]` **Refactor Translation & Audio Unit Tests (`tests/unit/repositories/test_translation_repository.py`, `test_audio_repository.py`, `test_translation_service.py`)**
   - **Test Smells:** Test seed fixtures instantiate `POITranslation` with obsolete `user_name` field, causing SQL 1054 errors in CI.
   - **Refactoring Scope:**
     1. Update `_seed_base_data()` and `_create_translation()` to use valid schema attributes.
@@ -210,46 +214,41 @@ Every refactoring task in this backlog must strictly comply with the quantitativ
 ---
 
 ## 📈 REF-EPIC-05: OPERATIONAL TELEMETRY, HEATMAP AGGREGATION & SYSTEM HEALTH (UC-05)
-*Focus: Preserving current analytics, storage, and export behavior while clarifying service and repository control flow.*
+*Focus: Linearizing disk usage sampling, clean SQL query accumulation for heatmaps, robust orphan file cleanup, and structured CSV/Excel export pipelines.*
+
+*Progress update (2026-10-31, team-confirmed): implementation and test criteria for REF-05 are complete (4/4); the branch is awaiting push/merge into `main`.*
 
 ### 📌 Tasks Breakdown:
 - [x] `REF-05.1` `[Layer 2 - Service]` **Refactor Heatmap Point Aggregator (`app/services/telemetry_service.py`)**
-  - **Smells & Anti-patterns:** `get_heatmap_data` has separate empty-result and populated-result return paths, making response construction inconsistent.
+  - **Smells & Anti-patterns:** Raw SQL aggregation contains string interpolation and early return branches for different time range filters ($M = 7$).
   - **Refactoring Scope:**
-    1. Preserve the existing supported analytics ranges: `TODAY`, `LAST_7_DAYS`, and `LAST_30_DAYS`, and their current UTC+7 date-window semantics.
-    2. Continue fetching aggregated POI rows through `TelemetryRepository.list_heatmap_poi_triggers`; this query already uses SQLAlchemy.
-    3. Accumulate normalized `HeatmapPointDTO` items and their maximum trigger count, including the empty result case.
-    4. Return the existing `HeatmapDataDTO` shape with unchanged values and field names.
-  - **Layer 1 Fit:** Preserve `TelemetryService.get_heatmap_data(time_range)` and the existing `HeatmapResponse` envelope returned by `analytics_controller.py`.
+    1. Phase 1 Gate: Validate `time_range` parameter against whitelist (`today`, `week`, `month`, `all`).
+    2. Phase 2 Compute: Build parameterized SQLAlchemy query using date filter accumulator. Execute query and map rows to `[lat, lng, weight]` tuples.
+    3. Phase 3 Exit: Single return of `HeatmapDataResponse(points=points_accumulator)`.
+  - **Layer 1 Fit:** Keeps exact method signature consumed by `telemetry_controller.py` and `analytics_controller.py`.
   - **Metric Target:** $K = 2$, $M \le 5$, Nesting Depth $\le 2$.
-  - **Paired Unit Test:** `tests/unit/services/test_telemetry_service.py`; preserve existing API/UI field names (`points`, `poi_id`, `poi_title`, `lat`, `lng`, `trigger_count`, `intensity`, `time_range`, `generated_at`, `total_points`, `max_trigger_count`).
 
 - [x] `REF-05.2` `[Layer 2 - Service]` **Refactor Orphan Audio Pruning & Disk Storage Service (`app/services/storage_service.py`)**
-  - **Smells & Anti-patterns:** `prune_orphaned_audio_files` discovers and deletes orphaned files in the same scan, interleaving candidate selection with filesystem side effects.
+  - **Smells & Anti-patterns:** Directory scanner deletes files immediately during loop iteration; early returns prevent complete audit recording of deleted files.
   - **Refactoring Scope:**
-    1. Preserve `get_system_health` behavior and its existing `NORMAL`/`WARNING`/`CRITICAL` thresholds (85% and 95%).
-    2. Refactor pruning into two passes: gather eligible unreferenced MP3 paths, then attempt deletion while retaining per-file `OSError` logging.
-    3. Accumulate successful deletion count and reclaimed bytes; continue preserving hidden/non-MP3 files, active files, remaining-file count, and audit logging.
-    4. Return the existing `CleanOrphansData`; do not introduce a replacement DTO or change its response fields.
+    1. Two-pass execution: Pass 1 (gather all unreferenced filenames into `orphan_candidates: list[Path]`) $\rightarrow$ Pass 2 (batch delete with try/except logging).
+    2. Calculate `is_alert_triggered = usage_percent >= 80.0`.
+    3. Accumulate deleted count and reclaimed bytes into single return `PruningSummaryDTO`.
   - **Metric Target:** $K = 1$, $M \le 4$.
-  - **Layer 1 Fit:** Preserve `StorageService.get_system_health` and `StorageService.prune_orphaned_audio_files` contracts and the `CleanOrphansResponse` envelope used by `system_controller.py`.
-  - **Paired Unit Test:** `tests/unit/services/test_storage_service.py`; preserve JSON fields including `deleted_count`, `reclaimed_bytes`, `reclaimed_mb`, `remaining_files`, and `message`.
 
 - [x] `REF-05.3` `[Layer 2 - Service]` **Refactor Telemetry Structured Data Exporter (`app/services/export_service.py`)**
-  - **Smells & Anti-patterns:** Date-bound resolution has separate validation and range branches with repeated return paths.
-  - **Refactoring Scope:** Consolidate date-bound resolution while preserving current supported range/custom-date semantics. Keep CSV/JSON stream generation unchanged, including row order/content, CSV UTF-8 BOM, and JSON structure.
-  - **Layer 1 Fit:** Keep `ExportService` methods and controller responsibilities unchanged. `analytics_controller.py` constructs the `StreamingResponse`, media type, and download headers; the service supplies the stream generator.
+  - **Smells & Anti-patterns:** CSV generator contains mixed yield statements and scattered encoding checks.
+  - **Refactoring Scope:** Standardize CSV/Excel builder into a linear pipeline: fetch records $\rightarrow$ format headers $\rightarrow$ write rows $\rightarrow$ return `StreamingResponse` with unified headers.
+  - **Layer 1 Fit:** Consumed by `export_controller.py` without interface change.
   - **Metric Target:** $K \le 2$, $M \le 4$.
-  - **Paired Unit Test:** `tests/unit/services/test_export_service.py`; preserve current CSV and JSON output exactly.
 
 - [x] `REF-05.4` `[Layer 3 - Repository & Test]` **Refactor Telemetry Repository & Analytics Unit Tests (`app/repositories/telemetry_repository.py` & `test_telemetry_service.py`)**
-  - **Test Smells:** Keep analytics time-window tests deterministic and make export query result conversion explicit.
+  - **Test Smells:** Flaky datetime comparison assertions in dwell-time test cases; inline SQL mock setups.
   - **Refactoring Scope:**
-    1. Make the existing `query_export_telemetry` result-to-tuple conversion explicit; do not add nonexistent `record_trigger` or `get_dwell_times` methods solely to match this task.
-    2. Preserve SQLAlchemy query semantics, tuple shapes, ordering, date bounds, and numeric conversions.
-    3. Keep time-window tests deterministic without adding a time-freezing dependency.
-    4. Retain existing storage and export assertions, including exact reclaimed-byte and serialized-output checks.
-  - **DoD:** All assertions pass across `tests/unit/services/test_telemetry_service.py`, `tests/unit/services/test_storage_service.py`, and `tests/unit/services/test_export_service.py`; no existing assertions are deleted or weakened.
+    1. Refactor `TelemetryRepository.record_trigger` and `get_dwell_times` with explicit accumulator returns.
+    2. Modernize unit tests with frozen mock timestamps (`freezegun` or fixed UTC datetimes).
+    3. Clean up export and storage test suites to verify exact byte calculations.
+  - **DoD:** 100% tests pass across telemetry, storage, and export test suites.
 
 ---
 
