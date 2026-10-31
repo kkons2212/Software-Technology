@@ -27,6 +27,7 @@ class SessionRepository:
         s_token = session_token or uuid.uuid4().hex
         now = datetime.utcnow()
         expiry = expire_at or (now + timedelta(hours=24))
+        activate_at = expiry - timedelta(hours=24) if expiry <= now else now
 
         session = VisitorSession(
             SessionID=s_id,
@@ -34,7 +35,7 @@ class SessionRepository:
             SessionToken=s_token,
             DeviceFingerPrint=device_fingerprint,
             Status="ACTIVE",
-            Activate_at=now,
+            Activate_at=activate_at,
             Expire_at=expiry,
             Create_at=now,
             PreferredLanguage=preferred_language,
