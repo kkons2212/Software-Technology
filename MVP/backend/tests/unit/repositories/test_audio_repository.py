@@ -5,7 +5,6 @@ import uuid
 import pytest
 
 from app.core.exceptions import ApiError
-from app.models.audio import POIAudio
 from app.models.language import LanguageCode
 from app.models.poi import POI
 from app.models.translation import POITranslation
@@ -52,11 +51,11 @@ def test_should_create_audio_and_reset_translation_to_draft(db_session):
     )
 
     db_session.refresh(translation)
-    audio = db_session.query(POIAudio).filter_by(stran_id=translation.stran_id).one()
     assert translation.status == "DRAFT"
-    assert audio.audio_url == "/static/audio/new-narration.mp3"
-    assert audio.file_size == 2048
-    assert audio.status == "READY"
+    assert translation.audio_url == "/static/audio/new-narration.mp3"
+    assert translation.file_size == 2048
+    assert translation.audio is not None
+    assert translation.audio.status == "READY"
 
 
 def test_should_replace_audio_metadata_without_creating_a_second_record(db_session):
@@ -68,8 +67,9 @@ def test_should_replace_audio_metadata_without_creating_a_second_record(db_sessi
         1024,
         ("Exhibit narration", "Short narration", "Full narration text."),
     )
-    audio = db_session.query(POIAudio).filter_by(stran_id=translation.stran_id).one()
-    existing_audio_id = audio.audio_id
+    db_session.refresh(translation)
+    assert translation.audio_url == "/static/audio/first.mp3"
+    assert translation.file_size == 1024
 
     repository.save_generated_audio(
         translation.stran_id,
@@ -78,11 +78,9 @@ def test_should_replace_audio_metadata_without_creating_a_second_record(db_sessi
         ("Exhibit narration", "Short narration", "Full narration text."),
     )
 
-    audios = db_session.query(POIAudio).filter_by(stran_id=translation.stran_id).all()
-    assert len(audios) == 1
-    assert audios[0].audio_id == existing_audio_id
-    assert audios[0].audio_url == "/static/audio/second.mp3"
-    assert audios[0].file_size == 4096
+    db_session.refresh(translation)
+    assert translation.audio_url == "/static/audio/second.mp3"
+    assert translation.file_size == 4096
 
 
 def test_should_not_mark_audio_ready_if_translation_changed_during_generation(
@@ -101,8 +99,8 @@ def test_should_not_mark_audio_ready_if_translation_changed_during_generation(
         1024,
         previous_text,
     )
-    audio = db_session.query(POIAudio).filter_by(stran_id=translation.stran_id).one()
-    existing_audio_id = audio.audio_id
+    db_session.refresh(translation)
+    assert translation.audio_url == "/static/audio/current.mp3"
 
     translation.description = "Newer narration text."
     translation.status = "NEEDS_UPDATE"
@@ -118,9 +116,8 @@ def test_should_not_mark_audio_ready_if_translation_changed_during_generation(
 
     assert exc_info.value.status_code == 409
     assert translation.status == "NEEDS_UPDATE"
-    db_session.refresh(audio)
-    assert audio.audio_id == existing_audio_id
-    assert audio.audio_url == "/static/audio/current.mp3"
+    db_session.refresh(translation)
+    assert translation.audio_url == "/static/audio/current.mp3"
 
 
 def test_should_return_generation_text_for_translation(db_session):

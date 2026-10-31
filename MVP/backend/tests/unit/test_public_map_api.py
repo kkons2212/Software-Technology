@@ -8,7 +8,6 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.main import app
-from app.models.audio import POIAudio
 from app.models.language import LanguageCode
 from app.models.poi import POI
 from app.models.translation import POITranslation
@@ -23,7 +22,6 @@ def mysql_test_data(db_session: Session):
     }
     poi_ids = {"active": f"t{token}a", "inactive": f"t{token}i"}
     translation_ids = {language: f"t{token}{language}tr" for language in language_ids}
-    audio_ids = {language: f"t{token}{language}au" for language in language_ids}
 
     db_session.add_all(
         [
@@ -66,6 +64,7 @@ def mysql_test_data(db_session: Session):
                 status="PUBLISHED",
                 poi_id=poi_ids["active"],
                 language_id=language_ids["en"],
+                audio_url="https://example.test/en.mp3",
             ),
             POITranslation(
                 stran_id=translation_ids["fr"],
@@ -73,6 +72,7 @@ def mysql_test_data(db_session: Session):
                 status="DRAFT",
                 poi_id=poi_ids["active"],
                 language_id=language_ids["fr"],
+                audio_url="https://example.test/fr.mp3",
             ),
             POITranslation(
                 stran_id=translation_ids["ja"],
@@ -80,6 +80,7 @@ def mysql_test_data(db_session: Session):
                 status="PUBLISHED",
                 poi_id=poi_ids["active"],
                 language_id=language_ids["ja"],
+                audio_url=None,
             ),
             POITranslation(
                 stran_id=translation_ids["de"],
@@ -87,35 +88,7 @@ def mysql_test_data(db_session: Session):
                 status="PUBLISHED",
                 poi_id=poi_ids["inactive"],
                 language_id=language_ids["de"],
-            ),
-        ]
-    )
-    db_session.flush()
-    db_session.add_all(
-        [
-            POIAudio(
-                audio_id=audio_ids["en"],
-                audio_url="https://example.test/en.mp3",
-                status="READY",
-                stran_id=translation_ids["en"],
-            ),
-            POIAudio(
-                audio_id=audio_ids["fr"],
-                audio_url="https://example.test/fr.mp3",
-                status="READY",
-                stran_id=translation_ids["fr"],
-            ),
-            POIAudio(
-                audio_id=audio_ids["ja"],
-                audio_url="https://example.test/ja.mp3",
-                status="PROCESSING",
-                stran_id=translation_ids["ja"],
-            ),
-            POIAudio(
-                audio_id=audio_ids["de"],
                 audio_url="https://example.test/de.mp3",
-                status="READY",
-                stran_id=translation_ids["de"],
             ),
         ]
     )

@@ -1,9 +1,8 @@
 """Persistence operations for generated POI narration audio."""
 
 import time
-import uuid
 
-from sqlalchemy import func, text
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import ApiError
@@ -21,6 +20,13 @@ class AudioRepository:
         self, stran_id: str
     ) -> tuple[str, str, str | None, str | None]:
         """Return the target text needed for TTS without retaining ORM objects."""
+        if not stran_id:
+            raise ApiError(
+                status_code=404,
+                code="TRANSLATION_NOT_FOUND",
+                message="Translation ID is required.",
+            )
+
         translation = (
             self.db.query(POITranslation)
             .filter(POITranslation.stran_id == stran_id)
@@ -32,6 +38,7 @@ class AudioRepository:
                 code="TRANSLATION_NOT_FOUND",
                 message=f"Translation '{stran_id}' not found.",
             )
+
         return (
             translation.language_id,
             translation.title,
@@ -46,7 +53,7 @@ class AudioRepository:
         file_size: int,
         expected_text: tuple[str, str | None, str | None],
     ) -> None:
-        """Atomically store new audio metadata and unlock the draft for review."""
+        """Atomically store new audio metadata on POITranslation and unlock the draft for review."""
         translation = (
             self.db.query(POITranslation)
             .filter(POITranslation.stran_id == stran_id)
@@ -59,6 +66,7 @@ class AudioRepository:
                 code="TRANSLATION_NOT_FOUND",
                 message=f"Translation '{stran_id}' not found.",
             )
+
         current_text = (
             translation.title,
             translation.short_description,
@@ -74,28 +82,8 @@ class AudioRepository:
                 ),
             )
 
-        audio = (
-            self.db.query(POIAudio)
-            .filter(POIAudio.stran_id == stran_id)
-            .with_for_update()
-            .first()
-        )
-        if audio is None:
-            self.db.add(
-                POIAudio(
-                    audio_id=f"AUD_{uuid.uuid4().hex[:16]}",
-                    stran_id=stran_id,
-                    audio_url=audio_url,
-                    file_size=file_size,
-                    status=AUDIO_STATUS_READY,
-                )
-            )
-        else:
-            audio.audio_url = audio_url
-            audio.file_size = file_size
-            audio.status = AUDIO_STATUS_READY
-            audio.update_at = func.now()
-
+        translation.audio_url = audio_url
+        translation.file_size = file_size
         translation.status = "DRAFT"
         translation.update_at = func.now()
         self.db.commit()
@@ -108,75 +96,91 @@ class AudioRepository:
         status: str = AUDIO_STATUS_READY,
     ) -> POIAudio:
         """Upsert audio record for a translation (US 04.4 pipeline)."""
-        audio = self.db.query(POIAudio).filter(POIAudio.stran_id == stran_id).first()
-        if audio is None:
-            audio = POIAudio(
-                audio_id=f"AUD_{uuid.uuid4().hex[:16]}",
-                stran_id=stran_id,
-                audio_url=audio_url,
-                file_size=file_size,
-                status=status,
-            )
-            self.db.add(audio)
-        else:
-            audio.audio_url = audio_url
-            audio.file_size = file_size
-            audio.status = status
-            audio.update_at = func.now()
-        self.db.commit()
-        self.db.refresh(audio)
-        return audio
+        translation = (
+            self.db.query(POITranslation)
+            .filter(POITranslation.stran_id == stran_id)
+            .first()
+        )
+        valid_statuses = {"PENDING", "DRAFT", "NEEDS_UPDATE", "PUBLISHED", "FAILED"}
+        target_status = status if status in valid_statuses else "DRAFT"
+
+        if translation is not None:
+            translation.audio_url = audio_url
+            translation.file_size = file_size
+            translation.status = target_status
+            translation.update_at = func.now()
+            self.db.commit()
+            self.db.refresh(translation)
+
+        return POIAudio(
+            stran_id=stran_id,
+            audio_url=audio_url,
+            file_size=file_size,
+            status=status,
+        )
 
     def set_audio_failed(self, stran_id: str) -> None:
         """Mark audio status as FAILED when TTS synthesis fails."""
-        audio = self.db.query(POIAudio).filter(POIAudio.stran_id == stran_id).first()
-        if audio is None:
-            audio = POIAudio(
-                audio_id=f"AUD_{uuid.uuid4().hex[:16]}",
-                stran_id=stran_id,
-                audio_url="",
-                status=AUDIO_STATUS_FAILED,
-            )
-            self.db.add(audio)
-        else:
-            audio.status = AUDIO_STATUS_FAILED
-            audio.update_at = func.now()
-        self.db.commit()
+        translation = (
+            self.db.query(POITranslation)
+            .filter(POITranslation.stran_id == stran_id)
+            .first()
+        )
+        if translation is not None:
+            translation.status = AUDIO_STATUS_FAILED
+            translation.update_at = func.now()
+            self.db.commit()
 
     def get_all_audio_urls(self) -> set[str]:
         """Return the set of all active audio URLs referenced in the database."""
-        rows = self.db.query(POIAudio.audio_url).all()
+        rows = (
+            self.db.query(POITranslation.audio_url)
+            .filter(POITranslation.audio_url.is_not(None))
+            .all()
+        )
         return {r[0] for r in rows if r[0]}
 
     def get_audio_by_poi_and_language(
         self, poi_id: str, language_id: str = "vi"
     ) -> POIAudio | None:
         """Find active audio record for a specific POI and language, with fallback to 'vi'."""
-        audio = (
-            self.db.query(POIAudio)
-            .join(POITranslation, POIAudio.stran_id == POITranslation.stran_id)
+        if not poi_id:
+            return None
+
+        translation = (
+            self.db.query(POITranslation)
             .filter(
                 POITranslation.poi_id == poi_id,
                 POITranslation.language_id == language_id,
-                POIAudio.status == AUDIO_STATUS_READY,
+                POITranslation.audio_url.is_not(None),
             )
             .first()
         )
-        if not audio and language_id != "vi":
-            audio = (
-                self.db.query(POIAudio)
-                .join(POITranslation, POIAudio.stran_id == POITranslation.stran_id)
+
+        if translation is None and language_id != "vi":
+            translation = (
+                self.db.query(POITranslation)
                 .filter(
                     POITranslation.poi_id == poi_id,
                     POITranslation.language_id == "vi",
-                    POIAudio.status == AUDIO_STATUS_READY,
+                    POITranslation.audio_url.is_not(None),
                 )
                 .first()
             )
-        return audio
+
+        if translation is None or not translation.audio_url:
+            return None
+
+        return POIAudio(
+            stran_id=translation.stran_id,
+            audio_url=translation.audio_url,
+            duration=translation.duration,
+            file_size=translation.file_size,
+            status=translation.status,
+        )
 
     def ping_database(self) -> float:
         """Measure database connection round-trip latency in milliseconds."""
         start = time.perf_counter()
-        self.db.execute(text("SELECT 1"))
-        return round((time.perf_counter() - start) * 1000, 2)
+        self.db.execute(func.now())
+        return (time.perf_counter() - start) * 1000.0

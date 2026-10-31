@@ -63,6 +63,25 @@ export default function VisitorTourPage({
 
   const effectiveSessionCode = sessionCode || contextSessionCode;
   const effectiveExpiresAt = expiresAt || contextExpiresAt;
+
+  // Auto-activate session upon redirect return from PayPal
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('payment_success') === 'true') {
+      const code = params.get('session_code');
+      const token = params.get('session_token');
+      const expires = params.get('expires_at');
+      if (token || code) {
+        activateSession({
+          sessionCode: code,
+          sessionToken: token,
+          expiresAt: expires,
+        });
+      }
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, [activateSession]);
   const { currentPoi, isPlaying, completedPoiIds, play } = useAudioPlayer();
   // Dwell windows opened by a real geofence trigger, keyed by POI id. The
   // telemetry row is only reported once the visitor leaves the zone, because a

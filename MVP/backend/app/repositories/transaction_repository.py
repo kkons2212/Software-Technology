@@ -116,10 +116,11 @@ class TransactionRepository:
                 PreferredLanguage=preferred_language,
                 Activate_at=now,
                 Expire_at=expire_at,
+                TransactionID=txn.transaction_id,
+                transaction=txn,
             )
             self.db.add(session)
             self.db.flush()
-            txn.session_id = session.SessionID
         else:
             session = txn.session
             session.Status = "ACTIVE"

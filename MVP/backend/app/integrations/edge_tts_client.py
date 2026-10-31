@@ -10,6 +10,11 @@ import edge_tts
 logger = logging.getLogger(__name__)
 
 
+def _compute_sha256_hash(text: str) -> str:
+    """Compute standard SHA-256 hex digest for given text string."""
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
 def compute_audio_hash(
     title: str,
     description: str | None,
@@ -32,7 +37,7 @@ def compute_audio_hash(
     tit = title.strip()
     lang = language_id.strip().lower()
     raw = f"{tit}::{desc}::{lang}::{voice}"
-    return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+    return _compute_sha256_hash(raw)
 
 
 class EdgeTTSClient:
@@ -50,6 +55,10 @@ class EdgeTTSClient:
 
     _DISCOVERED_VOICES: ClassVar[dict[str, str]] = {}
     _ALL_VOICES_CACHE: ClassVar[list[dict] | None] = None
+
+    def _resolve_voice_for_language(self, lang_code: str) -> str:
+        """Helper to resolve configured voice synchronously."""
+        return self.get_voice(lang_code)
 
     def get_voice(self, language_id: str) -> str:
         """Resolve voice identifier synchronously from curated map or discovered cache."""
@@ -151,11 +160,17 @@ class EdgeTTSClient:
         Returns:
             tuple[file_url, file_size_bytes, was_cached]
         """
+        # Phase 1: Precondition Gate
+        if not text or not text.strip():
+            raise ValueError("Input text cannot be empty.")
+        if not language_id or not language_id.strip():
+            raise ValueError("Language ID cannot be empty.")
+
         filename = f"audio_{audio_hash}.mp3"
         output_path = audio_dir / filename
         audio_url = f"/static/audio/{filename}"
 
-        # 1. Check existing storage cache
+        # Phase 2: Compute & Cache Check
         if output_path.is_file() and output_path.stat().st_size > 0:
             logger.info(
                 "Audio cache hit for hash %s (%s). Reusing existing MP3 file.",
@@ -164,7 +179,6 @@ class EdgeTTSClient:
             )
             return audio_url, output_path.stat().st_size, True
 
-        # 2. Synthesize new audio via Edge-TTS
         audio_dir.mkdir(parents=True, exist_ok=True)
         temporary_path = audio_dir / f".{filename}.tmp"
         try:
@@ -177,6 +191,7 @@ class EdgeTTSClient:
                 raise RuntimeError("Edge-TTS generated an empty audio file.")
             temporary_path.replace(output_path)
             file_size = output_path.stat().st_size
+            # Phase 3: Unified Exit
             return audio_url, file_size, False
         finally:
             temporary_path.unlink(missing_ok=True)

@@ -7,10 +7,10 @@ from app.core.config import get_settings
 from app.core.dependencies import get_tts_service
 from app.core.exceptions import ApiError
 from app.main import app
-from app.models.audio import AUDIO_STATUS_READY, POIAudio
 from app.models.language import LanguageCode
 from app.models.poi import POI
 from app.models.session import VisitorSession
+from app.models.transaction import Transaction
 from app.models.translation import POITranslation
 from app.schemas.audio_schema import AudioRegenerationResponse
 
@@ -23,6 +23,22 @@ class FakeTTSService:
             audio_url="/static/audio/new_narration.mp3",
             audio_status="READY",
         )
+
+
+def _ensure_test_tx(db_session, tx_id="TX_AUDIO_TEST"):
+    tx = db_session.get(Transaction, tx_id)
+    if not tx:
+        tx = Transaction(
+            transaction_id=tx_id,
+            pay_amount=50000,
+            currency="VND",
+            payment_gateway="PAYPAL",
+            status="PAID",
+            paid_at=datetime.utcnow(),
+        )
+        db_session.add(tx)
+        db_session.commit()
+    return tx
 
 
 class FailedTTSService:
@@ -80,6 +96,7 @@ def test_should_reject_streaming_when_token_invalid_403(client, db_session):
 def test_should_reject_streaming_when_session_expired_403(client, db_session):
     # Expired session in database
     past = datetime.utcnow() - timedelta(hours=1)
+    tx = _ensure_test_tx(db_session, "TX_EXPIRED_01")
     session = VisitorSession(
         SessionID="SES_EXPIRED_01",
         SessionCode="CCT-EXPIRE",
@@ -87,6 +104,7 @@ def test_should_reject_streaming_when_session_expired_403(client, db_session):
         Status="EXPIRED",
         Activate_at=past - timedelta(hours=24),
         Expire_at=past,
+        TransactionID=tx.transaction_id,
     )
     db_session.add(session)
     db_session.commit()
@@ -105,6 +123,7 @@ def test_should_stream_audio_when_active_session_token_provided_200(
         db_session.commit()
 
     # Seed active session
+    tx = _ensure_test_tx(db_session, "TX_STREAM_OK")
     session = VisitorSession(
         SessionID="SES_ACTIVE_STREAM",
         SessionCode="CCT-STREAM01",
@@ -112,6 +131,7 @@ def test_should_stream_audio_when_active_session_token_provided_200(
         Status="ACTIVE",
         Activate_at=datetime.utcnow(),
         Expire_at=datetime.utcnow() + timedelta(hours=24),
+        TransactionID=tx.transaction_id,
     )
     db_session.add(session)
 
@@ -146,14 +166,8 @@ def test_should_stream_audio_when_active_session_token_provided_200(
     mp3_path = audio_dir / mp3_filename
     mp3_path.write_bytes(b"ID3\x03\x00\x00\x00\x00\x00#DUMMY_MP3_STREAM_CONTENT")
 
-    audio = POIAudio(
-        audio_id="AUD_STREAM_OK",
-        stran_id=translation.stran_id,
-        audio_url=f"/static/audio/{mp3_filename}",
-        file_size=30,
-        status=AUDIO_STATUS_READY,
-    )
-    db_session.add(audio)
+    translation.audio_url = f"/static/audio/{mp3_filename}"
+    translation.file_size = 30
     db_session.commit()
 
     # 1. Test via query param token
@@ -179,6 +193,7 @@ def test_should_stream_audio_when_active_session_token_provided_200(
 
 def test_should_return_404_when_audio_not_found_for_valid_session(client, db_session):
     # Active session
+    tx = _ensure_test_tx(db_session, "TX_ACTIVE_404")
     session = VisitorSession(
         SessionID="SES_ACTIVE_404",
         SessionCode="CCT-S404",
@@ -186,6 +201,7 @@ def test_should_return_404_when_audio_not_found_for_valid_session(client, db_ses
         Status="ACTIVE",
         Activate_at=datetime.utcnow(),
         Expire_at=datetime.utcnow() + timedelta(hours=24),
+        TransactionID=tx.transaction_id,
     )
     db_session.add(session)
     db_session.commit()
