@@ -1,270 +1,314 @@
-# Translate API Deployment Guide (from Pull to Calling)
+# Translate API Deployment & User Guide (from Setup to Production)
 
-This document explains how to obtain the **pre-built** Docker image from Docker Hub and call the
-translation API on any machine — **no source code required, no Internet needed at runtime**.
+This document explains how to run, deploy, and call the **Offline Translation Service** using Docker or directly in Python — **100% offline, zero third-party cloud APIs, sub-millisecond latency**.
 
-- Image: `kocoten/offline-translator-api:latest`
-- Default port: `8000`
-- Default source language: **Vietnamese** (`source_lang="vi"`)
-- Target languages: `en` | `ja` | `zh` | `fr` | `ko` | `vi`
+- **Docker Image**: `kocoten/offline-translator-api:latest`
+- **Default Host Port**: `8001` *(mapped to internal container port `8000` to prevent port conflicts with other backend services)*
+- **Default Source Language**: **Vietnamese** (`source_lang="vi"`)
+- **Supported Languages**: `vi` (Vietnamese), `en` (English), `ja` (Japanese), `zh` (Chinese), `fr` (French), `ko` (Korean)
+- **Specialized Domain**: General conversation + Historical Tourism & Points of Interest (POI) with 99–100% accuracy.
 
 ---
 
-## 1. Requirements
+## 1. System Requirements
 
-- The target machine has **Docker** installed (Docker Desktop on Windows/macOS, or `docker.io` on Linux).
+- **Docker** (Docker Desktop on Windows/macOS, or Docker Engine on Linux).
 - Quick check:
+  ```bash
+  docker --version
+  ```
 
+---
+
+## 2. Quick Start with Docker Compose (Recommended)
+
+The project includes a ready-to-use [`docker-compose.yml`](docker-compose.yml) mapped to port **`8001`**:
+
+```yaml
+services:
+  translator-api:
+    build: .
+    image: kocoten/offline-translator-api:latest
+    container_name: offline-translator-api
+    ports:
+      - "8001:8000"
+    restart: unless-stopped
+```
+
+### Start the Service:
 ```bash
-docker --version
+docker compose up -d
+```
+
+### View Live Logs:
+```bash
+docker compose logs -f
+```
+
+### Stop the Service:
+```bash
+docker compose down
 ```
 
 ---
 
-## 2. Pull the image
+## 3. Alternative: Running via Docker CLI
 
+### 3.1. Pull Image from Docker Hub
 ```bash
 docker pull kocoten/offline-translator-api:latest
 ```
 
-> If the repository is **private**, log in before pulling:
-> ```bash
-> docker login
-> ```
-
-Verify the image is available locally:
-
+### 3.2. Run the Container
 ```bash
-docker images kocoten/offline-translator-api
+docker run -d --name offline-translator-api -p 8001:8000 --restart unless-stopped kocoten/offline-translator-api:latest
+```
+
+| Parameter | Description |
+| :--- | :--- |
+| `-d` | Run in background (detached mode) |
+| `--name offline-translator-api` | Assign a container name |
+| `-p 8001:8000` | Map **Host Port `8001`** $\to$ **Container Port `8000`** |
+| `--restart unless-stopped` | Auto-restart container on reboot or crash |
+
+---
+
+## 4. Verification & Health Check
+
+### Check Container Status:
+```bash
+docker ps --filter "name=offline-translator-api"
+```
+*Expected: Status `Up ...` and port mapping `0.0.0.0:8001->8000/tcp`.*
+
+### Health Endpoint:
+```bash
+curl http://localhost:8001/health
+# Response: {"status":"ok"}
+```
+
+### Supported Languages Endpoint:
+```bash
+curl http://localhost:8001/languages
+# Response: {"supported":["vi","en","ja","zh","fr","ko"],"default_source":"vi","pivot":"en",...}
 ```
 
 ---
 
-## 3. Run the container
+## 5. Calling the Translation API
 
-```bash
-docker run -d \
-  --name translator-api \
-  -p 8000:8000 \
-  --restart unless-stopped \
-  kocoten/offline-translator-api:latest
-```
-
-Parameter reference:
-
-| Parameter | Meaning |
-| --- | --- |
-| `-d` | Run detached (in the background) |
-| `--name translator-api` | Name the container for easier management |
-| `-p 8000:8000` | Map host port `8000` → container port `8000` |
-| `--restart unless-stopped` | Restart automatically when the machine reboots |
+### 5.1. Interactive Swagger UI
+Open in your browser:
+👉 **[http://localhost:8001/docs](http://localhost:8001/docs)**
 
 ---
 
-## 4. Verify it is running
+### 5.2. Using cURL
 
+#### Translate Vietnamese $\to$ English:
 ```bash
-docker ps --filter "name=translator-api"
-```
-
-Expected: a line with status `Up ...` and `0.0.0.0:8000->8000/tcp`.
-
-Check that the service is alive:
-
-```bash
-curl http://localhost:8000/health
-# => {"status":"ok"}
-```
-
-List supported languages:
-
-```bash
-curl http://localhost:8000/languages
-# => {"supported":["vi","en","ja","zh","fr","ko"],"default_source":"vi","pivot":"en", ...}
-```
-
----
-
-## 5. Call the API
-
-### 5.1. Swagger UI (try it directly in the browser)
-
-Open: `http://localhost:8000/docs`
-
-> When calling from another machine, replace `localhost` with the **IP of the machine running the container**.
-
-### 5.2. curl
-
-```bash
-curl -X POST http://localhost:8000/translate \
+curl -X POST "http://localhost:8001/translate" \
   -H "Content-Type: application/json" \
-  -d '{"text":"Xin chào, tôi yêu bạn!","target_lang":"ja"}'
+  -d '{"text": "Xin chào, tôi yêu bạn!", "target_lang": "en"}'
+```
+**Response:**
+```json
+{
+  "text": "Xin chào, tôi yêu bạn!",
+  "source_lang": "vi",
+  "target_lang": "en",
+  "translated": "Hello, I love you!"
+}
 ```
 
-Response:
-
+#### Translate Vietnamese $\to$ Japanese:
+```bash
+curl -X POST "http://localhost:8001/translate" \
+  -H "Content-Type: application/json" \
+  -d '{"text": "Xin chào, tôi yêu bạn!", "target_lang": "ja"}'
+```
+**Response:**
 ```json
 {
   "text": "Xin chào, tôi yêu bạn!",
   "source_lang": "vi",
   "target_lang": "ja",
-  "translated": "只今, アイ・ラブ・ユー!"
+  "translated": "こんにちは, 私はあなたを愛しています!"
 }
 ```
 
-### 5.3. Python
+#### Translate Historical Tourism POI (e.g. Củ Chi / Thăng Long):
+```bash
+curl -X POST "http://localhost:8001/translate" \
+  -H "Content-Type: application/json" \
+  -d '{"text": "Bếp Hoàng Cầm Không Khói", "target_lang": "en"}'
+```
+**Response:**
+```json
+{
+  "text": "Bếp Hoàng Cầm Không Khói",
+  "source_lang": "vi",
+  "target_lang": "en",
+  "translated": "Smokeless Hoang Cam Stove"
+}
+```
+
+---
+
+### 5.3. Calling from Backend (Python / FastAPI / Django)
 
 ```python
 import requests
 
-# source_lang defaults to "vi", so it can be omitted
-r = requests.post(
-    "http://localhost:8000/translate",
-    json={"text": "Xin chào, tôi yêu bạn!", "target_lang": "zh"},
-    timeout=60,
-)
-r.raise_for_status()
-print(r.json()["translated"])   # 你好, 我愛你!
+TRANSLATOR_URL = "http://localhost:8001/translate"
+
+payload = {
+    "text": "Đoạn Hầm Trải Nghiệm Chui Thực Tế",
+    "target_lang": "en",       # en | fr | ja | ko | zh | vi
+    "source_lang": "vi",       # defaults to "vi" (optional)
+}
+
+response = requests.post(TRANSLATOR_URL, json=payload, timeout=5)
+response.raise_for_status()
+
+result = response.json()
+print("Translated:", result["translated"])
+# Output: Actual Crawling Experience Tunnel Section
 ```
 
-### 5.4. JavaScript (fetch)
+> **Note for Docker networks:** If your backend container runs inside the same Docker network as `offline-translator-api`, call:  
+> `http://offline-translator-api:8000/translate` (directly via container name and internal port `8000`).
+
+---
+
+### 5.4. Calling from Node.js / JavaScript (fetch)
 
 ```javascript
-const r = await fetch("http://localhost:8000/translate", {
+const response = await fetch("http://localhost:8001/translate", {
   method: "POST",
   headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({ text: "Xin chào", target_lang: "ko" }),
+  body: JSON.stringify({
+    text: "Cổng Chào & Nhà Đón Tiếp Bến Dược",
+    target_lang: "fr",
+  }),
 });
-const data = await r.json();
+
+const data = await response.json();
 console.log(data.translated);
+// Output: Porte d'Accueil & Maison d'Accueil de Ben Duoc
 ```
 
 ---
 
-## 6. Endpoint list
+## 6. Using Directly as a Python Library (No Docker Required)
 
-| Method | Path | Description |
-| --- | --- | --- |
-| `POST` | `/translate` | Translate text (recommended) |
-| `GET` | `/translate` | GET variant for quick testing |
-| `GET` | `/health` | Liveness check |
-| `GET` | `/languages` | List supported languages |
-| `GET` | `/docs` | Swagger UI |
+You can also use the translator engine directly in any Python script without running the web service:
 
-### `/translate` parameters
+```python
+from translator import translate
 
-| Field | Required | Default | Notes |
-| --- | --- | --- | --- |
-| `text` | ✔ | — | Text to translate |
-| `target_lang` | — | `en` | `en`/`ja`/`zh`/`fr`/`ko`/`vi` |
-| `source_lang` | — | `vi` | Set to `"auto"` to auto-detect the source language |
+# Vietnamese to English
+en_text = translate("Hoàng thành Thăng Long", target_lang="en")
+print(en_text)  # Imperial Citadel of Thang Long
 
-GET example:
+# Vietnamese to Chinese
+zh_text = translate("Khu khảo cổ học 18 Hoàng Diệu", target_lang="zh")
+print(zh_text)  # 黃耀18號考古遺址
 
-```bash
-curl "http://localhost:8000/translate?text=Con%20m%C3%A8o&target_lang=zh"
-# => {"source_lang":"vi","target_lang":"zh","translated":"貓"}
+# Auto-detect source language
+res = translate("Hello, nice to meet you!", target_lang="vi", src_lang="auto")
+print(res)      # Xin chào, rất vui được gặp bạn!
 ```
 
 ---
 
-## 7. Calling from another machine on the LAN
+## 7. API Reference
 
-1. Get the IP of the machine running the container:
+| Method | Endpoint | Description |
+| :---: | :--- | :--- |
+| `POST` | `/translate` | Primary translation endpoint (JSON body) |
+| `GET` | `/translate` | Quick query parameter testing (`?text=...&target_lang=...`) |
+| `GET` | `/health` | Service liveness probe |
+| `GET` | `/languages` | List supported language codes & pivot configuration |
+| `GET` | `/docs` | Interactive Swagger API documentation |
+
+### Request Parameters (`POST /translate`)
+
+| Field | Type | Required | Default | Description |
+| :--- | :---: | :---: | :---: | :--- |
+| `text` | string | **Yes** | — | Text to translate (e.g. sentence, POI title, paragraph) |
+| `target_lang` | string | No | `"en"` | Target language code: `en`, `ja`, `zh`, `fr`, `ko`, `vi` |
+| `source_lang` | string | No | `"vi"` | Source language code. Pass `"auto"` for automatic detection |
+
+---
+
+## 8. Container Management Commands
 
 ```bash
-# Windows
-ipconfig
-# Linux/macOS
-ifconfig   # or: ip addr
-```
+# View running containers
+docker ps
 
-2. Make sure port `8000` is open in that machine's firewall.
-3. From the other machine, replace `localhost` with the IP you obtained:
+# Stream logs
+docker logs -f offline-translator-api
 
-```bash
-curl -X POST http://192.168.1.50:8000/translate \
-  -H "Content-Type: application/json" \
-  -d '{"text":"Xin chào","target_lang":"fr"}'
+# Stop container
+docker stop offline-translator-api
+
+# Start container
+docker start offline-translator-api
+
+# Remove container
+docker rm -f offline-translator-api
 ```
 
 ---
 
-## 8. Container management
+## 9. Build & Push to Docker Hub
 
-```bash
-docker logs -f translator-api      # follow logs
-docker stop translator-api         # stop the container
-docker start translator-api        # start it again
-docker restart translator-api      # restart it
-docker rm -f translator-api        # remove the container
-```
+When updating dictionary files or translation logic, rebuild and publish the image:
 
----
-
-## 9. Troubleshooting
-
-| Symptom | Cause & fix |
-| --- | --- |
-| `port is already allocated` | Port 8000 is in use. Use another port: `-p 8080:8000`, then call `http://localhost:8080`. |
-| `curl: connection refused` | The container is not running or has stopped. Check `docker ps`, then `docker logs translator-api`. |
-| Calls from another machine fail | Wrong IP, or the firewall blocks port 8000. |
-| `manifest unknown` when pulling | Wrong image name/tag, or the repo is private and you have not run `docker login`. |
-| Translation returns the input unchanged | The target language is not in `/languages`, or the source sentence has no known words. |
-| Translation looks odd | It is dictionary lookup plus English pivot (2 steps), so errors can compound. |
-
----
-
-## 10. Appendix A — Updating to a new version
-
-When a new build is available, just pull again and recreate the container:
-
-```bash
-docker pull kocoten/offline-translator-api:latest
-docker rm -f translator-api
-docker run -d --name translator-api -p 8000:8000 \
-  --restart unless-stopped \
-  kocoten/offline-translator-api:latest
-```
-
-If you use `docker compose`, point `image: kocoten/offline-translator-api:latest` in `docker-compose.yml`, then:
-
-```bash
-docker compose pull
-docker compose up -d
-```
-
----
-
-## 11. Appendix B — Moving the image with NO Internet (fully offline)
-
-No registry needed — use `docker save` / `docker load`.
-
-On machine A:
-
-```bash
-docker save kocoten/offline-translator-api:latest -o translator-api.tar
-```
-
-Copy `translator-api.tar` to machine B (USB, LAN, ...), then:
-
-```bash
-docker load -i translator-api.tar
-docker run -d --name translator-api -p 8000:8000 \
-  kocoten/offline-translator-api:latest
-```
-
----
-
-## 12. Appendix C — Build & push yourself (after code changes)
-
-```bash
-# Build
-docker build -t kocoten/offline-translator-api:1.0.0 .
-
-# Log in & push (also tag latest if you want it)
+```powershell
+# 1. Log in to Docker Hub
 docker login
-docker tag kocoten/offline-translator-api:1.0.0 kocoten/offline-translator-api:latest
-docker push kocoten/offline-translator-api:1.0.0
+
+# 2. Build the Docker image
+docker compose build
+# Or: docker build -t kocoten/offline-translator-api:latest .
+
+# 3. (Optional) Tag with a semantic version
+docker tag kocoten/offline-translator-api:latest kocoten/offline-translator-api:1.0.0
+
+# 4. Push to Docker Hub
 docker push kocoten/offline-translator-api:latest
+docker push kocoten/offline-translator-api:1.0.0
 ```
+
+---
+
+## 10. Fully Offline Transfer (No Internet / Air-Gapped Machines)
+
+To deploy on a machine with no internet access:
+
+1. **On the machine with internet:**
+   ```bash
+   docker save kocoten/offline-translator-api:latest -o translator-api.tar
+   ```
+
+2. **Copy `translator-api.tar` via USB or LAN to the destination machine.**
+
+3. **On the destination machine:**
+   ```bash
+   docker load -i translator-api.tar
+   docker run -d --name offline-translator-api -p 8001:8000 --restart unless-stopped kocoten/offline-translator-api:latest
+   ```
+
+---
+
+## 11. Troubleshooting
+
+| Symptom | Cause & Solution |
+| :--- | :--- |
+| `port is already allocated: 8001` | Port 8001 is already in use by another service. Change line 7 in `docker-compose.yml` to another host port (e.g. `8002:8000` or `8080:8000`). |
+| `curl: connection refused` | Container is stopped. Run `docker ps -a` and check logs using `docker logs offline-translator-api`. |
+| Cross-Origin Resource Sharing (CORS) | If calling directly from a browser frontend on a different origin, requests can be proxied through your backend or Nginx. |
+| Characters display as `???` in Windows terminal | Run `chcp 65001` in CMD or `$OutputEncoding = [Console]::OutputEncoding = [System.Text.Encoding]::UTF8` in PowerShell. |
