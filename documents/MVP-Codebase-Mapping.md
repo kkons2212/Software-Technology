@@ -1,10 +1,10 @@
-# Bản đồ Kiến trúc & Mapping Chi tiết Hệ thống MVP (Cu Chi Tunnels Smart Audio Guide)
+# MVP Codebase Mapping & Architectural Reference (Cu Chi Tunnels Smart Audio Guide)
 
-Tài liệu này hệ thống hóa toàn bộ mã nguồn của dự án MVP, bao gồm chi tiết các hàm, phương thức, biến khai báo, kiểu dữ liệu và giá trị trả về ở cả hai tầng Backend (FastAPI / SQLAlchemy) và Frontend (React / Vite).
+This document maps the entire codebase of the MVP project, covering functions, methods, parameters, data types, and return values across both the Backend (FastAPI / SQLAlchemy) and Frontend (React / Vite).
 
 ---
 
-## 1. Tổng quan Kiến trúc
+## 1. Architectural Overview
 
 ```
 [ FRONTEND: React / Vite ]
@@ -35,139 +35,139 @@ Tài liệu này hệ thống hóa toàn bộ mã nguồn của dự án MVP, ba
 
 ## 2. Backend Mapping
 
-### 2.1. Controllers (Tầng tiếp nhận Request & Routing)
+### 2.1. Controllers (Request Ingestion & Routing)
 
 #### `app.controllers.auth_controller`
 - **Prefix / Tags**: `/api/v1/auth`, `auth`
-- **Hàm `login_admin(payload: AdminLoginRequest, request: Request, response: Response, auth_service: AuthService) -> AdminSessionResponse`**
-  - *Tham số*:
-    - `payload`: Object Pydantic chứa `username` (string đã trim) và `password` (string).
-    - `request`: Đối tượng `fastapi.Request` dùng để bóc tách IP qua `resolve_client_ip`.
-    - `response`: Đối tượng `fastapi.Response` dùng để ghi HttpOnly cookie `admin_access_token`.
-    - `auth_service`: Dependency injection lấy từ `get_auth_service`.
-  - *Giá trị trả về*: `AdminSessionResponse` chứa `success: bool`, `data: AdminSessionDataResponse(admin: AdminProfileResponse)`.
-  - *Ghi chú*: Trả HttpOnly cookie `admin_access_token` với thời gian sống 8 tiếng.
-- **Hàm `read_current_admin(current_admin: AdminProfileResponse) -> AdminSessionResponse`**
-  - *Tham số*: `current_admin`: Lấy từ dependency `get_current_admin_profile` (giải mã token JWT từ cookie).
-  - *Giá trị trả về*: `AdminSessionResponse` chứa thông tin tài khoản hiện tại.
-- **Hàm `logout_admin(request: Request, response: Response, current_admin: AdminProfileResponse, auth_service: AuthService) -> AdminLogoutResponse`**
-  - *Tham số*: Token trong request và thông tin admin hiện tại.
-  - *Giá trị trả về*: `AdminLogoutResponse` chứa `success: True`, `data.message: "Logged out successfully."`.
-  - *Ghi chú*: Xóa cookie `admin_access_token` (Max-Age=0) và ghi audit log.
+- **`login_admin(payload: AdminLoginRequest, request: Request, response: Response, auth_service: AuthService) -> AdminSessionResponse`**
+  - *Parameters*:
+    - `payload`: Pydantic object containing `username` (trimmed string) and `password` (string).
+    - `request`: `fastapi.Request` instance used to resolve client IP via `resolve_client_ip`.
+    - `response`: `fastapi.Response` instance used to plant the HttpOnly `admin_access_token` cookie.
+    - `auth_service`: Dependency injected from `get_auth_service`.
+  - *Returns*: `AdminSessionResponse` containing `success: bool`, `data: AdminSessionDataResponse(admin: AdminProfileResponse)`.
+  - *Notes*: Sets an HttpOnly `admin_access_token` cookie with an 8-hour lifetime.
+- **`read_current_admin(current_admin: AdminProfileResponse) -> AdminSessionResponse`**
+  - *Parameters*: `current_admin`: Injected from `get_current_admin_profile` (decodes the JWT token from cookie).
+  - *Returns*: `AdminSessionResponse` containing current admin profile.
+- **`logout_admin(request: Request, response: Response, current_admin: AdminProfileResponse, auth_service: AuthService) -> AdminLogoutResponse`**
+  - *Parameters*: Request token and current admin profile.
+  - *Returns*: `AdminLogoutResponse` containing `success: True`, `data.message: "Logged out successfully."`.
+  - *Notes*: Clears `admin_access_token` cookie (Max-Age=0) and records audit log entry.
 
 ---
 
 #### `app.controllers.poi_controller` (Visitor & Admin POI Queries)
 - **Prefix / Tags**: `/api/v1/pois`, `pois`
-- **Hàm `get_map_pois(service: POIService, language: str = 'vi', token: str | None = None, ...) -> APIResponse[list[POIMapItem]]`**
+- **`get_map_pois(service: POIService, language: str = 'vi', token: str | None = None, ...) -> APIResponse[list[POIMapItem]]`**
   - *Endpoint*: `GET /api/v1/pois`
-  - *Tham số*: `language` (mã ngôn ngữ: vi, en, ja, ko, zh), `token` (visitor session token để mở khóa nội dung).
-  - *Giá trị trả về*: Danh sách `POIMapItem` gồm `id`, `title`, `short_description`, `image_url`, `latitude`, `longitude`, `trigger_radius`, `description` (ẩn nếu chưa trả phí), `audio_url`, `is_locked`.
-- **Hàm `get_visitor_poi_detail(poi_id: str, service: POIService, language: str = 'vi', ...) -> APIResponse[POIMapItem]`**
+  - *Parameters*: `language` (ISO code: `vi`, `en`, `ja`, `ko`, `zh`), `token` (visitor session token to unlock full descriptions).
+  - *Returns*: List of `POIMapItem` objects (`id`, `title`, `short_description`, `image_url`, `latitude`, `longitude`, `trigger_radius`, `description` (masked if unpaid), `audio_url`, `is_locked`).
+- **`get_visitor_poi_detail(poi_id: str, service: POIService, language: str = 'vi', ...) -> APIResponse[POIMapItem]`**
   - *Endpoint*: `GET /api/v1/pois/{poi_id}`
-  - *Giá trị trả về*: Chi tiết 1 điểm di tích dưới dạng `POIMapItem`.
-- **Hàm `create_poi(request: Request, background_tasks: BackgroundTasks, current_admin: AdminProfileResponse, poi_service: POIService) -> POIResponse`**
+  - *Returns*: Detailed single POI information as `POIMapItem`.
+- **`create_poi(request: Request, background_tasks: BackgroundTasks, current_admin: AdminProfileResponse, poi_service: POIService) -> POIResponse`**
   - *Endpoint*: `POST /api/v1/pois` (Admin only)
-  - *Tham số*: Form-data hoặc JSON (`title`, `short_description`, `description`, `latitude`, `longitude`, `radius`, `image_file`).
-  - *Giá trị trả về*: `POIResponse` chứa bản ghi POI vừa tạo kèm danh sách trạng thái dịch đa ngôn ngữ ban đầu.
-  - *Tác vụ nền*: Đẩy tác vụ `pipeline_service.trigger_poi_translation_pipeline` vào `background_tasks`.
-- **Hàm `list_pois(page: int, size: int, search: str, poi_service: POIService, _) -> POIListResponse`**
+  - *Parameters*: Form data or JSON (`title`, `short_description`, `description`, `latitude`, `longitude`, `radius`, `image_file`).
+  - *Returns*: `POIResponse` containing the created POI record along with initial multilingual translation statuses.
+  - *Background Tasks*: Dispatches `pipeline_service.trigger_poi_translation_pipeline`.
+- **`list_pois(page: int, size: int, search: str, poi_service: POIService, _) -> POIListResponse`**
   - *Endpoint*: `GET /api/v1/admin/pois` (Admin catalog)
-  - *Giá trị trả về*: `POIListResponse(items: list[POIResponse], total: int, page: int, size: int)`.
-- **Hàm `get_poi(poi_id: str, poi_service: POIService, _) -> POIResponse`**
+  - *Returns*: `POIListResponse(items: list[POIResponse], total: int, page: int, size: int)`.
+- **`get_poi(poi_id: str, poi_service: POIService, _) -> POIResponse`**
   - *Endpoint*: `GET /api/v1/admin/pois/{poi_id}`.
 
 ---
 
 #### `app.controllers.admin_poi_controller` (Admin POI Operations)
 - **Prefix / Tags**: `/api/v1/admin/pois`, `admin-pois`
-- **Hàm `update_poi(poi_id: str, payload: POIUpdateRequest, request: Request, background_tasks: BackgroundTasks, service: POIService, current_admin: AdminProfileResponse) -> POIUpdateResponse`**
+- **`update_poi(poi_id: str, payload: POIUpdateRequest, request: Request, background_tasks: BackgroundTasks, service: POIService, current_admin: AdminProfileResponse) -> POIUpdateResponse`**
   - *Endpoint*: `PATCH /api/v1/admin/pois/{poi_id}`
-  - *Tham số*: `payload` (chứa các trường cần update: `title`, `short_description`, `description`, `image_url`, `latitude`, `longitude`, `radius`).
-  - *Giá trị trả về*: `POIUpdateResponse(success=True, data=POIMapItem)`.
-  - *Xử lý phụ*: Nếu cập nhật narrative (`title`, `description`), tự động đánh dấu các bản dịch ngoại ngữ sang `NEEDS_UPDATE` và kích hoạt dịch lại trong background.
-- **Hàm `set_poi_visibility(poi_id: str, payload: POIVisibilityUpdateRequest, request: Request, service: POIService, current_admin: AdminProfileResponse) -> POIResponse`**
+  - *Parameters*: `payload` (`title`, `short_description`, `description`, `image_url`, `latitude`, `longitude`, `radius`).
+  - *Returns*: `POIUpdateResponse(success=True, data=POIMapItem)`.
+  - *Side Effects*: If narrative fields (`title`, `description`) change, foreign language translations are flagged as `NEEDS_UPDATE` and background re-translation is scheduled.
+- **`set_poi_visibility(poi_id: str, payload: POIVisibilityUpdateRequest, request: Request, service: POIService, current_admin: AdminProfileResponse) -> POIResponse`**
   - *Endpoint*: `PUT /api/v1/admin/pois/{poi_id}/visibility`
-  - *Tham số*: `payload.is_active: bool`.
-  - *Giá trị trả về*: `POIResponse` sau khi cập nhật trạng thái hiển thị.
-- **Hàm `upload_poi_image(file: UploadFile, service: POIService, current_admin: AdminProfileResponse) -> dict`**
+  - *Parameters*: `payload.is_active: bool`.
+  - *Returns*: `POIResponse` reflecting updated visibility state.
+- **`upload_poi_image(file: UploadFile, service: POIService, current_admin: AdminProfileResponse) -> dict`**
   - *Endpoint*: `POST /api/v1/admin/pois/upload-image`
-  - *Giá trị trả về*: `{"image_url": str}`.
+  - *Returns*: `{"image_url": str}`.
 
 ---
 
 #### `app.controllers.audio_controller`
 - **Prefix / Tags**: `/api/v1/audio`, `audio`
-- **Hàm `stream_poi_audio(poi_id: str, language: str, token: str | None, x_session_token: str | None, authorization: str | None, audio_service: AudioService) -> FileResponse`**
+- **`stream_poi_audio(poi_id: str, language: str, token: str | None, x_session_token: str | None, authorization: str | None, audio_service: AudioService) -> FileResponse`**
   - *Endpoint*: `GET /api/v1/audio/{poi_id}`
-  - *Tham số*:
-    - `poi_id`: ID của điểm di tích (ví dụ `POI_9F9F3176070C`).
-    - `language`: Ngôn ngữ file audio (`vi`, `en`, `ja`, `ko`, `zh`).
-    - Session token: Lấy từ query param `token`, header `X-Session-Token` hoặc `Authorization: Bearer <token>`.
-  - *Giá trị trả về*: `FileResponse` (stream file `.mp3` với header `Accept-Ranges: bytes`, `Content-Type: audio/mpeg`).
-  - *Bảo mật*: Kiểm tra session hợp lệ còn hạn 24h qua `audio_service.verify_streaming_access`.
+  - *Parameters*:
+    - `poi_id`: Exhibit ID (e.g., `POI_9F9F3176070C`).
+    - `language`: Audio language code (`vi`, `en`, `ja`, `ko`, `zh`).
+    - Session token: Extracted from query param `token`, header `X-Session-Token`, or `Authorization: Bearer <token>`.
+  - *Returns*: `FileResponse` (`.mp3` file stream with `Accept-Ranges: bytes`, `Content-Type: audio/mpeg`).
+  - *Security*: Validates active 24-hour session via `audio_service.verify_streaming_access`.
 
 ---
 
 #### `app.controllers.payment_controller`
 - **Prefix / Tags**: `/api/v1/payments`, `payments`
-- **Hàm `create_checkout_order(payload: CheckoutCreateRequest, payment_service: PaymentService) -> CheckoutCreateResponse`**
+- **`create_checkout_order(payload: CheckoutCreateRequest, payment_service: PaymentService) -> CheckoutCreateResponse`**
   - *Endpoint*: `POST /api/v1/payments/checkout`
-  - *Tham số*: `payment_method` (`VIETQR`, `CARD`, `PAYPAL`), `preferred_language` (`vi`, `en`, ...).
-  - *Giá trị trả về*: `CheckoutCreateResponse` chứa `order_id`, `pay_amount`, `qr_code_url`, `checkout_url`, `transfer_bank`, `transfer_account`, `transfer_content`, `expires_at`.
-- **Hàm `get_order_status(order_id: str, payment_service: PaymentService) -> OrderStatusResponse`**
+  - *Parameters*: `payment_method` (`VIETQR`, `CARD`, `PAYPAL`), `preferred_language` (`vi`, `en`, etc.).
+  - *Returns*: `CheckoutCreateResponse` with `order_id`, `pay_amount`, `qr_code_url`, `checkout_url`, `transfer_bank`, `transfer_account`, `transfer_content`, `expires_at`.
+- **`get_order_status(order_id: str, payment_service: PaymentService) -> OrderStatusResponse`**
   - *Endpoint*: `GET /api/v1/payments/order/{order_id}`
-  - *Giá trị trả về*: `OrderStatusResponse` gồm trạng thái đơn (`PENDING`, `PAID`, `EXPIRED`), `session_code`, `session_token`, `session_expires_at`.
-- **Hàm `simulate_payment_success(order_id: str, body: SimulatePaymentRequest, payment_service: PaymentService) -> OrderStatusResponse`**
-  - *Endpoint*: `POST /api/v1/payments/order/{order_id}/simulate-success` (Môi trường dev/demo).
-- **Hàm `handle_payment_webhook(payload: PayOSWebhookPayload, payment_service: PaymentService) -> WebhookResponse`**
+  - *Returns*: `OrderStatusResponse` (`PENDING`, `PAID`, `EXPIRED`), `session_code`, `session_token`, `session_expires_at`.
+- **`simulate_payment_success(order_id: str, body: SimulatePaymentRequest, payment_service: PaymentService) -> OrderStatusResponse`**
+  - *Endpoint*: `POST /api/v1/payments/order/{order_id}/simulate-success` (Development/testing environment).
+- **`handle_payment_webhook(payload: PayOSWebhookPayload, payment_service: PaymentService) -> WebhookResponse`**
   - *Endpoint*: `POST /api/v1/payments/webhook`
-  - *Tham số*: Payload ký bảo mật từ cổng PayOS.
+  - *Parameters*: Signed webhook payload from PayOS gateway.
 
 ---
 
 #### `app.controllers.session_controller`
 - **Prefix / Tags**: `/api/v1/sessions`, `sessions`
-- **Hàm `restore_session(payload: SessionRestoreRequest, session_service: SessionService) -> SessionRestoreResponse`**
+- **`restore_session(payload: SessionRestoreRequest, session_service: SessionService) -> SessionRestoreResponse`**
   - *Endpoint*: `POST /api/v1/sessions/restore`
-  - *Tham số*: `payload.session_code`: Mã phục hồi 6 ký tự viết hoa.
-  - *Giá trị trả về*: `SessionRestoreResponse` chứa `session_token`, `remaining_seconds`, `status`, `expires_at`, `preferred_language`.
+  - *Parameters*: `payload.session_code`: 6-character uppercase alphanumeric recovery code.
+  - *Returns*: `SessionRestoreResponse` with `session_token`, `remaining_seconds`, `status`, `expires_at`, `preferred_language`.
 
 ---
 
 #### `app.controllers.translation_controller`
 - **Prefix / Tags**: `/api/v1/admin/translations`, `admin-translations`
-- **Hàm `list_translations(poi_id, language_id, status_filter, page, size, ...) -> TranslationListResponse`**
-- **Hàm `get_translation_by_id(id: str, ...) -> TranslationResponse`**
-- **Hàm `update_translation(id: str, payload: TranslationUpdateRequest, ...) -> TranslationResponse`**
-- **Hàm `publish_translation(id: str, ...) -> TranslationResponse`**
-- **Hàm `regenerate_translation_audio(id: str, tts_service: TTSService, ...) -> AudioRegenerationResponse`**
+- **`list_translations(poi_id, language_id, status_filter, page, size, ...) -> TranslationListResponse`**
+- **`get_translation_by_id(id: str, ...) -> TranslationResponse`**
+- **`update_translation(id: str, payload: TranslationUpdateRequest, ...) -> TranslationResponse`**
+- **`publish_translation(id: str, ...) -> TranslationResponse`**
+- **`regenerate_translation_audio(id: str, tts_service: TTSService, ...) -> AudioRegenerationResponse`**
 
 ---
 
 #### `app.controllers.telemetry_controller` & `analytics_controller`
-- **`record_telemetry_trigger(payload: TelemetryTriggerCreate, telemetry_service) -> TelemetryTriggerResponse`**: Ghi nhận sự kiện du khách bước vào geofence (`POST /api/v1/telemetry/trigger`).
-- **`get_analytics_summary(time_range: AnalyticsTimeRange, ...) -> AnalyticsSummaryResponse`**: Lấy thống kê KPI dashboard (`total_visitors`, `total_audio_plays`, `top_pois`, `language_distribution`).
-- **`get_heatmap_telemetry(time_range, ...) -> HeatmapResponse`**: Lấy tọa độ và mật độ du khách phục vụ vẽ bản đồ nhiệt.
-- **`export_telemetry_dataset(...) -> StreamingResponse`**: Xuất dữ liệu telemetry dưới dạng CSV / JSON.
+- **`record_telemetry_trigger(payload: TelemetryTriggerCreate, telemetry_service) -> TelemetryTriggerResponse`**: Records geofence entry events (`POST /api/v1/telemetry/trigger`).
+- **`get_analytics_summary(time_range: AnalyticsTimeRange, ...) -> AnalyticsSummaryResponse`**: Retrieves KPI dashboard metrics (`total_visitors`, `total_audio_plays`, `top_pois`, `language_distribution`).
+- **`get_heatmap_telemetry(time_range, ...) -> HeatmapResponse`**: Retrieves coordinate intensity and visitor distribution for the density heatmap.
+- **`export_telemetry_dataset(...) -> StreamingResponse`**: Streams raw telemetry events as CSV or JSON.
 
 ---
 
 #### `app.controllers.tour_controller` & `system_controller`
-- **`get_walking_route(origin_lat, origin_lng, destination_poi_id, wayfinding_service) -> RouteResponse`**: Tạo lộ trình đi bộ dạng GeoJSON Feature LineString nối từ vị trí du khách đến POI đích.
-- **`get_system_health(admin, storage_service) -> SystemHealthResponse`**: Đo dung lượng đĩa, cache audio, độ trễ database, trạng thái dịch vụ bên ngoài.
-- **`clean_orphaned_audio(request, admin, storage_service) -> CleanOrphansResponse`**: Quét và dọn các file mp3 rác không có liên kết trong database.
+- **`get_walking_route(origin_lat, origin_lng, destination_poi_id, wayfinding_service) -> RouteResponse`**: Computes turn-by-turn walking paths formatted as GeoJSON Feature LineStrings to destination POIs.
+- **`get_system_health(admin, storage_service) -> SystemHealthResponse`**: Monitors disk usage, audio cache size, database latency, and external service statuses.
+- **`clean_orphaned_audio(request, admin, storage_service) -> CleanOrphansResponse`**: Scans and removes unreferenced `.mp3` cache files from disk.
 
 ---
 
-### 2.2. Services (Tầng xử lý Nghiệp vụ Logic)
+### 2.2. Services (Business Logic Layer)
 
-| Service | Phương thức chính | Tham số đầu vào | Giá trị trả về |
+| Service | Primary Methods | Parameters | Returns |
 | :--- | :--- | :--- | :--- |
 | **`POIService`** | `create_poi` | `payload: POICreateRequest`, `created_by: str`, `image_file: UploadFile` | `POIResponse` |
 | | `update_poi` | `poi_id: str`, `payload: POIUpdateRequest`, `admin_user_name: str` | `POIUpdateResponse` |
 | | `get_visitor_pois` | `language: str`, `session_token: str \| None` | `list[POIMapItem]` |
-| | `validate_coordinates_in_bounds` | `latitude: float`, `longitude: float` | `None` (ném `HTTPException 422` nếu ngoài phạm vi) |
+| | `validate_coordinates_in_bounds` | `latitude: float`, `longitude: float` | `None` (raises `HTTPException 422` if out of bounds) |
 | **`AuthService`** | `authenticate_admin` | `payload: AdminLoginRequest`, `client_ip: str` | `AdminSessionTokenDTO(access_token, admin)` |
 | | `resolve_authenticated_admin` | `token: str` | `AdminProfileResponse` |
 | **`PaymentService`** | `create_order` | `payment_method: str`, `preferred_language: str` | `CheckoutCreateResponse` |
@@ -176,16 +176,16 @@ Tài liệu này hệ thống hóa toàn bộ mã nguồn của dự án MVP, ba
 | **`SessionService`** | `create_session_for_payment` | `transaction_id: str`, `preferred_language: str` | `VisitorSession` |
 | | `restore_session_by_code` | `session_code: str` | `SessionRestoreData` |
 | | `validate_active_session` | `session_token: str` | `VisitorSession` |
-| **`TranslationPipelineService`** | `trigger_poi_translation_pipeline` | `poi_id: str`, `admin_username: str` | `None` (chạy async qua các ngôn ngữ: en, ja, ko, zh) |
+| **`TranslationPipelineService`** | `trigger_poi_translation_pipeline` | `poi_id: str`, `admin_username: str` | `None` (runs asynchronously across `en`, `ja`, `ko`, `zh`) |
 | | `_translate_and_synthesize_language` | `poi_id: str`, `target_lang: str`, `narrative: dict` | `POITranslation` |
 | **`TTSService`** | `synthesize_audio_for_translation` | `stran_id: str` | `tuple[audio_url: str, duration: int]` |
 | **`WayfindingService`** | `generate_walking_route` | `origin_lat: float`, `origin_lng: float`, `dest_poi_id: str` | `GeoJsonRouteFeature` |
-| **`StorageService`** | `get_storage_health` | Không | `StorageHealthData` |
+| **`StorageService`** | `get_storage_health` | None | `StorageHealthData` |
 | | `clean_orphaned_audio_files` | `dry_run: bool` | `CleanOrphansData` |
 
 ---
 
-### 2.3. Repositories (Tầng Truy vấn Dữ liệu)
+### 2.3. Repositories (Data Access Layer)
 
 - **`POIRepository`**:
   - `create(poi: POI) -> POI`
@@ -217,20 +217,20 @@ Tài liệu này hệ thống hóa toàn bộ mã nguồn của dự án MVP, ba
 
 ---
 
-### 2.4. Integrations (Dịch vụ Ngoài)
+### 2.4. Integrations (External Service Connectors)
 
 - **`DeepTranslatorClient`**:
-  - Bậc ưu tiên (Cascade):
-    1. `_translate_narrative_with_offline_api`: Gọi Docker Offline Translation API (`POST /translate`, cổng 8001).
-    2. `_translate_narrative_with_google_cloud`: Gọi Google Cloud Translation v2 (Key Pool quay vòng).
-    3. `_translate_narrative_with_free_deep_translator`: Thư viện fallback miễn phí.
-  - Phương thức chính: `translate_exhibit_narrative(title, short_desc, desc, target_lang, source_lang) -> dict[str, str | None]`.
+  - Cascade priority order:
+    1. `_translate_narrative_with_offline_api`: Local Docker Offline Translation API (`POST /translate`, port 8001).
+    2. `_translate_narrative_with_google_cloud`: Google Cloud Translation API v2 (rotating key pool).
+    3. `_translate_narrative_with_free_deep_translator`: Free library fallback.
+  - Primary method: `translate_exhibit_narrative(title, short_desc, desc, target_lang, source_lang) -> dict[str, str | None]`.
 - **`EdgeTTSClient`**:
-  - Tạo giọng đọc audio AI qua Microsoft Edge Neural TTS.
-  - Phương thức: `synthesize_or_reuse(text, language_id, audio_dir, audio_hash) -> tuple[file_name: str, duration_sec: int, is_reused: bool]`.
+  - Generates neural speech audio using Microsoft Edge Neural TTS.
+  - Primary method: `synthesize_or_reuse(text, language_id, audio_dir, audio_hash) -> tuple[file_name: str, duration_sec: int, is_reused: bool]`.
 - **`PayPalClient`**:
-  - Tích hợp thanh toán quốc tế qua PayPal REST API v2 Sandbox.
-  - Phương thức: `create_order(...)`, `capture_order(paypal_order_id: str)`.
+  - International payment checkout via PayPal REST API v2 Sandbox.
+  - Primary methods: `create_order(...)`, `capture_order(paypal_order_id: str)`.
 
 ---
 
@@ -238,11 +238,11 @@ Tài liệu này hệ thống hóa toàn bộ mã nguồn của dự án MVP, ba
 
 ### 3.1. API Clients (`src/api/`)
 
-| File API | Tên hàm | Tham số khai báo | Endpoint gọi tương ứng |
+| API Module | Function Name | Declared Arguments | Target Endpoint |
 | :--- | :--- | :--- | :--- |
 | **`authApi.js`** | `loginAdmin` | `{ username, password }` | `POST /api/v1/auth/login` |
-| | `fetchCurrentAdmin` | Không | `GET /api/v1/auth/me` |
-| | `logoutAdmin` | Không | `POST /api/v1/auth/logout` |
+| | `fetchCurrentAdmin` | None | `GET /api/v1/auth/me` |
+| | `logoutAdmin` | None | `POST /api/v1/auth/logout` |
 | **`poiApi.js`** | `getMapPois` | `{ language, token, signal }` | `GET /api/v1/pois` |
 | | `getVisitorPoiDetail` | `poiId, { language, token, signal }` | `GET /api/v1/pois/{poiId}` |
 | | `getPois` | `{ page, size, search, signal }` | `GET /api/v1/admin/pois` |
@@ -270,121 +270,120 @@ Tài liệu này hệ thống hóa toàn bộ mã nguồn của dự án MVP, ba
 ### 3.2. Contexts & State Management (`src/contexts/`)
 
 #### 1. `AuthContext.jsx`
-- **Biến State**:
-  - `admin`: Thông tin tài khoản admin đăng nhập (`{ user_name, email, full_name }` hoặc `null`).
-  - `isAuthenticated`: `boolean` (True nếu admin đã xác thực).
-  - `isLoading`: `boolean` (True trong khi kiểm tra cookie session ban đầu).
-- **Hàm cung cấp**:
-  - `login({ username, password })`: Gửi thông tin đăng nhập, lưu profile và bật `isAuthenticated`.
-  - `logout()`: Xóa cookie, clear state và điều hướng về trang Login.
+- **State Variables**:
+  - `admin`: Profile of authenticated administrator (`{ user_name, email, full_name }` or `null`).
+  - `isAuthenticated`: `boolean` (True when admin session is valid).
+  - `isLoading`: `boolean` (True during initial session cookie validation).
+- **Exported Actions**:
+  - `login({ username, password })`: Submits login credentials, stores profile, sets `isAuthenticated`.
+  - `logout()`: Clears cookie, resets state, redirects to login page.
 
 #### 2. `VisitorSessionContext.jsx`
-- **Biến State**:
-  - `sessionToken`: `string | null` (Token bảo mật dùng để stream audio và mở khóa description).
-  - `sessionCode`: `string | null` (Mã 6 ký tự phục hồi phiên trên thiết bị khác).
-  - `expiresAt`: `string | null` (Thời điểm hết hạn ISO-8601).
-  - `preferredLanguage`: `string` (Mặc định `vi`).
-  - `timeRemaining`: `number` (Số mili-giây còn lại trước khi hết phiên).
-- **Hàm cung cấp**:
-  - `activateSession({ session_token, session_code, expires_at, preferred_language })`: Kích hoạt phiên sau thanh toán.
-  - `restoreSession(code)`: Khôi phục phiên qua mã 6 ký tự.
-  - `clearSession()`: Xóa phiên khi hết hạn hoặc logout.
-  - `setLanguage(lang)`: Thay đổi ngôn ngữ tham quan.
+- **State Variables**:
+  - `sessionToken`: `string | null` (Security token for audio streaming and paywall access).
+  - `sessionCode`: `string | null` (6-character code for cross-device session recovery).
+  - `expiresAt`: `string | null` (ISO-8601 expiration timestamp).
+  - `preferredLanguage`: `string` (Defaults to `vi`).
+  - `timeRemaining`: `number` (Milliseconds remaining in active session).
+- **Exported Actions**:
+  - `activateSession({ session_token, session_code, expires_at, preferred_language })`: Activates session upon payment confirmation.
+  - `restoreSession(code)`: Recovers session using 6-character code.
+  - `clearSession()`: Clears session on expiration or manual reset.
+  - `setLanguage(lang)`: Updates tour language preference.
 
 #### 3. `AudioPlayerContext.jsx`
-- **Biến State**:
-  - `currentPoi`: Điểm di tích đang phát audio (`{ id, title, audioUrl }`).
+- **State Variables**:
+  - `currentPoi`: Active POI (`{ id, title, audioUrl }`).
   - `isPlaying`: `boolean`.
-  - `currentTime`, `duration`: `number` (Thời lượng phát).
-  - `playbackRate`: Tốc độ phát (`1.0`, `1.25`, `1.5`).
-- **Hàm cung cấp**:
-  - `playPoiAudio(poi, audioUrl)`: Nạp và phát bài thuyết minh.
-  - `togglePlayPause()`: Tạm dừng / tiếp tục.
-  - `seekTo(seconds)`: Nhảy đến mốc thời gian.
-  - `changePlaybackRate(rate)`: Tăng giảm tốc độ.
+  - `currentTime`, `duration`: `number` (Playback timing).
+  - `playbackRate`: Speed multiplier (`1.0`, `1.25`, `1.5`).
+- **Exported Actions**:
+  - `playPoiAudio(poi, audioUrl)`: Loads and plays narration audio.
+  - `togglePlayPause()`: Toggles play/pause states.
+  - `seekTo(seconds)`: Jumps to specific playback position.
+  - `changePlaybackRate(rate)`: Adjusts playback speed.
 
 ---
 
 ### 3.3. Custom Hooks (`src/hooks/`)
 
 - **`useGeolocation.js`**:
-  - *Tham số*: `{ enableHighAccuracy: true, timeout: 10000, maximumAge: 5000 }`.
-  - *Giá trị trả về*: `{ location: { lat, lng }, accuracy, error, isTracking, isOutsideMuseum }`.
-  - *Nhiệm vụ*: Theo dõi tọa độ GPS thời gian thực của du khách qua `navigator.geolocation.watchPosition`.
+  - *Parameters*: `{ enableHighAccuracy: true, timeout: 10000, maximumAge: 5000 }`.
+  - *Returns*: `{ location: { lat, lng }, accuracy, error, isTracking, isOutsideMuseum }`.
+  - *Role*: Tracks real-time GPS coordinates of visitors via `navigator.geolocation.watchPosition`.
 - **`useGeofenceTrigger.js`**:
-  - *Tham số*: `{ userLocation, pois, onTrigger, isUnlocked, currentPlayingPoiId, cooldownDurationMs }`.
-  - *Nhiệm vụ*: Tính khoảng cách Haversine giữa du khách và các POI. Khi khoảng cách $\le$ bán kính geofence và POI không ở trạng thái cooldown, kích hoạt callback `onTrigger(poi)`.
+  - *Parameters*: `{ userLocation, pois, onTrigger, isUnlocked, currentPlayingPoiId, cooldownDurationMs }`.
+  - *Role*: Computes Haversine distances to exhibits. Triggers `onTrigger(poi)` when within radius and outside cooldown.
 - **`usePaymentPolling.js`**:
-  - *Tham số*: `{ orderId, isOpen, onPaymentSuccess, onError, pollIntervalMs = 2500 }`.
-  - *Nhiệm vụ*: Tự động gọi `getOrderStatus` định kỳ mỗi 2.5s khi modal thanh toán đang mở. Khi phát hiện đơn hàng chuyển sang `PAID`, kích hoạt phiên và đóng modal.
+  - *Parameters*: `{ orderId, isOpen, onPaymentSuccess, onError, pollIntervalMs = 2500 }`.
+  - *Role*: Polls `getOrderStatus` every 2.5 seconds while payment modal is open until order transitions to `PAID`.
 
 ---
 
 ### 3.4. Utility Functions (`src/utils/`)
 
 - **`haversine.js`**:
-  - `calculateHaversineDistance(origin: { lat, lng }, destination: { lat, lng }) -> number`: Tính khoảng cách giữa hai điểm tọa độ theo mét.
+  - `calculateHaversineDistance(origin: { lat, lng }, destination: { lat, lng }) -> number`: Computes distance in meters between two GPS coordinates.
 - **`museumBounds.js`**:
-  - `isWithinMuseumBounds(latitude, longitude) -> boolean`: Kiểm tra tọa độ có nằm trong phạm vi cho phép của hệ thống hay không.
+  - `isWithinMuseumBounds(latitude, longitude) -> boolean`: Validates whether coordinates fall within acceptable geographic limits.
 - **`cooldownService.js`**:
-  - `isCooldownActive(poiId, durationMs) -> boolean`: Kiểm tra POI đã được phát gần đây chưa (tránh phát lặp liên tục khi du khách đứng yên trong vùng phát).
-  - `setCooldown(poiId, timestamp)`: Đánh dấu POI vừa được kích hoạt.
-  - `getRemainingCooldownSeconds(poiId)`: Lấy số giây còn lại của cooldown.
+  - `isCooldownActive(poiId, durationMs) -> boolean`: Checks if POI narration was recently triggered.
+  - `setCooldown(poiId, timestamp)`: Sets cooldown timestamp for triggered POI.
+  - `getRemainingCooldownSeconds(poiId)`: Retrieves remaining cooldown seconds.
 
 ---
 
 ### 3.5. Views & Component Hierarchy
 
-#### Các trang Admin (`src/views/admin/`)
-1. **`AdminLoginView.jsx`**: Form đăng nhập quản trị, xử lý khóa tài khoản tạm thời khi nhập sai mật khẩu quá 5 lần (`AccountLockoutModal`).
-2. **`PoiCatalogPage.jsx`**: Danh mục toàn bộ POI, bảng điều khiển trạng thái ẩn/hiện (`DeactivateConfirmModal`), nút thêm mới POI (`AdminMapPicker` & upload ảnh cover).
-3. **`GeofenceCalibPage.jsx`**: Trang hiệu chuẩn geofence chuyên biệt, kéo thả ghim vị trí và thanh trượt bán kính 10m-50m (`AdminMapPicker`).
-4. **`TranslationPage.jsx` / `TranslationAuditView.jsx`**: Giao diện duyệt và biên tập nội dung dịch song ngữ song song, nghe thử audio thuyết minh (`AudioAuditPlayer`), tạo lại audio (`RegenerateAudioButton`).
-5. **`AnalyticsDashboard.jsx`**: Bảng điều khiển KPI số lượt khách, thời gian tham quan trung bình, biểu đồ phân bố ngôn ngữ và bản đồ nhiệt (`AnalyticsHeatmap`).
-6. **`SystemHealthPage.jsx`**: Bảng trạng thái ổ đĩa lưu trữ âm thanh, cảnh báo dung lượng (`StorageHealthBanner`) và hộp thoại dọn dẹp file audio mồ côi (`CleanOrphansModal`).
+#### Admin Views (`src/views/admin/`)
+1. **`AdminLoginView.jsx`**: Administrative login form with 15-minute lockout handling upon consecutive failures (`AccountLockoutModal`).
+2. **`PoiCatalogPage.jsx`**: Complete POI catalog with visibility toggles (`DeactivateConfirmModal`) and exhibit creation (`AdminMapPicker` & cover image uploader).
+3. **`GeofenceCalibPage.jsx`**: Dedicated geofence calibration workspace with draggable pins and radius slider (`AdminMapPicker`).
+4. **`TranslationPage.jsx` / `TranslationAuditView.jsx`**: Side-by-side multilingual translation review, preview player (`AudioAuditPlayer`), and audio synthesis trigger (`RegenerateAudioButton`).
+5. **`AnalyticsDashboard.jsx`**: Executive dashboard with visitor metrics, average tour duration, language distribution, and density heatmaps (`AnalyticsHeatmap`).
+6. **`SystemHealthPage.jsx`**: Storage health monitor with capacity alerts (`StorageHealthBanner`) and cleanup modal (`CleanOrphansModal`).
 
-#### Các trang Du khách (`src/views/visitor/`)
+#### Visitor Views (`src/views/visitor/`)
 1. **`VisitorTourPage.jsx` / `VisitorMapView.jsx`**:
-   - Bản đồ tương tác di tích (`OutdoorMapView`, `WalkingRouteLayer`, `VisitorLocationMarker`).
-   - Danh sách điểm tham quan dạng thẻ (`VisitorPoiCard`, `VisitorPoiList`).
-   - Cổng giới hạn nội dung trả phí (`ContentPaywallGate`).
-   - Trình phát âm thanh mini ghim chân màn hình (`MiniAudioPlayer`).
-   - Thanh chỉ dẫn đường đi bộ (`VisitorWayfindingBanner`).
-   - Modal thanh toán quét mã QR / Thẻ quốc tế (`CheckoutModal`).
-2. **`CheckoutSuccessPage.jsx`**: Màn hình xác nhận thanh toán thành công, hiển thị mã khôi phục phiên (`session_code`).
-3. **`QRCodePage.jsx`**: Trang công cộng hiển thị mã QR truy cập nhanh cho du khách quét bằng điện thoại tại cổng vào.
+   - Interactive exhibit map (`OutdoorMapView`, `WalkingRouteLayer`, `VisitorLocationMarker`).
+   - POI card carousel and list (`VisitorPoiCard`, `VisitorPoiList`).
+   - Content paywall barrier (`ContentPaywallGate`).
+   - Docked mini audio player (`MiniAudioPlayer`).
+   - Wayfinding guidance banner (`VisitorWayfindingBanner`).
+   - QR and Card payment modal (`CheckoutModal`).
+2. **`CheckoutSuccessPage.jsx`**: Payment confirmation screen showing cross-device recovery code (`session_code`).
+3. **`QRCodePage.jsx`**: Public QR entrance page for mobile onboarding.
 
 ---
 
 ## 4. End-to-End Data Flows
 
-### 4.1. Kích hoạt Âm thanh Tự động qua Geofence
-1. `useGeolocation` lấy tọa độ thiết bị du khách `(lat, lng)`.
-2. `useGeofenceTrigger` duyệt qua danh sách POI, tính khoảng cách bằng `calculateHaversineDistance`.
-3. Nếu $d \le \text{trigger\_radius}$ và `isCooldownActive(poi_id)` là `false`:
-   - Ghi nhận cooldown qua `setCooldown(poi_id)`.
-   - Bắn sự kiện telemetry về backend qua `telemetryApi.reportPoiTrigger`.
-   - Gọi `playPoiAudio` trong `AudioPlayerContext`.
-   - Browser gửi request đến `GET /api/v1/audio/{poi_id}?token={session_token}&language={lang}`.
-   - Backend xác thực token phiên qua `AudioService.verify_streaming_access`, stream nội dung MP3 về client.
+### 4.1. Automated Narration Trigger via Geofence
+1. `useGeolocation` retrieves visitor coordinates `(lat, lng)`.
+2. `useGeofenceTrigger` evaluates distances across POIs via `calculateHaversineDistance`.
+3. If $d \le \text{trigger\_radius}$ and `isCooldownActive(poi_id)` is `false`:
+   - Enforces cooldown via `setCooldown(poi_id)`.
+   - Records telemetry event via `telemetryApi.reportPoiTrigger`.
+   - Calls `playPoiAudio` in `AudioPlayerContext`.
+   - Browser requests `GET /api/v1/audio/{poi_id}?token={session_token}&language={lang}`.
+   - Backend validates streaming permissions via `AudioService.verify_streaming_access` and streams `.mp3` audio.
 
-### 4.2. Thanh toán & Kích hoạt Phiên Tham quan 24h
-1. Du khách chọn phương thức thanh toán trong `CheckoutModal`.
-2. Frontend gọi `paymentApi.createCheckoutOrder` -> Backend tạo giao dịch trong bảng `transactions` và sinh mã PayOS / PayPal.
-3. Hook `usePaymentPolling` thăm dò trạng thái đơn hàng mỗi 2.5s qua `paymentApi.getOrderStatus`.
-4. Khi thanh toán hoàn tất (qua Webhook hoặc Sandbox simulation):
-   - Backend cập nhật transaction thành `PAID`.
-   - `SessionService` tự động sinh 1 bản ghi `visitor_sessions` có hạn 24 giờ, 1 mã bí mật `session_token` và 1 mã phục hồi `session_code` 6 ký tự.
-5. Hook nhận trạng thái `PAID`, lưu token vào `VisitorSessionContext` (persist tại `localStorage`), gỡ bỏ paywall và mở khóa toàn bộ nội dung thuyết minh.
+### 4.2. Checkout & 24-Hour Session Activation
+1. Visitor selects payment method in `CheckoutModal`.
+2. Frontend calls `paymentApi.createCheckoutOrder` -> Backend creates record in `transactions` table and initializes PayOS/PayPal order.
+3. Hook `usePaymentPolling` checks order status every 2.5 seconds via `paymentApi.getOrderStatus`.
+4. Upon successful payment verification:
+   - Backend marks transaction as `PAID`.
+   - `SessionService` generates 24-hour `visitor_sessions` record, secret `session_token`, and 6-character `session_code`.
+5. Hook receives `PAID` status, stores credentials in `VisitorSessionContext` (`localStorage`), unlocks paywall, and enables premium narration streaming.
 
-### 4.3. Pipeline Dịch & Tổng hợp Giọng đọc khi Tạo/Sửa POI
-1. Admin tạo hoặc sửa tiêu đề / bài thuyết minh POI trong `POIFormModal`.
-2. Backend lưu thông tin tiếng Việt (`language_id = 'vi'`) vào bảng `pois` và `poi_translations`.
-3. Tác vụ nền `TranslationPipelineService` kích hoạt:
-   - Với mỗi ngôn ngữ (`en`, `ja`, `ko`, `zh`):
-     - Gửi toàn bộ cụm văn bản sang `DeepTranslatorClient` (Offline API trên cổng 8001 -> Google Cloud Translate).
-     - Lưu kết quả dịch vào `poi_translations` với trạng thái `PENDING`.
-     - Gọi `EdgeTTSClient` tạo file MP3 giọng đọc chuẩn bản ngữ.
-     - Cập nhật đường dẫn file audio và chuyển trạng thái sang `READY` hoặc `PUBLISHED`.
-4. Trên giao diện Admin, huy hiệu `AudioSyncBadge` tự động chuyển từ trạng thái đồng bộ sang sẵn sàng.
-
+### 4.3. Translation & Voice Synthesis Pipeline
+1. Admin creates or edits POI narrative in `POIFormModal`.
+2. Backend saves Vietnamese source (`language_id = 'vi'`) in `pois` and `poi_translations`.
+3. Background task `TranslationPipelineService` executes:
+   - For each target language (`en`, `ja`, `ko`, `zh`):
+     - Sends text block to `DeepTranslatorClient` (Docker Offline API on port 8001 -> Google Cloud fallback).
+     - Saves translation record with status `PENDING`.
+     - Calls `EdgeTTSClient` to synthesize localized `.mp3` audio.
+     - Updates audio file path and transitions status to `READY` or `PUBLISHED`.
+4. Admin UI reflects updated sync status through `AudioSyncBadge`.
