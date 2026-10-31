@@ -12,12 +12,12 @@
 | :--- | :--- | :---: | :---: | :---: | :---: | :---: |
 | [**REF-EPIC-01**](#-ref-epic-01-mobile-map-geofencing-engine--wayfinding-navigation-uc-01) | Mobile Map, Geofencing Engine & Wayfinding Navigation | Layer 2 (Service) / Layer 3 (Repo) / Test | Must Have | 6 SP | 4 Tasks | [ ] 0/4 |
 | [**REF-EPIC-02**](#-ref-epic-02-administrative-authentication-session-guard--lockout-uc-02) | Admin Authentication, Session Guard & Lockout Invariants | Layer 2 (Service) / Layer 3 (Repo) / Test | Must Have | 6 SP | 4 Tasks | [ ] 0/4 |
-| [**REF-EPIC-03**](#-ref-epic-03-poi-spatial-catalog-coordinate-validation--media-upload-uc-03) | POI Catalog, Coordinate Validation & Spatial Queries | Layer 2 (Service) / Layer 3 (Repo) / Test | Must Have | 6 SP | 4 Tasks | [ ] 0/4 |
+| [**REF-EPIC-03**](#-ref-epic-03-poi-spatial-catalog-coordinate-validation--media-upload-uc-03) | POI Catalog, Coordinate Validation & Spatial Queries | Layer 2 (Service) / Layer 3 (Repo) / Test | Must Have | 6 SP | 4 Tasks | [x] 0/4 (DONE) |
 | [**REF-EPIC-04**](#-ref-epic-04-automated-ai-translation-pipeline-tts-engine--audit-curation-uc-04) | AI Translation Pipeline, TTS Engine & Audio Curation | Layer 2 (Service) / Layer 3 (Repo/Client) / Test | Must Have | 10 SP | 6 Tasks | [x] 6/6 (DONE) |
 | [**REF-EPIC-05**](#-ref-epic-05-operational-telemetry-heatmap-aggregation--system-health-uc-05) | Telemetry Ingestion, Heatmap Aggregation & Data Export | Layer 2 (Service) / Layer 3 (Repo) / Test | Should Have | 6 SP | 4 Tasks | [ ] 0/4 |
 | [**REF-EPIC-06**](#-ref-epic-06-digital-admission-payment-webhook-verification--visiting-session-uc-06) | Payment Webhook Verification, Session Gating & Recovery | Layer 2 (Service) / Layer 3 (Repo/Client) / Test | Must Have | 8 SP | 5 Tasks | [ ] 0/5 |
 | [**REF-EPIC-07**](#-ref-epic-07-cross-cutting-infrastructure-orm-schema-defense--ci-gates) | Infrastructure, ORM-DDL Defense & Control Flow CI Gates | Layer 3 (Core/DB) / AST Linter / CI | Must Have | 5 SP | 4 Tasks | [ ] 0/4 |
-| **TOTAL** | **7 Refactoring Epics (Layer 2 & 3 Backend + Tests)** | — | — | **47 SP** | **31 Tasks** | **[ ] 6/31 Tasks** |
+| **TOTAL** | **7 Refactoring Epics (Layer 2 & 3 Backend + Tests)** | — | — | **47 SP** | **31 Tasks** | **[ ] 10/31 Tasks** |
 
 ---
 
