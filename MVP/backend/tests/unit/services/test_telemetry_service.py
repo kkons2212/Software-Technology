@@ -6,6 +6,7 @@ deterministic instead of depending on the wall clock.
 """
 
 from datetime import datetime, timedelta, timezone
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -297,6 +298,47 @@ def test_should_return_empty_heatmap_data_when_no_records_exist(
     assert heatmap.total_points == 0
     assert heatmap.max_trigger_count == 0
     assert heatmap.points == []
+
+
+def test_should_build_empty_heatmap_with_stable_response_fields(frozen_clock):
+    telemetry_repo = MagicMock(spec=TelemetryRepository)
+    telemetry_repo.list_heatmap_poi_triggers.return_value = []
+    service = TelemetryService(telemetry_repo=telemetry_repo)
+
+    heatmap = service.get_heatmap_data("LAST_7_DAYS")
+
+    assert heatmap.model_dump() == {
+        "time_range": "LAST_7_DAYS",
+        "generated_at": FROZEN_NOW,
+        "points": [],
+        "total_points": 0,
+        "max_trigger_count": 0,
+    }
+
+
+def test_should_normalize_mocked_heatmap_rows_without_database(frozen_clock):
+    telemetry_repo = MagicMock(spec=TelemetryRepository)
+    telemetry_repo.list_heatmap_poi_triggers.return_value = [
+        ("poi_high", "High Activity", 11.1432, 106.4631, 4),
+        ("poi_low", "Low Activity", 11.1433, 106.4632, 1),
+        ("poi_none", "No Activity", 11.1434, 106.4633, 0),
+    ]
+    service = TelemetryService(telemetry_repo=telemetry_repo)
+
+    heatmap = service.get_heatmap_data("LAST_7_DAYS")
+
+    assert [
+        (point.poi_id, point.trigger_count, point.intensity) for point in heatmap.points
+    ] == [
+        ("poi_high", 4, 1.0),
+        ("poi_low", 1, 0.25),
+        ("poi_none", 0, 0.0),
+    ]
+    assert heatmap.total_points == 3
+    assert heatmap.max_trigger_count == 4
+    telemetry_repo.list_heatmap_poi_triggers.assert_called_once_with(
+        LAST_7_DAYS_START.replace(tzinfo=None)
+    )
 
 
 def test_should_aggregate_heatmap_points_and_calculate_normalized_intensity(

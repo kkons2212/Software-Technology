@@ -195,6 +195,13 @@ def test_should_prune_unreferenced_audio_files_and_preserve_active_files(
     assert response.reclaimed_bytes == (1024 * 1024 * 5)
     assert response.reclaimed_mb == 5.0
     assert response.remaining_files == 2
+    assert set(response.model_dump()) == {
+        "deleted_count",
+        "reclaimed_bytes",
+        "reclaimed_mb",
+        "remaining_files",
+        "message",
+    }
 
     # Verify physical file existence
     assert not orphan1.exists()
@@ -211,3 +218,30 @@ def test_should_prune_unreferenced_audio_files_and_preserve_active_files(
         ip_address="192.168.1.50",
         details="CLEAN_ORPHANS_2_FILES_5.0_MB",
     )
+
+
+def test_should_continue_pruning_when_an_orphan_file_cannot_be_deleted(
+    storage_service: StorageService,
+    temp_audio_dir: Path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    failed_orphan = temp_audio_dir / "failed_orphan.mp3"
+    failed_orphan.write_bytes(b"failed")
+    deleted_orphan = temp_audio_dir / "deleted_orphan.mp3"
+    deleted_orphan.write_bytes(b"deleted")
+    original_unlink = Path.unlink
+
+    def unlink_with_failure(path: Path, *args, **kwargs):
+        if path == failed_orphan:
+            raise OSError("permission denied")
+        return original_unlink(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "unlink", unlink_with_failure)
+
+    response = storage_service.prune_orphaned_audio_files(admin_username="test_admin")
+
+    assert response.deleted_count == 1
+    assert response.reclaimed_bytes == len(b"deleted")
+    assert response.remaining_files == 0
+    assert failed_orphan.exists()
+    assert not deleted_orphan.exists()

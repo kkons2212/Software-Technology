@@ -215,13 +215,15 @@ class TelemetryRepository:
             )
             .all()
         )
-        return [
-            (
-                str(row[0]),
-                str(row[1]),
-                int(row[2]),
-                str(row[3]),
-                float(row[4]),
+        resolved_records: list[tuple[str, str, int, str, float]] = []
+        for row in rows:
+            resolved_records.append(
+                (
+                    str(row[0]),
+                    str(row[1]),
+                    int(row[2]),
+                    str(row[3]),
+                    float(row[4]),
+                )
             )
-            for row in rows
-        ]
+        return resolved_records

@@ -12,12 +12,12 @@
 | :--- | :--- | :---: | :---: | :---: | :---: | :---: |
 | [**REF-EPIC-01**](#-ref-epic-01-mobile-map-geofencing-engine--wayfinding-navigation-uc-01) | Mobile Map, Geofencing Engine & Wayfinding Navigation | Layer 2 (Service) / Layer 3 (Repo) / Test | Must Have | 6 SP | 4 Tasks | [ ] 0/4 |
 | [**REF-EPIC-02**](#-ref-epic-02-administrative-authentication-session-guard--lockout-uc-02) | Admin Authentication, Session Guard & Lockout Invariants | Layer 2 (Service) / Layer 3 (Repo) / Test | Must Have | 6 SP | 4 Tasks | [ ] 0/4 |
-| [**REF-EPIC-03**](#-ref-epic-03-poi-spatial-catalog-coordinate-validation--media-upload-uc-03) | POI Catalog, Coordinate Validation & Spatial Queries | Layer 2 (Service) / Layer 3 (Repo) / Test | Must Have | 6 SP | 4 Tasks | [x] 0/4 (DONE) |
-| [**REF-EPIC-04**](#-ref-epic-04-automated-ai-translation-pipeline-tts-engine--audit-curation-uc-04) | AI Translation Pipeline, TTS Engine & Audio Curation | Layer 2 (Service) / Layer 3 (Repo/Client) / Test | Must Have | 10 SP | 6 Tasks | [x] 6/6 (DONE) |
-| [**REF-EPIC-05**](#-ref-epic-05-operational-telemetry-heatmap-aggregation--system-health-uc-05) | Telemetry Ingestion, Heatmap Aggregation & Data Export | Layer 2 (Service) / Layer 3 (Repo) / Test | Should Have | 6 SP | 4 Tasks | [ ] 0/4 |
+| [**REF-EPIC-03**](#-ref-epic-03-poi-spatial-catalog-coordinate-validation--media-upload-uc-03) | POI Catalog, Coordinate Validation & Spatial Queries | Layer 2 (Service) / Layer 3 (Repo) / Test | Must Have | 6 SP | 4 Tasks | [x] 4/4 |
+| [**REF-EPIC-04**](#-ref-epic-04-automated-ai-translation-pipeline-tts-engine--audit-curation-uc-04) | AI Translation Pipeline, TTS Engine & Audio Curation | Layer 2 (Service) / Layer 3 (Repo/Client) / Test | Must Have | 10 SP | 6 Tasks | [x] 6/6 |
+| [**REF-EPIC-05**](#-ref-epic-05-operational-telemetry-heatmap-aggregation--system-health-uc-05) | Telemetry Ingestion, Heatmap Aggregation & Data Export | Layer 2 (Service) / Layer 3 (Repo) / Test | Should Have | 6 SP | 4 Tasks | [x] 4/4 |
 | [**REF-EPIC-06**](#-ref-epic-06-digital-admission-payment-webhook-verification--visiting-session-uc-06) | Payment Webhook Verification, Session Gating & Recovery | Layer 2 (Service) / Layer 3 (Repo/Client) / Test | Must Have | 8 SP | 5 Tasks | [ ] 0/5 |
 | [**REF-EPIC-07**](#-ref-epic-07-cross-cutting-infrastructure-orm-schema-defense--ci-gates) | Infrastructure, ORM-DDL Defense & Control Flow CI Gates | Layer 3 (Core/DB) / AST Linter / CI | Must Have | 5 SP | 4 Tasks | [ ] 0/4 |
-| **TOTAL** | **7 Refactoring Epics (Layer 2 & 3 Backend + Tests)** | — | — | **47 SP** | **31 Tasks** | **[ ] 10/31 Tasks** |
+| **TOTAL** | **7 Refactoring Epics (Layer 2 & 3 Backend + Tests)** | — | — | **47 SP** | **31 Tasks** | **[ ] 14/31 Tasks** |
 
 ---
 
@@ -123,6 +123,8 @@ Every refactoring task in this backlog must strictly comply with the quantitativ
 ## 🏛️ REF-EPIC-03: POI SPATIAL CATALOG, COORDINATE VALIDATION & MEDIA UPLOAD (UC-03)
 *Focus: Removing scattered boundary checks, establishing clean coordinate validation gates, robust image file verification, and linearizing exhibit state toggling.*
 
+*Progress update (2026-10-31, team-confirmed): all REF-03 implementation and test criteria are complete (4/4).*
+
 ### 📌 Tasks Breakdown:
 - [x] `REF-03.1` `[Layer 2 - Service]` **Refactor POI Service Coordinate & Image Validation (`app/services/poi_service.py`)**
   - **Smells & Anti-patterns:** `validate_coordinates_in_bounds` and `validate_image_file` have multi-level if-branches and raise exceptions from deeply nested blocks ($M = 8$).
@@ -158,6 +160,8 @@ Every refactoring task in this backlog must strictly comply with the quantitativ
 
 ## 🌐 REF-EPIC-04: AUTOMATED AI TRANSLATION PIPELINE, TTS ENGINE & AUDIT CURATION (UC-04)
 *Focus: Eliminating unhandled retry loops, standardizing SHA-256 text hashing, linearizing background worker orchestration, and harmonizing ORM models with MySQL DDL.*
+
+*Progress update (2026-10-31, team-confirmed): all REF-04 implementation and test criteria are complete (6/6).*
 
 ### 📌 Tasks Breakdown:
 - [x] `REF-04.1` `[Layer 3 - Integration]` **Refactor Deep-Translator Client with Explicit Backoff Gate (`app/integrations/deep_translator_client.py`)**
@@ -212,8 +216,10 @@ Every refactoring task in this backlog must strictly comply with the quantitativ
 ## 📈 REF-EPIC-05: OPERATIONAL TELEMETRY, HEATMAP AGGREGATION & SYSTEM HEALTH (UC-05)
 *Focus: Linearizing disk usage sampling, clean SQL query accumulation for heatmaps, robust orphan file cleanup, and structured CSV/Excel export pipelines.*
 
+*Progress update (2026-10-31, team-confirmed): implementation and test criteria for REF-05 are complete (4/4); the branch is awaiting push/merge into `main`.*
+
 ### 📌 Tasks Breakdown:
-- [ ] `REF-05.1` `[Layer 2 - Service]` **Refactor Heatmap Point Aggregator (`app/services/telemetry_service.py`)**
+- [x] `REF-05.1` `[Layer 2 - Service]` **Refactor Heatmap Point Aggregator (`app/services/telemetry_service.py`)**
   - **Smells & Anti-patterns:** Raw SQL aggregation contains string interpolation and early return branches for different time range filters ($M = 7$).
   - **Refactoring Scope:**
     1. Phase 1 Gate: Validate `time_range` parameter against whitelist (`today`, `week`, `month`, `all`).
@@ -222,7 +228,7 @@ Every refactoring task in this backlog must strictly comply with the quantitativ
   - **Layer 1 Fit:** Keeps exact method signature consumed by `telemetry_controller.py` and `analytics_controller.py`.
   - **Metric Target:** $K = 2$, $M \le 5$, Nesting Depth $\le 2$.
 
-- [ ] `REF-05.2` `[Layer 2 - Service]` **Refactor Orphan Audio Pruning & Disk Storage Service (`app/services/storage_service.py`)**
+- [x] `REF-05.2` `[Layer 2 - Service]` **Refactor Orphan Audio Pruning & Disk Storage Service (`app/services/storage_service.py`)**
   - **Smells & Anti-patterns:** Directory scanner deletes files immediately during loop iteration; early returns prevent complete audit recording of deleted files.
   - **Refactoring Scope:**
     1. Two-pass execution: Pass 1 (gather all unreferenced filenames into `orphan_candidates: list[Path]`) $\rightarrow$ Pass 2 (batch delete with try/except logging).
@@ -230,13 +236,13 @@ Every refactoring task in this backlog must strictly comply with the quantitativ
     3. Accumulate deleted count and reclaimed bytes into single return `PruningSummaryDTO`.
   - **Metric Target:** $K = 1$, $M \le 4$.
 
-- [ ] `REF-05.3` `[Layer 2 - Service]` **Refactor Telemetry Structured Data Exporter (`app/services/export_service.py`)**
+- [x] `REF-05.3` `[Layer 2 - Service]` **Refactor Telemetry Structured Data Exporter (`app/services/export_service.py`)**
   - **Smells & Anti-patterns:** CSV generator contains mixed yield statements and scattered encoding checks.
   - **Refactoring Scope:** Standardize CSV/Excel builder into a linear pipeline: fetch records $\rightarrow$ format headers $\rightarrow$ write rows $\rightarrow$ return `StreamingResponse` with unified headers.
   - **Layer 1 Fit:** Consumed by `export_controller.py` without interface change.
   - **Metric Target:** $K \le 2$, $M \le 4$.
 
-- [ ] `REF-05.4` `[Layer 3 - Repository & Test]` **Refactor Telemetry Repository & Analytics Unit Tests (`app/repositories/telemetry_repository.py` & `test_telemetry_service.py`)**
+- [x] `REF-05.4` `[Layer 3 - Repository & Test]` **Refactor Telemetry Repository & Analytics Unit Tests (`app/repositories/telemetry_repository.py` & `test_telemetry_service.py`)**
   - **Test Smells:** Flaky datetime comparison assertions in dwell-time test cases; inline SQL mock setups.
   - **Refactoring Scope:**
     1. Refactor `TelemetryRepository.record_trigger` and `get_dwell_times` with explicit accumulator returns.

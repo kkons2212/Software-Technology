@@ -19,21 +19,26 @@ def export_service(mock_telemetry_repo):
     return ExportService(telemetry_repo=mock_telemetry_repo)
 
 
-def test_resolve_date_bounds_presets(export_service):
+def test_resolve_date_bounds_presets(export_service, mocker):
+    frozen_now = datetime(2026, 10, 27, 6, 30, tzinfo=timezone.utc)
+    mocker.patch(
+        "app.services.export_service._current_utc_time", return_value=frozen_now
+    )
+
     # TODAY
     start_today, end_today = export_service.resolve_date_bounds(time_range="TODAY")
-    assert isinstance(start_today, datetime)
+    assert start_today == datetime(2026, 10, 26, 17, 0)
     assert end_today is None
 
     # LAST_7_DAYS
     start_7d, end_7d = export_service.resolve_date_bounds(time_range="LAST_7_DAYS")
-    assert isinstance(start_7d, datetime)
+    assert start_7d == datetime(2026, 10, 20, 6, 30)
     assert end_7d is None
     assert start_7d < start_today
 
     # LAST_30_DAYS
     start_30d, end_30d = export_service.resolve_date_bounds(time_range="LAST_30_DAYS")
-    assert isinstance(start_30d, datetime)
+    assert start_30d == datetime(2026, 9, 27, 6, 30)
     assert end_30d is None
     assert start_30d < start_7d
 
