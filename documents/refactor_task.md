@@ -124,7 +124,7 @@ Every refactoring task in this backlog must strictly comply with the quantitativ
 *Focus: Removing scattered boundary checks, establishing clean coordinate validation gates, robust image file verification, and linearizing exhibit state toggling.*
 
 ### 📌 Tasks Breakdown:
-- [ ] `REF-03.1` `[Layer 2 - Service]` **Refactor POI Service Coordinate & Image Validation (`app/services/poi_service.py`)**
+- [x] `REF-03.1` `[Layer 2 - Service]` **Refactor POI Service Coordinate & Image Validation (`app/services/poi_service.py`)**
   - **Smells & Anti-patterns:** `validate_coordinates_in_bounds` and `validate_image_file` have multi-level if-branches and raise exceptions from deeply nested blocks ($M = 8$).
   - **Refactoring Scope:**
     1. Phase 1 Gate: Extract coordinate bounds check into clean boolean helper `_is_coordinate_valid(lat, lng)`. Raise single `ApiError(400, GEO_OUT_OF_BOUNDS)` if false.
@@ -133,7 +133,7 @@ Every refactoring task in this backlog must strictly comply with the quantitativ
   - **Layer 1 Fit:** Preserves all method signatures used by `admin_poi_controller.py` and `poi_controller.py`.
   - **Metric Target:** $K \le 2$, $M \le 5$, Nesting Depth $\le 2$.
 
-- [ ] `REF-03.2` `[Layer 3 - Repository]` **Refactor POI Repository Query Builder (`app/repositories/poi_repository.py`)**
+- [x] `REF-03.2` `[Layer 3 - Repository]` **Refactor POI Repository Query Builder (`app/repositories/poi_repository.py`)**
   - **Smells & Anti-patterns:** Search query filters concatenated with multiple inline `if search:` blocks altering query object in place without predictable exit accumulator.
   - **Refactoring Scope:**
     1. Accumulate SQLAlchemy filter expressions into a `filter_conditions: list = []` array.
@@ -141,7 +141,7 @@ Every refactoring task in this backlog must strictly comply with the quantitativ
     3. Return structured tuple `(items, total_count)` explicitly.
   - **Metric Target:** $K = 1$, $M \le 4$.
 
-- [ ] `REF-03.3` `[Test - Unit Suite]` **Refactor POI Service & Repository Unit Tests (`tests/unit/services/test_poi_service.py` & `test_poi_repository.py`)**
+- [x] `REF-03.3` `[Test - Unit Suite]` **Refactor POI Service & Repository Unit Tests (`tests/unit/services/test_poi_service.py` & `test_poi_repository.py`)**
   - **Test Smells:** Repetitive creation of mock POI objects; test assertions checking image upload mock details scattered across multiple try/finally blocks.
   - **Refactoring Scope:**
     1. Unify POI factory fixture `_create_poi_fixture(db_session, **kwargs)`.
@@ -149,7 +149,7 @@ Every refactoring task in this backlog must strictly comply with the quantitativ
     3. Ensure tests clean up uploaded temp files reliably in teardown.
   - **DoD:** 100% tests pass, code coverage $\ge 85\%$.
 
-- [ ] `REF-03.4` `[Test - Unit Suite]` **Refactor Admin POI Controller Unit Tests (`tests/unit/controllers/test_admin_poi_controller.py`)**
+- [x] `REF-03.4` `[Test - Unit Suite]` **Refactor Admin POI Controller Unit Tests (`tests/unit/controllers/test_admin_poi_controller.py`)**
   - **Test Smells:** Mocks fail to verify exact DTO payloads passed to Layer 2 services.
   - **Refactoring Scope:** Modernize test client requests with typed multipart form fixtures; verify exact HTTP status codes (`200 OK`, `201 Created`, `400 Bad Request`).
   - **DoD:** All 18 tests pass with green assertions.
