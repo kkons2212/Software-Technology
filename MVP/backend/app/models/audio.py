@@ -2,6 +2,7 @@
 
 from datetime import datetime
 from decimal import Decimal
+from typing import ClassVar
 
 from sqlalchemy import BigInteger, DateTime, ForeignKey, Numeric, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship, synonym
@@ -15,9 +16,16 @@ AUDIO_STATUS_FAILED = "FAILED"
 
 class POIAudio(Base):
     __tablename__ = "POIAudio"
+    __table_args__: ClassVar[dict[str, str]] = {
+        "mysql_charset": "utf8mb4",
+        "mysql_collate": "utf8mb4_unicode_ci",
+    }
 
     audio_id: Mapped[str] = mapped_column(
-        "AudioID", String(20), primary_key=True, index=True
+        "AudioID",
+        String(20, collation="utf8mb4_unicode_ci"),
+        primary_key=True,
+        index=True,
     )
     audio_url: Mapped[str] = mapped_column("Audio_url", Text, nullable=False)
     duration: Mapped[Decimal | None] = mapped_column(
@@ -37,6 +45,7 @@ class POIAudio(Base):
     )
     stran_id: Mapped[str] = mapped_column(
         "StranID",
+        String(20, collation="utf8mb4_unicode_ci"),
         ForeignKey("POITranslation.StranID", ondelete="CASCADE"),
         nullable=False,
         index=True,
