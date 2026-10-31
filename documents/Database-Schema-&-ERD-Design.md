@@ -7,13 +7,14 @@
 
 The system runs exclusively on **MySQL 8.0+ (InnoDB)** for local development, testing, and production. The Docker database image documented in `DatabaseSetup.md` (`kocoten/smart-museum-db:v1`) provisions this schema:
 - **High Performance & Non-blocking Concurrency:** Mobile visitor reads can occur simultaneously without being locked by backend write jobs (Google Translation & Edge-TTS synthesis background tasks).
-- **Data Integrity:** Cascade deletion automatically cleans up related translations and audio records when a POI is deleted.
+- **Data Integrity:** Deleting a POI cascades to its translations (including their audio metadata) and POI trigger records.
 
 ---
 
 ## 2. Entity Relationship Diagram now with MYSQL (ERD)
+<img width="2462" height="1496" alt="Untitled (5)" src="https://github.com/user-attachments/assets/70ed32c8-198f-47b8-b058-53197cb219e8" />
 
-<img width="2778" height="1496" alt="Untitled (4)" src="https://github.com/user-attachments/assets/3f7b4a53-7c0c-4033-b064-92618edf5429" />
+The DDL and data dictionary below define the authoritative schema, including the optional transaction-to-session relationship and the merged audio metadata.
 
 
 ### 2.1. MySQL Schema DDL Script
@@ -23,6 +24,8 @@ The system runs exclusively on **MySQL 8.0+ (InnoDB)** for local development, te
 -- Schema DDL: Cu Chi Tunnels Smart Multilingual Guide
 -- Database Engine: MySQL 8.0+ (InnoDB)
 -- Source: dbdiagram.io ERD Specification
+-- DATETIME values use the application's UTC+07:00 convention.
+-- CHECK constraints are enforced by MySQL 8.0.16 and later.
 -- Features:
 -- ==============================================================================
 
@@ -31,6 +34,7 @@ CREATE DATABASE IF NOT EXISTS `smart_museum`
     DEFAULT COLLATE utf8mb4_unicode_ci;
 
 USE `smart_museum`;
+SET time_zone = '+07:00';
 
 -- ------------------------------------------------------------------------------
 -- 1. TABLE `User` (Internal Administration & Staff Accounts)
@@ -41,12 +45,13 @@ CREATE TABLE IF NOT EXISTS `User` (
     `Password_hash` VARCHAR(255) NOT NULL,
     `FullName` NVARCHAR(255) NULL,
     `Is_Active` BOOLEAN NOT NULL DEFAULT TRUE,
-    `FalsedAttempts` INT NOT NULL DEFAULT 0,
+    `FalsedAttempts` INT NOT NULL DEFAULT 0 CHECK (`FalsedAttempts` >= 0),
     `Lockeduntil` DATETIME NULL,
     `Create_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `Update_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (`UserName`),
-    UNIQUE KEY `UQ_User_Email` (`Email`)
+    UNIQUE KEY `UQ_User_Email` (`Email`),
+    CONSTRAINT `CHK_User_Is_Active` CHECK (`Is_Active` IN (0, 1))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ------------------------------------------------------------------------------
@@ -56,15 +61,16 @@ CREATE TABLE IF NOT EXISTS `Audit` (
     `AuditID` VARCHAR(20) NOT NULL,
     `Status` NVARCHAR(255) NOT NULL,
     `Ip_address` VARCHAR(45) NULL,
-    `Details` NVARCHAR(255) NULL,
+    `Details` TEXT NULL,
     `Create_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `UserName` VARCHAR(20) NOT NULL,
     PRIMARY KEY (`AuditID`),
     INDEX `idx_Audit_UserName` (`UserName`),
     INDEX `idx_Audit_Create_at` (`Create_at` DESC),
+    CONSTRAINT `CHK_Audit_Status` CHECK (`Status` IN ('SUCCESS', 'FAILED', 'LOCKED')),
     CONSTRAINT `FK_Audit_User` FOREIGN KEY (`UserName`)
         REFERENCES `User` (`UserName`)
-        ON DELETE CASCADE
+        ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ------------------------------------------------------------------------------
@@ -83,7 +89,7 @@ CREATE TABLE IF NOT EXISTS `POI` (
     `PoiID` VARCHAR(20) NOT NULL,
     `Title` NVARCHAR(255) NOT NULL,
     `Short_Description` NVARCHAR(255) NULL,
-    `Description` NVARCHAR(255) NULL,
+    `Description` TEXT NULL,
     `Image_Url` VARCHAR(255) NULL,
     `Latitude` DECIMAL(10, 7) NOT NULL CHECK (`Latitude` BETWEEN -90 AND 90),
     `Longitude` DECIMAL(10, 7) NOT NULL CHECK (`Longitude` BETWEEN -180 AND 180),
@@ -95,6 +101,7 @@ CREATE TABLE IF NOT EXISTS `POI` (
     PRIMARY KEY (`PoiID`),
     INDEX `idx_POI_Create_by` (`Create_by`),
     INDEX `idx_POI_Coordinates` (`Latitude`, `Longitude`),
+    CONSTRAINT `CHK_POI_Is_Active` CHECK (`Is_Active` IN (0, 1)),
     CONSTRAINT `FK_POI_User` FOREIGN KEY (`Create_by`)
         REFERENCES `User` (`UserName`)
         ON DELETE SET NULL
@@ -107,49 +114,59 @@ CREATE TABLE IF NOT EXISTS `POITranslation` (
     `StranID` VARCHAR(20) NOT NULL,
     `Title` NVARCHAR(255) NOT NULL,
     `Short_Description` NVARCHAR(255) NULL,
-    `Description` NVARCHAR(255) NULL,
+    `Description` TEXT NULL,
     `Status` NVARCHAR(255) NOT NULL DEFAULT 'PENDING',
+    `Audio_url` TEXT NULL,
+    `Duration` DECIMAL(6, 1) NULL,
+    `File_size` BIGINT NULL,
     `Review_at` DATETIME NULL,
     `Create_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `Update_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     `Review_by` VARCHAR(20) NULL,
     `PoiID` VARCHAR(20) NOT NULL,
     `LanguageID` VARCHAR(20) NOT NULL,
-    `UserName` VARCHAR(20) NULL,
     PRIMARY KEY (`StranID`),
     UNIQUE KEY `UQ_POITranslation_PoiID_LanguageID` (`PoiID`, `LanguageID`),
     INDEX `idx_POITranslation_PoiID` (`PoiID`),
     INDEX `idx_POITranslation_LanguageID` (`LanguageID`),
-    INDEX `idx_POITranslation_UserName` (`UserName`),
+    INDEX `idx_POITranslation_Review_by` (`Review_by`),
     INDEX `idx_POITranslation_Status` (`Status`),
+    CONSTRAINT `CHK_POITranslation_Status` CHECK (`Status` IN ('PENDING', 'DRAFT', 'NEEDS_UPDATE', 'PUBLISHED', 'FAILED')),
+    CONSTRAINT `CHK_POITranslation_Duration` CHECK (`Duration` IS NULL OR `Duration` >= 0),
+    CONSTRAINT `CHK_POITranslation_File_size` CHECK (`File_size` IS NULL OR `File_size` >= 0),
     CONSTRAINT `FK_POITranslation_POI` FOREIGN KEY (`PoiID`)
         REFERENCES `POI` (`PoiID`)
         ON DELETE CASCADE,
     CONSTRAINT `FK_POITranslation_LanguageCode` FOREIGN KEY (`LanguageID`)
         REFERENCES `LanguageCode` (`LanguageID`)
         ON DELETE RESTRICT,
-    CONSTRAINT `FK_POITranslation_User` FOREIGN KEY (`UserName`)
+    CONSTRAINT `FK_POITranslation_Reviewer` FOREIGN KEY (`Review_by`)
         REFERENCES `User` (`UserName`)
-        ON DELETE SET NULL
+        ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ------------------------------------------------------------------------------
--- 6. TABLE `POIAudio` (AI Narration Audio Files - Neural TTS)
+-- 6. TABLE `Transaction` (Digital Ticket Payment Transactions)
 -- ------------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS `POIAudio` (
-    `AudioID` VARCHAR(20) NOT NULL,
-    `Audio_url` TEXT NOT NULL,
-    `Duration` DECIMAL(6, 1) NULL,
-    `File_size` BIGINT NULL,
-    `Status` NVARCHAR(255) NOT NULL DEFAULT 'READY',
+CREATE TABLE IF NOT EXISTS `Transaction` (
+    `TransactionID` VARCHAR(20) NOT NULL,
+    `PayAmount` DECIMAL(12, 2) NOT NULL CHECK (`PayAmount` >= 0),
+    `Currency` VARCHAR(3) NOT NULL DEFAULT 'VND',
+    `PaymentGateway` VARCHAR(255) NOT NULL,
+    `PaymentMethod` VARCHAR(255) NULL,
+    `Status` NVARCHAR(255) NOT NULL DEFAULT 'PENDING',
+    `GatewayTransactionID` VARCHAR(255) NULL,
+    `GatewayPayload` JSON NULL,
+    `Paid_at` DATETIME NULL,
     `Create_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    `Update_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    `StranID` VARCHAR(20) NOT NULL,
-    PRIMARY KEY (`AudioID`),
-    INDEX `idx_POIAudio_StranID` (`StranID`),
-    CONSTRAINT `FK_POIAudio_POITranslation` FOREIGN KEY (`StranID`)
-        REFERENCES `POITranslation` (`StranID`)
-        ON DELETE CASCADE
+    PRIMARY KEY (`TransactionID`),
+    INDEX `idx_Transaction_Status_Create_at` (`Status`, `Create_at` DESC),
+    CONSTRAINT `CHK_Transaction_Currency` CHECK (`Currency` IN ('VND', 'USD', 'EUR', 'GBP', 'JPY', 'SGD', 'THB', 'AUD', 'CAD')),
+    CONSTRAINT `CHK_Transaction_Status` CHECK (`Status` IN ('PENDING', 'PAID', 'EXPIRED', 'FAILED')),
+    CONSTRAINT `CHK_Transaction_Paid_at` CHECK (
+        (`Status` = 'PAID' AND `Paid_at` IS NOT NULL)
+        OR (`Status` <> 'PAID' AND `Paid_at` IS NULL)
+    )
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ------------------------------------------------------------------------------
@@ -165,41 +182,25 @@ CREATE TABLE IF NOT EXISTS `VisitorSession` (
     `Expire_at` DATETIME NOT NULL,
     `Create_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `PreferredLanguage` VARCHAR(20) NOT NULL,
+    `TransactionID` VARCHAR(20) NOT NULL,
     PRIMARY KEY (`SessionID`),
     UNIQUE KEY `UQ_VisitorSession_SessionCode` (`SessionCode`),
     UNIQUE KEY `UQ_VisitorSession_SessionToken` (`SessionToken`),
+    UNIQUE KEY `UQ_VisitorSession_TransactionID` (`TransactionID`),
     INDEX `idx_VisitorSession_PreferredLanguage` (`PreferredLanguage`),
     INDEX `idx_VisitorSession_Status_Expire` (`Status`, `Expire_at`),
+    CONSTRAINT `CHK_VisitorSession_Status` CHECK (`Status` IN ('ACTIVE', 'EXPIRED')),
+    CONSTRAINT `CHK_VisitorSession_Expire_after_Activate` CHECK (`Expire_at` > `Activate_at`),
     CONSTRAINT `FK_VisitorSession_LanguageCode` FOREIGN KEY (`PreferredLanguage`)
         REFERENCES `LanguageCode` (`LanguageID`)
+        ON DELETE RESTRICT,
+    CONSTRAINT `FK_VisitorSession_Transaction` FOREIGN KEY (`TransactionID`)
+        REFERENCES `Transaction` (`TransactionID`)
         ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ------------------------------------------------------------------------------
--- 8. TABLE `Transaction` (Digital Ticket Payment Transactions)
--- ------------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS `Transaction` (
-    `TransactionID` VARCHAR(20) NOT NULL,
-    `PayAmount` INT NOT NULL CHECK (`PayAmount` >= 0),
-    `Currency` VARCHAR(20) NOT NULL DEFAULT 'VND',
-    `PaymentGateway` VARCHAR(255) NOT NULL,
-    `PaymentMethod` VARCHAR(255) NULL,
-    `Status` NVARCHAR(255) NOT NULL DEFAULT 'PENDING',
-    `GatewayTransactionID` VARCHAR(255) NULL,
-    `GatewayPayload` JSON NULL,
-    `Paid_at` DATETIME NULL,
-    `Create_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    `SessionID` VARCHAR(20) NULL,
-    PRIMARY KEY (`TransactionID`),
-    INDEX `idx_Transaction_SessionID` (`SessionID`),
-    INDEX `idx_Transaction_Status_Create_at` (`Status`, `Create_at` DESC),
-    CONSTRAINT `FK_Transaction_VisitorSession` FOREIGN KEY (`SessionID`)
-        REFERENCES `VisitorSession` (`SessionID`)
-        ON DELETE SET NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- ------------------------------------------------------------------------------
--- 9. TABLE `POITrigger` (Narration Trigger Events & Dwell Time)
+-- 8. TABLE `POITrigger` (Narration Trigger Events & Dwell Time)
 -- ------------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `POITrigger` (
     `TriggerID` VARCHAR(20) NOT NULL,
@@ -213,7 +214,7 @@ CREATE TABLE IF NOT EXISTS `POITrigger` (
     INDEX `idx_POITrigger_Trigger_at` (`Trigger_at` DESC),
     CONSTRAINT `FK_POITrigger_VisitorSession` FOREIGN KEY (`SessionID`)
         REFERENCES `VisitorSession` (`SessionID`)
-        ON DELETE CASCADE,
+        ON DELETE RESTRICT,
     CONSTRAINT `FK_POITrigger_POI` FOREIGN KEY (`PoiID`)
         REFERENCES `POI` (`PoiID`)
         ON DELETE CASCADE
@@ -226,130 +227,123 @@ CREATE TABLE IF NOT EXISTS `POITrigger` (
 
 The full MySQL initialization DDL script is provided in section [2.1. MySQL Schema DDL Script](#21-mysql-schema-ddl-script) above.
 
-### 3.1. Table `users` (Administration & Staff Accounts)
+### 3.1. Table `User` (Administration & Staff Accounts)
 | Column Name | Data Type | Constraints | Description |
 |---|---|---|---|
-| `user_name` | `VARCHAR(255)` | `PRIMARY KEY` | Account username / unique login identifier |
-| `email` | `VARCHAR(255)` | `NOT NULL, UNIQUE` | Contact email address |
-| `password_hash` | `VARCHAR(255)` | `NOT NULL` | Password hash string (Bcrypt/Argon2id) |
-| `full_name` | `VARCHAR(255)` | `NULL` | Full name of staff member |
-| `is_active` | `BOOLEAN` | `DEFAULT TRUE` | Account active status |
-| `failed_attempts` | `INTEGER` | `DEFAULT 0` | Consecutive failed login attempts |
-| `locked_until` | `TIMESTAMPTZ` | `NULL` | Lockout expiration timestamp (after 15-min lockout) |
-| `create_at` | `TIMESTAMPTZ` | `DEFAULT CURRENT_TIMESTAMP` | Account creation timestamp |
-| `update_at` | `TIMESTAMPTZ` | `DEFAULT CURRENT_TIMESTAMP` | Last profile update timestamp |
+| `UserName` | `VARCHAR(20)` | `PRIMARY KEY` | Account username / unique login identifier |
+| `Email` | `VARCHAR(255)` | `NOT NULL, UNIQUE` | Contact email address |
+| `Password_hash` | `VARCHAR(255)` | `NOT NULL` | Password hash string |
+| `FullName` | `NVARCHAR(255)` | `NULL` | Full name of staff member |
+| `Is_Active` | `BOOLEAN` | `DEFAULT TRUE, CHECK (0 OR 1)` | Account active status |
+| `FalsedAttempts` | `INT` | `DEFAULT 0, CHECK (>= 0)` | Consecutive failed login attempts |
+| `Lockeduntil` | `DATETIME` | `NULL` | Account lock expiration timestamp |
+| `Create_at` | `DATETIME` | `DEFAULT CURRENT_TIMESTAMP` | Creation timestamp (UTC+07:00 convention) |
+| `Update_at` | `DATETIME` | `DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP` | Last profile update timestamp |
 
 ---
 
-### 3.2. Table `audit` (Audit & Login Logs)
+### 3.2. Table `Audit` (Audit & Login Logs)
 | Column Name | Data Type | Constraints | Description |
 |---|---|---|---|
-| `audit_id` | `VARCHAR(20)` | `PRIMARY KEY` | Unique audit record identifier |
-| `user_name` | `VARCHAR(255)` | `NOT NULL, FK -> users(user_name)` | Associated username (ON DELETE CASCADE) |
-| `status` | `VARCHAR(255)` | `NOT NULL` | Status (SUCCESS, FAILED, LOCKED) |
-| `ip_address` | `VARCHAR(45)` | `NULL` | Client IP address (IPv4/IPv6) that produced the audited action |
-| `details` | `VARCHAR(255)` | `NULL` | Contextual payload describing the audited action (action name, target entity, JSON summary) |
-| `create_at` | `TIMESTAMPTZ` | `DEFAULT CURRENT_TIMESTAMP` | Audit log entry timestamp |
+| `AuditID` | `VARCHAR(20)` | `PRIMARY KEY` | Unique audit record identifier |
+| `Status` | `NVARCHAR(255)` | `NOT NULL, CHECK (SUCCESS, FAILED, LOCKED)` | Audit/authentication result |
+| `Ip_address` | `VARCHAR(45)` | `NULL` | Client IP address (IPv4/IPv6) |
+| `Details` | `TEXT` | `NULL` | Contextual audit details |
+| `Create_at` | `DATETIME` | `DEFAULT CURRENT_TIMESTAMP` | Audit timestamp (UTC+07:00 convention) |
+| `UserName` | `VARCHAR(20)` | `NOT NULL, FK -> User(UserName), ON DELETE RESTRICT` | Associated account; deletion is blocked while referenced |
 
 ---
 
-### 3.3. Table `language_code` (Supported Languages Catalog)
+### 3.3. Table `LanguageCode` (Supported Languages Catalog)
 | Column Name | Data Type | Constraints | Description |
 |---|---|---|---|
-| `language_id` | `VARCHAR(20)` | `PRIMARY KEY` | ISO language code (`vi`, `en`, `ja`, `ko`, `zh`) |
-| `language_name` | `NVARCHAR(255)` | `NOT NULL` | Display name of the language |
+| `LanguageID` | `VARCHAR(20)` | `PRIMARY KEY` | Language code |
+| `LanguageName` | `NVARCHAR(255)` | `NOT NULL` | Display name of the language |
 
 ---
 
-### 3.4. Table `pois` (Cu Chi Historic Points of Interest)
+### 3.4. Table `POI` (Cu Chi Historic Points of Interest)
 | Column Name | Data Type | Constraints | Description |
 |---|---|---|---|
-| `poi_id` | `VARCHAR(20)` | `PRIMARY KEY` | Unique POI identifier |
-| `title` | `VARCHAR(255)` | `NOT NULL` | Original Vietnamese POI name |
-| `short_description` | `VARCHAR(255)` | `NULL` | Short preview summary before unlocking |
-| `description` | `TEXT` | `NOT NULL` | Detailed narration content |
-| `image_url` | `VARCHAR(255)` | `NULL` | POI cover image URL |
-| `latitude` | `NUMERIC(10, 7)` | `NOT NULL, CHECK (-90..90)` | Outdoor GPS latitude |
-| `longitude` | `NUMERIC(10, 7)` | `NOT NULL, CHECK (-180..180)` | Outdoor GPS longitude |
-| `radius` | `INTEGER` | `DEFAULT 30, CHECK (> 0)` | Automatic trigger geofence radius (meters) |
-| `is_active` | `BOOLEAN` | `DEFAULT TRUE` | Visibility flag for visitors |
-| `create_by` | `VARCHAR(255)` | `FK -> users(user_name)` | POI creator username (ON DELETE SET NULL) |
-| `create_at` | `TIMESTAMPTZ` | `DEFAULT CURRENT_TIMESTAMP` | Record creation timestamp |
-| `update_at` | `TIMESTAMPTZ` | `DEFAULT CURRENT_TIMESTAMP` | Last update timestamp |
+| `PoiID` | `VARCHAR(20)` | `PRIMARY KEY` | Unique POI identifier |
+| `Title` | `NVARCHAR(255)` | `NOT NULL` | Original Vietnamese POI name |
+| `Short_Description` | `NVARCHAR(255)` | `NULL` | Short preview summary |
+| `Description` | `TEXT` | `NULL` | Detailed POI description |
+| `Image_Url` | `VARCHAR(255)` | `NULL` | POI cover image URL |
+| `Latitude` | `DECIMAL(10,7)` | `NOT NULL, CHECK (-90..90)` | GPS latitude |
+| `Longitude` | `DECIMAL(10,7)` | `NOT NULL, CHECK (-180..180)` | GPS longitude |
+| `Radius` | `INT` | `DEFAULT 30, CHECK (> 0)` | Geofence radius in meters |
+| `Is_Active` | `BOOLEAN` | `DEFAULT TRUE, CHECK (0 OR 1)` | Visibility flag |
+| `Create_at` | `DATETIME` | `DEFAULT CURRENT_TIMESTAMP` | Creation timestamp |
+| `Update_at` | `DATETIME` | `DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP` | Last update timestamp |
+| `Create_by` | `VARCHAR(20)` | `NULL, FK -> User(UserName), ON DELETE SET NULL` | POI creator |
 
 ---
 
-### 3.5. Table `poi_translation` (Multilingual POI Translations)
+### 3.5. Table `POITranslation` (Multilingual POI Translations and Audio Metadata)
 | Column Name | Data Type | Constraints | Description |
 |---|---|---|---|
-| `stran_id` | `VARCHAR(20)` | `PRIMARY KEY` | Unique translation identifier |
-| `poi_id` | `VARCHAR(20)` | `NOT NULL, FK -> pois(poi_id)` | Associated POI (ON DELETE CASCADE) |
-| `language_id` | `VARCHAR(20)` | `NOT NULL, FK -> language_code(language_id)` | Target language code |
-| `user_name` | `VARCHAR(255)` | `FK -> users(user_name)` | Curator / reviewer username |
-| `title` | `VARCHAR(255)` | `NOT NULL` | Translated title |
-| `short_description` | `VARCHAR(255)` | `NULL` | Translated preview summary |
-| `description` | `TEXT` | `NOT NULL` | Translated full narration text |
-| `status` | `VARCHAR(255)` | `DEFAULT 'PENDING'` | Workflow status (`PENDING`, `APPROVED`, `PUBLISHED`) |
-| `review_by` | `VARCHAR(20)` | `NULL` | Reviewer identifier |
-| `review_at` | `TIMESTAMPTZ` | `NULL` | Review approval timestamp |
-| `create_at` | `TIMESTAMPTZ` | `DEFAULT CURRENT_TIMESTAMP` | Translation creation timestamp |
-| `update_at` | `TIMESTAMPTZ` | `DEFAULT CURRENT_TIMESTAMP` | Last translation update timestamp |
+| `StranID` | `VARCHAR(20)` | `PRIMARY KEY` | Unique translation identifier |
+| `Title` | `NVARCHAR(255)` | `NOT NULL` | Translated title |
+| `Short_Description` | `NVARCHAR(255)` | `NULL` | Translated preview |
+| `Description` | `TEXT` | `NULL` | Translated description |
+| `Status` | `NVARCHAR(255)` | `DEFAULT 'PENDING', CHECK (PENDING, DRAFT, NEEDS_UPDATE, PUBLISHED, FAILED)` | Translation workflow status |
+| `Audio_url` | `TEXT` | `NULL` | Narration audio URL/path |
+| `Duration` | `DECIMAL(6,1)` | `NULL, CHECK (>= 0)` | Audio duration in seconds |
+| `File_size` | `BIGINT` | `NULL, CHECK (>= 0)` | Audio size in bytes |
+| `Review_at` | `DATETIME` | `NULL` | Review timestamp |
+| `Create_at` | `DATETIME` | `DEFAULT CURRENT_TIMESTAMP` | Creation timestamp |
+| `Update_at` | `DATETIME` | `DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP` | Last update timestamp |
+| `Review_by` | `VARCHAR(20)` | `NULL, FK -> User(UserName), ON DELETE RESTRICT` | Reviewer account |
+| `PoiID` | `VARCHAR(20)` | `NOT NULL, FK -> POI(PoiID), ON DELETE CASCADE` | Associated POI |
+| `LanguageID` | `VARCHAR(20)` | `NOT NULL, FK -> LanguageCode(LanguageID), ON DELETE RESTRICT` | Target language |
 
-* **Unique Constraint:** `UNIQUE (poi_id, language_id)`
+* **Unique Constraint:** `UNIQUE (PoiID, LanguageID)`; one current translation per POI and language.
+* Audio metadata is stored on the translation row; there is no separate `POIAudio` table.
 
 ---
 
-### 3.6. Table `poi_audio` (AI Narration Audio Files - Edge-TTS)
+### 3.6. Table `VisitorSession` (24-Hour Visitor Session)
 | Column Name | Data Type | Constraints | Description |
 |---|---|---|---|
-| `audio_id` | `VARCHAR(20)` | `PRIMARY KEY` | Unique audio record identifier |
-| `stran_id` | `VARCHAR(20)` | `NOT NULL, FK -> poi_translation(stran_id)` | Associated translation (ON DELETE CASCADE) |
-| `audio_url` | `TEXT` | `NOT NULL` | Static `.mp3` file URL / path on server |
-| `duration_seconds` | `NUMERIC(6, 1)` | `NULL` | Playback duration (seconds) |
-| `file_size` | `BIGINT` | `NULL` | File size (bytes) for >85% storage warning |
-| `status` | `VARCHAR(255)` | `DEFAULT 'READY'` | TTS synthesis status (`GENERATING`, `READY`, `NEEDS_UPDATE`) |
-| `create_at` | `TIMESTAMPTZ` | `DEFAULT CURRENT_TIMESTAMP` | Audio record creation timestamp |
-| `update_at` | `TIMESTAMPTZ` | `DEFAULT CURRENT_TIMESTAMP` | Last re-synthesis timestamp |
-
----
-
-### 3.7. Table `visitor_session` (24-Hour Visitor Session)
-| Column Name | Data Type | Constraints | Description |
-|---|---|---|---|
-| `session_id` | `VARCHAR(20)` | `PRIMARY KEY` | Unique visitor session identifier |
-| `session_code` | `VARCHAR(255)` | `NOT NULL, UNIQUE` | Session recovery code (for device switching) |
+| `SessionID` | `VARCHAR(20)` | `PRIMARY KEY` | Unique visitor session identifier |
+| `SessionCode` | `VARCHAR(255)` | `NOT NULL, UNIQUE` | Session recovery code |
 | `session_token` | `VARCHAR(255)` | `NOT NULL, UNIQUE` | JWT/Bearer access token for audio playback |
-| `device_fingerprint` | `VARCHAR(255)` | `NULL` | Visitor device fingerprint |
-| `preferred_language` | `VARCHAR(20)` | `NOT NULL, FK -> language_code` | Selected preferred language |
-| `status` | `VARCHAR(255)` | `DEFAULT 'ACTIVE'` | Session status (`ACTIVE`, `EXPIRED`) |
-| `activate_at` | `TIMESTAMPTZ` | `DEFAULT CURRENT_TIMESTAMP` | Session activation timestamp |
-| `expire_at` | `TIMESTAMPTZ` | `NOT NULL` | Session expiration timestamp (24 hours) |
-| `create_at` | `TIMESTAMPTZ` | `DEFAULT CURRENT_TIMESTAMP` | Initial session creation timestamp |
+| `DeviceFingerPrint` | `VARCHAR(255)` | `NULL` | Visitor device fingerprint |
+| `PreferredLanguage` | `VARCHAR(20)` | `NOT NULL, FK -> LanguageCode(LanguageID), ON DELETE RESTRICT` | Selected preferred language |
+| `Status` | `NVARCHAR(255)` | `DEFAULT 'ACTIVE', CHECK (ACTIVE, EXPIRED)` | Session status |
+| `Activate_at` | `DATETIME` | `DEFAULT CURRENT_TIMESTAMP` | Session activation timestamp |
+| `Expire_at` | `DATETIME` | `NOT NULL, CHECK (> Activate_at)` | Session expiration timestamp |
+| `Create_at` | `DATETIME` | `DEFAULT CURRENT_TIMESTAMP` | Session creation timestamp |
+| `TransactionID` | `VARCHAR(20)` | `NOT NULL, UNIQUE, FK -> Transaction(TransactionID), ON DELETE RESTRICT` | Payment transaction that created this session |
+
+* **Relationship:** A transaction can have zero or one session; every session belongs to exactly one transaction.
+* The foreign key does not enforce that the transaction is `PAID`; the application must verify payment before creating a session.
+* The token column's exact DDL name is `SessionToken`.
 
 ---
 
-### 3.8. Table `transaction` (Digital Ticket Payment Transactions)
+### 3.7. Table `Transaction` (Digital Payment Transactions)
 | Column Name | Data Type | Constraints | Description |
 |---|---|---|---|
-| `transaction_id` | `VARCHAR(20)` | `PRIMARY KEY` | Internal payment transaction identifier |
-| `session_id` | `VARCHAR(20)` | `FK -> visitor_session(session_id)` | Unlocked visitor session |
-| `pay_amount` | `INTEGER` | `NOT NULL, CHECK (pay_amount >= 0)` | Ticket payment amount (VND) |
-| `currency` | `VARCHAR(20)` | `DEFAULT 'VND'` | Currency code |
-| `payment_gateway` | `VARCHAR(255)` | `NOT NULL` | Payment gateway (`VIETQR`, `PAYOS`, `STRIPE`) |
-| `payment_method` | `VARCHAR(255)` | `NULL` | Payment method (QR, Card, ATM) |
-| `status` | `VARCHAR(255)` | `DEFAULT 'PENDING'` | Status (`PENDING`, `PAID`, `FAILED`) |
-| `gateway_transaction_id` | `VARCHAR(255)` | `NULL` | Transaction ID issued by payment gateway |
-| `gateway_payload` | `TEXT` | `NULL` | Webhook reconciliation response payload |
-| `paid_at` | `TIMESTAMPTZ` | `NULL` | Successful payment timestamp |
-| `create_at` | `TIMESTAMPTZ` | `DEFAULT CURRENT_TIMESTAMP` | Transaction initialization timestamp |
+| `TransactionID` | `VARCHAR(20)` | `PRIMARY KEY` | Internal payment transaction identifier |
+| `PayAmount` | `DECIMAL(12,2)` | `NOT NULL, CHECK (>= 0)` | Payment amount |
+| `Currency` | `VARCHAR(3)` | `DEFAULT 'VND', CHECK (VND, USD, EUR, GBP, JPY, SGD, THB, AUD, CAD)` | Supported currency |
+| `PaymentGateway` | `VARCHAR(255)` | `NOT NULL` | Payment gateway |
+| `PaymentMethod` | `VARCHAR(255)` | `NULL` | Payment method |
+| `Status` | `NVARCHAR(255)` | `DEFAULT 'PENDING', CHECK (PENDING, PAID, EXPIRED, FAILED)` | Payment status |
+| `GatewayTransactionID` | `VARCHAR(255)` | `NULL` | Gateway transaction identifier; not unique-constrained |
+| `GatewayPayload` | `JSON` | `NULL` | Gateway/webhook payload |
+| `Paid_at` | `DATETIME` | `NULL`; required iff `Status = 'PAID'` | Successful payment timestamp |
+| `Create_at` | `DATETIME` | `DEFAULT CURRENT_TIMESTAMP` | Transaction creation timestamp |
 
 ---
 
-### 3.9. Table `poi_trigger` (Geofence Narration Trigger Events)
+### 3.8. Table `POITrigger` (Geofence Narration Trigger Events)
 | Column Name | Data Type | Constraints | Description |
 |---|---|---|---|
-| `trigger_id` | `VARCHAR(20)` | `PRIMARY KEY` | Unique trigger event identifier |
-| `session_id` | `VARCHAR(20)` | `NOT NULL, FK -> visitor_session` | Visitor session (ON DELETE CASCADE) |
-| `poi_id` | `VARCHAR(20)` | `NOT NULL, FK -> pois` | Triggered POI (ON DELETE CASCADE) |
-| `dwell_time` | `INTEGER` | `DEFAULT 0, CHECK (dwell_time >= 0)` | Dwell time at POI (seconds) |
-| `trigger_at` | `TIMESTAMPTZ` | `DEFAULT CURRENT_TIMESTAMP` | Narration playback trigger timestamp |
+| `TriggerID` | `VARCHAR(20)` | `PRIMARY KEY` | Unique trigger event identifier |
+| `DwellTime` | `INT` | `DEFAULT 0, CHECK (>= 0)` | Dwell time in seconds |
+| `Trigger_at` | `DATETIME` | `DEFAULT CURRENT_TIMESTAMP` | Trigger timestamp |
+| `SessionID` | `VARCHAR(20)` | `NOT NULL, FK -> VisitorSession(SessionID), ON DELETE RESTRICT` | Session; deletion blocked while referenced |
+| `PoiID` | `VARCHAR(20)` | `NOT NULL, FK -> POI(PoiID), ON DELETE CASCADE` | Triggered POI |
