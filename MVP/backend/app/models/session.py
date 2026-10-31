@@ -44,9 +44,7 @@ class VisitorSession(Base):
     )
 
     language = relationship("LanguageCode")
-    transaction = relationship(
-        "Transaction", back_populates="session", cascade="all"
-    )
+    transaction = relationship("Transaction", back_populates="session", cascade="all")
     triggers = relationship(
         "POITrigger", back_populates="session", cascade="all, delete-orphan"
     )
