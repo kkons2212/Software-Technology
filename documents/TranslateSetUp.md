@@ -61,11 +61,7 @@ docker pull kocoten/offline-translator-api:latest
 
 ### 3.2. Run the Container
 ```bash
-docker run -d \
-  --name offline-translator-api \
-  -p 8001:8000 \
-  --restart unless-stopped \
-  kocoten/offline-translator-api:latest
+docker run -d --name offline-translator-api -p 8001:8000 --restart unless-stopped kocoten/offline-translator-api:latest
 ```
 
 | Parameter | Description |
