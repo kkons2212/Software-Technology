@@ -92,9 +92,7 @@ class POITranslation(Base):
     file_size: Mapped[int | None] = mapped_column(
         "File_size", BigInteger, nullable=True
     )
-    audio_url: Mapped[str | None] = mapped_column(
-        "Audio_url", Text, nullable=True
-    )
+    audio_url: Mapped[str | None] = mapped_column("Audio_url", Text, nullable=True)
     duration: Mapped[Decimal | None] = mapped_column(
         "Duration", Numeric(6, 1), nullable=True
     )
