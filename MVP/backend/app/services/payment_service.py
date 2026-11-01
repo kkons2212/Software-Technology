@@ -220,12 +220,12 @@ class PaymentService:
             qr_code_url=qr_code_url,
             checkout_url=checkout_url,
             transfer_bank=DEFAULT_BANK_NAME if payment_method == "VIETQR" else None,
-            transfer_account=DEFAULT_ACCOUNT_NUMBER
-            if payment_method == "VIETQR"
-            else None,
-            transfer_account_name=DEFAULT_ACCOUNT_NAME
-            if payment_method == "VIETQR"
-            else None,
+            transfer_account=(
+                DEFAULT_ACCOUNT_NUMBER if payment_method == "VIETQR" else None
+            ),
+            transfer_account_name=(
+                DEFAULT_ACCOUNT_NAME if payment_method == "VIETQR" else None
+            ),
             transfer_content=transfer_memo if payment_method == "VIETQR" else None,
             status="PENDING",
             expires_at=expires_at,
