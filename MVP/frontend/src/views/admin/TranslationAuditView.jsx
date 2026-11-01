@@ -245,7 +245,7 @@ export default function TranslationAuditView() {
         </h1>
         <p className="mt-1 text-sm text-slate-600">
           Review and refine translations against source Vietnamese, preview narrations,
-          and regenerate audio to maintain strict audio-text synchronization (US 04.1–04.3).
+          and regenerate audio to maintain strict audio-text synchronization.
         </p>
       </div>
 

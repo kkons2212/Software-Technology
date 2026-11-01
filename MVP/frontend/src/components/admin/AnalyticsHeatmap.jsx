@@ -307,7 +307,7 @@ export default function AnalyticsHeatmap({
             </span>
           </h2>
           <p className="mt-1 text-xs text-slate-500">
-            Spatial congestion monitoring across Cu Chi Tunnels complex (AC-05.1.1, AC-05.1.2).
+            Spatial congestion monitoring across Cu Chi Tunnels complex.
           </p>
         </div>
 

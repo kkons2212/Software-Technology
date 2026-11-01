@@ -113,7 +113,7 @@ export default function AnalyticsDashboard() {
         </h1>
         <p className="mt-1 text-sm text-slate-600">
           Aggregated visitor KPIs, Top 10 exhibit rankings, average tour duration,
-          spatial density heatmap, data export and language demographics (US 05.1, US 05.2 &amp; US 05.4).
+          spatial density heatmap, data export and language demographics.
         </p>
       </div>
 
