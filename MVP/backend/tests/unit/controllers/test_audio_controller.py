@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 from app.core.config import get_settings
-from app.core.dependencies import get_tts_service
+from app.core.dependencies import get_current_admin, get_tts_service
 from app.core.exceptions import ApiError
 from app.main import app
 from app.models.language import LanguageCode
@@ -52,26 +52,45 @@ class FailedTTSService:
 
 def test_should_regenerate_audio_and_return_draft_state(client):
     app.dependency_overrides[get_tts_service] = FakeTTSService
+    app.dependency_overrides[get_current_admin] = lambda: "admin"
+    try:
+        response = client.post(
+            "/api/v1/admin/translations/TR_AUDIO_01/regenerate-audio"
+        )
 
-    response = client.post("/api/v1/admin/translations/TR_AUDIO_01/regenerate-audio")
-
-    assert response.status_code == 200
-    assert response.json() == {
-        "stran_id": "TR_AUDIO_01",
-        "status": "DRAFT",
-        "audio_url": "/static/audio/new_narration.mp3",
-        "audio_status": "READY",
-    }
+        assert response.status_code == 200
+        assert response.json() == {
+            "stran_id": "TR_AUDIO_01",
+            "status": "DRAFT",
+            "audio_url": "/static/audio/new_narration.mp3",
+            "audio_status": "READY",
+        }
+    finally:
+        app.dependency_overrides.pop(get_tts_service, None)
+        app.dependency_overrides.pop(get_current_admin, None)
 
 
 def test_should_return_generation_error_without_success_payload(client):
     app.dependency_overrides[get_tts_service] = FailedTTSService
+    app.dependency_overrides[get_current_admin] = lambda: "admin"
+    try:
+        response = client.post(
+            "/api/v1/admin/translations/TR_AUDIO_01/regenerate-audio"
+        )
 
+        assert response.status_code == 502
+        assert response.json()["success"] is False
+        assert response.json()["error"]["code"] == "AUDIO_GENERATION_FAILED"
+    finally:
+        app.dependency_overrides.pop(get_tts_service, None)
+        app.dependency_overrides.pop(get_current_admin, None)
+
+
+def test_should_reject_regenerate_audio_when_unauthenticated(client):
+    app.dependency_overrides.pop(get_current_admin, None)
     response = client.post("/api/v1/admin/translations/TR_AUDIO_01/regenerate-audio")
-
-    assert response.status_code == 502
-    assert response.json()["success"] is False
-    assert response.json()["error"]["code"] == "AUDIO_GENERATION_FAILED"
+    assert response.status_code == 401
+    assert response.json()["error"]["code"] == "UNAUTHENTICATED"
 
 
 # ==============================================================================
