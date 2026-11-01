@@ -404,9 +404,7 @@ class WayfindingService:
 
         if dist_origin_to_gateway > 35.0:
             gw_lat, gw_lng, _ = CU_CHI_TRAIL_NODES[gateway_node]
-            osrm_leg = self._try_osrm_foot_route(
-                origin_lat, origin_lng, gw_lat, gw_lng
-            )
+            osrm_leg = self._try_osrm_foot_route(origin_lat, origin_lng, gw_lat, gw_lng)
             if osrm_leg is not None:
                 leg1_coords, leg1_dist = osrm_leg
                 nearest_poi_node, _ = self._find_nearest_trail_node(poi_lat, poi_lng)

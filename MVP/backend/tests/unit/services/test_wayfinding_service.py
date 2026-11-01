@@ -362,7 +362,10 @@ def test_should_fallback_to_pure_dijkstra_when_stitched_osrm_fails(
     # Assert
     assert result.type == "Feature"
     assert len(result.geometry.coordinates) >= 3
-    assert result.geometry.coordinates[0] == [round(origin_lng, 6), round(origin_lat, 6)]
+    assert result.geometry.coordinates[0] == [
+        round(origin_lng, 6),
+        round(origin_lat, 6),
+    ]
     assert result.geometry.coordinates[-1] == [
         round(float(active_poi.longitude), 6),
         round(float(active_poi.latitude), 6),
