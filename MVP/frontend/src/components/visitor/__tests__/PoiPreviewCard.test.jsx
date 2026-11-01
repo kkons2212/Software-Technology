@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import PoiPreviewCard from '../PoiPreviewCard.jsx';
+import { AudioPlayerContext } from '../../../contexts/AudioPlayerContext.jsx';
 
 const poi = {
   id: 'poi-1',
@@ -130,5 +131,90 @@ describe('PoiPreviewCard', () => {
 
     expect(screen.getByRole('button', { name: 'Clear Route' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Directions' })).not.toBeInTheDocument();
+  });
+
+  it('renders embedded MiniAudioPlayer inside dialog when audio is playing for this POI and supports controls', () => {
+    const togglePlay = vi.fn();
+    const skip = vi.fn();
+    const seek = vi.fn();
+    const setPlaybackRate = vi.fn();
+    const stop = vi.fn();
+
+    const mockAudioContext = {
+      currentPoi: { id: 'poi-1', title: 'Cu Chi Tunnel' },
+      isPlaying: true,
+      currentTime: 25,
+      duration: 100,
+      playbackRate: 1.0,
+      isBuffering: false,
+      isOfflineFallback: false,
+      isPoiPreviewOpen: true,
+      error: null,
+      togglePlay,
+      skip,
+      seek,
+      setPlaybackRate,
+      stop,
+      setIsPoiPreviewOpen: vi.fn(),
+    };
+
+    render(
+      <AudioPlayerContext.Provider value={mockAudioContext}>
+        <PoiPreviewCard
+          poi={poi}
+          location={null}
+          onPlayAudio={vi.fn()}
+          onDismiss={vi.fn()}
+        />
+      </AudioPlayerContext.Provider>,
+    );
+
+    const inlinePlayer = screen.getByTestId('mini-audio-player');
+    expect(inlinePlayer).toBeInTheDocument();
+    expect(inlinePlayer).toHaveAttribute('data-inline', 'true');
+
+    // Controls within dialog
+    const playPauseBtn = screen.getByTestId('play-pause-button');
+    expect(playPauseBtn).toHaveAttribute('aria-label', 'Pause');
+    fireEvent.click(playPauseBtn);
+    expect(togglePlay).toHaveBeenCalledOnce();
+
+    fireEvent.click(screen.getByTestId('skip-backward-button'));
+    expect(skip).toHaveBeenCalledWith(-10);
+
+    fireEvent.click(screen.getByTestId('skip-forward-button'));
+    expect(skip).toHaveBeenCalledWith(10);
+
+    fireEvent.click(screen.getByTestId('speed-button-1.2'));
+    expect(setPlaybackRate).toHaveBeenCalledWith(1.2);
+
+    fireEvent.change(screen.getByTestId('progress-scrubber'), { target: { value: '50' } });
+    expect(seek).toHaveBeenCalledWith(50);
+
+    fireEvent.click(screen.getByTestId('close-player-button'));
+    expect(stop).toHaveBeenCalledOnce();
+  });
+
+  it('does not render embedded MiniAudioPlayer inside dialog when active audio belongs to a different POI', () => {
+    const mockAudioContext = {
+      currentPoi: { id: 'poi-other', title: 'Different POI' },
+      isPlaying: true,
+      currentTime: 10,
+      duration: 60,
+      setIsPoiPreviewOpen: vi.fn(),
+    };
+
+    render(
+      <AudioPlayerContext.Provider value={mockAudioContext}>
+        <PoiPreviewCard
+          poi={poi}
+          location={null}
+          onPlayAudio={vi.fn()}
+          onDismiss={vi.fn()}
+        />
+      </AudioPlayerContext.Provider>,
+    );
+
+    expect(screen.queryByTestId('mini-audio-player')).not.toBeInTheDocument();
   });
 });

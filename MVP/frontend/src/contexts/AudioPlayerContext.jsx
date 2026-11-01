@@ -24,6 +24,7 @@ export function AudioPlayerProvider({ children }) {
   const [playbackRate, setPlaybackRateState] = useState(DEFAULT_PLAYBACK_RATE);
   const [isBuffering, setIsBuffering] = useState(false);
   const [isOfflineFallback, setIsOfflineFallback] = useState(false);
+  const [isPoiPreviewOpen, setIsPoiPreviewOpen] = useState(false);
   const [error, setError] = useState(null);
 
   // Singleton Audio Element reference
@@ -372,6 +373,8 @@ export function AudioPlayerProvider({ children }) {
     skip,
     setPlaybackRate,
     stop,
+    isPoiPreviewOpen,
+    setIsPoiPreviewOpen,
   };
 
   return (
@@ -401,6 +404,8 @@ export function useAudioPlayer() {
       skip: () => {},
       setPlaybackRate: () => {},
       stop: () => {},
+      isPoiPreviewOpen: false,
+      setIsPoiPreviewOpen: () => {},
     };
   }
   return context;

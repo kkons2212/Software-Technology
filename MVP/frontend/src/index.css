@@ -552,3 +552,9 @@ a:focus-visible {
     font-size: 9px;
   }
 }
+
+
+/* Suppress global floating mini-player while POI preview bottom sheet dialog is open */
+body:has(.poi-preview-sheet) [data-testid="mini-audio-player"]:not([data-inline="true"]) {
+  display: none !important;
+}

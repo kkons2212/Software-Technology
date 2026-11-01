@@ -37,6 +37,7 @@ export function MiniAudioPlayer({ inline = false, poiId = null, onPlay = null })
     playbackRate,
     isBuffering,
     isOfflineFallback,
+    isPoiPreviewOpen,
     error,
     togglePlay,
     skip,
@@ -45,20 +46,13 @@ export function MiniAudioPlayer({ inline = false, poiId = null, onPlay = null })
     stop,
   } = audioContext || {};
 
-  if (!currentPoi) {
-    return null;
-  }
+  // Phase 1: Precondition Gates (Single SISE gate return)
+  const isMismatchedInline = Boolean(
+    inline && poiId && String(currentPoi?.id ?? currentPoi?.poi_id ?? '') !== String(poiId)
+  );
+  const isHiddenFloating = Boolean(!inline && isPoiPreviewOpen);
 
-  // If in inline mode for a specific POI, only render if currentPoi matches this POI
-  if (inline && poiId) {
-    const activeId = String(currentPoi.id ?? currentPoi.poi_id ?? '');
-    if (activeId !== String(poiId)) {
-      return null;
-    }
-  }
-
-  // If floating player at viewport bottom, hide if a POI preview card is currently open
-  if (!inline && typeof document !== 'undefined' && document.querySelector('.poi-preview-sheet')) {
+  if (!currentPoi || isMismatchedInline || isHiddenFloating) {
     return null;
   }
 
@@ -96,6 +90,7 @@ export function MiniAudioPlayer({ inline = false, poiId = null, onPlay = null })
   return (
     <div
       data-testid="mini-audio-player"
+      data-inline={inline ? "true" : "false"}
       role="region"
       aria-label="Audio Guide Player"
       style={

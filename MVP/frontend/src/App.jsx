@@ -11,7 +11,6 @@ import AdminRouteGuard from './components/admin/AdminRouteGuard.jsx';
 import AdminLayout from './components/admin/AdminLayout.jsx';
 import { AudioPlayerProvider } from './contexts/AudioPlayerContext.jsx';
 import { VisitorSessionProvider } from './contexts/VisitorSessionContext.jsx';
-import { MiniAudioPlayer } from './components/visitor/MiniAudioPlayer.jsx';
 
 // -----------------------------------------------------------------------------
 // CENTRAL ROUTE PATH REGISTRY
@@ -98,7 +97,6 @@ export default function App() {
             <Route path="*" element={<NotFoundPage />} />
           </Routes>
         </Suspense>
-        <MiniAudioPlayer />
       </AudioPlayerProvider>
     </VisitorSessionProvider>
   );
