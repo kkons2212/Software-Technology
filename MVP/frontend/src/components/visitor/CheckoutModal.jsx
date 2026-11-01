@@ -152,7 +152,7 @@ export default function CheckoutModal({
         <button
           type="button"
           onClick={onClose}
-          aria-label="Đóng cửa sổ thanh toán"
+          aria-label={getVisitorText('closeCheckout', preferredLanguage)}
           className="absolute right-4 top-4 rounded-full p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition"
         >
           <X size={20} aria-hidden="true" />
@@ -180,13 +180,13 @@ export default function CheckoutModal({
                 </span>
               </div>
               <div className="flex justify-between items-center text-sm py-1 border-b border-emerald-100">
-                <span className="text-slate-600 font-medium">Thời hạn:</span>
-                <span className="text-emerald-800 font-semibold">24 Giờ</span>
+                <span className="text-slate-600 font-medium">{getVisitorText('durationLabel', preferredLanguage)}</span>
+                <span className="text-emerald-800 font-semibold">{getVisitorText('duration24Hours', preferredLanguage)}</span>
               </div>
               <div className="flex justify-between items-center text-sm py-1">
-                <span className="text-slate-600 font-medium">Trạng thái:</span>
+                <span className="text-slate-600 font-medium">{getVisitorText('statusLabel', preferredLanguage)}</span>
                 <span className="inline-flex items-center gap-1 text-emerald-700 font-semibold">
-                  <ShieldCheck size={16} /> Đã kích hoạt
+                  <ShieldCheck size={16} /> {getVisitorText('statusActivated', preferredLanguage)}
                 </span>
               </div>
             </div>
