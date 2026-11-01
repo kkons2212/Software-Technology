@@ -55,6 +55,7 @@ export default function POIFormModal({
   const [formError, setFormError] = useState('');
   const [successToast, setSuccessToast] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isMapValid, setIsMapValid] = useState(true);
 
   // Synchronize state from POI prop
   useEffect(() => {
@@ -85,8 +86,8 @@ export default function POIFormModal({
   }, [poi]);
 
   const isOutOfBounds = useMemo(
-    () => !isWithinMuseumBounds(latitude, longitude),
-    [latitude, longitude],
+    () => !isMapValid || !isWithinMuseumBounds(latitude, longitude),
+    [isMapValid, latitude, longitude],
   );
 
   if (!isOpen || !poi) {
@@ -110,10 +111,12 @@ export default function POIFormModal({
     latitude: nextLatitude,
     longitude: nextLongitude,
     radius: nextRadius,
+    isValid,
   }) => {
     setLatitude(nextLatitude);
     setLongitude(nextLongitude);
     setRadius(nextRadius);
+    setIsMapValid(isValid !== false);
   };
 
   const handleSubmit = async (event) => {

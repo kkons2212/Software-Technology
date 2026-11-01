@@ -40,6 +40,7 @@ export default function PoiCatalogPage() {
   const [imagePreview, setImagePreview] = useState('');
   const [formError, setFormError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isMapValid, setIsMapValid] = useState(true);
 
   const fetchCatalog = async (searchTerm = '') => {
     setIsLoading(true);
@@ -117,7 +118,7 @@ export default function PoiCatalogPage() {
       return;
     }
 
-    if (isOutOfBounds(latitude, longitude)) {
+    if (coordinateInvalid) {
       setFormError('Tọa độ không hợp lệ (Vĩ độ: [-90, 90], Kinh độ: [-180, 180]).');
       return;
     }
@@ -156,7 +157,7 @@ export default function PoiCatalogPage() {
     }
   };
 
-  const coordinateInvalid = isOutOfBounds(latitude, longitude);
+  const coordinateInvalid = !isMapValid || isOutOfBounds(latitude, longitude);
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -409,17 +410,18 @@ export default function PoiCatalogPage() {
                 </span>
                 <AdminMapPicker
                   poiId="new-exhibit-picker"
-                  initialLatitude={parseFloat(latitude) || 11.1432}
-                  initialLongitude={parseFloat(longitude) || 106.4631}
+                  initialLatitude={Number.isFinite(parseFloat(latitude)) ? parseFloat(latitude) : 11.1432}
+                  initialLongitude={Number.isFinite(parseFloat(longitude)) ? parseFloat(longitude) : 106.4631}
                   initialRadius={radius}
                   latitudeLabel="Latitude (WGS84) *"
                   longitudeLabel="Longitude (WGS84) *"
                   radiusLabel="Proximity Trigger Radius"
                   outOfBoundsMessage="Cảnh báo: Tọa độ không hợp lệ (Vĩ độ: [-90, 90], Kinh độ: [-180, 180])."
-                  onChange={({ latitude: nextLat, longitude: nextLng, radius: nextRad }) => {
-                    setLatitude(String(nextLat));
-                    setLongitude(String(nextLng));
+                  onChange={({ latitude: nextLat, longitude: nextLng, radius: nextRad, isValid }) => {
+                    setLatitude(Number.isFinite(nextLat) ? String(nextLat) : 'invalid');
+                    setLongitude(Number.isFinite(nextLng) ? String(nextLng) : 'invalid');
                     setRadius(nextRad);
+                    setIsMapValid(isValid !== false);
                   }}
                 />
               </div>

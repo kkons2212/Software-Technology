@@ -4,7 +4,7 @@
 // Presentation-only control reused by every Admin screen that calibrates a
 // geofence (the `/admin/geofence` calibration page today, the exhibit editor of
 // US 03.4 later). It owns the two-way binding between the Leaflet pin, the
-// numeric Latitude/Longitude fields and the 10m-50m radius slider, plus the
+// numeric Latitude/Longitude fields and the 10m-50m radius input, plus the
 // out-of-bounds guardrail of AC-03.2.3. Persistence is delegated to the host
 // page through `onSave`, so this component never talks to the network itself.
 // =============================================================================
@@ -70,6 +70,8 @@ export default function AdminMapPicker({
   const [latitude, setLatitude] = useState(initialLatitude);
   const [longitude, setLongitude] = useState(initialLongitude);
   const [radius, setRadius] = useState(initialRadius);
+  const [hasInvalidCharError, setHasInvalidCharError] = useState(false);
+  const [hasRadiusError, setHasRadiusError] = useState(false);
 
   const mapElementRef = useRef(null);
   const mapRef = useRef(null);
@@ -80,10 +82,22 @@ export default function AdminMapPicker({
   const radiusRef = useRef(radius);
   radiusRef.current = radius;
 
-  const isOutOfBounds = useMemo(
+  const isCoordOutOfBounds = useMemo(
     () => !isWithinMuseumBounds(latitude, longitude),
     [latitude, longitude],
   );
+
+  const isOutOfBounds = useMemo(
+    () => hasInvalidCharError || isCoordOutOfBounds,
+    [hasInvalidCharError, isCoordOutOfBounds],
+  );
+
+  const isRadiusInvalid = useMemo(
+    () => hasRadiusError || !Number.isFinite(radius) || radius < MIN_TRIGGER_RADIUS || radius > MAX_TRIGGER_RADIUS,
+    [hasRadiusError, radius],
+  );
+
+  const hasAnyError = isOutOfBounds || isRadiusInvalid;
 
   // ---------------------------------------------------------------------------
   // MAP BOOTSTRAP: one bounded map, one draggable pin and one radius circle.
@@ -204,9 +218,11 @@ export default function AdminMapPicker({
     }
   }, [initialRadius]);
 
-  // AC-03.2.2: the geofence circle resizes live as the slider moves.
+  // AC-03.2.2: the geofence circle resizes live as the radius value changes.
   useEffect(() => {
-    circleRef.current?.setRadius(radius);
+    if (Number.isFinite(radius) && radius > 0) {
+      circleRef.current?.setRadius(radius);
+    }
   }, [radius]);
 
   // AC-03.2.3: an out-of-bounds pin turns the circle red as an extra cue.
@@ -226,28 +242,86 @@ export default function AdminMapPicker({
     circleRef.current?.setLatLng(nextPosition);
   };
 
+  const handleKeyDownCoordinate = (event) => {
+    const allowedKeys = [
+      'Backspace',
+      'Delete',
+      'Tab',
+      'Enter',
+      'Escape',
+      'ArrowLeft',
+      'ArrowRight',
+      'ArrowUp',
+      'ArrowDown',
+      'Home',
+      'End',
+    ];
+    if (
+      allowedKeys.includes(event.key) ||
+      event.ctrlKey ||
+      event.metaKey ||
+      event.altKey
+    ) {
+      return;
+    }
+
+    if (!/^[\d.-]$/.test(event.key)) {
+      setHasInvalidCharError(true);
+      event.preventDefault();
+    }
+  };
+
+  const handlePasteCoordinate = (event) => {
+    const pasted = event.clipboardData?.getData('text') || '';
+    if (!/^-?\d+(\.\d+)?$/.test(pasted.trim())) {
+      setHasInvalidCharError(true);
+      event.preventDefault();
+    }
+  };
+
   const handleLatitudeChange = (event) => {
-    const nextLatitude = event.target.value === '' ? Number.NaN : Number(event.target.value);
+    const isBad = event.target.validity?.badInput;
+    const rawVal = event.target.value;
+    if (isBad) {
+      setHasInvalidCharError(true);
+    } else if (rawVal !== '' && Number.isFinite(Number(rawVal))) {
+      setHasInvalidCharError(false);
+    }
+    const nextLatitude = rawVal === '' || isBad ? Number.NaN : Number(rawVal);
     setLatitude(nextLatitude);
     movePinTo(nextLatitude, longitude);
-    onChange?.({ latitude: nextLatitude, longitude, radius });
+    const valid = !isBad && Number.isFinite(nextLatitude) && isWithinMuseumBounds(nextLatitude, longitude) && !isRadiusInvalid;
+    onChange?.({ latitude: nextLatitude, longitude, radius, isValid: valid });
   };
 
   const handleLongitudeChange = (event) => {
-    const nextLongitude = event.target.value === '' ? Number.NaN : Number(event.target.value);
+    const isBad = event.target.validity?.badInput;
+    const rawVal = event.target.value;
+    if (isBad) {
+      setHasInvalidCharError(true);
+    } else if (rawVal !== '' && Number.isFinite(Number(rawVal))) {
+      setHasInvalidCharError(false);
+    }
+    const nextLongitude = rawVal === '' || isBad ? Number.NaN : Number(rawVal);
     setLongitude(nextLongitude);
     movePinTo(latitude, nextLongitude);
-    onChange?.({ latitude, longitude: nextLongitude, radius });
+    const valid = !isBad && Number.isFinite(nextLongitude) && isWithinMuseumBounds(latitude, nextLongitude) && !isRadiusInvalid;
+    onChange?.({ latitude, longitude: nextLongitude, radius, isValid: valid });
   };
 
   const handleRadiusChange = (event) => {
-    const nextRadius = Number(event.target.value);
+    const isBad = event.target.validity?.badInput;
+    const rawValue = event.target.value;
+    const nextRadius = rawValue === '' || isBad ? Number.NaN : Number(rawValue);
+    const invalidRadius = isBad || !Number.isFinite(nextRadius) || nextRadius < MIN_TRIGGER_RADIUS || nextRadius > MAX_TRIGGER_RADIUS;
+    setHasRadiusError(invalidRadius);
     setRadius(nextRadius);
-    onChange?.({ latitude, longitude, radius: nextRadius });
+    const valid = !invalidRadius && !isOutOfBounds;
+    onChange?.({ latitude, longitude, radius: nextRadius, isValid: valid });
   };
 
   const handleSave = () => {
-    if (isOutOfBounds || isSaving || !onSave) {
+    if (hasAnyError || isSaving || !onSave) {
       return;
     }
     onSave({ poiId, latitude, longitude, radius });
@@ -269,8 +343,8 @@ export default function AdminMapPicker({
         className="w-full rounded-md border bg-slate-100 touch-none relative z-0 cursor-crosshair"
         style={{
           height: `${mapHeight}px`,
-          borderColor: isOutOfBounds ? OUT_OF_BOUNDS_COLOR : DEFAULT_MAP_BORDER_COLOR,
-          borderWidth: isOutOfBounds ? '2px' : '1px',
+          borderColor: hasAnyError ? OUT_OF_BOUNDS_COLOR : DEFAULT_MAP_BORDER_COLOR,
+          borderWidth: hasAnyError ? '2px' : '1px',
         }}
       />
 
@@ -285,6 +359,8 @@ export default function AdminMapPicker({
             aria-label={latitudeLabel}
             aria-invalid={isOutOfBounds}
             value={Number.isNaN(latitude) ? '' : latitude}
+            onKeyDown={handleKeyDownCoordinate}
+            onPaste={handlePasteCoordinate}
             onChange={handleLatitudeChange}
             className={coordinateInputClass(isOutOfBounds)}
           />
@@ -299,6 +375,8 @@ export default function AdminMapPicker({
             aria-label={longitudeLabel}
             aria-invalid={isOutOfBounds}
             value={Number.isNaN(longitude) ? '' : longitude}
+            onKeyDown={handleKeyDownCoordinate}
+            onPaste={handlePasteCoordinate}
             onChange={handleLongitudeChange}
             className={coordinateInputClass(isOutOfBounds)}
           />
@@ -307,25 +385,46 @@ export default function AdminMapPicker({
 
       <div className="flex flex-col gap-1">
         <div className="flex items-center justify-between text-sm font-medium text-slate-700">
-          <label htmlFor="geofence-radius-slider">{radiusLabel}</label>
-          <span className="font-mono text-sm text-slate-900">{radius}m</span>
+          <label htmlFor="geofence-radius-input">{radiusLabel}</label>
+          <span className="font-mono text-sm text-slate-900">
+            {Number.isFinite(radius) ? `${radius}m` : '—'}
+          </span>
         </div>
-        <input
-          id="geofence-radius-slider"
-          type="range"
-          min={MIN_TRIGGER_RADIUS}
-          max={MAX_TRIGGER_RADIUS}
-          step={RADIUS_STEP}
-          value={radius}
-          onChange={handleRadiusChange}
-          aria-label={radiusLabel}
-          className="w-full accent-blue-700"
-        />
+        <div className="relative">
+          <input
+            id="geofence-radius-input"
+            type="number"
+            inputMode="numeric"
+            min={MIN_TRIGGER_RADIUS}
+            max={MAX_TRIGGER_RADIUS}
+            step={RADIUS_STEP}
+            value={Number.isNaN(radius) || radius === null || radius === undefined ? '' : radius}
+            onChange={handleRadiusChange}
+            aria-label={radiusLabel}
+            aria-invalid={isRadiusInvalid}
+            placeholder="30"
+            className={`w-full rounded-md border px-3 py-2 font-mono text-sm text-slate-900 focus:outline-none focus:ring-2 pr-10 ${
+              isRadiusInvalid
+                ? 'border-[#B91C1C] focus:ring-[#B91C1C]'
+                : 'border-slate-300 focus:ring-blue-600'
+            }`}
+          />
+          <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 font-mono text-sm text-slate-400">
+            m
+          </span>
+        </div>
+        <span className="text-xs text-slate-500">
+          Bán kính kích hoạt (10m – 50m)
+        </span>
       </div>
 
-      {isOutOfBounds && (
+      {hasAnyError && (
         <p role="alert" className="text-sm font-medium text-[#B91C1C]">
-          {outOfBoundsMessage}
+          {hasInvalidCharError
+            ? 'Tọa độ không hợp lệ: Vui lòng chỉ nhập số thực (ví dụ: 11.1432), không được nhập chữ cái hoặc ký tự đặc biệt.'
+            : isCoordOutOfBounds
+            ? outOfBoundsMessage
+            : 'Bán kính kích hoạt không hợp lệ (vui lòng chỉ nhập số từ 10m đến 50m).'}
         </p>
       )}
 
@@ -334,7 +433,7 @@ export default function AdminMapPicker({
           <button
             type="button"
             onClick={handleSave}
-            disabled={isOutOfBounds || isSaving}
+            disabled={hasAnyError || isSaving}
             className="rounded-md bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:opacity-50"
           >
             {isSaving ? 'Saving...' : 'Save Changes'}
