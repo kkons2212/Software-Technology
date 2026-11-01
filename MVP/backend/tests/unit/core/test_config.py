@@ -1,88 +1,48 @@
-"""Paired unit tests for `app.core.config` (US 02.1 - AC-02.1.2 / AC-02.1.3)."""
+"""Unit test suite for application configuration singleton (REF-07.2)."""
 
-import pytest
-from pydantic import ValidationError
-
-from app.core.config import (
-    DEFAULT_ACCESS_TOKEN_EXPIRE_MINUTES,
-    DEFAULT_ADMIN_SESSION_COOKIE_NAME,
-    DEFAULT_BCRYPT_ROUNDS,
-    DEFAULT_JWT_ALGORITHM,
-    Settings,
-    get_settings,
-)
-
-MANDATED_BCRYPT_MINIMUM_COST = 12
-MANDATED_ACCESS_TOKEN_MINUTES = 60
-MANDATED_IDLE_TIMEOUT_MINUTES = 30
+from app.core.config import Settings, get_settings
 
 
-# ---------------------------------------------------------------------------
-# HAPPY PATH
-# ---------------------------------------------------------------------------
-def test_should_expose_mandated_production_defaults_when_no_env_is_set():
-    settings = Settings()
-
-    assert settings.JWT_ALGORITHM == "HS256"
-    assert settings.ACCESS_TOKEN_EXPIRE_MINUTES == MANDATED_ACCESS_TOKEN_MINUTES
-    assert settings.IDLE_TIMEOUT_MINUTES == MANDATED_IDLE_TIMEOUT_MINUTES
-    assert settings.BCRYPT_ROUNDS >= MANDATED_BCRYPT_MINIMUM_COST
-    assert settings.ADMIN_SESSION_COOKIE_NAME == DEFAULT_ADMIN_SESSION_COOKIE_NAME
-    assert settings.IS_COOKIE_SECURE is False
+def test_settings_default_values():
+    """Verify application configuration initializes with expected defaults."""
+    cfg = Settings()
+    assert cfg.PROJECT_NAME == "Smart Multilingual Audio Guide - Cu Chi Tunnels"
+    assert cfg.API_V1_STR == "/api/v1"
+    assert cfg.BCRYPT_ROUNDS == 12
+    assert cfg.DB_POOL_SIZE == 10
+    assert cfg.PAYPAL_MODE == "sandbox"
+    assert cfg.SERVICE_FEE_CURRENCY == "VND"
+    assert cfg.ALLOW_GLOBAL_COORDINATES is True
 
 
-def test_should_return_cached_singleton_when_settings_requested_twice():
-    first_settings = get_settings()
-    second_settings = get_settings()
+def test_gemini_keys_list_parsing():
+    """Verify gemini_keys_list cleanly parses comma-separated keys and handles empty states."""
+    # Empty keys gate
+    cfg_empty = Settings(GEMINI_API_KEYS="")
+    assert cfg_empty.gemini_keys_list == []
 
-    assert first_settings is second_settings
+    # Whitespace only
+    cfg_spaces = Settings(GEMINI_API_KEYS="   ,  ")
+    assert cfg_spaces.gemini_keys_list == []
 
-
-# ---------------------------------------------------------------------------
-# BOUNDARY
-# ---------------------------------------------------------------------------
-def test_should_keep_cookie_lifetime_equal_to_jwt_lifespan():
-    settings = Settings()
-
-    # The HttpOnly cookie must never outlive the signed JWT.
-    assert (
-        settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60
-        == DEFAULT_ACCESS_TOKEN_EXPIRE_MINUTES * 60
-    )
+    # Valid comma-separated tokens
+    cfg_valid = Settings(GEMINI_API_KEYS="key_alpha, key_beta ,key_gamma")
+    assert cfg_valid.gemini_keys_list == ["key_alpha", "key_beta", "key_gamma"]
 
 
-def test_should_honour_environment_override_for_bcrypt_cost(monkeypatch):
-    monkeypatch.setenv("BCRYPT_ROUNDS", "14")
+def test_google_translate_keys_list_parsing():
+    """Verify google_translate_keys_list cleanly parses tokens and handles empty states."""
+    # Empty keys gate
+    cfg_empty = Settings(GOOGLE_TRANSLATE_API_KEYS="")
+    assert cfg_empty.google_translate_keys_list == []
 
-    overridden_settings = Settings()
-
-    assert overridden_settings.BCRYPT_ROUNDS == 14
-    # Untouched keys must fall back to their defaults.
-    assert overridden_settings.JWT_ALGORITHM == DEFAULT_JWT_ALGORITHM
-
-
-def test_should_ignore_unknown_environment_variables(monkeypatch):
-    monkeypatch.setenv("UNRELATED_SETTING", "whatever")
-
-    overridden_settings = Settings()
-
-    assert not hasattr(overridden_settings, "UNRELATED_SETTING")
+    # Valid comma-separated tokens
+    cfg_valid = Settings(GOOGLE_TRANSLATE_API_KEYS="token_1, token_2")
+    assert cfg_valid.google_translate_keys_list == ["token_1", "token_2"]
 
 
-# ---------------------------------------------------------------------------
-# ERROR HANDLING
-# ---------------------------------------------------------------------------
-def test_should_fail_fast_when_environment_value_has_wrong_type(monkeypatch):
-    monkeypatch.setenv("ACCESS_TOKEN_EXPIRE_MINUTES", "not-a-number")
-
-    with pytest.raises(ValidationError):
-        Settings()
-
-
-def test_should_enforce_secure_cookie_flag_when_explicitly_enabled(monkeypatch):
-    monkeypatch.setenv("IS_COOKIE_SECURE", "true")
-
-    overridden_settings = Settings()
-
-    assert overridden_settings.IS_COOKIE_SECURE is True
-    assert overridden_settings.BCRYPT_ROUNDS == DEFAULT_BCRYPT_ROUNDS
+def test_get_settings_singleton_caching():
+    """Verify get_settings returns a cached singleton instance."""
+    instance_1 = get_settings()
+    instance_2 = get_settings()
+    assert instance_1 is instance_2

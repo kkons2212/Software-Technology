@@ -1,51 +1,16 @@
 """Application configuration resolved from environment variables (Pydantic Settings)."""
 
+from __future__ import annotations
+
 import os
 from functools import lru_cache
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-# ------------------------------------------------------------------------------
-# MODULE-LEVEL DEFAULTS
-# ------------------------------------------------------------------------------
-DEFAULT_DATABASE_URL = os.getenv(
-    "DATABASE_URL",
-    "mysql+pymysql://museum_app_user:app_password_456@localhost:3306/smart_museum?charset=utf8mb4",
-)
-DEFAULT_JWT_ALGORITHM = "HS256"
-DEFAULT_JWT_SECRET_KEY = "smart-museum-dev-placeholder-jwt-key"
-DEFAULT_ACCESS_TOKEN_EXPIRE_MINUTES = 60
-DEFAULT_IDLE_TIMEOUT_MINUTES = 30
-DEFAULT_BCRYPT_ROUNDS = 12
-DEFAULT_ADMIN_SESSION_COOKIE_NAME = "admin_session"
-DEFAULT_IS_COOKIE_SECURE = False
-DEFAULT_DB_POOL_SIZE = 10
-DEFAULT_DB_MAX_OVERFLOW = 20
-DEFAULT_DB_POOL_RECYCLE_SECONDS = 1800
-
 BACKEND_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 ENV_FILE_PATH = os.path.join(BACKEND_DIR, ".env")
 DEFAULT_STATIC_DIR = os.path.join(BACKEND_DIR, "static")
 DEFAULT_IMAGE_UPLOAD_DIR = os.path.join(DEFAULT_STATIC_DIR, "images")
-
-# Payment Gateway Defaults (US 06.1)
-DEFAULT_PAYOS_CLIENT_ID = os.getenv("PAYOS_CLIENT_ID", "")
-DEFAULT_PAYOS_API_KEY = os.getenv("PAYOS_API_KEY", "")
-DEFAULT_PAYOS_CHECKSUM_KEY = os.getenv("PAYOS_CHECKSUM_KEY", "")
-DEFAULT_STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY", "")
-DEFAULT_STRIPE_PUBLIC_KEY = os.getenv("STRIPE_PUBLIC_KEY", "")
-DEFAULT_PAYPAL_CLIENT_ID = os.getenv("PAYPAL_CLIENT_ID", "")
-DEFAULT_PAYPAL_CLIENT_SECRET = os.getenv("PAYPAL_CLIENT_SECRET", "")
-DEFAULT_PAYPAL_MODE = os.getenv("PAYPAL_MODE", "sandbox")
-DEFAULT_PAYPAL_CURRENCY = os.getenv("PAYPAL_CURRENCY", "USD")
-DEFAULT_PAYPAL_EXCHANGE_RATE = float(os.getenv("PAYPAL_EXCHANGE_RATE", "25000.0"))
-DEFAULT_AUDIO_GUIDE_SERVICE_FEE = int(os.getenv("AUDIO_GUIDE_SERVICE_FEE", "50000"))
-DEFAULT_SERVICE_FEE_CURRENCY = os.getenv("SERVICE_FEE_CURRENCY", "VND")
-DEFAULT_CLOUDFLARE_TUNNEL_URL = os.getenv("CLOUDFLARE_TUNNEL_URL", "").strip()
-DEFAULT_TRANSLATION_PACING_DELAY = float(os.getenv("TRANSLATION_PACING_DELAY", "1.5"))
-DEFAULT_OFFLINE_TRANSLATOR_URL = os.getenv(
-    "OFFLINE_TRANSLATOR_URL", "http://localhost:8001"
-).strip()
 
 
 class Settings(BaseSettings):
@@ -61,19 +26,21 @@ class Settings(BaseSettings):
     PROJECT_NAME: str = "Smart Multilingual Audio Guide - Cu Chi Tunnels"
     API_V1_STR: str = "/api/v1"
 
-    DATABASE_URL: str = DEFAULT_DATABASE_URL
-    JWT_SECRET_KEY: str = DEFAULT_JWT_SECRET_KEY
-    SECRET_KEY: str = DEFAULT_JWT_SECRET_KEY
-    JWT_ALGORITHM: str = DEFAULT_JWT_ALGORITHM
-    ALGORITHM: str = DEFAULT_JWT_ALGORITHM
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = DEFAULT_ACCESS_TOKEN_EXPIRE_MINUTES
-    IDLE_TIMEOUT_MINUTES: int = DEFAULT_IDLE_TIMEOUT_MINUTES
-    BCRYPT_ROUNDS: int = DEFAULT_BCRYPT_ROUNDS
-    ADMIN_SESSION_COOKIE_NAME: str = DEFAULT_ADMIN_SESSION_COOKIE_NAME
-    IS_COOKIE_SECURE: bool = DEFAULT_IS_COOKIE_SECURE
-    DB_POOL_SIZE: int = DEFAULT_DB_POOL_SIZE
-    DB_MAX_OVERFLOW: int = DEFAULT_DB_MAX_OVERFLOW
-    DB_POOL_RECYCLE_SECONDS: int = DEFAULT_DB_POOL_RECYCLE_SECONDS
+    DATABASE_URL: str = (
+        "mysql+pymysql://museum_app_user:app_password_456@localhost:3306/smart_museum?charset=utf8mb4"
+    )
+    JWT_SECRET_KEY: str = "smart-museum-dev-placeholder-jwt-key"
+    SECRET_KEY: str = "smart-museum-dev-placeholder-jwt-key"
+    JWT_ALGORITHM: str = "HS256"
+    ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
+    IDLE_TIMEOUT_MINUTES: int = 30
+    BCRYPT_ROUNDS: int = 12
+    ADMIN_SESSION_COOKIE_NAME: str = "admin_session"
+    IS_COOKIE_SECURE: bool = False
+    DB_POOL_SIZE: int = 10
+    DB_MAX_OVERFLOW: int = 20
+    DB_POOL_RECYCLE_SECONDS: int = 1800
 
     # Media Storage Settings
     STATIC_DIR: str = DEFAULT_STATIC_DIR
@@ -82,58 +49,75 @@ class Settings(BaseSettings):
     ALLOWED_IMAGE_TYPES: list[str] = ["image/jpeg", "image/png", "image/webp"]
 
     # Payment Gateway Settings (US 06.1)
-    PAYOS_CLIENT_ID: str = DEFAULT_PAYOS_CLIENT_ID
-    PAYOS_API_KEY: str = DEFAULT_PAYOS_API_KEY
-    PAYOS_CHECKSUM_KEY: str = DEFAULT_PAYOS_CHECKSUM_KEY
-    STRIPE_SECRET_KEY: str = DEFAULT_STRIPE_SECRET_KEY
-    STRIPE_PUBLIC_KEY: str = DEFAULT_STRIPE_PUBLIC_KEY
-    PAYPAL_CLIENT_ID: str = DEFAULT_PAYPAL_CLIENT_ID
-    PAYPAL_CLIENT_SECRET: str = DEFAULT_PAYPAL_CLIENT_SECRET
-    PAYPAL_MODE: str = DEFAULT_PAYPAL_MODE
-    PAYPAL_CURRENCY: str = DEFAULT_PAYPAL_CURRENCY
-    PAYPAL_EXCHANGE_RATE: float = DEFAULT_PAYPAL_EXCHANGE_RATE
-    AUDIO_GUIDE_SERVICE_FEE: int = DEFAULT_AUDIO_GUIDE_SERVICE_FEE
-    SERVICE_FEE_CURRENCY: str = DEFAULT_SERVICE_FEE_CURRENCY
-    CLOUDFLARE_TUNNEL_URL: str = DEFAULT_CLOUDFLARE_TUNNEL_URL
-    TRANSLATION_PACING_DELAY: float = DEFAULT_TRANSLATION_PACING_DELAY
+    PAYOS_CLIENT_ID: str = ""
+    PAYOS_API_KEY: str = ""
+    PAYOS_CHECKSUM_KEY: str = ""
+    STRIPE_SECRET_KEY: str = ""
+    STRIPE_PUBLIC_KEY: str = ""
+    PAYPAL_CLIENT_ID: str = ""
+    PAYPAL_CLIENT_SECRET: str = ""
+    PAYPAL_MODE: str = "sandbox"
+    PAYPAL_CURRENCY: str = "USD"
+    PAYPAL_EXCHANGE_RATE: float = 25000.0
+    AUDIO_GUIDE_SERVICE_FEE: int = 50000
+    SERVICE_FEE_CURRENCY: str = "VND"
+    CLOUDFLARE_TUNNEL_URL: str = ""
+    TRANSLATION_PACING_DELAY: float = 1.5
 
     # AI & Cloud Translation Settings (US 04.4)
-    GEMINI_API_KEYS: str = os.getenv("GEMINI_API_KEYS", "")
-    GOOGLE_TRANSLATE_API_KEYS: str = os.getenv("GOOGLE_TRANSLATE_API_KEYS", "")
-    GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
-    OFFLINE_TRANSLATOR_URL: str = DEFAULT_OFFLINE_TRANSLATOR_URL
+    GEMINI_API_KEYS: str = ""
+    GOOGLE_TRANSLATE_API_KEYS: str = ""
+    GEMINI_MODEL: str = "gemini-1.5-flash"
+    OFFLINE_TRANSLATOR_URL: str = "http://localhost:8001"
 
-    @property
-    def gemini_keys_list(self) -> list[str]:
-        if not self.GEMINI_API_KEYS:
-            return []
-        return [k.strip() for k in self.GEMINI_API_KEYS.split(",") if k.strip()]
-
-    @property
-    def google_translate_keys_list(self) -> list[str]:
-        if not self.GOOGLE_TRANSLATE_API_KEYS:
-            return []
-        return [
-            k.strip() for k in self.GOOGLE_TRANSLATE_API_KEYS.split(",") if k.strip()
-        ]
-
-    # Cu Chi Tunnels Geographic Perimeter Bounds
-    ALLOW_GLOBAL_COORDINATES: bool = (
-        os.getenv("ALLOW_GLOBAL_COORDINATES", "false").lower() == "true"
-    )
-
-    CU_CHI_BOUNDS: dict = {
+    # Geographic Perimeter Bounds
+    ALLOW_GLOBAL_COORDINATES: bool = True
+    CU_CHI_BOUNDS: dict[str, float] = {
         "min_lat": 11.136361,
         "max_lat": 11.149306,
         "min_lng": 106.455139,
         "max_lng": 106.467639,
     }
 
+    @property
+    def gemini_keys_list(self) -> list[str]:
+        """Parse comma-separated Gemini API keys into an explicit list (SISE Compliant)."""
+        # Phase 1 Gate: Guard against missing or empty keys
+        if not self.GEMINI_API_KEYS or not self.GEMINI_API_KEYS.strip():
+            return []
+
+        # Phase 2 Compute: Split and clean individual key tokens
+        resolved_keys = [
+            k.strip() for k in self.GEMINI_API_KEYS.split(",") if k.strip()
+        ]
+
+        # Phase 3 Exit: Single structured return
+        return resolved_keys
+
+    @property
+    def google_translate_keys_list(self) -> list[str]:
+        """Parse comma-separated Google Translate API keys into an explicit list (SISE Compliant)."""
+        # Phase 1 Gate: Guard against missing or empty keys
+        if (
+            not self.GOOGLE_TRANSLATE_API_KEYS
+            or not self.GOOGLE_TRANSLATE_API_KEYS.strip()
+        ):
+            return []
+
+        # Phase 2 Compute: Split and clean individual key tokens
+        resolved_keys = [
+            k.strip() for k in self.GOOGLE_TRANSLATE_API_KEYS.split(",") if k.strip()
+        ]
+
+        # Phase 3 Exit: Single structured return
+        return resolved_keys
+
 
 @lru_cache
 def get_settings() -> Settings:
     """Return the process-wide settings singleton (cached after the first call)."""
-    return Settings()
+    resolved_settings = Settings()
+    return resolved_settings
 
 
 settings = get_settings()

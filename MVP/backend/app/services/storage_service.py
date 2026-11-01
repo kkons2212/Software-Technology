@@ -107,20 +107,22 @@ class StorageService:
         return threshold_status
 
     def _measure_audio_cache(self) -> tuple[int, int]:
+        if not self.audio_dir.exists():
+            return 0, 0
+
         audio_cache_bytes = 0
         audio_cache_files = 0
-        if self.audio_dir.exists():
-            for entry in os.scandir(self.audio_dir):
-                if entry.is_file() and entry.name.lower().endswith(".mp3"):
-                    audio_cache_files += 1
-                    try:
-                        audio_cache_bytes += entry.stat().st_size
-                    except OSError as exc:
-                        logger.warning(
-                            "Could not read audio cache file size for %s: %s",
-                            entry.path,
-                            exc,
-                        )
+        for entry in os.scandir(self.audio_dir):
+            if entry.is_file() and entry.name.lower().endswith(".mp3"):
+                audio_cache_files += 1
+                try:
+                    audio_cache_bytes += entry.stat().st_size
+                except OSError as exc:
+                    logger.warning(
+                        "Could not read audio cache file size for %s: %s",
+                        entry.path,
+                        exc,
+                    )
         return audio_cache_bytes, audio_cache_files
 
     def _sample_database_health(self) -> tuple[str, float]:
@@ -133,17 +135,10 @@ class StorageService:
             db_latency_ms = -1.0
         return db_status, db_latency_ms
 
-    def prune_orphaned_audio_files(
-        self,
-        admin_username: str,
-        client_ip: str | None = None,
-    ) -> CleanOrphansData:
-        """Scan physical audio cache, unlink unreferenced MP3s, and record audit log."""
-        referenced_urls = self.audio_repository.get_all_audio_urls()
-        referenced_filenames = {os.path.basename(url) for url in referenced_urls if url}
-
-        self.audio_dir.mkdir(parents=True, exist_ok=True)
-
+    def _collect_orphan_candidates(
+        self, referenced_filenames: set[str]
+    ) -> tuple[list[Path], int]:
+        """Scan physical directory and collect unreferenced mp3 files."""
         orphan_candidates: list[Path] = []
         remaining_files = 0
         for entry in os.scandir(self.audio_dir):
@@ -156,10 +151,15 @@ class StorageService:
                 remaining_files += 1
             else:
                 orphan_candidates.append(Path(entry.path))
+        return orphan_candidates, remaining_files
 
+    def _unlink_orphan_candidates(
+        self, candidates: list[Path]
+    ) -> tuple[int, int]:
+        """Unlink candidate files and measure deleted bytes."""
         deleted_count = 0
         reclaimed_bytes = 0
-        for candidate in orphan_candidates:
+        for candidate in candidates:
             try:
                 file_size = candidate.stat().st_size
                 candidate.unlink()
@@ -167,6 +167,25 @@ class StorageService:
                 reclaimed_bytes += file_size
             except OSError as exc:
                 logger.warning("Failed to delete orphan file %s: %s", candidate, exc)
+        return deleted_count, reclaimed_bytes
+
+    def prune_orphaned_audio_files(
+        self,
+        admin_username: str,
+        client_ip: str | None = None,
+    ) -> CleanOrphansData:
+        """Scan physical audio cache, unlink unreferenced MP3s, and record audit log."""
+        referenced_urls = self.audio_repository.get_all_audio_urls()
+        referenced_filenames = {os.path.basename(url) for url in referenced_urls if url}
+
+        self.audio_dir.mkdir(parents=True, exist_ok=True)
+
+        orphan_candidates, remaining_files = self._collect_orphan_candidates(
+            referenced_filenames
+        )
+        deleted_count, reclaimed_bytes = self._unlink_orphan_candidates(
+            orphan_candidates
+        )
 
         reclaimed_mb = round(reclaimed_bytes / (1024 * 1024), 2)
 

@@ -16,8 +16,8 @@
 | [**REF-EPIC-04**](#-ref-epic-04-automated-ai-translation-pipeline-tts-engine--audit-curation-uc-04) | AI Translation Pipeline, TTS Engine & Audio Curation | Layer 2 (Service) / Layer 3 (Repo/Client) / Test | Must Have | 10 SP | 6 Tasks | [x] 6/6 |
 | [**REF-EPIC-05**](#-ref-epic-05-operational-telemetry-heatmap-aggregation--system-health-uc-05) | Telemetry Ingestion, Heatmap Aggregation & Data Export | Layer 2 (Service) / Layer 3 (Repo) / Test | Should Have | 6 SP | 4 Tasks | [x] 4/4 |
 | [**REF-EPIC-06**](#-ref-epic-06-digital-admission-payment-webhook-verification--visiting-session-uc-06) | Payment Webhook Verification, Session Gating & Recovery | Layer 2 (Service) / Layer 3 (Repo/Client) / Test | Must Have | 8 SP | 5 Tasks | [x] 5/5 |
-| [**REF-EPIC-07**](#-ref-epic-07-cross-cutting-infrastructure-orm-schema-defense--ci-gates) | Infrastructure, ORM-DDL Defense & Control Flow CI Gates | Layer 3 (Core/DB) / AST Linter / CI | Must Have | 5 SP | 4 Tasks | [ ] 0/4 |
-| **TOTAL** | **7 Refactoring Epics (Layer 2 & 3 Backend + Tests)** | — | — | **47 SP** | **31 Tasks** | **[ ] 27/31 Tasks** |
+| [**REF-EPIC-07**](#-ref-epic-07-cross-cutting-infrastructure-orm-schema-defense--ci-gates) | Infrastructure, ORM-DDL Defense & Control Flow CI Gates | Layer 3 (Core/DB) / AST Linter / CI | Must Have | 5 SP | 4 Tasks | [x] 4/4 (DONE) |
+| **TOTAL** | **7 Refactoring Epics (Layer 2 & 3 Backend + Tests)** | — | — | **47 SP** | **31 Tasks** | **[x] 31/31 Tasks (DONE)** |
 
 ---
 
@@ -303,7 +303,7 @@ Every refactoring task in this backlog must strictly comply with the quantitativ
 *Focus: Aligning SQLAlchemy ORM models with MySQL DDL, automating AST control flow linting, and establishing regression defense.*
 
 ### 📌 Tasks Breakdown:
-- [ ] `REF-07.1` `[Layer 3 - ORM Models]` **Harmonize SQLAlchemy ORM Models with MySQL 8.0 DDL (`app/models/`)**
+- [x] `REF-07.1` `[Layer 3 - ORM Models]` **Harmonize SQLAlchemy ORM Models with MySQL 8.0 DDL (`app/models/`)**
   - **Smells & Anti-patterns:** ORM model definitions have drifted from `mysql_schema.sql` (obsolete `POITranslation.UserName`, reversed `VisitorSession.TransactionID` foreign key, `Transaction.PayAmount` integer vs decimal).
   - **Refactoring Scope:**
     1. `app/models/translation.py`: Remove `user_name` column; add `audio_url`, `duration`, `file_size`.
@@ -311,13 +311,13 @@ Every refactoring task in this backlog must strictly comply with the quantitativ
     3. `app/models/transaction.py`: Remove `session_id`; update `pay_amount` to `Numeric(12, 2)`.
   - **DoD:** Models match `scripts/mysql_schema.sql` 100%; zero schema incompatibility warnings.
 
-- [ ] `REF-07.2` `[Layer 3 - Core]` **Refactor Application Configuration Singleton (`app/core/config.py`)**
+- [x] `REF-07.2` `[Layer 3 - Core]` **Refactor Application Configuration Singleton (`app/core/config.py`)**
   - **Smells & Anti-patterns:** Class body mixes `os.getenv` fallbacks with calculated properties.
   - **Refactoring Scope:** Consolidate Pydantic `BaseSettings` fields into typed annotations with clear defaults. Provide single deterministic `get_settings()` singleton.
   - **Metric Target:** $K = 1$, $M \le 3$.
   - **Paired Unit Test:** `tests/unit/core/test_config.py`
 
-- [ ] `REF-07.3` `[Backend - Linter]` **Automated AST Control Flow Audit Script (`scripts/check_sise_rules.py`)**
+- [x] `REF-07.3` `[Backend - Linter]` **Automated AST Control Flow Audit Script (`scripts/check_sise_rules.py`)**
   - **Smells & Anti-patterns:** Manual review cannot catch 100% of newly introduced scattered returns or high cyclomatic complexity.
   - **Refactoring Scope:**
     1. Write an AST-based Python auditor using `ast` module.
@@ -325,7 +325,7 @@ Every refactoring task in this backlog must strictly comply with the quantitativ
     3. Exit with non-zero code if any function violates the SISE standard.
   - **DoD:** Script runs via `python scripts/check_sise_rules.py` and passes with zero violations.
 
-- [ ] `REF-07.4` `[CI/Test]` **End-to-End Regression Defense Suite Execution**
+- [x] `REF-07.4` `[CI/Test]` **End-to-End Regression Defense Suite Execution**
   - **Scope:** Run full Backend test suite against MySQL to verify that the Layer 2 & 3 refactoring introduced zero regressions.
   - **Execution Commands:**
     - `pytest MVP/backend/tests --cov=app --cov-report=term-missing --cov-fail-under=80`

@@ -45,22 +45,22 @@ def _to_naive_utc(moment: datetime) -> datetime:
 
 
 def _resolve_range_start(time_range: str) -> datetime:
-    """Translate the API reporting window into an inclusive naive-UTC lower bound."""
+    """Translate the API reporting window into an inclusive naive-UTC lower bound (SISE Compliant)."""
     now_utc = _current_utc_time()
 
     if time_range == ANALYTICS_RANGE_TODAY:
         local_midnight = now_utc.astimezone(BUSINESS_TIMEZONE).replace(
             hour=0, minute=0, second=0, microsecond=0
         )
-        return _to_naive_utc(local_midnight)
+        resolved_start = _to_naive_utc(local_midnight)
+    elif time_range == ANALYTICS_RANGE_LAST_7_DAYS:
+        resolved_start = _to_naive_utc(now_utc - timedelta(days=7))
+    elif time_range == ANALYTICS_RANGE_LAST_30_DAYS:
+        resolved_start = _to_naive_utc(now_utc - timedelta(days=30))
+    else:
+        raise ValueError(f"Unsupported analytics time range '{time_range}'.")
 
-    if time_range == ANALYTICS_RANGE_LAST_7_DAYS:
-        return _to_naive_utc(now_utc - timedelta(days=7))
-
-    if time_range == ANALYTICS_RANGE_LAST_30_DAYS:
-        return _to_naive_utc(now_utc - timedelta(days=30))
-
-    raise ValueError(f"Unsupported analytics time range '{time_range}'.")
+    return resolved_start
 
 
 class TelemetryService:

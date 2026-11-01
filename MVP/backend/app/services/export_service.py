@@ -34,6 +34,43 @@ class ExportService:
     def __init__(self, telemetry_repo: TelemetryRepository):
         self.repo = telemetry_repo
 
+    def _resolve_custom_date_bounds(
+        self, start_date: date | None, end_date: date | None
+    ) -> tuple[datetime, datetime]:
+        """Validate and resolve custom start and end datetimes (SISE Helper)."""
+        if start_date is None or end_date is None:
+            raise ValueError(
+                "Both start_date and end_date are required for a custom date range"
+            )
+        if start_date > end_date:
+            raise ValueError("start_date cannot be after end_date")
+
+        start_dt = datetime.combine(start_date, time.min, tzinfo=BUSINESS_TIMEZONE)
+        end_dt = datetime.combine(end_date, time.max, tzinfo=BUSINESS_TIMEZONE)
+        return start_dt, end_dt
+
+    def _resolve_preset_date_bounds(
+        self, time_range: str | None, now_utc: datetime
+    ) -> tuple[datetime, datetime | None]:
+        """Resolve preset time range to start datetime (SISE Helper)."""
+        range_key = (time_range or ANALYTICS_RANGE_LAST_7_DAYS).upper()
+        if range_key not in SUPPORTED_ANALYTICS_RANGES:
+            raise ValueError(
+                f"Unsupported analytics time range: '{time_range}'. "
+                f"Expected one of: {sorted(SUPPORTED_ANALYTICS_RANGES)}."
+            )
+
+        if range_key == ANALYTICS_RANGE_TODAY:
+            start_dt = now_utc.astimezone(BUSINESS_TIMEZONE).replace(
+                hour=0, minute=0, second=0, microsecond=0
+            )
+        elif range_key == ANALYTICS_RANGE_LAST_7_DAYS:
+            start_dt = now_utc - timedelta(days=7)
+        else:
+            start_dt = now_utc - timedelta(days=30)
+
+        return start_dt, None
+
     def resolve_date_bounds(
         self,
         time_range: str | None = None,
@@ -44,32 +81,9 @@ class ExportService:
         now_utc = _current_utc_time()
 
         if start_date is not None or end_date is not None:
-            if start_date is None or end_date is None:
-                raise ValueError(
-                    "Both start_date and end_date are required for a custom date range"
-                )
-            if start_date > end_date:
-                raise ValueError("start_date cannot be after end_date")
-
-            start_dt = datetime.combine(start_date, time.min, tzinfo=BUSINESS_TIMEZONE)
-            end_dt = datetime.combine(end_date, time.max, tzinfo=BUSINESS_TIMEZONE)
+            start_dt, end_dt = self._resolve_custom_date_bounds(start_date, end_date)
         else:
-            range_key = (time_range or ANALYTICS_RANGE_LAST_7_DAYS).upper()
-            if range_key not in SUPPORTED_ANALYTICS_RANGES:
-                raise ValueError(
-                    f"Unsupported analytics time range: '{time_range}'. "
-                    f"Expected one of: {sorted(SUPPORTED_ANALYTICS_RANGES)}."
-                )
-
-            if range_key == ANALYTICS_RANGE_TODAY:
-                start_dt = now_utc.astimezone(BUSINESS_TIMEZONE).replace(
-                    hour=0, minute=0, second=0, microsecond=0
-                )
-            elif range_key == ANALYTICS_RANGE_LAST_7_DAYS:
-                start_dt = now_utc - timedelta(days=7)
-            else:
-                start_dt = now_utc - timedelta(days=30)
-            end_dt = None
+            start_dt, end_dt = self._resolve_preset_date_bounds(time_range, now_utc)
 
         resolved_start = _to_naive_utc(start_dt)
         resolved_end = _to_naive_utc(end_dt) if end_dt is not None else None
