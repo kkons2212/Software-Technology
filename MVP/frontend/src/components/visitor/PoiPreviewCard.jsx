@@ -143,17 +143,17 @@ export default function PoiPreviewCard({
               ? getVisitorText('clearRoute', currentLang)
               : getVisitorText('directions', currentLang)}
           </button>
-          <button
-            className="poi-preview-play"
-            type="button"
-            aria-label={isUnlocked && isActivated ? 'Replay' : 'Play Narration'}
-            onClick={onPlayAudio}
-            data-testid="poi-preview-play-btn"
-          >
-            {isUnlocked && isActivated
-              ? getVisitorText('replay', currentLang)
-              : getVisitorText('playNarration', currentLang)}
-          </button>
+          {isActivated && (
+            <button
+              className="poi-preview-play"
+              type="button"
+              aria-label={getVisitorText('replay', currentLang)}
+              onClick={onPlayAudio}
+              data-testid="poi-preview-play-btn"
+            >
+              {getVisitorText('replay', currentLang)}
+            </button>
+          )}
         </div>
       </section>
     </div>

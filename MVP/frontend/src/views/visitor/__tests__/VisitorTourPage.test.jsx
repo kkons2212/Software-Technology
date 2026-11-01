@@ -145,7 +145,7 @@ describe('VisitorTourPage', () => {
     await waitFor(() => expect(getMapPois).toHaveBeenCalledTimes(2));
   });
 
-  it('opens the selected POI preview and plays its free summary through the audio context', async () => {
+  it('opens the selected POI preview with Directions and no preview audio button when unactivated (UC-1.2)', async () => {
     getMapPois.mockResolvedValue([
       {
         id: 'poi-1',
@@ -166,13 +166,10 @@ describe('VisitorTourPage', () => {
     expect(await screen.findByRole('dialog')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Cu Chi Tunnel' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Directions' })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Play Narration' }));
-
-    expect(audioPlayerMock.play).toHaveBeenCalledWith(expect.objectContaining({
-      id: 'poi-1',
-      text: 'Explore the underground tunnel system.',
-      lang: 'vi',
-    }));
+    expect(screen.queryByRole('button', { name: 'Play Narration' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Nghe thuyết minh' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Replay' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Nghe lại' })).not.toBeInTheDocument();
   });
 
   it.each([
