@@ -15,9 +15,9 @@
 | [**REF-EPIC-03**](#-ref-epic-03-poi-spatial-catalog-coordinate-validation--media-upload-uc-03) | POI Catalog, Coordinate Validation & Spatial Queries | Layer 2 (Service) / Layer 3 (Repo) / Test | Must Have | 6 SP | 4 Tasks | [x] 4/4 |
 | [**REF-EPIC-04**](#-ref-epic-04-automated-ai-translation-pipeline-tts-engine--audit-curation-uc-04) | AI Translation Pipeline, TTS Engine & Audio Curation | Layer 2 (Service) / Layer 3 (Repo/Client) / Test | Must Have | 10 SP | 6 Tasks | [x] 6/6 |
 | [**REF-EPIC-05**](#-ref-epic-05-operational-telemetry-heatmap-aggregation--system-health-uc-05) | Telemetry Ingestion, Heatmap Aggregation & Data Export | Layer 2 (Service) / Layer 3 (Repo) / Test | Should Have | 6 SP | 4 Tasks | [x] 4/4 |
-| [**REF-EPIC-06**](#-ref-epic-06-digital-admission-payment-webhook-verification--visiting-session-uc-06) | Payment Webhook Verification, Session Gating & Recovery | Layer 2 (Service) / Layer 3 (Repo/Client) / Test | Must Have | 8 SP | 5 Tasks | [ ] 0/5 |
+| [**REF-EPIC-06**](#-ref-epic-06-digital-admission-payment-webhook-verification--visiting-session-uc-06) | Payment Webhook Verification, Session Gating & Recovery | Layer 2 (Service) / Layer 3 (Repo/Client) / Test | Must Have | 8 SP | 5 Tasks | [x] 5/5 |
 | [**REF-EPIC-07**](#-ref-epic-07-cross-cutting-infrastructure-orm-schema-defense--ci-gates) | Infrastructure, ORM-DDL Defense & Control Flow CI Gates | Layer 3 (Core/DB) / AST Linter / CI | Must Have | 5 SP | 4 Tasks | [ ] 0/4 |
-| **TOTAL** | **7 Refactoring Epics (Layer 2 & 3 Backend + Tests)** | — | — | **47 SP** | **31 Tasks** | **[ ] 14/31 Tasks** |
+| **TOTAL** | **7 Refactoring Epics (Layer 2 & 3 Backend + Tests)** | — | — | **47 SP** | **31 Tasks** | **[ ] 23/31 Tasks** |
 
 ---
 
@@ -88,7 +88,7 @@ Every refactoring task in this backlog must strictly comply with the quantitativ
 *Focus: Eliminating scattered returns in credential verification, strictly separating audit logging invariants from failure branches, and hardening repository data access.*
 
 ### 📌 Tasks Breakdown:
-- [x] `REF-02.1` `[Layer 2 - Service]` **Refactor Admin Authentication Service (`app/services/auth_service.py`)**
+- [ ] `REF-02.1` `[Layer 2 - Service]` **Refactor Admin Authentication Service (`app/services/auth_service.py`)**
   - **Smells & Anti-patterns:** `login_admin` has 4 distinct `raise ApiError` statements intermingled with audit logging calls, creating risk where failure telemetry fails to record.
   - **Refactoring Scope:**
     1. Phase 1 Gate: Validate non-empty sanitized username and password length constraints.
@@ -98,19 +98,19 @@ Every refactoring task in this backlog must strictly comply with the quantitativ
   - **Layer 1 Fit:** Controller `auth_controller.py` calls `auth_service.login_admin(credentials, db)` without change.
   - **Metric Target:** $K \le 2$, $M \le 6$, Nesting Depth $\le 2$.
 
-- [x] `REF-02.2` `[Layer 3 - Repository]` **Refactor User Repository (`app/repositories/user_repository.py`)**
+- [ ] `REF-02.2` `[Layer 3 - Repository]` **Refactor User Repository (`app/repositories/user_repository.py`)**
   - **Smells & Anti-patterns:** Implicit `None` return when user not found; redundant session flush calls.
   - **Refactoring Scope:**
     1. Explicit return accumulator: `user = query.first(); return user`.
     2. Encapsulate failure counter updates (`increment_failed_attempts`, `reset_failed_attempts`) with explicit return of updated user model.
   - **Metric Target:** $K = 1$, $M \le 4$.
 
-- [x] `REF-02.3` `[Layer 3 - Repository]` **Refactor Audit Repository (`app/repositories/audit_repository.py`)**
+- [ ] `REF-02.3` `[Layer 3 - Repository]` **Refactor Audit Repository (`app/repositories/audit_repository.py`)**
   - **Smells & Anti-patterns:** Missing transaction commit encapsulation; variable length details column not properly formatted for TEXT type.
   - **Refactoring Scope:** Standardize `create_audit_entry(user_name, status, ip_address, details)` to linear SISE execution with explicit return of created `Audit` instance.
   - **Metric Target:** $K = 1$, $M \le 3$.
 
-- [x] `REF-02.4` `[Test - Unit Suite]` **Refactor Auth & Security Unit Tests (`tests/unit/services/test_auth_service.py` & `test_user_repository.py`)**
+- [ ] `REF-02.4` `[Test - Unit Suite]` **Refactor Auth & Security Unit Tests (`tests/unit/services/test_auth_service.py` & `test_user_repository.py`)**
   - **Test Smells:** Tests verify audit side-effects using brittle count checks; inconsistent password hashing mock setups.
   - **Refactoring Scope:**
     1. Standardize user seed fixture with `LOW_COST_BCRYPT_ROUNDS`.

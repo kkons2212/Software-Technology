@@ -1,6 +1,5 @@
 """SessionService encapsulating business logic for visitor sessions (US 06.2, US 06.3)."""
 
-import uuid
 from datetime import datetime
 
 from app.core.exceptions import ApiError
@@ -15,18 +14,18 @@ class SessionService:
         self.session_repo = session_repository
 
     def restore_session(self, session_code: str) -> SessionRestoreResponse:
-        """Validate and restore a 24-hour visiting session using a session code (TSK-06.3.1).
+        """Validate and restore a 24-hour visiting session using a session code adhering to SISE.
 
-        Raises:
-            ApiError(404): If the session code does not exist.
-            ApiError(410): If the session exists but has expired or is inactive.
+        Phase 1: Precondition Gate (Code normalization & existence verification)
+        Phase 2: Linear Compute & Validation (Expiry check & token guarantee)
+        Phase 3: Unified Exit (DTO construction and single return)
         """
+        # Phase 1: Precondition Gate
         code = session_code.strip().upper()
         if not code.startswith("CCT-") and len(code) == 6:
             code = f"CCT-{code}"
 
         session = self.session_repo.get_by_code(code)
-
         if not session:
             raise ApiError(
                 status_code=404,
@@ -35,8 +34,8 @@ class SessionService:
                 details={"session_code": code},
             )
 
+        # Phase 2: Linear Compute & Validation
         now = datetime.utcnow()
-
         if session.Status != "ACTIVE" or (
             session.Expire_at and session.Expire_at <= now
         ):
@@ -53,25 +52,22 @@ class SessionService:
                 },
             )
 
-        # Ensure session token exists
-        if not session.SessionToken:
-            session.SessionToken = uuid.uuid4().hex
-            self.session_repo.db.commit()
-            self.session_repo.db.refresh(session)
-
+        # Guarantee session token without violating L2/L3 layering boundaries
+        resolved_token = self.session_repo.ensure_session_token(session)
         remaining_seconds = max(0, int((session.Expire_at - now).total_seconds()))
 
+        # Phase 3: Unified Structured Exit
         data = SessionRestoreData(
             session_id=session.SessionID,
             session_code=session.SessionCode,
-            session_token=session.SessionToken,
+            session_token=resolved_token,
             status=session.Status,
             expires_at=session.Expire_at,
             remaining_seconds=remaining_seconds,
             preferred_language=session.PreferredLanguage or "vi",
         )
 
-        return SessionRestoreResponse(
+        response = SessionRestoreResponse(
             session_id=data.session_id,
             session_code=data.session_code,
             session_token=data.session_token,
@@ -82,3 +78,14 @@ class SessionService:
             success=True,
             data=data,
         )
+        return response
+
+    def validate_session_active(self, token: str) -> bool:
+        """Deterministic predicate checking whether a session token is currently valid."""
+        cleaned_token = str(token).strip() if token else ""
+        is_active = (
+            self.session_repo.is_session_active(cleaned_token)
+            if cleaned_token
+            else False
+        )
+        return is_active

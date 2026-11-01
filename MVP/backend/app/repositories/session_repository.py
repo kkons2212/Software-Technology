@@ -21,7 +21,7 @@ class SessionRepository:
         expire_at: datetime | None = None,
         device_fingerprint: str | None = None,
     ) -> VisitorSession:
-        """Create and persist a new 24-hour VisitorSession."""
+        """Create and persist a new 24-hour VisitorSession adhering to SISE."""
         s_id = f"SES_{uuid.uuid4().hex[:12].upper()}"
         s_code = session_code or f"CCT-{uuid.uuid4().hex[:6].upper()}"
         s_token = session_token or uuid.uuid4().hex
@@ -47,70 +47,72 @@ class SessionRepository:
 
     def get_by_id(self, session_id: str) -> VisitorSession | None:
         """Retrieve a VisitorSession by primary key identifier."""
-        return (
+        session = (
             self.db.query(VisitorSession)
             .filter(VisitorSession.SessionID == session_id)
             .first()
         )
+        return session
 
     def get_by_code(self, session_code: str) -> VisitorSession | None:
         """Retrieve a VisitorSession by unique session code (e.g., CCT-XXXXXX)."""
-        return (
+        session = (
             self.db.query(VisitorSession)
             .filter(VisitorSession.SessionCode == session_code.strip())
             .first()
         )
+        return session
 
     def get_by_token(self, session_token: str) -> VisitorSession | None:
         """Retrieve a VisitorSession by bearer session token."""
-        return (
+        session = (
             self.db.query(VisitorSession)
             .filter(VisitorSession.SessionToken == session_token.strip())
             .first()
         )
+        return session
 
-    def is_session_active(self, session_or_identifier: VisitorSession | str) -> bool:
-        """Check whether a session is currently ACTIVE and has not expired."""
-        if isinstance(session_or_identifier, VisitorSession):
-            session = session_or_identifier
-        else:
-            identifier = session_or_identifier.strip()
-            session = (
-                self.db.query(VisitorSession)
-                .filter(
-                    or_(
-                        VisitorSession.SessionCode == identifier,
-                        VisitorSession.SessionToken == identifier,
-                        VisitorSession.SessionID == identifier,
-                    )
-                )
-                .first()
-            )
-
-        if not session:
-            return False
-
-        if session.Status != "ACTIVE":
-            return False
-
-        if session.Expire_at and session.Expire_at < datetime.utcnow():
-            return False
-
-        return True
-
-    def expire_session(self, session_id_or_code: str) -> VisitorSession | None:
-        """Mark an active session as EXPIRED."""
-        identifier = session_id_or_code.strip()
+    def _find_session_by_identifier(self, identifier: str) -> VisitorSession | None:
+        """Private helper to locate a session by code, token, or primary ID."""
         session = (
             self.db.query(VisitorSession)
             .filter(
                 or_(
-                    VisitorSession.SessionID == identifier,
                     VisitorSession.SessionCode == identifier,
+                    VisitorSession.SessionToken == identifier,
+                    VisitorSession.SessionID == identifier,
                 )
             )
             .first()
         )
+        return session
+
+    def is_session_active(self, session_or_identifier: VisitorSession | str) -> bool:
+        """Check whether a session is currently ACTIVE and has not expired with single unified return."""
+        session = (
+            session_or_identifier
+            if isinstance(session_or_identifier, VisitorSession)
+            else self._find_session_by_identifier(str(session_or_identifier).strip())
+        )
+        is_active = False
+        if session and session.Status == "ACTIVE":
+            now = datetime.utcnow()
+            has_not_expired = not (session.Expire_at and session.Expire_at < now)
+            is_active = has_not_expired
+        return is_active
+
+    def ensure_session_token(self, session: VisitorSession) -> str:
+        """Ensure session has a token persisted, encapsulating commit to prevent L2/L3 boundary leakage."""
+        if not session.SessionToken:
+            session.SessionToken = uuid.uuid4().hex
+            self.db.commit()
+            self.db.refresh(session)
+        return session.SessionToken
+
+    def expire_session(self, session_id_or_code: str) -> VisitorSession | None:
+        """Mark an active session as EXPIRED with explicit exit accumulator."""
+        identifier = session_id_or_code.strip()
+        session = self._find_session_by_identifier(identifier)
         if session:
             session.Status = "EXPIRED"
             self.db.commit()
@@ -120,18 +122,9 @@ class SessionRepository:
     def extend_session(
         self, session_id_or_code: str, hours: int = 24
     ) -> VisitorSession | None:
-        """Extend expiration time for a session by specified hours."""
+        """Extend expiration time for a session by specified hours with explicit exit accumulator."""
         identifier = session_id_or_code.strip()
-        session = (
-            self.db.query(VisitorSession)
-            .filter(
-                or_(
-                    VisitorSession.SessionID == identifier,
-                    VisitorSession.SessionCode == identifier,
-                )
-            )
-            .first()
-        )
+        session = self._find_session_by_identifier(identifier)
         if session:
             now = datetime.utcnow()
             base_time = (

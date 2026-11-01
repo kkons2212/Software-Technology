@@ -46,11 +46,11 @@ class PaymentService:
 
     def _has_payos_credentials(self) -> bool:
         """Check if production/sandbox PayOS API keys are configured in environment."""
-        return bool(
-            settings.PAYOS_CLIENT_ID
-            and settings.PAYOS_API_KEY
-            and settings.PAYOS_CHECKSUM_KEY
-        )
+        has_client = bool(settings.PAYOS_CLIENT_ID)
+        has_api_key = bool(settings.PAYOS_API_KEY)
+        has_checksum = bool(settings.PAYOS_CHECKSUM_KEY)
+        is_ready = bool(has_client and has_api_key and has_checksum)
+        return is_ready
 
     def _generate_payos_signature(self, data: dict[str, Any], checksum_key: str) -> str:
         """Compute HMAC-SHA256 signature required by PayOS payment gateway."""
@@ -58,25 +58,27 @@ class PaymentService:
         sign_string = "&".join(
             f"{k}={data[k]}" for k in sorted_keys if data[k] is not None
         )
-        return hmac.new(
+        signature = hmac.new(
             checksum_key.encode("utf-8"),
             sign_string.encode("utf-8"),
             hashlib.sha256,
         ).hexdigest()
+        return signature
 
     def verify_payos_webhook_signature(
         self, data: dict[str, Any], signature: str
     ) -> bool:
         """Verify HMAC-SHA256 signature against PayOS payload data using PAYOS_CHECKSUM_KEY."""
         checksum_key = settings.PAYOS_CHECKSUM_KEY
-        if not checksum_key or not signature:
+        is_valid = False
+        if checksum_key and signature:
+            expected_sig = self._generate_payos_signature(data, checksum_key)
+            is_valid = hmac.compare_digest(expected_sig.lower(), signature.lower())
+        else:
             logger.warning(
                 "Checksum key or signature missing for webhook verification."
             )
-            return False
-
-        expected_sig = self._generate_payos_signature(data, checksum_key)
-        return hmac.compare_digest(expected_sig.lower(), signature.lower())
+        return is_valid
 
     async def _call_payos_sandbox(
         self,
@@ -86,7 +88,7 @@ class PaymentService:
         return_url: str,
         cancel_url: str,
     ) -> dict | None:
-        """Send payment link creation request to PayOS Sandbox API."""
+        """Send payment link creation request to PayOS Sandbox API with single exit."""
         sign_data = {
             "amount": amount,
             "cancelUrl": cancel_url,
@@ -107,6 +109,7 @@ class PaymentService:
             "Content-Type": "application/json",
         }
 
+        payos_data: dict | None = None
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
                 res = await client.post(
@@ -115,37 +118,38 @@ class PaymentService:
                 if res.status_code == 200:
                     data = res.json()
                     if data.get("code") == "00":
-                        return data.get("data")
-                logger.warning(
-                    "PayOS Sandbox returned non-success response: status=%s, body=%s",
-                    res.status_code,
-                    res.text,
-                )
+                        payos_data = data.get("data")
+                if not payos_data:
+                    logger.warning(
+                        "PayOS Sandbox returned non-success response: status=%s, body=%s",
+                        res.status_code,
+                        res.text,
+                    )
         except Exception as exc:
             logger.warning("Error communicating with PayOS Sandbox API: %s", exc)
 
-        return None
+        return payos_data
 
     def _build_vietqr_url(
         self, account_no: str, bank_bin: str, amount: int, memo: str
     ) -> str:
         """Construct standard Napas247 VietQR image URL with amount and transfer memo."""
         encoded_memo = urllib.parse.quote(memo)
-        return (
+        url = (
             f"https://img.vietqr.io/image/{bank_bin}-{account_no}-compact2.png"
             f"?amount={amount}&addInfo={encoded_memo}&accountName={urllib.parse.quote(DEFAULT_ACCOUNT_NAME)}"
         )
+        return url
 
     async def create_checkout_order(
         self,
         payload: CheckoutCreateRequest,
     ) -> CheckoutCreateResponse:
-        """Initialize digital admission checkout order via VietQR or Card (US 06.1)."""
+        """Initialize digital admission checkout order via VietQR or Card (US 06.1) adhering to SISE."""
         fee_amount = settings.AUDIO_GUIDE_SERVICE_FEE
         currency = settings.SERVICE_FEE_CURRENCY
         payment_method = payload.payment_method.upper()
 
-        # Step 1: Create PENDING transaction in MySQL database
         gateway_name = "PAYOS" if payment_method == "VIETQR" else "PAYPAL"
         txn = self.transaction_repo.create_transaction(
             pay_amount=fee_amount,
@@ -157,14 +161,11 @@ class PaymentService:
         order_id = txn.transaction_id
         transfer_memo = f"CCT {order_id[-6:]}"
         expires_at = datetime.utcnow() + timedelta(minutes=QR_EXPIRATION_MINUTES)
-
-        qr_code_url = None
-        checkout_url = None
+        qr_code_url: str | None = None
+        checkout_url: str | None = None
 
         if payment_method == "VIETQR":
-            # Attempt to call PayOS Sandbox API if credentials exist
             if self._has_payos_credentials():
-                # Order code must be integer for PayOS
                 try:
                     numeric_order_code = (
                         int(datetime.utcnow().timestamp() * 1000) % 100000000
@@ -182,10 +183,10 @@ class PaymentService:
                 if payos_data:
                     qr_code_url = payos_data.get("qrCode")
                     checkout_url = payos_data.get("checkoutUrl")
-                    txn.gateway_transaction_id = str(numeric_order_code)
-                    self.transaction_repo.db.commit()
+                    self.transaction_repo.update_gateway_info(
+                        txn, str(numeric_order_code)
+                    )
 
-            # Graceful Fallback: Build standard Napas247 VietQR if PayOS returned None or credentials missing
             if not qr_code_url:
                 qr_code_url = self._build_vietqr_url(
                     account_no=DEFAULT_ACCOUNT_NUMBER,
@@ -193,56 +194,47 @@ class PaymentService:
                     amount=fee_amount,
                     memo=transfer_memo,
                 )
-
-            return CheckoutCreateResponse(
-                order_id=order_id,
-                pay_amount=fee_amount,
-                currency=currency,
-                payment_method=payment_method,
-                qr_code_url=qr_code_url,
-                checkout_url=checkout_url,
-                transfer_bank=DEFAULT_BANK_NAME,
-                transfer_account=DEFAULT_ACCOUNT_NUMBER,
-                transfer_account_name=DEFAULT_ACCOUNT_NAME,
-                transfer_content=transfer_memo,
-                status="PENDING",
-                expires_at=expires_at,
-            )
-
-        # Card payment flow (Stripe)
-        if paypal_client.is_configured():
-            return_url = (
-                f"http://localhost:5173/tour?payment_success=true&order_id={order_id}"
-            )
-            cancel_url = "http://localhost:5173/tour?payment_cancel=true"
-            paypal_data = await paypal_client.create_order(
-                order_id=order_id,
-                amount_vnd=fee_amount,
-                return_url=return_url,
-                cancel_url=cancel_url,
-            )
-            if paypal_data and paypal_data.get("approve_url"):
-                checkout_url = paypal_data["approve_url"]
-                txn.gateway_transaction_id = str(
-                    paypal_data.get("paypal_order_id") or ""
+        else:
+            if paypal_client.is_configured():
+                return_url = f"http://localhost:5173/tour?payment_success=true&order_id={order_id}"
+                cancel_url = "http://localhost:5173/tour?payment_cancel=true"
+                paypal_data = await paypal_client.create_order(
+                    order_id=order_id,
+                    amount_vnd=fee_amount,
+                    return_url=return_url,
+                    cancel_url=cancel_url,
                 )
-                self.transaction_repo.db.commit()
+                if paypal_data and paypal_data.get("approve_url"):
+                    checkout_url = paypal_data["approve_url"]
+                    gateway_id = str(paypal_data.get("paypal_order_id") or "")
+                    self.transaction_repo.update_gateway_info(txn, gateway_id)
 
-        if not checkout_url:
-            checkout_url = f"/api/v1/payments/paypal-checkout?order_id={order_id}"
-        return CheckoutCreateResponse(
+            if not checkout_url:
+                checkout_url = f"/api/v1/payments/paypal-checkout?order_id={order_id}"
+
+        response = CheckoutCreateResponse(
             order_id=order_id,
             pay_amount=fee_amount,
             currency=currency,
             payment_method=payment_method,
-            qr_code_url=None,
+            qr_code_url=qr_code_url,
             checkout_url=checkout_url,
+            transfer_bank=DEFAULT_BANK_NAME if payment_method == "VIETQR" else None,
+            transfer_account=DEFAULT_ACCOUNT_NUMBER
+            if payment_method == "VIETQR"
+            else None,
+            transfer_account_name=DEFAULT_ACCOUNT_NAME
+            if payment_method == "VIETQR"
+            else None,
+            transfer_content=transfer_memo if payment_method == "VIETQR" else None,
             status="PENDING",
             expires_at=expires_at,
         )
+        return response
 
     def get_order_status(self, order_id: str) -> OrderStatusResponse:
-        """Poll order status with sub-100ms response time enforcing JIT DB lifecycle."""
+        """Poll order status with sub-100ms response time adhering to SISE."""
+        # Phase 1: Precondition Gate
         txn = self.transaction_repo.get_by_id(order_id)
         if not txn:
             raise HTTPException(
@@ -250,6 +242,7 @@ class PaymentService:
                 detail=f"Order '{order_id}' not found.",
             )
 
+        # Phase 2: Compute
         session_code = None
         session_token = None
         session_expires_at = None
@@ -259,7 +252,8 @@ class PaymentService:
             session_token = txn.session.SessionToken
             session_expires_at = txn.session.Expire_at
 
-        return OrderStatusResponse(
+        # Phase 3: Unified Exit
+        response = OrderStatusResponse(
             order_id=txn.transaction_id,
             status=txn.status,
             pay_amount=txn.pay_amount,
@@ -270,13 +264,15 @@ class PaymentService:
             session_expires_at=session_expires_at,
             expires_at=session_expires_at,
         )
+        return response
 
     def simulate_payment_success(
         self,
         order_id: str,
         preferred_language: str = "vi",
     ) -> OrderStatusResponse:
-        """Simulate payment success for developer testing and demonstration without real bank transaction."""
+        """Simulate payment success for developer testing and demonstration adhering to SISE."""
+        # Phase 1: Precondition Gate
         txn = self.transaction_repo.get_by_id(order_id)
         if not txn:
             raise HTTPException(
@@ -284,13 +280,15 @@ class PaymentService:
                 detail=f"Order '{order_id}' not found.",
             )
 
+        # Phase 2: Compute
         updated_txn, session = self.transaction_repo.mark_as_paid(
             transaction_id=order_id,
             preferred_language=preferred_language,
             gateway_transaction_id=f"SIM_{order_id}",
         )
 
-        return OrderStatusResponse(
+        # Phase 3: Unified Exit
+        response = OrderStatusResponse(
             order_id=updated_txn.transaction_id,
             status=updated_txn.status,
             pay_amount=updated_txn.pay_amount,
@@ -301,6 +299,7 @@ class PaymentService:
             session_expires_at=session.Expire_at,
             expires_at=session.Expire_at,
         )
+        return response
 
     async def capture_paypal_order(
         self,
@@ -308,7 +307,8 @@ class PaymentService:
         paypal_order_id: str | None = None,
         preferred_language: str = "vi",
     ) -> OrderStatusResponse:
-        """Capture PayPal Sandbox order and activate 24-hour VisitorSession."""
+        """Capture PayPal Sandbox order and activate 24-hour VisitorSession adhering to SISE."""
+        # Phase 1: Precondition Gate
         txn = self.transaction_repo.get_by_id(order_id)
         if not txn:
             raise HTTPException(
@@ -316,39 +316,43 @@ class PaymentService:
                 detail=f"Order '{order_id}' not found.",
             )
 
+        # Phase 2: Compute
         if txn.status == "PAID":
-            return self.get_order_status(order_id)
+            response = self.get_order_status(order_id)
+        else:
+            target_paypal_id = paypal_order_id or txn.gateway_transaction_id
+            if paypal_client.is_configured() and target_paypal_id:
+                try:
+                    await paypal_client.capture_order(target_paypal_id)
+                except Exception as exc:
+                    logger.warning("PayPal capture order error: %s", exc)
 
-        target_paypal_id = paypal_order_id or txn.gateway_transaction_id
-        if paypal_client.is_configured() and target_paypal_id:
-            try:
-                await paypal_client.capture_order(target_paypal_id)
-            except Exception as exc:
-                logger.warning("PayPal capture order error: %s", exc)
+            updated_txn, session = self.transaction_repo.mark_as_paid(
+                transaction_id=order_id,
+                preferred_language=preferred_language,
+                gateway_transaction_id=target_paypal_id or f"PP_{order_id}",
+            )
+            response = OrderStatusResponse(
+                order_id=updated_txn.transaction_id,
+                status=updated_txn.status,
+                pay_amount=updated_txn.pay_amount,
+                currency=updated_txn.currency,
+                paid_at=updated_txn.paid_at,
+                session_code=session.SessionCode,
+                session_token=session.SessionToken,
+                session_expires_at=session.Expire_at,
+                expires_at=session.Expire_at,
+            )
 
-        updated_txn, session = self.transaction_repo.mark_as_paid(
-            transaction_id=order_id,
-            preferred_language=preferred_language,
-            gateway_transaction_id=target_paypal_id or f"PP_{order_id}",
-        )
-
-        return OrderStatusResponse(
-            order_id=updated_txn.transaction_id,
-            status=updated_txn.status,
-            pay_amount=updated_txn.pay_amount,
-            currency=updated_txn.currency,
-            paid_at=updated_txn.paid_at,
-            session_code=session.SessionCode,
-            session_token=session.SessionToken,
-            session_expires_at=session.Expire_at,
-            expires_at=session.Expire_at,
-        )
+        # Phase 3: Unified Exit
+        return response
 
     def process_payment_webhook(
         self,
         payload: PayOSWebhookPayload | dict[str, Any],
     ) -> WebhookResponse:
         """Process incoming payment gateway webhook, verify cryptographic signature, and activate 24h session."""
+        # Phase 1: Precondition Gate
         if isinstance(payload, PayOSWebhookPayload):
             data = payload.data
             signature = payload.signature
@@ -361,7 +365,6 @@ class PaymentService:
                 detail="Invalid webhook payload format.",
             )
 
-        # Step 1: Verify HMAC-SHA256 signature
         if not self.verify_payos_webhook_signature(data, signature):
             logger.warning("INVALID_WEBHOOK_SIGNATURE: Webhook signature mismatch.")
             raise HTTPException(
@@ -369,17 +372,12 @@ class PaymentService:
                 detail="INVALID_WEBHOOK_SIGNATURE: Cryptographic HMAC signature mismatch.",
             )
 
-        # Step 2: Locate transaction record
+        # Phase 2: Locate transaction record
         txn = None
-        # Check explicit order_id
         if data.get("order_id"):
             txn = self.transaction_repo.get_by_id(str(data["order_id"]))
-
-        # Check orderCode
         if not txn and data.get("orderCode"):
             txn = self.transaction_repo.find_by_reference(str(data["orderCode"]))
-
-        # Check description/memo
         if not txn and data.get("description"):
             txn = self.transaction_repo.find_by_reference(str(data["description"]))
 
@@ -391,14 +389,14 @@ class PaymentService:
                 detail=f"Transaction not found for payment reference ({ref_info}).",
             )
 
-        # Step 3: Idempotency check - if already marked PAID, return existing session immediately
+        # Phase 3: Linear State Resolution & Unified Exit Accumulator
         if txn.status == "PAID":
             logger.info(
                 "Transaction '%s' already marked as PAID (idempotent duplicate webhook).",
                 txn.transaction_id,
             )
             session = txn.session
-            return WebhookResponse(
+            response = WebhookResponse(
                 success=True,
                 message="Transaction already processed (idempotent)",
                 order_id=txn.transaction_id,
@@ -406,34 +404,29 @@ class PaymentService:
                 session_token=session.SessionToken if session else None,
                 expires_at=session.Expire_at if session else None,
             )
+        else:
+            ref_val = data.get("reference") or data.get("orderCode")
+            gateway_tx_id = (
+                str(ref_val) if ref_val is not None else f"WH_{txn.transaction_id}"
+            )
+            webhook_language = getattr(txn, "preferred_language", None) or "vi"
+            updated_txn, session = self.transaction_repo.mark_as_paid(
+                transaction_id=txn.transaction_id,
+                preferred_language=webhook_language,
+                gateway_transaction_id=gateway_tx_id,
+            )
+            logger.info(
+                "Transaction '%s' successfully marked as PAID via webhook. Session '%s' activated.",
+                updated_txn.transaction_id,
+                session.SessionCode,
+            )
+            response = WebhookResponse(
+                success=True,
+                message="Session activated successfully",
+                order_id=updated_txn.transaction_id,
+                session_code=session.SessionCode,
+                session_token=session.SessionToken,
+                expires_at=session.Expire_at,
+            )
 
-        # Step 4: Mark transaction as PAID and activate 24-hour VisitorSession
-        gateway_tx_id = (
-            str(data.get("reference"))
-            or str(data.get("orderCode"))
-            or f"WH_{txn.transaction_id}"
-        )
-        # NOTE: PayOS webhook carries no visitor language context.
-        # preferred_language is read from the Transaction if stored at order creation,
-        # otherwise defaults to "vi" (most likely language for domestic VietQR payers).
-        webhook_language = getattr(txn, "preferred_language", None) or "vi"
-        updated_txn, session = self.transaction_repo.mark_as_paid(
-            transaction_id=txn.transaction_id,
-            preferred_language=webhook_language,
-            gateway_transaction_id=gateway_tx_id,
-        )
-
-        logger.info(
-            "Transaction '%s' successfully marked as PAID via webhook. Session '%s' activated.",
-            updated_txn.transaction_id,
-            session.SessionCode,
-        )
-
-        return WebhookResponse(
-            success=True,
-            message="Session activated successfully",
-            order_id=updated_txn.transaction_id,
-            session_code=session.SessionCode,
-            session_token=session.SessionToken,
-            expires_at=session.Expire_at,
-        )
+        return response

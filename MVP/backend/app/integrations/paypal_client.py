@@ -16,7 +16,7 @@ LIVE_API_BASE = "https://api-m.paypal.com"
 
 
 class PayPalClient:
-    """Encapsulates PayPal Orders v2 API interactions for Sandbox and Live modes."""
+    """Encapsulates PayPal Orders v2 API interactions for Sandbox and Live modes adhering to SISE."""
 
     def __init__(self) -> None:
         self._cached_token: str | None = None
@@ -29,52 +29,57 @@ class PayPalClient:
 
     def is_configured(self) -> bool:
         """Check if required PayPal API credentials exist in settings."""
-        return bool(
+        has_id = bool(
             settings.PAYPAL_CLIENT_ID
-            and settings.PAYPAL_CLIENT_SECRET
             and not settings.PAYPAL_CLIENT_ID.startswith("your_")
         )
+        has_secret = bool(settings.PAYPAL_CLIENT_SECRET)
+        is_ready = bool(has_id and has_secret)
+        return is_ready
 
     async def get_access_token(self) -> str | None:
         """Fetch or return cached OAuth2 Bearer token from PayPal."""
+        # Phase 1: Precondition Gate
         if not self.is_configured():
             return None
 
-        # Return cached token if valid for at least 60 more seconds
+        # Phase 2: Compute
+        resolved_token: str | None = None
         if self._cached_token and time.time() < self._token_expires_at - 60:
-            return self._cached_token
+            resolved_token = self._cached_token
+        else:
+            auth_str = f"{settings.PAYPAL_CLIENT_ID}:{settings.PAYPAL_CLIENT_SECRET}"
+            encoded_auth = base64.b64encode(auth_str.encode("utf-8")).decode("utf-8")
+            headers = {
+                "Authorization": f"Basic {encoded_auth}",
+                "Content-Type": "application/x-www-form-urlencoded",
+            }
+            data = {"grant_type": "client_credentials"}
 
-        auth_str = f"{settings.PAYPAL_CLIENT_ID}:{settings.PAYPAL_CLIENT_SECRET}"
-        encoded_auth = base64.b64encode(auth_str.encode("utf-8")).decode("utf-8")
-        headers = {
-            "Authorization": f"Basic {encoded_auth}",
-            "Content-Type": "application/x-www-form-urlencoded",
-        }
-        data = {"grant_type": "client_credentials"}
+            try:
+                async with httpx.AsyncClient(timeout=10.0) as client:
+                    res = await client.post(
+                        f"{self.base_url}/v1/oauth2/token",
+                        headers=headers,
+                        data=data,
+                    )
+                    if res.status_code == 200:
+                        token_data = res.json()
+                        resolved_token = token_data.get("access_token")
+                        expires_in = int(token_data.get("expires_in", 3600))
+                        self._cached_token = resolved_token
+                        self._token_expires_at = time.time() + expires_in
+                    else:
+                        logger.warning(
+                            "PayPal OAuth token request rejected: status=%s, body=%s",
+                            res.status_code,
+                            res.text,
+                        )
+            except Exception as exc:
+                logger.warning("Failed to obtain PayPal OAuth token: %s", exc)
 
-        try:
-            async with httpx.AsyncClient(timeout=10.0) as client:
-                res = await client.post(
-                    f"{self.base_url}/v1/oauth2/token",
-                    headers=headers,
-                    data=data,
-                )
-                if res.status_code == 200:
-                    token_data = res.json()
-                    self._cached_token = token_data.get("access_token")
-                    expires_in = int(token_data.get("expires_in", 3600))
-                    self._token_expires_at = time.time() + expires_in
-                    return self._cached_token
-
-                logger.warning(
-                    "PayPal OAuth token request rejected: status=%s, body=%s",
-                    res.status_code,
-                    res.text,
-                )
-        except Exception as exc:
-            logger.warning("Failed to obtain PayPal OAuth token: %s", exc)
-
-        return None
+        # Phase 3: Unified Exit
+        return resolved_token
 
     async def create_order(
         self,
@@ -84,11 +89,13 @@ class PayPalClient:
         cancel_url: str,
     ) -> dict[str, Any] | None:
         """Create a PayPal v2 checkout order and return the approval URL and PayPal order ID."""
+        # Phase 1: Precondition Gate
         token = await self.get_access_token()
         if not token:
             return None
 
-        # Convert VND to USD with configured rate (minimum $1.00 USD)
+        # Phase 2: Compute
+        result_payload: dict[str, Any] | None = None
         rate = getattr(settings, "PAYPAL_EXCHANGE_RATE", 25000.0) or 25000.0
         amount_usd = max(1.00, round(amount_vnd / rate, 2))
         amount_str = f"{amount_usd:.2f}"
@@ -134,29 +141,33 @@ class PayPalClient:
                             approve_url = link.get("href")
                             break
 
-                    return {
+                    result_payload = {
                         "paypal_order_id": paypal_order_id,
                         "approve_url": approve_url,
                         "amount_usd": amount_str,
                         "status": order_data.get("status"),
                     }
-
-                logger.warning(
-                    "PayPal order creation failed: status=%s, body=%s",
-                    res.status_code,
-                    res.text,
-                )
+                else:
+                    logger.warning(
+                        "PayPal order creation failed: status=%s, body=%s",
+                        res.status_code,
+                        res.text,
+                    )
         except Exception as exc:
             logger.warning("Error calling PayPal create order API: %s", exc)
 
-        return None
+        # Phase 3: Unified Exit
+        return result_payload
 
     async def capture_order(self, paypal_order_id: str) -> dict[str, Any] | None:
-        """Capture an approved PayPal payment order."""
+        """Capture an approved PayPal payment order adhering to SISE."""
+        # Phase 1: Precondition Gate
         token = await self.get_access_token()
         if not token:
             return None
 
+        # Phase 2: Compute
+        captured_data: dict[str, Any] | None = None
         headers = {
             "Authorization": f"Bearer {token}",
             "Content-Type": "application/json",
@@ -169,17 +180,18 @@ class PayPalClient:
                     headers=headers,
                 )
                 if res.status_code in (200, 201):
-                    return res.json()
-                logger.warning(
-                    "PayPal capture failed: status=%s, body=%s",
-                    res.status_code,
-                    res.text,
-                )
+                    captured_data = res.json()
+                else:
+                    logger.warning(
+                        "PayPal capture failed: status=%s, body=%s",
+                        res.status_code,
+                        res.text,
+                    )
         except Exception as exc:
             logger.warning("Error capturing PayPal payment: %s", exc)
 
-        return None
+        # Phase 3: Unified Exit
+        return captured_data
 
 
-# Module singleton instance
 paypal_client = PayPalClient()
