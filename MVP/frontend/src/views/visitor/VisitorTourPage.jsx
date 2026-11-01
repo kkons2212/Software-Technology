@@ -5,6 +5,7 @@ import PoiPreviewCard from '../../components/visitor/PoiPreviewCard.jsx';
 import CheckoutModal from '../../components/visitor/CheckoutModal.jsx';
 import RestoreSessionModal from '../../components/visitor/RestoreSessionModal.jsx';
 import { getPublishedLanguages } from '../../api/languageApi.js';
+import { getOrderStatus } from '../../api/paymentApi.js';
 import { getMapPois } from '../../api/poiApi.js';
 import { getWalkingRoute } from '../../api/tourApi.js';
 import { useAudioPlayer } from '../../contexts/AudioPlayerContext.jsx';
@@ -69,6 +70,7 @@ export default function VisitorTourPage({
     if (typeof window === 'undefined') return;
     const params = new URLSearchParams(window.location.search);
     if (params.get('payment_success') === 'true') {
+      const orderId = params.get('order_id');
       const code = params.get('session_code');
       const token = params.get('session_token');
       const expires = params.get('expires_at');
@@ -78,8 +80,27 @@ export default function VisitorTourPage({
           sessionToken: token,
           expiresAt: expires,
         });
+        window.history.replaceState({}, '', window.location.pathname);
+      } else if (orderId) {
+        getOrderStatus(orderId)
+          .then((orderData) => {
+            if (orderData?.status === 'PAID' && (orderData.session_token || orderData.session_code)) {
+              activateSession({
+                sessionCode: orderData.session_code,
+                sessionToken: orderData.session_token,
+                expiresAt: orderData.session_expires_at || orderData.expires_at,
+              });
+            }
+          })
+          .catch((err) => {
+            console.warn('Unable to resolve session for order:', orderId, err);
+          })
+          .finally(() => {
+            window.history.replaceState({}, '', window.location.pathname);
+          });
+      } else {
+        window.history.replaceState({}, '', window.location.pathname);
       }
-      window.history.replaceState({}, '', window.location.pathname);
     }
   }, [activateSession]);
   const { currentPoi, isPlaying, completedPoiIds, play } = useAudioPlayer();

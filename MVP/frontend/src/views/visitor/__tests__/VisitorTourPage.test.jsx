@@ -17,6 +17,10 @@ vi.mock('../../../api/tourApi.js', () => ({
   getWalkingRoute: vi.fn(),
 }));
 
+vi.mock('../../../api/paymentApi.js', () => ({
+  getOrderStatus: vi.fn(),
+}));
+
 vi.mock('../../../hooks/useGeolocation.js', () => ({
   default: () => ({
     location: { lat: 11.1432, lng: 106.4631 },
@@ -78,6 +82,7 @@ vi.mock('../VisitorMapView.jsx', () => ({
 import { getPublishedLanguages } from '../../../api/languageApi.js';
 import { getMapPois } from '../../../api/poiApi.js';
 import { reportPoiTrigger } from '../../../api/telemetryApi.js';
+import { getOrderStatus } from '../../../api/paymentApi.js';
 import VisitorTourPage from '../VisitorTourPage.jsx';
 
 const FROZEN_EPOCH_MS = 1_700_000_000_000;
@@ -256,5 +261,44 @@ describe('VisitorTourPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Close exhibit preview' }));
 
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  });
+
+  it('activates session from redirect query params upon payment_success', async () => {
+    delete window.location;
+    window.location = new URL('http://localhost:5173/tour?payment_success=true&order_id=ord-1&session_code=CODE123&session_token=TOKEN123&expires_at=2026-11-02T00:00:00Z');
+
+    await act(async () => {
+      render(<VisitorTourPage />);
+    });
+
+    expect(visitorSessionMock.activateSession).toHaveBeenCalledWith({
+      sessionCode: 'CODE123',
+      sessionToken: 'TOKEN123',
+      expiresAt: '2026-11-02T00:00:00Z',
+    });
+  });
+
+  it('falls back to getOrderStatus if redirect query params lack session tokens', async () => {
+    delete window.location;
+    window.location = new URL('http://localhost:5173/tour?payment_success=true&order_id=ord-fallback');
+    getOrderStatus.mockResolvedValueOnce({
+      status: 'PAID',
+      session_code: 'CODE-FALLBACK',
+      session_token: 'TOKEN-FALLBACK',
+      session_expires_at: '2026-11-02T12:00:00Z',
+    });
+
+    await act(async () => {
+      render(<VisitorTourPage />);
+    });
+
+    await waitFor(() => {
+      expect(getOrderStatus).toHaveBeenCalledWith('ord-fallback');
+      expect(visitorSessionMock.activateSession).toHaveBeenCalledWith({
+        sessionCode: 'CODE-FALLBACK',
+        sessionToken: 'TOKEN-FALLBACK',
+        expiresAt: '2026-11-02T12:00:00Z',
+      });
+    });
   });
 });

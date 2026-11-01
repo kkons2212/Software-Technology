@@ -144,9 +144,14 @@ def confirm_paypal_mock_payment(
     payment_service: PaymentService = Depends(get_payment_service),
 ) -> RedirectResponse:
     """Process mock confirmation and redirect back to visitor tour."""
-    payment_service.simulate_payment_success(order_id=order_id)
+    status_res = payment_service.simulate_payment_success(order_id=order_id)
     return RedirectResponse(
-        url=f"http://localhost:5173/tour?payment_success=true&order_id={order_id}",
+        url=(
+            f"http://localhost:5173/tour?payment_success=true&order_id={order_id}"
+            f"&session_code={status_res.session_code or ''}"
+            f"&session_token={status_res.session_token or ''}"
+            f"&expires_at={(status_res.session_expires_at or status_res.expires_at).isoformat() if (status_res.session_expires_at or status_res.expires_at) else ''}"
+        ),
         status_code=status.HTTP_302_FOUND,
     )
 
