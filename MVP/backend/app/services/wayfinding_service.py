@@ -27,6 +27,7 @@ from app.schemas.tour_schema import (
 )
 
 if TYPE_CHECKING:
+    from app.models.poi import POI
     from app.repositories.poi_repository import POIRepository
 
 logger = logging.getLogger(__name__)
@@ -209,13 +210,26 @@ class WayfindingService:
         resolved_node = nearest_node if nearest_node is not None else "TRAIL_NODE_01"
         return resolved_node, min_distance
 
-    def _dijkstra_shortest_path(self, start_node: str, end_node: str) -> list[str]:
-        """Compute shortest path across the trail graph via Dijkstra's algorithm (SISE Compliant)."""
-        # Phase 1 Gate: Identity path
-        if start_node == end_node:
-            return [start_node]
+    def _relax_dijkstra_neighbors(
+        self,
+        current_node: str,
+        current_dist: float,
+        distances: dict[str, float],
+        previous_nodes: dict[str, str | None],
+        pq: list[tuple[float, str]],
+    ) -> None:
+        """Update neighboring distances and push improved nodes to priority queue (SISE Helper)."""
+        for neighbor, weight in self._graph[current_node]:
+            alt_dist = current_dist + weight
+            if alt_dist < distances[neighbor]:
+                distances[neighbor] = alt_dist
+                previous_nodes[neighbor] = current_node
+                heapq.heappush(pq, (alt_dist, neighbor))
 
-        # Phase 2 Compute: Priority queue traversal
+    def _init_dijkstra_tables(
+        self, start_node: str
+    ) -> tuple[dict[str, float], dict[str, str | None], list[tuple[float, str]]]:
+        """Initialize distances, previous nodes, and priority queue for Dijkstra."""
         distances: dict[str, float] = {
             node: float("inf") for node in CU_CHI_TRAIL_NODES
         }
@@ -223,21 +237,13 @@ class WayfindingService:
         previous_nodes: dict[str, str | None] = {
             node: None for node in CU_CHI_TRAIL_NODES
         }
-
         pq: list[tuple[float, str]] = [(0.0, start_node)]
+        return distances, previous_nodes, pq
 
-        while pq:
-            current_dist, current_node = heapq.heappop(pq)
-            if current_node == end_node:
-                break
-            if current_dist <= distances[current_node]:
-                for neighbor, weight in self._graph[current_node]:
-                    distance_through_current = current_dist + weight
-                    if distance_through_current < distances[neighbor]:
-                        distances[neighbor] = distance_through_current
-                        previous_nodes[neighbor] = current_node
-                        heapq.heappush(pq, (distance_through_current, neighbor))
-
+    def _backtrack_dijkstra_path(
+        self, start_node: str, end_node: str, previous_nodes: dict[str, str | None]
+    ) -> list[str]:
+        """Reconstruct shortest path from predecessor map (SISE Helper)."""
         path: list[str] = []
         curr: str | None = end_node
         while curr is not None:
@@ -245,12 +251,48 @@ class WayfindingService:
             curr = previous_nodes[curr]
         path.reverse()
 
-        resolved_path = (
-            path if (path and path[0] == start_node) else [start_node, end_node]
+        is_valid_path = bool(path and path[0] == start_node)
+        resolved_path = path if is_valid_path else [start_node, end_node]
+        return resolved_path
+
+    def _dijkstra_shortest_path(self, start_node: str, end_node: str) -> list[str]:
+        """Compute shortest path across the trail graph via Dijkstra's algorithm (SISE Compliant)."""
+        # Phase 1 Gate: Identity path
+        if start_node == end_node:
+            return [start_node]
+
+        # Phase 2 Compute: Priority queue traversal
+        distances, previous_nodes, pq = self._init_dijkstra_tables(start_node)
+
+        while pq:
+            current_dist, current_node = heapq.heappop(pq)
+            if current_node == end_node:
+                break
+            if current_dist <= distances[current_node]:
+                self._relax_dijkstra_neighbors(
+                    current_node, current_dist, distances, previous_nodes, pq
+                )
+
+        resolved_path = self._backtrack_dijkstra_path(
+            start_node, end_node, previous_nodes
         )
 
         # Phase 3 Exit: Unified return
         return resolved_path
+
+    def _parse_osrm_route_coords(
+        self, payload: dict
+    ) -> tuple[list[list[float]], float] | None:
+        """Extract coordinates and distance from OSRM response payload (SISE Helper)."""
+        resolved: tuple[list[list[float]], float] | None = None
+        routes = payload.get("routes", [])
+        if routes:
+            best = routes[0]
+            coords = best.get("geometry", {}).get("coordinates")
+            dist = float(best.get("distance", 0.0))
+            if coords and len(coords) >= 2 and dist > 0:
+                resolved = (coords, dist)
+        return resolved
 
     def _try_osrm_foot_route(
         self,
@@ -259,10 +301,7 @@ class WayfindingService:
         dest_lat: float,
         dest_lng: float,
     ) -> tuple[list[list[float]], float] | None:
-        """Query OpenStreetMap Foot Routing service for detailed curved geometry.
-
-        Returns (coordinates, distance_meters) or None if unavailable/timed out.
-        """
+        """Query OpenStreetMap Foot Routing service for detailed curved geometry."""
         resolved_route: tuple[list[list[float]], float] | None = None
         url = OSRM_FOOT_ROUTING_URL.format(
             origin_lng=origin_lng,
@@ -274,14 +313,7 @@ class WayfindingService:
             with httpx.Client(timeout=OSRM_TIMEOUT_SECONDS) as client:
                 response = client.get(url)
                 if response.status_code == 200:
-                    payload = response.json()
-                    routes = payload.get("routes", [])
-                    if routes:
-                        best_route = routes[0]
-                        coords = best_route.get("geometry", {}).get("coordinates")
-                        dist = float(best_route.get("distance", 0.0))
-                        if coords and len(coords) >= 2 and dist > 0:
-                            resolved_route = (coords, dist)
+                    resolved_route = self._parse_osrm_route_coords(response.json())
         except Exception as exc:
             logger.info(
                 "OSRM routing unavailable (%s), falling back to trail graph", exc
@@ -340,14 +372,10 @@ class WayfindingService:
         is_within_lng = bounds["min_lng"] <= lng <= bounds["max_lng"]
         return bool(is_within_lat and is_within_lng)
 
-    def calculate_walking_route(
-        self,
-        origin_lat: float,
-        origin_lng: float,
-        destination_poi_id: str,
-    ) -> GeoJsonRouteFeature:
-        """Calculate intelligent walking route using hybrid OSM curvature + trail graph (SISE Compliant)."""
-        # Phase 1 Gate: Validate geographic coordinates
+    def _validate_walking_route_preconditions(
+        self, origin_lat: float, origin_lng: float, destination_poi_id: str
+    ) -> POI:
+        """Validate origin coordinates and ensure target POI exists and is active (SISE Gate)."""
         if not (-90.0 <= origin_lat <= 90.0 and -180.0 <= origin_lng <= 180.0):
             raise ApiError(
                 code="INVALID_COORDINATES",
@@ -356,7 +384,6 @@ class WayfindingService:
                 details={"origin_lat": origin_lat, "origin_lng": origin_lng},
             )
 
-        # Look up destination POI dynamically from DB
         poi = self.poi_repository.get_by_id(destination_poi_id)
         if not poi:
             raise ApiError(
@@ -366,7 +393,6 @@ class WayfindingService:
                 details={"destination_poi_id": destination_poi_id},
             )
 
-        # Check if exhibit is active (US 03.3)
         if not poi.is_active:
             raise ApiError(
                 code="POI_DEACTIVATED",
@@ -374,6 +400,20 @@ class WayfindingService:
                 status_code=404,
                 details={"destination_poi_id": destination_poi_id, "is_active": False},
             )
+
+        return poi
+
+    def calculate_walking_route(
+        self,
+        origin_lat: float,
+        origin_lng: float,
+        destination_poi_id: str,
+    ) -> GeoJsonRouteFeature:
+        """Calculate intelligent walking route using hybrid OSM curvature + trail graph (SISE Compliant)."""
+        # Phase 1 Gate: Validate preconditions via dedicated helper
+        poi = self._validate_walking_route_preconditions(
+            origin_lat, origin_lng, destination_poi_id
+        )
 
         # Phase 2 Compute: Hybrid Routing
         poi_lat = float(poi.latitude)
