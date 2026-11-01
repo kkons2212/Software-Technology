@@ -35,11 +35,29 @@ describe('PoiPreviewCard', () => {
     expect(screen.getByText(poi.short_description)).toBeInTheDocument();
     expect(screen.getByText(/109 m away/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Directions' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Play Narration' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Replay' })).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Directions' }));
     expect(onDirectionsClick).toHaveBeenCalledOnce();
+  });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Play Narration' }));
+  it('renders Replay button and triggers onPlayAudio when POI was already triggered', () => {
+    const onPlayAudio = vi.fn();
+    render(
+      <PoiPreviewCard
+        poi={poi}
+        location={{ lat: 11.14, lng: 106.461 }}
+        onPlayAudio={onPlayAudio}
+        onDismiss={vi.fn()}
+        isUnlocked={true}
+        isActivated={true}
+      />,
+    );
+
+    const replayBtn = screen.getByRole('button', { name: 'Replay' });
+    expect(replayBtn).toBeInTheDocument();
+    fireEvent.click(replayBtn);
     expect(onPlayAudio).toHaveBeenCalledOnce();
   });
 

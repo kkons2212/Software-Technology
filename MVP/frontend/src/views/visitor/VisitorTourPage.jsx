@@ -322,15 +322,7 @@ export default function VisitorTourPage({
         text: selectedPoi.description || selectedPoi.short_description || selectedPoi.title,
         lang: selectedLanguage,
       });
-      return;
     }
-
-    play({
-      ...selectedPoi,
-      audio_url: null,
-      text: selectedPoi.short_description || selectedPoi.title,
-      lang: selectedLanguage,
-    });
   };
 
   const handleLanguageChange = (languageCode) => {

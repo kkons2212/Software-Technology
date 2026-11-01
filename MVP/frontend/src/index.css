@@ -357,14 +357,14 @@ a:focus-visible {
 }
 
 .poi-preview-actions {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  display: flex;
   gap: 8px;
   margin-top: 12px;
 }
 
 .poi-preview-directions,
 .poi-preview-play {
+  flex: 1;
   display: flex;
   min-height: 44px;
   align-items: center;
