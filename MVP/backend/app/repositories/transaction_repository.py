@@ -45,48 +45,52 @@ class TransactionRepository:
 
     def get_by_id(self, transaction_id: str) -> Transaction | None:
         """Retrieve a transaction by primary key identifier with session loaded."""
-        return (
+        txn = (
             self.db.query(Transaction)
             .options(joinedload(Transaction.session))
             .filter(Transaction.transaction_id == transaction_id)
             .first()
         )
+        return txn
 
     def get_by_gateway_id(self, gateway_transaction_id: str) -> Transaction | None:
         """Retrieve a transaction by payment gateway transaction identifier."""
-        return (
+        txn = (
             self.db.query(Transaction)
             .options(joinedload(Transaction.session))
             .filter(Transaction.gateway_transaction_id == str(gateway_transaction_id))
             .first()
         )
+        return txn
 
     def find_by_reference(self, reference: str) -> Transaction | None:
-        """Find a transaction by transaction_id, gateway_transaction_id, or memo suffix."""
+        """Find a transaction by transaction_id, gateway_transaction_id, or memo suffix with single exit."""
         cleaned = str(reference).strip()
-        # Direct ID match
-        txn = self.get_by_id(cleaned)
-        if txn:
-            return txn
+        matched_txn = self.get_by_id(cleaned)
 
-        # Gateway transaction ID match
-        txn = self.get_by_gateway_id(cleaned)
-        if txn:
-            return txn
+        if not matched_txn:
+            matched_txn = self.get_by_gateway_id(cleaned)
 
-        # Suffix matching for memo (e.g. "CCT A1B2C3" -> "A1B2C3")
-        memo_code = cleaned.replace("CCT", "").replace("-", "").strip()
-        if len(memo_code) >= 6:
-            txn = (
-                self.db.query(Transaction)
-                .options(joinedload(Transaction.session))
-                .filter(Transaction.transaction_id.endswith(memo_code))
-                .first()
-            )
-            if txn:
-                return txn
+        if not matched_txn:
+            memo_code = cleaned.replace("CCT", "").replace("-", "").strip()
+            if len(memo_code) >= 6:
+                matched_txn = (
+                    self.db.query(Transaction)
+                    .options(joinedload(Transaction.session))
+                    .filter(Transaction.transaction_id.endswith(memo_code))
+                    .first()
+                )
 
-        return None
+        return matched_txn
+
+    def update_gateway_info(
+        self, txn: Transaction, gateway_transaction_id: str
+    ) -> Transaction:
+        """Update gateway transaction ID and persist, encapsulating commit to prevent L2/L3 leaks."""
+        txn.gateway_transaction_id = str(gateway_transaction_id)
+        self.db.commit()
+        self.db.refresh(txn)
+        return txn
 
     def mark_as_paid(
         self,
@@ -94,7 +98,7 @@ class TransactionRepository:
         preferred_language: str = "vi",
         gateway_transaction_id: str | None = None,
     ) -> tuple[Transaction, VisitorSession]:
-        """Atomically transition transaction to PAID and create 24h VisitorSession."""
+        """Atomically transition transaction to PAID and create/activate 24h VisitorSession."""
         txn = self.get_by_id(transaction_id)
         if not txn:
             raise ValueError(f"Transaction '{transaction_id}' not found.")

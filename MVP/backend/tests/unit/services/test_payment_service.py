@@ -1,15 +1,33 @@
-"""Unit tests for PaymentService and Webhook Activation (US 06.2)."""
+"""Unit tests for PaymentService and Webhook Activation (US 06.2 & Task REF-06.5)."""
 
-from datetime import datetime
+from datetime import datetime, timedelta
+from unittest.mock import MagicMock
 
 import pytest
 from fastapi import HTTPException
 
 from app.core.config import settings
+from app.models.session import VisitorSession
+from app.models.transaction import Transaction
 from app.repositories.session_repository import SessionRepository
 from app.repositories.transaction_repository import TransactionRepository
 from app.schemas.payment_schema import CheckoutCreateRequest, PayOSWebhookPayload
 from app.services.payment_service import PaymentService
+
+
+@pytest.fixture
+def mock_tx_repo():
+    return MagicMock(spec=TransactionRepository)
+
+
+@pytest.fixture
+def mock_sess_repo():
+    return MagicMock(spec=SessionRepository)
+
+
+@pytest.fixture
+def mock_payment_service(mock_tx_repo, mock_sess_repo):
+    return PaymentService(transaction_repo=mock_tx_repo, session_repo=mock_sess_repo)
 
 
 @pytest.fixture
@@ -19,7 +37,14 @@ def payment_service(db_session):
     return PaymentService(transaction_repo=tx_repo, session_repo=sess_repo)
 
 
-def test_verify_payos_webhook_signature_valid_and_invalid(payment_service, monkeypatch):
+# ==============================================================================
+# Isolated Unit Tests (AAA Structure, SISE Validation)
+# ==============================================================================
+
+
+def test_verify_payos_webhook_signature_valid_and_invalid(
+    mock_payment_service, monkeypatch
+):
     test_key = "test_checksum_key_secret_123"
     monkeypatch.setattr(settings, "PAYOS_CHECKSUM_KEY", test_key)
 
@@ -28,30 +53,31 @@ def test_verify_payos_webhook_signature_valid_and_invalid(payment_service, monke
         "amount": 50000,
         "description": "CCT 894201",
     }
-    valid_sig = payment_service._generate_payos_signature(data, test_key)
+    valid_sig = mock_payment_service._generate_payos_signature(data, test_key)
 
     # Valid signature
-    assert payment_service.verify_payos_webhook_signature(data, valid_sig) is True
+    assert mock_payment_service.verify_payos_webhook_signature(data, valid_sig) is True
 
     # Tampered data
     tampered_data = {**data, "amount": 10000}
     assert (
-        payment_service.verify_payos_webhook_signature(tampered_data, valid_sig)
+        mock_payment_service.verify_payos_webhook_signature(tampered_data, valid_sig)
         is False
     )
 
     # Invalid signature string
     assert (
-        payment_service.verify_payos_webhook_signature(data, "invalid_sig_abc") is False
+        mock_payment_service.verify_payos_webhook_signature(data, "invalid_sig_abc")
+        is False
     )
 
     # Empty key
     monkeypatch.setattr(settings, "PAYOS_CHECKSUM_KEY", "")
-    assert payment_service.verify_payos_webhook_signature(data, valid_sig) is False
+    assert mock_payment_service.verify_payos_webhook_signature(data, valid_sig) is False
 
 
 def test_process_payment_webhook_invalid_signature_raises_401(
-    payment_service, monkeypatch
+    mock_payment_service, monkeypatch
 ):
     monkeypatch.setattr(settings, "PAYOS_CHECKSUM_KEY", "secret_key_123")
     payload = {
@@ -62,22 +88,116 @@ def test_process_payment_webhook_invalid_signature_raises_401(
     }
 
     with pytest.raises(HTTPException) as exc_info:
-        payment_service.process_payment_webhook(payload)
+        mock_payment_service.process_payment_webhook(payload)
     assert exc_info.value.status_code == 401
     assert "INVALID_WEBHOOK_SIGNATURE" in exc_info.value.detail
 
 
-def test_process_payment_webhook_not_found_raises_404(payment_service, monkeypatch):
+def test_process_payment_webhook_not_found_raises_404(
+    mock_payment_service, mock_tx_repo, monkeypatch
+):
     test_key = "secret_key_123"
     monkeypatch.setattr(settings, "PAYOS_CHECKSUM_KEY", test_key)
+    mock_tx_repo.find_by_reference.return_value = None
 
     data = {"orderCode": 888888, "amount": 50000, "description": "NON_EXISTENT"}
-    sig = payment_service._generate_payos_signature(data, test_key)
+    sig = mock_payment_service._generate_payos_signature(data, test_key)
     payload = {"code": "00", "desc": "success", "data": data, "signature": sig}
 
     with pytest.raises(HTTPException) as exc_info:
-        payment_service.process_payment_webhook(payload)
+        mock_payment_service.process_payment_webhook(payload)
     assert exc_info.value.status_code == 404
+
+
+def test_mock_process_payment_webhook_success(
+    mock_payment_service, mock_tx_repo, mock_sess_repo, monkeypatch
+):
+    test_key = "secret_key_123"
+    monkeypatch.setattr(settings, "PAYOS_CHECKSUM_KEY", test_key)
+
+    fake_txn = Transaction(
+        transaction_id="TXN_WEBHOOK1",
+        pay_amount=50000,
+        currency="VND",
+        payment_method="VIETQR",
+        status="PENDING",
+    )
+    mock_tx_repo.find_by_reference.return_value = fake_txn
+
+    now = datetime.utcnow()
+    fake_session = VisitorSession(
+        SessionID="SES_WEBHOOK1",
+        SessionCode="CCT-WH0001",
+        SessionToken="mock_token_webhook",
+        Status="ACTIVE",
+        Activate_at=now,
+        Expire_at=now + timedelta(hours=24),
+    )
+    mock_sess_repo.create_session.return_value = fake_session
+    mock_sess_repo.ensure_session_token.return_value = "mock_token_webhook"
+    mock_tx_repo.mark_as_paid.return_value = (fake_txn, fake_session)
+
+    data = {"orderCode": 123456, "amount": 50000, "description": "CCT WH0001"}
+    sig = mock_payment_service._generate_payos_signature(data, test_key)
+    payload = {"code": "00", "desc": "success", "data": data, "signature": sig}
+
+    res = mock_payment_service.process_payment_webhook(payload)
+
+    assert res.success is True
+    assert res.order_id == "TXN_WEBHOOK1"
+    assert res.session_code == "CCT-WH0001"
+    assert res.session_token == "mock_token_webhook"
+    mock_tx_repo.mark_as_paid.assert_called_once_with(
+        transaction_id="TXN_WEBHOOK1",
+        preferred_language="vi",
+        gateway_transaction_id="123456",
+    )
+
+
+def test_mock_process_payment_webhook_idempotent(
+    mock_payment_service, mock_tx_repo, mock_sess_repo, monkeypatch
+):
+    test_key = "secret_key_123"
+    monkeypatch.setattr(settings, "PAYOS_CHECKSUM_KEY", test_key)
+
+    now = datetime.utcnow()
+    existing_session = VisitorSession(
+        SessionID="SES_EXISTING",
+        SessionCode="CCT-EXIST1",
+        SessionToken="existing_token",
+        Status="ACTIVE",
+        Activate_at=now - timedelta(hours=2),
+        Expire_at=now + timedelta(hours=22),
+    )
+    fake_paid_txn = Transaction(
+        transaction_id="TXN_PAID_ALREADY",
+        pay_amount=50000,
+        currency="VND",
+        payment_method="VIETQR",
+        status="PAID",
+        session=existing_session,
+    )
+    mock_tx_repo.find_by_reference.return_value = fake_paid_txn
+    mock_sess_repo.ensure_session_token.return_value = "existing_token"
+
+    data = {"orderCode": 999000, "amount": 50000, "description": "CCT EXIST1"}
+    sig = mock_payment_service._generate_payos_signature(data, test_key)
+    payload = {"code": "00", "desc": "success", "data": data, "signature": sig}
+
+    res = mock_payment_service.process_payment_webhook(payload)
+
+    assert res.success is True
+    assert "idempotent" in res.message.lower()
+    assert res.order_id == "TXN_PAID_ALREADY"
+    assert res.session_code == "CCT-EXIST1"
+    assert res.session_token == "existing_token"
+    assert mock_sess_repo.create_session.call_count == 0
+    assert mock_tx_repo.mark_as_paid.call_count == 0
+
+
+# ==============================================================================
+# Database-Integrated Tests (Executed in CI with live MySQL container)
+# ==============================================================================
 
 
 @pytest.mark.asyncio
