@@ -3,11 +3,11 @@
 from datetime import datetime
 
 import pytest
+from sqlalchemy import Text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.models.audit import (
-    AUDIT_DETAILS_MAX_LENGTH,
     AUDIT_IP_ADDRESS_MAX_LENGTH,
     AUDIT_STATUS_FAILED,
     AUDIT_STATUS_LOCKED,
@@ -106,8 +106,8 @@ def test_should_expose_uppercase_status_enum_values():
     assert AUDIT_STATUS_LOCKED == "LOCKED"
 
 
-def test_should_declare_details_column_width():
-    assert Audit.__table__.columns["Details"].type.length == AUDIT_DETAILS_MAX_LENGTH
+def test_should_declare_details_column_type():
+    assert isinstance(Audit.__table__.columns["Details"].type, Text)
 
 
 def test_should_allow_nullable_ip_and_details_columns(

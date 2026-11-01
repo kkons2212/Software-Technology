@@ -71,68 +71,47 @@ class AuthService:
         client_ip: str | None,
     ) -> AdminSessionTokenDTO:
         """Verify credentials, issue a 60-minute JWT and record the attempt."""
-        administrator = self._find_administrator(payload.username)
-
-        if administrator is None:
-            # `Audit.UserName` is a NOT NULL foreign key to `User`, so an unknown
-            # identifier cannot be persisted here. The generic 401 raised below
-            # still prevents user enumeration for the caller.
+        # Phase 1: Precondition Gate
+        if not payload or not payload.username or not payload.password:
             raise self._build_invalid_credentials_error()
 
         now = datetime.utcnow()
+        administrator = self._find_administrator(payload.username)
 
-        # US 02.2: Check if account is currently locked
-        if administrator.locked_until is not None:
-            if administrator.locked_until > now:
-                remaining_seconds = max(
-                    1, int((administrator.locked_until - now).total_seconds())
-                )
-                self._record_login_failure(
-                    administrator, client_ip, LOGIN_ACCOUNT_LOCKED_DETAILS
-                )
-                raise self._build_account_locked_error(remaining_seconds)
-            # Lockout period expired; automatically reset failed counter
-            self.user_repository.reset_failed_attempts(administrator)
-
-        if not verify_password(payload.password, administrator.password_hash):
-            new_failed_count = (administrator.falsed_attempts or 0) + 1
-            if new_failed_count >= MAX_FAILED_ATTEMPTS:
-                locked_until = now + timedelta(minutes=LOCKOUT_DURATION_MINUTES)
-                self.user_repository.update_failed_attempts(
-                    administrator,
-                    falsed_attempts=new_failed_count,
-                    locked_until=locked_until,
-                )
-                self._record_login_failure(
-                    administrator, client_ip, LOGIN_ACCOUNT_LOCKED_DETAILS
-                )
-                raise self._build_account_locked_error(LOCKOUT_DURATION_MINUTES * 60)
-
-            self.user_repository.update_failed_attempts(
-                administrator, falsed_attempts=new_failed_count
+        # Phase 2: Linear Compute & Validation
+        error_to_raise: ApiError | None = None
+        if administrator is None:
+            error_to_raise = self._build_invalid_credentials_error()
+        else:
+            error_to_raise = self._evaluate_admin_login(
+                administrator, payload.password, client_ip, now
             )
-            self._record_login_failure(administrator, client_ip, LOGIN_FAILED_DETAILS)
-            raise self._build_invalid_credentials_error()
 
-        if not administrator.is_active:
-            self._record_login_failure(
-                administrator, client_ip, LOGIN_INACTIVE_ACCOUNT_DETAILS
-            )
-            raise self._build_invalid_credentials_error()
+        if error_to_raise is not None:
+            raise error_to_raise
 
-        # Reset failed attempts counter on successful login
+        # Phase 3: Post-condition Invariants & Unified Exit
         self.user_repository.reset_failed_attempts(administrator)
-
         self.audit_repository.create_log_entry(
             user_name=administrator.user_name,
             status=AUDIT_STATUS_SUCCESS,
             ip_address=client_ip,
             details=LOGIN_SUCCESS_DETAILS,
         )
-        return AdminSessionTokenDTO(
+        session_token_dto = AdminSessionTokenDTO(
             access_token=create_admin_access_token(administrator.user_name),
             admin=AdminProfileResponse.model_validate(administrator),
         )
+        return session_token_dto
+
+    def login_admin(
+        self,
+        credentials: AdminLoginRequest,
+        client_ip: str | None = None,
+    ) -> AdminSessionTokenDTO:
+        """Compatibility alias for authenticate_admin."""
+        session_token = self.authenticate_admin(credentials, client_ip=client_ip)
+        return session_token
 
     def resolve_authenticated_admin(
         self,
@@ -149,32 +128,92 @@ class AuthService:
             if admin_user_name
             else None
         )
-        if administrator is None or not administrator.is_active:
-            raise self._build_unauthenticated_error()
-
-        # SECURITY-INVARIANT (US 02.3 - AC-02.3.1): a logout must kill the token
-        # server-side, otherwise a stolen cookie keeps working until `exp`.
-        # PERF-CRITICAL: this adds exactly one indexed audit read per request.
-        if self._is_token_revoked(
+        is_token_revoked = administrator is not None and self._is_token_revoked(
             administrator.user_name, claims.get(JWT_ISSUED_AT_CLAIM)
-        ):
+        )
+        is_invalid_session = (
+            administrator is None or not administrator.is_active or is_token_revoked
+        )
+
+        if is_invalid_session:
             raise self._build_unauthenticated_error()
 
-        return AdminProfileResponse.model_validate(administrator)
+        resolved_profile = AdminProfileResponse.model_validate(administrator)
+        return resolved_profile
 
     def logout_admin(self, admin_user_name: str, client_ip: str | None) -> None:
-        """Record the revocation watermark that terminates an active session.
-
-        US 02.3 - TSK-02.3.1: the row must be written before the controller
-        clears the cookie, because that row is the only thing that makes the
-        already-issued JWT unusable.
-        """
+        """Record the revocation watermark that terminates an active session."""
+        if not admin_user_name:
+            return
         self.audit_repository.create_log_entry(
             user_name=admin_user_name,
             status=AUDIT_STATUS_SUCCESS,
             ip_address=client_ip,
             details=AUDIT_DETAILS_LOGOUT,
         )
+
+    def _evaluate_admin_login(
+        self,
+        administrator: User,
+        password: str,
+        client_ip: str | None,
+        now: datetime,
+    ) -> ApiError | None:
+        """Evaluate account lockout, password match, and active status linearly."""
+        if administrator.locked_until is not None and administrator.locked_until > now:
+            remaining_seconds = max(
+                1, int((administrator.locked_until - now).total_seconds())
+            )
+            self._record_login_failure(
+                administrator, client_ip, LOGIN_ACCOUNT_LOCKED_DETAILS
+            )
+            return self._build_account_locked_error(remaining_seconds)
+
+        if administrator.locked_until is not None:
+            self.user_repository.reset_failed_attempts(administrator)
+
+        error_result: ApiError | None = None
+        is_password_valid = verify_password(password, administrator.password_hash)
+
+        if not is_password_valid:
+            error_result = self._handle_failed_password_attempt(
+                administrator, client_ip, now
+            )
+        elif not administrator.is_active:
+            self._record_login_failure(
+                administrator, client_ip, LOGIN_INACTIVE_ACCOUNT_DETAILS
+            )
+            error_result = self._build_invalid_credentials_error()
+
+        return error_result
+
+    def _handle_failed_password_attempt(
+        self,
+        administrator: User,
+        client_ip: str | None,
+        now: datetime,
+    ) -> ApiError:
+        """Handle consecutive failed password attempt, triggering lockout if threshold reached."""
+        new_failed_count = (administrator.falsed_attempts or 0) + 1
+        is_lockout_triggered = new_failed_count >= MAX_FAILED_ATTEMPTS
+
+        if is_lockout_triggered:
+            locked_until = now + timedelta(minutes=LOCKOUT_DURATION_MINUTES)
+            self.user_repository.update_failed_attempts(
+                administrator,
+                falsed_attempts=new_failed_count,
+                locked_until=locked_until,
+            )
+            self._record_login_failure(
+                administrator, client_ip, LOGIN_ACCOUNT_LOCKED_DETAILS
+            )
+            return self._build_account_locked_error(LOCKOUT_DURATION_MINUTES * 60)
+
+        self.user_repository.update_failed_attempts(
+            administrator, falsed_attempts=new_failed_count
+        )
+        self._record_login_failure(administrator, client_ip, LOGIN_FAILED_DETAILS)
+        return self._build_invalid_credentials_error()
 
     def _find_administrator(self, login_identifier: str) -> User | None:
         """Resolve an identifier that may be either a username or an email."""
@@ -200,16 +239,7 @@ class AuthService:
     def _is_token_revoked(
         self, admin_user_name: str, issued_at_epoch: float | None
     ) -> bool:
-        """Return True when the token was issued in or before the logout second.
-
-        US 02.3 - TSK-02.3.1: `Audit.Create_at` is filled by the database into a
-        `DATETIME` column, so the watermark is always truncated *down* to whole
-        seconds while `iat` is a sub-second UTC epoch. Comparing the two raw
-        values would leave a login/logout pair inside one second looking
-        unrevoked, so `iat` is floored to the same resolution first. The
-        comparison is then deliberately inclusive and therefore fails closed: a
-        token minted in the very second of a logout is rejected too.
-        """
+        """Return True when the token was issued in or before the logout second."""
         if issued_at_epoch is None:
             return False
 
@@ -220,7 +250,8 @@ class AuthService:
         issued_at_second = datetime.utcfromtimestamp(issued_at_epoch).replace(
             microsecond=0
         )
-        return issued_at_second <= last_logout_at
+        is_revoked = issued_at_second <= last_logout_at
+        return bool(is_revoked)
 
     @staticmethod
     def _build_invalid_credentials_error() -> ApiError:

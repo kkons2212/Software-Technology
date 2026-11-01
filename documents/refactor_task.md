@@ -11,7 +11,7 @@
 | Epic / Module ID | Module Title | Primary Focus Layers | Priority | Story Points | Tasks | Progress Status |
 | :--- | :--- | :---: | :---: | :---: | :---: | :---: |
 | [**REF-EPIC-01**](#-ref-epic-01-mobile-map-geofencing-engine--wayfinding-navigation-uc-01) | Mobile Map, Geofencing Engine & Wayfinding Navigation | Layer 2 (Service) / Layer 3 (Repo) / Test | Must Have | 6 SP | 4 Tasks | [ ] 0/4 |
-| [**REF-EPIC-02**](#-ref-epic-02-administrative-authentication-session-guard--lockout-uc-02) | Admin Authentication, Session Guard & Lockout Invariants | Layer 2 (Service) / Layer 3 (Repo) / Test | Must Have | 6 SP | 4 Tasks | [ ] 0/4 |
+| [**REF-EPIC-02**](#-ref-epic-02-administrative-authentication-session-guard--lockout-uc-02) | Admin Authentication, Session Guard & Lockout Invariants | Layer 2 (Service) / Layer 3 (Repo) / Test | Must Have | 6 SP | 4 Tasks | [x] 4/4 (DONE) |
 | [**REF-EPIC-03**](#-ref-epic-03-poi-spatial-catalog-coordinate-validation--media-upload-uc-03) | POI Catalog, Coordinate Validation & Spatial Queries | Layer 2 (Service) / Layer 3 (Repo) / Test | Must Have | 6 SP | 4 Tasks | [x] 4/4 |
 | [**REF-EPIC-04**](#-ref-epic-04-automated-ai-translation-pipeline-tts-engine--audit-curation-uc-04) | AI Translation Pipeline, TTS Engine & Audio Curation | Layer 2 (Service) / Layer 3 (Repo/Client) / Test | Must Have | 10 SP | 6 Tasks | [x] 6/6 |
 | [**REF-EPIC-05**](#-ref-epic-05-operational-telemetry-heatmap-aggregation--system-health-uc-05) | Telemetry Ingestion, Heatmap Aggregation & Data Export | Layer 2 (Service) / Layer 3 (Repo) / Test | Should Have | 6 SP | 4 Tasks | [x] 4/4 |
@@ -88,7 +88,7 @@ Every refactoring task in this backlog must strictly comply with the quantitativ
 *Focus: Eliminating scattered returns in credential verification, strictly separating audit logging invariants from failure branches, and hardening repository data access.*
 
 ### 📌 Tasks Breakdown:
-- [ ] `REF-02.1` `[Layer 2 - Service]` **Refactor Admin Authentication Service (`app/services/auth_service.py`)**
+- [x] `REF-02.1` `[Layer 2 - Service]` **Refactor Admin Authentication Service (`app/services/auth_service.py`)**
   - **Smells & Anti-patterns:** `login_admin` has 4 distinct `raise ApiError` statements intermingled with audit logging calls, creating risk where failure telemetry fails to record.
   - **Refactoring Scope:**
     1. Phase 1 Gate: Validate non-empty sanitized username and password length constraints.
@@ -98,19 +98,19 @@ Every refactoring task in this backlog must strictly comply with the quantitativ
   - **Layer 1 Fit:** Controller `auth_controller.py` calls `auth_service.login_admin(credentials, db)` without change.
   - **Metric Target:** $K \le 2$, $M \le 6$, Nesting Depth $\le 2$.
 
-- [ ] `REF-02.2` `[Layer 3 - Repository]` **Refactor User Repository (`app/repositories/user_repository.py`)**
+- [x] `REF-02.2` `[Layer 3 - Repository]` **Refactor User Repository (`app/repositories/user_repository.py`)**
   - **Smells & Anti-patterns:** Implicit `None` return when user not found; redundant session flush calls.
   - **Refactoring Scope:**
     1. Explicit return accumulator: `user = query.first(); return user`.
     2. Encapsulate failure counter updates (`increment_failed_attempts`, `reset_failed_attempts`) with explicit return of updated user model.
   - **Metric Target:** $K = 1$, $M \le 4$.
 
-- [ ] `REF-02.3` `[Layer 3 - Repository]` **Refactor Audit Repository (`app/repositories/audit_repository.py`)**
+- [x] `REF-02.3` `[Layer 3 - Repository]` **Refactor Audit Repository (`app/repositories/audit_repository.py`)**
   - **Smells & Anti-patterns:** Missing transaction commit encapsulation; variable length details column not properly formatted for TEXT type.
   - **Refactoring Scope:** Standardize `create_audit_entry(user_name, status, ip_address, details)` to linear SISE execution with explicit return of created `Audit` instance.
   - **Metric Target:** $K = 1$, $M \le 3$.
 
-- [ ] `REF-02.4` `[Test - Unit Suite]` **Refactor Auth & Security Unit Tests (`tests/unit/services/test_auth_service.py` & `test_user_repository.py`)**
+- [x] `REF-02.4` `[Test - Unit Suite]` **Refactor Auth & Security Unit Tests (`tests/unit/services/test_auth_service.py` & `test_user_repository.py`)**
   - **Test Smells:** Tests verify audit side-effects using brittle count checks; inconsistent password hashing mock setups.
   - **Refactoring Scope:**
     1. Standardize user seed fixture with `LOW_COST_BCRYPT_ROUNDS`.

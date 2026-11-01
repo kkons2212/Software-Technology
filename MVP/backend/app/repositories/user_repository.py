@@ -20,11 +20,13 @@ class UserRepository:
 
     def find_by_username(self, user_name: str) -> User | None:
         """Return the administrator with this username, or None when absent."""
-        return self.db.query(User).filter(User.user_name == user_name).first()
+        found_user = self.db.query(User).filter(User.user_name == user_name).first()
+        return found_user
 
     def find_by_email(self, email: str) -> User | None:
         """Return the administrator with this email, or None when absent."""
-        return self.db.query(User).filter(User.email == email).first()
+        found_user = self.db.query(User).filter(User.email == email).first()
+        return found_user
 
     def create_admin(self, user: User) -> User:
         """Persist a new administrator account and refresh it with DB defaults."""
@@ -35,14 +37,18 @@ class UserRepository:
 
     def update_failed_attempts(
         self, user: User, falsed_attempts: int, locked_until: datetime | None = None
-    ) -> None:
+    ) -> User:
         """Update consecutive failed login count and optional lockout timestamp."""
         user.falsed_attempts = falsed_attempts
         user.locked_until = locked_until
         self.db.commit()
+        self.db.refresh(user)
+        return user
 
-    def reset_failed_attempts(self, user: User) -> None:
+    def reset_failed_attempts(self, user: User) -> User:
         """Clear failed attempts counter and remove lockout timestamp."""
         user.falsed_attempts = 0
         user.locked_until = None
         self.db.commit()
+        self.db.refresh(user)
+        return user

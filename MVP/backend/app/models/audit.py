@@ -1,8 +1,9 @@
 """SQLAlchemy ORM model for the `Audit` table (authentication & action trail)."""
 
 from datetime import datetime
+from typing import ClassVar
 
-from sqlalchemy import DateTime, ForeignKey, String, func
+from sqlalchemy import DateTime, ForeignKey, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship, synonym
 
 from app.core.database import Base
@@ -28,6 +29,10 @@ class Audit(Base):
     """An immutable audit log row describing one administrator action."""
 
     __tablename__ = "Audit"
+    __table_args__: ClassVar[dict[str, str]] = {
+        "mysql_charset": "utf8mb4",
+        "mysql_collate": "utf8mb4_unicode_ci",
+    }
 
     audit_id: Mapped[str] = mapped_column(
         "AuditID", String(AUDIT_ID_MAX_LENGTH), primary_key=True, index=True
@@ -38,16 +43,14 @@ class Audit(Base):
     ip_address: Mapped[str | None] = mapped_column(
         "Ip_address", String(AUDIT_IP_ADDRESS_MAX_LENGTH), nullable=True
     )
-    details: Mapped[str | None] = mapped_column(
-        "Details", String(AUDIT_DETAILS_MAX_LENGTH), nullable=True
-    )
+    details: Mapped[str | None] = mapped_column("Details", Text, nullable=True)
     create_at: Mapped[datetime] = mapped_column(
         "Create_at", DateTime, nullable=False, server_default=func.now(), index=True
     )
     user_name: Mapped[str] = mapped_column(
         "UserName",
         String(AUDIT_USER_NAME_MAX_LENGTH),
-        ForeignKey("User.UserName", ondelete="CASCADE"),
+        ForeignKey("User.UserName", ondelete="RESTRICT"),
         nullable=False,
         index=True,
     )
