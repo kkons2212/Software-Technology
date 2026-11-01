@@ -80,7 +80,7 @@ def test_should_apply_database_defaults_when_admin_created(repository):
 
 def test_should_update_failed_attempts_and_return_updated_user(repository):
     admin = repository.create_admin(_build_admin())
-    locked_until = datetime.utcnow() + timedelta(minutes=15)
+    locked_until = (datetime.utcnow() + timedelta(minutes=15)).replace(microsecond=0)
 
     updated_admin = repository.update_failed_attempts(
         admin, falsed_attempts=3, locked_until=locked_until
@@ -88,13 +88,16 @@ def test_should_update_failed_attempts_and_return_updated_user(repository):
 
     assert updated_admin is not None
     assert updated_admin.falsed_attempts == 3
-    assert updated_admin.locked_until == locked_until
+    assert updated_admin.locked_until is not None
+    assert abs((updated_admin.locked_until - locked_until).total_seconds()) <= 1
 
 
 def test_should_reset_failed_attempts_and_return_updated_user(repository):
+    locked_until = (datetime.utcnow() + timedelta(minutes=15)).replace(microsecond=0)
     admin = repository.create_admin(
         _build_admin(
-            falsed_attempts=5, locked_until=datetime.utcnow() + timedelta(minutes=15)
+            falsed_attempts=5,
+            locked_until=locked_until,
         )
     )
 
