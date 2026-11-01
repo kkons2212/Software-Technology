@@ -10,14 +10,14 @@
 
 | Epic / Module ID | Module Title | Primary Focus Layers | Priority | Story Points | Tasks | Progress Status |
 | :--- | :--- | :---: | :---: | :---: | :---: | :---: |
-| [**REF-EPIC-01**](#-ref-epic-01-mobile-map-geofencing-engine--wayfinding-navigation-uc-01) | Mobile Map, Geofencing Engine & Wayfinding Navigation | Layer 2 (Service) / Layer 3 (Repo) / Test | Must Have | 6 SP | 4 Tasks | [ ] 0/4 |
+| [**REF-EPIC-01**](#-ref-epic-01-mobile-map-geofencing-engine--wayfinding-navigation-uc-01) | Mobile Map, Geofencing Engine & Wayfinding Navigation | Layer 2 (Service) / Layer 3 (Repo) / Test | Must Have | 6 SP | 4 Tasks | [x] 4/4 (DONE) |
 | [**REF-EPIC-02**](#-ref-epic-02-administrative-authentication-session-guard--lockout-uc-02) | Admin Authentication, Session Guard & Lockout Invariants | Layer 2 (Service) / Layer 3 (Repo) / Test | Must Have | 6 SP | 4 Tasks | [x] 4/4 (DONE) |
 | [**REF-EPIC-03**](#-ref-epic-03-poi-spatial-catalog-coordinate-validation--media-upload-uc-03) | POI Catalog, Coordinate Validation & Spatial Queries | Layer 2 (Service) / Layer 3 (Repo) / Test | Must Have | 6 SP | 4 Tasks | [x] 4/4 |
 | [**REF-EPIC-04**](#-ref-epic-04-automated-ai-translation-pipeline-tts-engine--audit-curation-uc-04) | AI Translation Pipeline, TTS Engine & Audio Curation | Layer 2 (Service) / Layer 3 (Repo/Client) / Test | Must Have | 10 SP | 6 Tasks | [x] 6/6 |
 | [**REF-EPIC-05**](#-ref-epic-05-operational-telemetry-heatmap-aggregation--system-health-uc-05) | Telemetry Ingestion, Heatmap Aggregation & Data Export | Layer 2 (Service) / Layer 3 (Repo) / Test | Should Have | 6 SP | 4 Tasks | [x] 4/4 |
 | [**REF-EPIC-06**](#-ref-epic-06-digital-admission-payment-webhook-verification--visiting-session-uc-06) | Payment Webhook Verification, Session Gating & Recovery | Layer 2 (Service) / Layer 3 (Repo/Client) / Test | Must Have | 8 SP | 5 Tasks | [x] 5/5 |
 | [**REF-EPIC-07**](#-ref-epic-07-cross-cutting-infrastructure-orm-schema-defense--ci-gates) | Infrastructure, ORM-DDL Defense & Control Flow CI Gates | Layer 3 (Core/DB) / AST Linter / CI | Must Have | 5 SP | 4 Tasks | [ ] 0/4 |
-| **TOTAL** | **7 Refactoring Epics (Layer 2 & 3 Backend + Tests)** | — | — | **47 SP** | **31 Tasks** | **[ ] 23/31 Tasks** |
+| **TOTAL** | **7 Refactoring Epics (Layer 2 & 3 Backend + Tests)** | — | — | **47 SP** | **31 Tasks** | **[ ] 27/31 Tasks** |
 
 ---
 
@@ -48,38 +48,41 @@ Every refactoring task in this backlog must strictly comply with the quantitativ
 ---
 
 ## 🗺️ REF-EPIC-01: MOBILE MAP, GEOFENCING ENGINE & WAYFINDING NAVIGATION (UC-01)
-*Focus: Linearizing greedy TSP wayfinding route calculations, standardizing language catalog resolution, and refactoring navigation unit test suites.*
+*Focus: Refactoring Hybrid Smart Routing (OSRM + Dijkstra trail graph) to SISE, standardizing language catalog resolution, and hardening wayfinding unit test suites.*
 
 ### 📌 Tasks Breakdown:
-- [ ] `REF-01.1` `[Layer 2 - Service]` **Linearize Nearest-Neighbor TSP Routing (`app/services/wayfinding_service.py`)**
-  - **Smells & Anti-patterns:** `compute_optimal_tour_route` contains deeply nested while/for loops with mid-loop break/returns and inline distance matrix assertions ($M = 9$).
+- [x] `REF-01.1` `[Layer 2 - Service]` **Refactor Hybrid Smart Wayfinding Service (`app/services/wayfinding_service.py`)**
+  - **Smells & Anti-patterns:** `calculate_walking_route` contains scattered exception raises. Internal path computations (`_compute_internal_trail_route`, `_try_osrm_foot_route`, `_dijkstra_shortest_path`) contain multiple return points ($K > 2$), nested conditionals, and inline ternaries.
   - **Refactoring Scope:**
-    1. Phase 1 Gate: Validate non-empty POI candidates and start coordinates within Vietnam bounding box (`10.0 <= lat <= 12.0`, `105.0 <= lng <= 108.0`).
-    2. Phase 2 Compute: Decompose greedy step into private helper `_find_nearest_unvisited_poi(current_coords, unvisited_pool)` ($M \le 4$).
-    3. Phase 3 Exit: Accumulate visited coordinates, total distance in meters, and estimated duration into a single `TourRouteResponse` return statement.
-  - **Layer 1 Fit:** Signature `compute_optimal_tour_route(start_lat, start_lng, poi_ids, ...)` and return model remain 100% identical for `tour_controller.py`.
-  - **Metric Target:** $K = 2$, $M \le 5$, Nesting Depth $\le 2$.
+    1. Preserve 100% of existing Hybrid Smart Routing architecture: Primary OpenStreetMap Foot Routing (OSRM) + Fallback internal Cu Chi trail network graph (Dijkstra shortest path over 38 Bến Dược trail nodes).
+    2. Phase 1 Gate: Validate origin coordinates within valid geographic range (`-90 <= lat <= 90`, `-180 <= lng <= 180`), ensure destination POI exists, and verify POI is active.
+    3. Phase 2 Compute: Linearize `_compute_internal_trail_route`, `_try_osrm_foot_route`, and `_dijkstra_shortest_path` using explicit accumulator variables (`resolved_route`, `resolved_path`) and unified exit.
+    4. Phase 3 Exit: Assemble RFC 7946 compliant `GeoJsonRouteFeature` with complete route properties (`origin`, `destination`, `total_distance_meters`, `estimated_walking_minutes`) and return single accumulated feature.
+  - **Layer 1 Fit:** Method signature `calculate_walking_route(origin_lat, origin_lng, destination_poi_id) -> GeoJsonRouteFeature` remains 100% identical for `tour_controller.py`.
+  - **Metric Target:** $K \le 2$, $M \le 5$, Nesting Depth $\le 2$.
 
-- [ ] `REF-01.2` `[Layer 2 - Service]` **Refactor Language Catalog Resolution Service (`app/services/language_service.py`)**
-  - **Smells & Anti-patterns:** Redundant queries for fallback languages; scattered early returns when checking published languages.
+- [x] `REF-01.2` `[Layer 2 - Service]` **Refactor Language Catalog Resolution Service (`app/services/language_service.py`)**
+  - **Smells & Anti-patterns:** Inconsistent model property access (`LanguageID` vs `language_id`); lack of explicit accumulator variables in catalog resolvers.
   - **Refactoring Scope:**
-    1. Phase 1 Gate: Validate requested language code format.
-    2. Phase 2 Compute: Fetch active language catalog via repository; resolve language metadata into intermediate dictionary.
-    3. Phase 3 Exit: Return single `LanguageListResponse(languages=resolved_languages)`.
-  - **Layer 1 Fit:** Keeps exact method `get_available_languages()` called by `language_controller.py`.
+    1. Phase 1 Gate: Validate repository dependency presence.
+    2. Phase 2 Compute: Fetch active language catalog via repository; resolve language metadata into intermediate DTO collections.
+    3. Phase 3 Exit: Return single unified accumulator (`resolved_languages`).
+  - **Layer 1 Fit:** Keeps exact methods `list_published()`, `list_all()`, `get_published_languages()` consumed by `language_controller.py`.
   - **Metric Target:** $K = 1$, $M \le 3$.
 
-- [ ] `REF-01.3` `[Layer 3 - Repository]` **Refactor Language Repository Queries (`app/repositories/language_repository.py`)**
-  - **Smells & Anti-patterns:** Implicit `None` return on missing language code; lack of explicit condition accumulation.
-  - **Refactoring Scope:** Standardize `get_by_id` and `get_published_languages` with explicit accumulator returns (`return found_language` / `return None`).
-  - **Metric Target:** $K = 1$, $M \le 3$.
-
-- [ ] `REF-01.4` `[Test - Unit Suite]` **Refactor Wayfinding & Navigation Unit Tests (`tests/unit/services/test_wayfinding_service.py`)**
-  - **Test Smells:** Ad-hoc coordinate tuples hardcoded inside test assertions without shared fixtures; multiple assertions without clear AAA separation.
+- [x] `REF-01.3` `[Layer 3 - Repository]` **Refactor Language Repository Queries (`app/repositories/language_repository.py`)**
+  - **Smells & Anti-patterns:** Direct inline returns without explicit condition and result accumulators; missing standardized `get_by_id`.
   - **Refactoring Scope:**
-    1. Extract standard test coordinate fixtures (`CU_CHI_MAIN_GATE`, `BEN_DUOC_COORDINATES`).
-    2. Restructure test cases into strict Arrange $\rightarrow$ Act $\rightarrow$ Assert phases.
-    3. Add boundary test cases for 0 POIs, 1 POI, and out-of-bounds coordinates.
+    1. Standardize `list_all`, `list_published`, and `list_target_foreign_language_ids` with explicit accumulator returns (`return resolved_languages`).
+    2. Add SISE-compliant `get_by_id(language_id: str)` lookup with explicit `found_language` return.
+  - **Metric Target:** $K \le 2$, $M \le 3$.
+
+- [x] `REF-01.4` `[Test - Unit Suite]` **Refactor Wayfinding & Navigation Unit Tests (`tests/unit/services/test_wayfinding_service.py`)**
+  - **Test Smells:** Ad-hoc coordinate assertions without clear AAA separation; lack of boundary validation for trail node direct hits and OSRM timeout fallbacks.
+  - **Refactoring Scope:**
+    1. Restructure test cases into strict Arrange $\rightarrow$ Act $\rightarrow$ Assert phases.
+    2. Add boundary test cases for direct trail proximity ($\le 35\text{m}$), OSRM fallback, out-of-bounds coordinates, and deactivated POIs.
+    3. Guarantee calculation latency SLA ($< 500\text{ms}$) under internal trail graph.
   - **DoD:** 100% tests pass, zero assertions deleted.
 
 ---
