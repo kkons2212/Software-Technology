@@ -33,6 +33,7 @@ DEFAULT_ACCOUNT_NUMBER = "0909123456"
 DEFAULT_ACCOUNT_NAME = "CU CHI TUNNELS SMART GUIDE"
 PAYOS_API_ENDPOINT = "https://api-merchant.payos.vn/v2/payment-requests"
 QR_EXPIRATION_MINUTES = 15
+SUPPORTED_LANGUAGES = {"vi", "en", "ja", "ko", "zh"}
 
 
 class PaymentService:
@@ -150,12 +151,16 @@ class PaymentService:
         currency = settings.SERVICE_FEE_CURRENCY
         payment_method = payload.payment_method.upper()
 
+        target_lang = (payload.preferred_language or "vi").strip().lower()
+        pref_lang = target_lang if target_lang in SUPPORTED_LANGUAGES else "vi"
+
         gateway_name = "PAYOS" if payment_method == "VIETQR" else "PAYPAL"
         txn = self.transaction_repo.create_transaction(
             pay_amount=fee_amount,
             payment_gateway=gateway_name,
             payment_method=payment_method,
             currency=currency,
+            gateway_payload={"preferred_language": pref_lang},
         )
 
         order_id = txn.transaction_id
@@ -281,9 +286,21 @@ class PaymentService:
             )
 
         # Phase 2: Compute
+        saved_lang = None
+        if txn.gateway_payload and isinstance(txn.gateway_payload, dict):
+            saved_lang = txn.gateway_payload.get("preferred_language")
+        resolved_lang = (
+            preferred_language
+            if preferred_language and preferred_language != "vi"
+            else (saved_lang or "vi")
+        )
+        resolved_lang = resolved_lang.strip().lower()
+        if resolved_lang not in SUPPORTED_LANGUAGES:
+            resolved_lang = "vi"
+
         updated_txn, session = self.transaction_repo.mark_as_paid(
             transaction_id=order_id,
-            preferred_language=preferred_language,
+            preferred_language=resolved_lang,
             gateway_transaction_id=f"SIM_{order_id}",
         )
 
@@ -327,9 +344,21 @@ class PaymentService:
                 except Exception as exc:
                     logger.warning("PayPal capture order error: %s", exc)
 
+            saved_lang = None
+            if txn.gateway_payload and isinstance(txn.gateway_payload, dict):
+                saved_lang = txn.gateway_payload.get("preferred_language")
+            resolved_lang = (
+                preferred_language
+                if preferred_language and preferred_language != "vi"
+                else (saved_lang or "vi")
+            )
+            resolved_lang = resolved_lang.strip().lower()
+            if resolved_lang not in SUPPORTED_LANGUAGES:
+                resolved_lang = "vi"
+
             updated_txn, session = self.transaction_repo.mark_as_paid(
                 transaction_id=order_id,
-                preferred_language=preferred_language,
+                preferred_language=resolved_lang,
                 gateway_transaction_id=target_paypal_id or f"PP_{order_id}",
             )
             response = OrderStatusResponse(
@@ -409,7 +438,16 @@ class PaymentService:
             gateway_tx_id = (
                 str(ref_val) if ref_val is not None else f"WH_{txn.transaction_id}"
             )
-            webhook_language = getattr(txn, "preferred_language", None) or "vi"
+            saved_lang = None
+            if txn.gateway_payload and isinstance(txn.gateway_payload, dict):
+                saved_lang = txn.gateway_payload.get("preferred_language")
+            webhook_language = (
+                saved_lang or getattr(txn, "preferred_language", None) or "vi"
+            )
+            webhook_language = webhook_language.strip().lower()
+            if webhook_language not in SUPPORTED_LANGUAGES:
+                webhook_language = "vi"
+
             updated_txn, session = self.transaction_repo.mark_as_paid(
                 transaction_id=txn.transaction_id,
                 preferred_language=webhook_language,

@@ -192,9 +192,11 @@ def test_should_render_paypal_mock_checkout_page(client, db_session):
 
 
 def test_should_confirm_paypal_mock_payment_and_redirect(client, db_session):
+    from app.models.session import VisitorSession
+
     create_res = client.post(
         "/api/v1/payments/create-checkout",
-        json={"payment_method": "CARD"},
+        json={"payment_method": "CARD", "preferred_language": "ja"},
     )
     order_id = create_res.json()["order_id"]
 
@@ -203,11 +205,20 @@ def test_should_confirm_paypal_mock_payment_and_redirect(client, db_session):
         follow_redirects=False,
     )
     assert res.status_code == 302
-    assert "payment_success=true" in res.headers["location"]
+    location = res.headers["location"]
+    assert "payment_success=true" in location
+    assert "session_code=" in location
+    assert "session_token=" in location
 
     status_res = client.get(f"/api/v1/payments/order/{order_id}/status")
     assert status_res.status_code == 200
-    assert status_res.json()["status"] == "PAID"
+    status_data = status_res.json()
+    assert status_data["status"] == "PAID"
+    assert status_data["session_code"] is not None
+
+    sess = db_session.query(VisitorSession).filter(VisitorSession.SessionCode == status_data["session_code"]).first()
+    assert sess is not None
+    assert sess.PreferredLanguage == "ja"
 
 
 def test_should_capture_paypal_order(client, db_session):
