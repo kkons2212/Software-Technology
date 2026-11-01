@@ -163,6 +163,29 @@ describe('AdminMapPicker', () => {
     });
   });
 
+  it('flags error and disables saving when letters or invalid characters are keyed into coordinates', () => {
+    const onSave = vi.fn();
+    renderPicker({ onSave });
+
+    const latInput = screen.getByLabelText('Latitude');
+    fireEvent.keyDown(latInput, { key: 'a' });
+
+    expect(screen.getByRole('alert')).toHaveTextContent(/tọa độ không hợp lệ/i);
+    expect(screen.getByRole('button', { name: 'Save Changes' })).toBeDisabled();
+    expect(onSave).not.toHaveBeenCalled();
+  });
+
+  it('flags error and disables saving when radius is out of range', () => {
+    const onSave = vi.fn();
+    renderPicker({ onSave });
+
+    fireEvent.change(screen.getByLabelText('Trigger Radius'), { target: { value: '99' } });
+
+    expect(screen.getByRole('alert')).toHaveTextContent(/bán kính kích hoạt không hợp lệ/i);
+    expect(screen.getByRole('button', { name: 'Save Changes' })).toBeDisabled();
+    expect(onSave).not.toHaveBeenCalled();
+  });
+
   it('locks the save action while the host persists the change', () => {
     renderPicker({ onSave: vi.fn(), isSaving: true });
 
