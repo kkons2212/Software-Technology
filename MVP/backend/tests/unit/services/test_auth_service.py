@@ -36,6 +36,7 @@ from app.schemas.auth_schema import AdminLoginRequest
 from app.services.auth_service import (
     ACCOUNT_LOCKED_ERROR_CODE,
     ACCOUNT_LOCKED_ERROR_MESSAGE,
+    DUMMY_BCRYPT_HASH,
     INVALID_CREDENTIALS_ERROR_CODE,
     INVALID_CREDENTIALS_ERROR_MESSAGE,
     LOGIN_ACCOUNT_LOCKED_DETAILS,
@@ -656,3 +657,27 @@ def test_should_not_revoke_when_the_token_carries_no_issued_at_claim(
     resolved_profile = auth_service.resolve_authenticated_admin(legacy_token)
 
     assert resolved_profile.user_name == VALID_USER_NAME
+
+
+def test_authenticate_admin_timing_hardening_runs_dummy_hash(mocker):
+    mock_user_repo = mocker.MagicMock(spec=UserRepository)
+    mock_audit_repo = mocker.MagicMock(spec=AuditRepository)
+    mock_user_repo.find_by_username.return_value = None
+    mock_user_repo.find_by_email.return_value = None
+
+    spy_verify = mocker.patch(
+        "app.services.auth_service.verify_password", return_value=False
+    )
+
+    service = AuthService(mock_user_repo, mock_audit_repo)
+    with pytest.raises(ApiError) as exc_info:
+        service.authenticate_admin(
+            AdminLoginRequest(username="ghost_admin", password="TestPassword123!"),
+            client_ip="127.0.0.1",
+        )
+
+    assert exc_info.value.status_code == 401
+    assert exc_info.value.detail["code"] == INVALID_CREDENTIALS_ERROR_CODE
+    assert spy_verify.called
+    assert spy_verify.call_args[0][0] == "TestPassword123!"
+    assert spy_verify.call_args[0][1] == DUMMY_BCRYPT_HASH

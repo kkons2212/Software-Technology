@@ -52,6 +52,7 @@ LOGIN_ACCOUNT_LOCKED_DETAILS = "ADMIN_ACCOUNT_LOCKED"
 
 MAX_FAILED_ATTEMPTS = 5
 LOCKOUT_DURATION_MINUTES = 15
+DUMMY_BCRYPT_HASH = "$2b$12$PaWjsJSe3y9sBOGTKpMb4u8elq6hWgbpaDyEStHvfMegAW3TAErq2"
 
 
 class AuthService:
@@ -81,6 +82,7 @@ class AuthService:
         # Phase 2: Linear Compute & Validation
         error_to_raise: ApiError | None = None
         if administrator is None:
+            verify_password(payload.password, DUMMY_BCRYPT_HASH)
             error_to_raise = self._build_invalid_credentials_error()
         else:
             error_to_raise = self._evaluate_admin_login(
@@ -240,17 +242,20 @@ class AuthService:
         self, admin_user_name: str, issued_at_epoch: float | None
     ) -> bool:
         """Return True when the token was issued in or before the logout second."""
+        # Phase 1: Precondition Gate
         if issued_at_epoch is None:
             return False
 
+        # Phase 2: Compute
         last_logout_at = self.audit_repository.find_last_logout_at(admin_user_name)
-        if last_logout_at is None:
-            return False
+        is_revoked = False
+        if last_logout_at is not None:
+            issued_at_second = datetime.utcfromtimestamp(issued_at_epoch).replace(
+                microsecond=0
+            )
+            is_revoked = issued_at_second <= last_logout_at
 
-        issued_at_second = datetime.utcfromtimestamp(issued_at_epoch).replace(
-            microsecond=0
-        )
-        is_revoked = issued_at_second <= last_logout_at
+        # Phase 3: Unified Exit
         return bool(is_revoked)
 
     @staticmethod

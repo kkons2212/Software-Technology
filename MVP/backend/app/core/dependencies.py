@@ -6,7 +6,7 @@ AST boundary checker never mistakes it for a layer violation.
 
 from pathlib import Path
 
-from fastapi import Depends, Header, Request
+from fastapi import Depends, Request
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
@@ -51,22 +51,38 @@ def get_auth_service(
     )
 
 
+def _extract_admin_token(request: Request) -> str | None:
+    """Extract administrator JWT from HttpOnly session cookie or Authorization header."""
+    cookie_name = get_settings().ADMIN_SESSION_COOKIE_NAME
+    token = request.cookies.get(cookie_name)
+    if not token:
+        auth_header = request.headers.get("authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            bearer_val = auth_header[7:].strip()
+            if bearer_val:
+                token = bearer_val
+    return token
+
+
 def get_current_admin_profile(
     request: Request,
     auth_service: AuthService = Depends(get_auth_service),
 ) -> AdminProfileResponse:
-    """Resolve the authenticated administrator from the HttpOnly session cookie."""
-    access_token = request.cookies.get(get_settings().ADMIN_SESSION_COOKIE_NAME)
+    """Resolve authenticated administrator profile from session cookie or Bearer header."""
+    access_token = _extract_admin_token(request)
     return auth_service.resolve_authenticated_admin(access_token)
 
 
-def get_current_admin(authorization: str | None = Header(None)) -> str:
-    """Extract authenticated admin username from request or fallback to default admin."""
-    if authorization and authorization.startswith("Bearer "):
-        token = authorization[7:]
-        if token:
-            return "admin"
-    return "admin"
+def get_current_admin(
+    request: Request,
+    auth_service: AuthService = Depends(get_auth_service),
+) -> str:
+    """Resolve authenticated administrator username from cookie or Bearer header."""
+    profile = get_current_admin_profile(
+        request=request,
+        auth_service=auth_service,
+    )
+    return profile.user_name
 
 
 def get_session_repository(db: Session = Depends(get_db)) -> SessionRepository:
