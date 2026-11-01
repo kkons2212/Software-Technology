@@ -5,6 +5,8 @@ the JIT session lifecycle. Every test runs against the rollback-isolated MySQL
 session (`db_session` fixture), so no row ever reaches the shared schema.
 """
 
+from datetime import datetime, timedelta
+
 import pytest
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -74,6 +76,33 @@ def test_should_apply_database_defaults_when_admin_created(repository):
     assert created_admin.update_at is not None
     # The session must not need a second flush: the row is already committed.
     assert created_admin in repository.db
+
+
+def test_should_update_failed_attempts_and_return_updated_user(repository):
+    admin = repository.create_admin(_build_admin())
+    locked_until = datetime.utcnow() + timedelta(minutes=15)
+
+    updated_admin = repository.update_failed_attempts(
+        admin, falsed_attempts=3, locked_until=locked_until
+    )
+
+    assert updated_admin is not None
+    assert updated_admin.falsed_attempts == 3
+    assert updated_admin.locked_until == locked_until
+
+
+def test_should_reset_failed_attempts_and_return_updated_user(repository):
+    admin = repository.create_admin(
+        _build_admin(
+            falsed_attempts=5, locked_until=datetime.utcnow() + timedelta(minutes=15)
+        )
+    )
+
+    reset_admin = repository.reset_failed_attempts(admin)
+
+    assert reset_admin is not None
+    assert reset_admin.falsed_attempts == 0
+    assert reset_admin.locked_until is None
 
 
 # ---------------------------------------------------------------------------

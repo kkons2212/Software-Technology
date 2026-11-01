@@ -1,6 +1,7 @@
 """SQLAlchemy ORM model for the `User` table (internal Administrator accounts)."""
 
 from datetime import datetime
+from typing import ClassVar
 
 from sqlalchemy import Boolean, DateTime, Integer, String, func
 from sqlalchemy.orm import Mapped, mapped_column, synonym
@@ -17,6 +18,10 @@ class User(Base):
     """An internal Administrator account (every row is an Admin)."""
 
     __tablename__ = "User"
+    __table_args__: ClassVar[dict[str, str]] = {
+        "mysql_charset": "utf8mb4",
+        "mysql_collate": "utf8mb4_unicode_ci",
+    }
 
     user_name: Mapped[str] = mapped_column(
         "UserName", String(USER_NAME_MAX_LENGTH), primary_key=True, index=True

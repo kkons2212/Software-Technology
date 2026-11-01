@@ -22,7 +22,8 @@ class AuditRepository:
 
     def generate_audit_id(self) -> str:
         """Build a 20-character audit identifier (`AUD-` + 16 hex characters)."""
-        return f"{AUDIT_ID_PREFIX}-{uuid.uuid4().hex[:AUDIT_ID_RANDOM_LENGTH]}"
+        generated_id = f"{AUDIT_ID_PREFIX}-{uuid.uuid4().hex[:AUDIT_ID_RANDOM_LENGTH]}"
+        return generated_id
 
     def create_log_entry(
         self,
@@ -44,6 +45,22 @@ class AuditRepository:
         self.db.refresh(log_entry)
         return log_entry
 
+    def create_audit_entry(
+        self,
+        user_name: str,
+        status: str,
+        ip_address: str | None = None,
+        details: str | None = None,
+    ) -> Audit:
+        """Standardized SISE entrypoint for creating an audit record."""
+        created_entry = self.create_log_entry(
+            user_name=user_name,
+            status=status,
+            ip_address=ip_address,
+            details=details,
+        )
+        return created_entry
+
     def find_last_logout_at(self, user_name: str) -> datetime | None:
         """Return the timestamp of the most recent logout recorded for a user.
 
@@ -53,7 +70,7 @@ class AuditRepository:
         Both `UserName` and `Create_at` are indexed, so this stays a single
         indexed read on the authentication hot path.
         """
-        return (
+        latest_logout = (
             self.db.query(func.max(Audit.create_at))
             .filter(
                 Audit.user_name == user_name,
@@ -61,6 +78,7 @@ class AuditRepository:
             )
             .scalar()
         )
+        return latest_logout
 
     def log_action(
         self,
@@ -73,11 +91,12 @@ class AuditRepository:
         details_str = (
             json.dumps(details)
             if isinstance(details, dict | list)
-            else (str(details) if details else None)
+            else (str(details) if details is not None else None)
         )
-        return self.create_log_entry(
+        persisted_entry = self.create_log_entry(
             user_name=username,
             status=status,
             ip_address=ip_address,
-            details=details_str[:255] if details_str else None,
+            details=details_str,
         )
+        return persisted_entry
