@@ -12,7 +12,7 @@ def test_settings_default_values():
     assert cfg.DB_POOL_SIZE == 10
     assert cfg.PAYPAL_MODE == "sandbox"
     assert cfg.SERVICE_FEE_CURRENCY == "VND"
-    assert cfg.ALLOW_GLOBAL_COORDINATES is True
+    assert cfg.ALLOW_GLOBAL_COORDINATES is False
 
 
 def test_gemini_keys_list_parsing():

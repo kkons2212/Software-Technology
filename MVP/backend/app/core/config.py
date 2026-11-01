@@ -90,7 +90,7 @@ class Settings(BaseSettings):
     OFFLINE_TRANSLATOR_URL: str = "http://localhost:8001"
 
     # Geographic Perimeter Bounds
-    ALLOW_GLOBAL_COORDINATES: bool = True
+    ALLOW_GLOBAL_COORDINATES: bool = False
     CU_CHI_BOUNDS: dict[str, float] = {
         "min_lat": 11.136361,
         "max_lat": 11.149306,
