@@ -153,6 +153,10 @@ describe('CheckoutModal', () => {
     expect(await screen.findByTestId('checkout-success-view')).toBeInTheDocument();
     expect(screen.getByText('Kích hoạt thành công!')).toBeInTheDocument();
     expect(screen.getByText('VN-8888')).toBeInTheDocument();
+    expect(screen.getByText('Thời hạn:')).toBeInTheDocument();
+    expect(screen.getByText('24 Giờ')).toBeInTheDocument();
+    expect(screen.getByText('Trạng thái:')).toBeInTheDocument();
+    expect(screen.getByText(/Đã kích hoạt/)).toBeInTheDocument();
     expect(onSuccess).toHaveBeenCalledWith(
       expect.objectContaining({
         order_id: 'cct-order-999',
@@ -160,5 +164,34 @@ describe('CheckoutModal', () => {
         session_code: 'VN-8888',
       })
     );
+  });
+
+  it('renders localized success view labels when preferredLanguage is Japanese', async () => {
+    simulatePaymentSuccess.mockResolvedValueOnce({
+      order_id: 'cct-order-ja',
+      status: 'PAID',
+      session_code: 'CCT-7C9101',
+      expires_at: new Date(Date.now() + 86400000).toISOString(),
+    });
+
+    render(<CheckoutModal isOpen={true} preferredLanguage="ja" />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('simulate-payment-btn')).toBeInTheDocument();
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('simulate-payment-btn'));
+    });
+
+    expect(await screen.findByTestId('checkout-success-view')).toBeInTheDocument();
+    expect(screen.getByText('有効化が完了しました！')).toBeInTheDocument();
+    expect(screen.getByText('セッションコード:')).toBeInTheDocument();
+    expect(screen.getByText('CCT-7C9101')).toBeInTheDocument();
+    expect(screen.getByText('有効期間:')).toBeInTheDocument();
+    expect(screen.getByText('24時間')).toBeInTheDocument();
+    expect(screen.getByText('ステータス:')).toBeInTheDocument();
+    expect(screen.getByText(/有効化済み/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '音声ガイドを聞き始める' })).toBeInTheDocument();
   });
 });

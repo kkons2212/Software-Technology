@@ -216,7 +216,11 @@ def test_should_confirm_paypal_mock_payment_and_redirect(client, db_session):
     assert status_data["status"] == "PAID"
     assert status_data["session_code"] is not None
 
-    sess = db_session.query(VisitorSession).filter(VisitorSession.SessionCode == status_data["session_code"]).first()
+    sess = (
+        db_session.query(VisitorSession)
+        .filter(VisitorSession.SessionCode == status_data["session_code"])
+        .first()
+    )
     assert sess is not None
     assert sess.PreferredLanguage == "ja"
 
