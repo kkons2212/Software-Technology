@@ -186,6 +186,18 @@ describe('AdminMapPicker', () => {
     expect(onSave).not.toHaveBeenCalled();
   });
 
+  it('flags error and disables saving when a float is entered into radius', () => {
+    const onSave = vi.fn();
+    renderPicker({ onSave });
+
+    const radiusInput = screen.getByLabelText('Trigger Radius');
+    fireEvent.keyDown(radiusInput, { key: '.' });
+
+    expect(screen.getByRole('alert')).toHaveTextContent(/bán kính kích hoạt không hợp lệ/i);
+    expect(screen.getByRole('button', { name: 'Save Changes' })).toBeDisabled();
+    expect(onSave).not.toHaveBeenCalled();
+  });
+
   it('locks the save action while the host persists the change', () => {
     renderPicker({ onSave: vi.fn(), isSaving: true });
 

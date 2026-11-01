@@ -312,12 +312,58 @@ export default function AdminMapPicker({
   const handleRadiusChange = (event) => {
     const isBad = event.target.validity?.badInput;
     const rawValue = event.target.value;
-    const nextRadius = rawValue === '' || isBad ? Number.NaN : Number(rawValue);
-    const invalidRadius = isBad || !Number.isFinite(nextRadius) || nextRadius < MIN_TRIGGER_RADIUS || nextRadius > MAX_TRIGGER_RADIUS;
+    const isFloat = rawValue.includes('.') || rawValue.includes(',');
+    const parsedInt = rawValue === '' || isBad || isFloat ? Number.NaN : parseInt(rawValue, 10);
+    const invalidRadius =
+      isBad ||
+      isFloat ||
+      !Number.isInteger(Number(rawValue)) ||
+      !Number.isFinite(parsedInt) ||
+      parsedInt < MIN_TRIGGER_RADIUS ||
+      parsedInt > MAX_TRIGGER_RADIUS;
+
     setHasRadiusError(invalidRadius);
-    setRadius(nextRadius);
+    setRadius(parsedInt);
     const valid = !invalidRadius && !isOutOfBounds;
-    onChange?.({ latitude, longitude, radius: nextRadius, isValid: valid });
+    onChange?.({ latitude, longitude, radius: parsedInt, isValid: valid });
+  };
+
+  const handleKeyDownRadius = (event) => {
+    const allowedKeys = [
+      'Backspace',
+      'Delete',
+      'Tab',
+      'Enter',
+      'Escape',
+      'ArrowLeft',
+      'ArrowRight',
+      'ArrowUp',
+      'ArrowDown',
+      'Home',
+      'End',
+    ];
+    if (
+      allowedKeys.includes(event.key) ||
+      event.ctrlKey ||
+      event.metaKey ||
+      event.altKey
+    ) {
+      return;
+    }
+
+    // Only allow integer digits (0-9). Reject dot '.', comma ',', minus '-', 'e', etc.
+    if (!/^\d$/.test(event.key)) {
+      setHasRadiusError(true);
+      event.preventDefault();
+    }
+  };
+
+  const handlePasteRadius = (event) => {
+    const pasted = event.clipboardData?.getData('text') || '';
+    if (!/^\d+$/.test(pasted.trim())) {
+      setHasRadiusError(true);
+      event.preventDefault();
+    }
   };
 
   const handleSave = () => {
@@ -399,6 +445,8 @@ export default function AdminMapPicker({
             max={MAX_TRIGGER_RADIUS}
             step={RADIUS_STEP}
             value={Number.isNaN(radius) || radius === null || radius === undefined ? '' : radius}
+            onKeyDown={handleKeyDownRadius}
+            onPaste={handlePasteRadius}
             onChange={handleRadiusChange}
             aria-label={radiusLabel}
             aria-invalid={isRadiusInvalid}
@@ -424,7 +472,7 @@ export default function AdminMapPicker({
             ? 'Tọa độ không hợp lệ: Vui lòng chỉ nhập số thực (ví dụ: 11.1432), không được nhập chữ cái hoặc ký tự đặc biệt.'
             : isCoordOutOfBounds
             ? outOfBoundsMessage
-            : 'Bán kính kích hoạt không hợp lệ (vui lòng chỉ nhập số từ 10m đến 50m).'}
+            : 'Bán kính kích hoạt không hợp lệ (vui lòng chỉ nhập số nguyên từ 10m đến 50m, không nhập số thập phân).'}
         </p>
       )}
 
