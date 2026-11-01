@@ -116,6 +116,7 @@ export default function VisitorTourPage({
         markPoiActivated(poiId);
       }
       play(poi);
+      setSelectedPoiId(poiId);
       // The language is captured alongside the entry instant: the backend mints
       // the visitor session from this value, so it must be the visitor's choice at
       // the time the exhibit was actually triggered.
