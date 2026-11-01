@@ -24,11 +24,11 @@ describe('MiniAudioPlayer (US 01.3.3 Floating Mini Audio Player UI)', () => {
     stop: vi.fn(),
   };
 
-  const renderWithContext = (contextOverrides = {}) => {
+  const renderWithContext = (contextOverrides = {}, playerProps = {}) => {
     const value = { ...baseMockContext, ...contextOverrides };
     return render(
       <AudioPlayerContext.Provider value={value}>
-        <MiniAudioPlayer />
+        <MiniAudioPlayer {...playerProps} />
       </AudioPlayerContext.Provider>
     );
   };
@@ -171,5 +171,20 @@ describe('MiniAudioPlayer (US 01.3.3 Floating Mini Audio Player UI)', () => {
     expect(formatTime(-10)).toBe('00:00');
     expect(formatTime(NaN)).toBe('00:00');
     expect(formatTime(Infinity)).toBe('00:00');
+  });
+
+  it('renders null in floating mode when POI preview dialog is open', () => {
+    const { container } = renderWithContext({ isPoiPreviewOpen: true });
+    expect(container.firstChild).toBeNull();
+  });
+
+  it('still renders in inline mode when POI preview dialog is open', () => {
+    renderWithContext({ isPoiPreviewOpen: true }, { inline: true, poiId: 1 });
+    expect(screen.getByTestId('mini-audio-player')).toBeInTheDocument();
+  });
+
+  it('renders with data-inline attribute matching prop', () => {
+    renderWithContext({}, { inline: true, poiId: 1 });
+    expect(screen.getByTestId('mini-audio-player')).toHaveAttribute('data-inline', 'true');
   });
 });

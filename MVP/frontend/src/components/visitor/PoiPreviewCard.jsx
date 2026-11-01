@@ -3,6 +3,7 @@ import { calculateHaversineDistance } from '../../utils/haversine.js';
 import ContentPaywallGate from './ContentPaywallGate.jsx';
 import { useVisitorSession } from '../../contexts/VisitorSessionContext.jsx';
 import MiniAudioPlayer from './MiniAudioPlayer.jsx';
+import { useAudioPlayer } from '../../contexts/AudioPlayerContext.jsx';
 import { getVisitorText } from '../../locales/visitorTranslations.js';
 
 const SWIPE_DISMISS_DISTANCE_PX = 48;
@@ -33,6 +34,14 @@ export default function PoiPreviewCard({
 }) {
   const currentLang = language || 'en';
   const touchStartYRef = useRef(null);
+  const { setIsPoiPreviewOpen } = useAudioPlayer() || {};
+
+  useEffect(() => {
+    setIsPoiPreviewOpen?.(true);
+    return () => {
+      setIsPoiPreviewOpen?.(false);
+    };
+  }, [setIsPoiPreviewOpen]);
   const session = useVisitorSession();
   const poiId = String(poi?.id || poi?.poi_id || '');
 
