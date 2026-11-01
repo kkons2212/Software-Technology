@@ -321,6 +321,104 @@ class WayfindingService:
 
         return resolved_route
 
+    def _is_poi_on_osrm_road(
+        self,
+        osrm_result: tuple[list[list[float]], float] | None,
+        poi_lat: float,
+        poi_lng: float,
+        threshold: float = 40.0,
+    ) -> bool:
+        """Verify if OSRM route delivered coordinates close to target POI (SISE Helper)."""
+        is_close = False
+        if osrm_result is not None:
+            coords, _ = osrm_result
+            if coords:
+                last_lng, last_lat = coords[-1]
+                dist_to_poi = haversine_distance(last_lat, last_lng, poi_lat, poi_lng)
+                is_close = bool(dist_to_poi <= threshold)
+        return is_close
+
+    def _compute_dijkstra_trail_leg(
+        self,
+        start_node: str,
+        end_node: str,
+        poi_lat: float,
+        poi_lng: float,
+    ) -> tuple[list[list[float]], float]:
+        """Compute trail graph path from a start node to destination POI (SISE Helper)."""
+        trail_path_nodes = self._dijkstra_shortest_path(start_node, end_node)
+
+        coords: list[list[float]] = []
+        total_dist = 0.0
+        prev_lat: float | None = None
+        prev_lng: float | None = None
+
+        for node_id in trail_path_nodes:
+            n_lat, n_lng, _ = CU_CHI_TRAIL_NODES[node_id]
+            coords.append([round(n_lng, 6), round(n_lat, 6)])
+            if prev_lat is not None and prev_lng is not None:
+                total_dist += haversine_distance(prev_lat, prev_lng, n_lat, n_lng)
+            prev_lat, prev_lng = n_lat, n_lng
+
+        coords.append([round(poi_lng, 6), round(poi_lat, 6)])
+        if prev_lat is not None and prev_lng is not None:
+            total_dist += haversine_distance(prev_lat, prev_lng, poi_lat, poi_lng)
+
+        return coords, total_dist
+
+    def _stitch_route_segments(
+        self,
+        leg1_coords: list[list[float]],
+        leg1_dist: float,
+        leg2_coords: list[list[float]],
+        leg2_dist: float,
+    ) -> tuple[list[list[float]], float]:
+        """Combine road and trail legs, eliminating duplicate junction point (SISE Helper)."""
+        combined_coords = list(leg1_coords)
+        if combined_coords and leg2_coords:
+            last_pt = combined_coords[-1]
+            first_pt = leg2_coords[0]
+            dist_pts = haversine_distance(
+                last_pt[1], last_pt[0], first_pt[1], first_pt[0]
+            )
+            start_idx = 1 if dist_pts < 1.0 else 0
+            combined_coords.extend(leg2_coords[start_idx:])
+        else:
+            combined_coords.extend(leg2_coords)
+
+        total_distance = leg1_dist + leg2_dist
+        return combined_coords, total_distance
+
+    def _try_stitched_road_trail_route(
+        self,
+        origin_lat: float,
+        origin_lng: float,
+        poi_lat: float,
+        poi_lng: float,
+    ) -> tuple[list[list[float]], float] | None:
+        """Attempt stitched routing: OSRM to gateway node + Dijkstra to off-road POI."""
+        resolved_route: tuple[list[list[float]], float] | None = None
+        gateway_node, dist_origin_to_gateway = self._find_nearest_trail_node(
+            origin_lat, origin_lng
+        )
+
+        if dist_origin_to_gateway > 35.0:
+            gw_lat, gw_lng, _ = CU_CHI_TRAIL_NODES[gateway_node]
+            osrm_leg = self._try_osrm_foot_route(
+                origin_lat, origin_lng, gw_lat, gw_lng
+            )
+            if osrm_leg is not None:
+                leg1_coords, leg1_dist = osrm_leg
+                nearest_poi_node, _ = self._find_nearest_trail_node(poi_lat, poi_lng)
+                leg2_coords, leg2_dist = self._compute_dijkstra_trail_leg(
+                    gateway_node, nearest_poi_node, poi_lat, poi_lng
+                )
+                resolved_route = self._stitch_route_segments(
+                    leg1_coords, leg1_dist, leg2_coords, leg2_dist
+                )
+
+        return resolved_route
+
     def _compute_internal_trail_route(
         self,
         origin_lat: float,
@@ -343,27 +441,46 @@ class WayfindingService:
             )
             nearest_poi_node, _ = self._find_nearest_trail_node(poi_lat, poi_lng)
 
-            trail_path_nodes = self._dijkstra_shortest_path(
-                nearest_origin_node, nearest_poi_node
+            trail_coords, trail_dist = self._compute_dijkstra_trail_leg(
+                nearest_origin_node, nearest_poi_node, poi_lat, poi_lng
             )
 
-            coords: list[list[float]] = [[round(origin_lng, 6), round(origin_lat, 6)]]
-            total_dist = dist_to_start
-            prev_lat, prev_lng = origin_lat, origin_lng
-
-            for node_id in trail_path_nodes:
-                n_lat, n_lng, _ = CU_CHI_TRAIL_NODES[node_id]
-                coords.append([round(n_lng, 6), round(n_lat, 6)])
-                total_dist += haversine_distance(prev_lat, prev_lng, n_lat, n_lng)
-                prev_lat, prev_lng = n_lat, n_lng
-
-            coords.append([round(poi_lng, 6), round(poi_lat, 6)])
-            total_dist += haversine_distance(prev_lat, prev_lng, poi_lat, poi_lng)
+            coords = [[round(origin_lng, 6), round(origin_lat, 6)]]
+            coords.extend(trail_coords)
+            total_dist = dist_to_start + trail_dist
 
             resolved_coords = coords
             resolved_distance = total_dist
 
         return resolved_coords, resolved_distance
+
+    def _resolve_route_coordinates(
+        self,
+        origin_lat: float,
+        origin_lng: float,
+        poi_lat: float,
+        poi_lng: float,
+    ) -> tuple[list[list[float]], float]:
+        """Resolve route using Direct OSRM -> Stitched Road/Trail -> Pure Trail Graph fallback."""
+        resolved_route: tuple[list[list[float]], float] | None = None
+
+        direct_osrm = self._try_osrm_foot_route(
+            origin_lat, origin_lng, poi_lat, poi_lng
+        )
+        if self._is_poi_on_osrm_road(direct_osrm, poi_lat, poi_lng):
+            resolved_route = direct_osrm
+        else:
+            stitched = self._try_stitched_road_trail_route(
+                origin_lat, origin_lng, poi_lat, poi_lng
+            )
+            if stitched is not None:
+                resolved_route = stitched
+            else:
+                resolved_route = self._compute_internal_trail_route(
+                    origin_lat, origin_lng, poi_lat, poi_lng
+                )
+
+        return resolved_route
 
     def _is_within_museum_bounds(self, lat: float, lng: float) -> bool:
         """Validate if coordinate pair falls within Cu Chi complex boundaries."""
@@ -422,15 +539,9 @@ class WayfindingService:
             getattr(poi, "radius", None) or getattr(poi, "trigger_radius", None) or 30.0
         )
 
-        osrm_result = self._try_osrm_foot_route(
+        geojson_coordinates, total_distance = self._resolve_route_coordinates(
             origin_lat, origin_lng, poi_lat, poi_lng
         )
-        if osrm_result is not None:
-            geojson_coordinates, total_distance = osrm_result
-        else:
-            geojson_coordinates, total_distance = self._compute_internal_trail_route(
-                origin_lat, origin_lng, poi_lat, poi_lng
-            )
 
         origin_waypoint = RouteWaypoint(
             lat=round(origin_lat, 6),
