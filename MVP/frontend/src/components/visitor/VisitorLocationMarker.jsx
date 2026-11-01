@@ -46,8 +46,9 @@ export default function VisitorLocationMarker({ map, location, accuracy, isLiveL
         className: 'visitor-accuracy-circle',
         color: '#1D4ED8',
         fillColor: '#1D4ED8',
-        fillOpacity: 0.08,
-        weight: 1,
+        fillOpacity: 0,
+        opacity: 0,
+        weight: 0,
       }).addTo(currentProps.map);
     }
 
@@ -75,8 +76,9 @@ export default function VisitorLocationMarker({ map, location, accuracy, isLiveL
           className: 'visitor-accuracy-circle',
           color: '#1D4ED8',
           fillColor: '#1D4ED8',
-          fillOpacity: 0.08,
-          weight: 1,
+          fillOpacity: 0,
+          opacity: 0,
+          weight: 0,
         }).addTo(map);
       } else {
         accuracyCircleRef.current.setLatLng(nextPosition);

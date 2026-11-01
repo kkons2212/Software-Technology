@@ -411,26 +411,30 @@ a:focus-visible {
 
 .visitor-location-dot {
   position: absolute;
-  top: 7px;
-  left: 7px;
-  width: 14px;
-  height: 14px;
-  border: 2px solid #fff;
+  top: 5px;
+  left: 5px;
+  width: 18px;
+  height: 18px;
+  border: 3px solid #fff;
   border-radius: 50%;
-  background: #1d4ed8;
-  box-shadow: 0 1px 3px rgb(15 23 42 / 35%);
+  background: #2563eb;
+  box-shadow: 0 2px 6px rgb(15 23 42 / 45%);
 }
 
 .visitor-entrance-dot {
   position: absolute;
-  top: 3px;
-  left: 3px;
-  width: 12px;
-  height: 12px;
-  border: 2px solid #fff;
+  top: 1px;
+  left: 1px;
+  width: 16px;
+  height: 16px;
+  border: 2.5px solid #fff;
   border-radius: 50%;
-  background: #1e293b;
-  box-shadow: 0 1px 4px rgb(15 23 42 / 35%);
+  background: #2563eb;
+  box-shadow: 0 2px 5px rgb(15 23 42 / 45%);
+}
+
+.visitor-accuracy-circle {
+  display: none !important;
 }
 
 .visitor-location-banner,

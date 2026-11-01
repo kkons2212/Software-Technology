@@ -89,12 +89,16 @@ const FROZEN_EPOCH_MS = 1_700_000_000_000;
 const MEASURED_DWELL_SECONDS = 42;
 
 beforeEach(() => {
+  delete window.location;
+  window.location = new URL('http://localhost:5173/');
   window.localStorage.clear();
   getPublishedLanguages.mockResolvedValue([
     { code: 'vi', name: 'Tiếng Việt' },
     { code: 'en', name: 'English' },
   ]);
   getMapPois.mockResolvedValue([]);
+  getOrderStatus.mockReset();
+  getOrderStatus.mockResolvedValue({ status: 'PENDING' });
   audioPlayerMock.play.mockClear();
   geofenceMock.activeGeofencePois = [];
   geofenceMock.onTrigger = null;
@@ -297,5 +301,34 @@ describe('VisitorTourPage', () => {
         expiresAt: '2026-11-02T12:00:00Z',
       });
     });
+  });
+
+  it('automatically opens POI preview card when proximity trigger fires', async () => {
+    getMapPois.mockResolvedValue([
+      {
+        id: 'poi-auto',
+        title: 'Bunker Exhibit',
+        short_description: 'Auto-triggered exhibit summary.',
+        image_url: 'https://example.test/bunker.jpg',
+        latitude: 11.14,
+        longitude: 106.46,
+        trigger_radius: 30,
+      },
+    ]);
+
+    await act(async () => {
+      render(<VisitorTourPage />);
+    });
+
+    await screen.findByRole('combobox', { name: 'Choose language' });
+    await waitFor(() => expect(getMapPois).toHaveBeenCalled());
+
+    act(() => {
+      geofenceMock.onTrigger({ poi_id: 'poi-auto', id: 'poi-auto', title: 'Bunker Exhibit' });
+    });
+
+    expect(audioPlayerMock.play).toHaveBeenCalledTimes(1);
+    expect(await screen.findByRole('dialog')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Bunker Exhibit' })).toBeInTheDocument();
   });
 });
