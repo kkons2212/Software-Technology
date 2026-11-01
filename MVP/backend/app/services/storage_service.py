@@ -153,9 +153,7 @@ class StorageService:
                 orphan_candidates.append(Path(entry.path))
         return orphan_candidates, remaining_files
 
-    def _unlink_orphan_candidates(
-        self, candidates: list[Path]
-    ) -> tuple[int, int]:
+    def _unlink_orphan_candidates(self, candidates: list[Path]) -> tuple[int, int]:
         """Unlink candidate files and measure deleted bytes."""
         deleted_count = 0
         reclaimed_bytes = 0
