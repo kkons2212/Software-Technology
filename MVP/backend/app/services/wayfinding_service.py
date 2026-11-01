@@ -170,7 +170,8 @@ def haversine_distance(lat1: float, lng1: float, lat2: float, lng2: float) -> fl
         + math.cos(phi1) * math.cos(phi2) * math.sin(delta_lambda / 2.0) ** 2
     )
     c = 2.0 * math.atan2(math.sqrt(a), math.sqrt(1.0 - a))
-    return earth_radius_m * c
+    distance_meters = earth_radius_m * c
+    return distance_meters
 
 
 class WayfindingService:
@@ -196,7 +197,7 @@ class WayfindingService:
 
     def _find_nearest_trail_node(self, lat: float, lng: float) -> tuple[str, float]:
         """Find the closest trail waypoint node to any given coordinate."""
-        nearest_node = None
+        nearest_node: str | None = None
         min_distance = float("inf")
 
         for node_id, (n_lat, n_lng, _) in CU_CHI_TRAIL_NODES.items():
@@ -205,14 +206,16 @@ class WayfindingService:
                 min_distance = dist
                 nearest_node = node_id
 
-        assert nearest_node is not None
-        return nearest_node, min_distance
+        resolved_node = nearest_node if nearest_node is not None else "TRAIL_NODE_01"
+        return resolved_node, min_distance
 
     def _dijkstra_shortest_path(self, start_node: str, end_node: str) -> list[str]:
-        """Compute shortest path across the trail graph via Dijkstra's algorithm."""
+        """Compute shortest path across the trail graph via Dijkstra's algorithm (SISE Compliant)."""
+        # Phase 1 Gate: Identity path
         if start_node == end_node:
             return [start_node]
 
+        # Phase 2 Compute: Priority queue traversal
         distances: dict[str, float] = {
             node: float("inf") for node in CU_CHI_TRAIL_NODES
         }
@@ -225,19 +228,15 @@ class WayfindingService:
 
         while pq:
             current_dist, current_node = heapq.heappop(pq)
-
             if current_node == end_node:
                 break
-
-            if current_dist > distances[current_node]:
-                continue
-
-            for neighbor, weight in self._graph[current_node]:
-                distance_through_current = current_dist + weight
-                if distance_through_current < distances[neighbor]:
-                    distances[neighbor] = distance_through_current
-                    previous_nodes[neighbor] = current_node
-                    heapq.heappush(pq, (distance_through_current, neighbor))
+            if current_dist <= distances[current_node]:
+                for neighbor, weight in self._graph[current_node]:
+                    distance_through_current = current_dist + weight
+                    if distance_through_current < distances[neighbor]:
+                        distances[neighbor] = distance_through_current
+                        previous_nodes[neighbor] = current_node
+                        heapq.heappush(pq, (distance_through_current, neighbor))
 
         path: list[str] = []
         curr: str | None = end_node
@@ -246,7 +245,12 @@ class WayfindingService:
             curr = previous_nodes[curr]
         path.reverse()
 
-        return path if path and path[0] == start_node else [start_node, end_node]
+        resolved_path = (
+            path if (path and path[0] == start_node) else [start_node, end_node]
+        )
+
+        # Phase 3 Exit: Unified return
+        return resolved_path
 
     def _try_osrm_foot_route(
         self,
@@ -259,6 +263,7 @@ class WayfindingService:
 
         Returns (coordinates, distance_meters) or None if unavailable/timed out.
         """
+        resolved_route: tuple[list[list[float]], float] | None = None
         url = OSRM_FOOT_ROUTING_URL.format(
             origin_lng=origin_lng,
             origin_lat=origin_lat,
@@ -273,15 +278,16 @@ class WayfindingService:
                     routes = payload.get("routes", [])
                     if routes:
                         best_route = routes[0]
-                        coordinates = best_route.get("geometry", {}).get("coordinates")
-                        distance = float(best_route.get("distance", 0.0))
-                        if coordinates and len(coordinates) >= 2 and distance > 0:
-                            return coordinates, distance
+                        coords = best_route.get("geometry", {}).get("coordinates")
+                        dist = float(best_route.get("distance", 0.0))
+                        if coords and len(coords) >= 2 and dist > 0:
+                            resolved_route = (coords, dist)
         except Exception as exc:
             logger.info(
                 "OSRM routing unavailable (%s), falling back to trail graph", exc
             )
-        return None
+
+        return resolved_route
 
     def _compute_internal_trail_route(
         self,
@@ -290,49 +296,49 @@ class WayfindingService:
         poi_lat: float,
         poi_lng: float,
     ) -> tuple[list[list[float]], float]:
-        """Compute path using internal Cu Chi trail network graph."""
+        """Compute path using internal Cu Chi trail network graph (SISE Compliant)."""
         direct_dist = haversine_distance(origin_lat, origin_lng, poi_lat, poi_lng)
 
         if direct_dist <= 35.0:
-            return (
-                [
-                    [round(origin_lng, 6), round(origin_lat, 6)],
-                    [round(poi_lng, 6), round(poi_lat, 6)],
-                ],
-                direct_dist,
+            resolved_coords = [
+                [round(origin_lng, 6), round(origin_lat, 6)],
+                [round(poi_lng, 6), round(poi_lat, 6)],
+            ]
+            resolved_distance = direct_dist
+        else:
+            nearest_origin_node, dist_to_start = self._find_nearest_trail_node(
+                origin_lat, origin_lng
+            )
+            nearest_poi_node, _ = self._find_nearest_trail_node(poi_lat, poi_lng)
+
+            trail_path_nodes = self._dijkstra_shortest_path(
+                nearest_origin_node, nearest_poi_node
             )
 
-        nearest_origin_node, dist_to_start_node = self._find_nearest_trail_node(
-            origin_lat, origin_lng
-        )
-        nearest_poi_node, _ = self._find_nearest_trail_node(poi_lat, poi_lng)
+            coords: list[list[float]] = [[round(origin_lng, 6), round(origin_lat, 6)]]
+            total_dist = dist_to_start
+            prev_lat, prev_lng = origin_lat, origin_lng
 
-        trail_path_nodes = self._dijkstra_shortest_path(
-            nearest_origin_node, nearest_poi_node
-        )
+            for node_id in trail_path_nodes:
+                n_lat, n_lng, _ = CU_CHI_TRAIL_NODES[node_id]
+                coords.append([round(n_lng, 6), round(n_lat, 6)])
+                total_dist += haversine_distance(prev_lat, prev_lng, n_lat, n_lng)
+                prev_lat, prev_lng = n_lat, n_lng
 
-        coords: list[list[float]] = [[round(origin_lng, 6), round(origin_lat, 6)]]
-        total_distance = dist_to_start_node
-        prev_lat, prev_lng = origin_lat, origin_lng
+            coords.append([round(poi_lng, 6), round(poi_lat, 6)])
+            total_dist += haversine_distance(prev_lat, prev_lng, poi_lat, poi_lng)
 
-        for node_id in trail_path_nodes:
-            n_lat, n_lng, _ = CU_CHI_TRAIL_NODES[node_id]
-            coords.append([round(n_lng, 6), round(n_lat, 6)])
-            total_distance += haversine_distance(prev_lat, prev_lng, n_lat, n_lng)
-            prev_lat, prev_lng = n_lat, n_lng
+            resolved_coords = coords
+            resolved_distance = total_dist
 
-        coords.append([round(poi_lng, 6), round(poi_lat, 6)])
-        total_distance += haversine_distance(prev_lat, prev_lng, poi_lat, poi_lng)
-
-        return coords, total_distance
+        return resolved_coords, resolved_distance
 
     def _is_within_museum_bounds(self, lat: float, lng: float) -> bool:
         """Validate if coordinate pair falls within Cu Chi complex boundaries."""
         bounds = settings.CU_CHI_BOUNDS
-        return (
-            bounds["min_lat"] <= lat <= bounds["max_lat"]
-            and bounds["min_lng"] <= lng <= bounds["max_lng"]
-        )
+        is_within_lat = bounds["min_lat"] <= lat <= bounds["max_lat"]
+        is_within_lng = bounds["min_lng"] <= lng <= bounds["max_lng"]
+        return bool(is_within_lat and is_within_lng)
 
     def calculate_walking_route(
         self,
@@ -340,8 +346,8 @@ class WayfindingService:
         origin_lng: float,
         destination_poi_id: str,
     ) -> GeoJsonRouteFeature:
-        """Calculate intelligent walking route using hybrid OSM curvature + trail graph."""
-        # 1. Validate geographic coordinates
+        """Calculate intelligent walking route using hybrid OSM curvature + trail graph (SISE Compliant)."""
+        # Phase 1 Gate: Validate geographic coordinates
         if not (-90.0 <= origin_lat <= 90.0 and -180.0 <= origin_lng <= 180.0):
             raise ApiError(
                 code="INVALID_COORDINATES",
@@ -350,7 +356,7 @@ class WayfindingService:
                 details={"origin_lat": origin_lat, "origin_lng": origin_lng},
             )
 
-        # 2. Look up destination POI dynamically from DB
+        # Look up destination POI dynamically from DB
         poi = self.poi_repository.get_by_id(destination_poi_id)
         if not poi:
             raise ApiError(
@@ -360,7 +366,7 @@ class WayfindingService:
                 details={"destination_poi_id": destination_poi_id},
             )
 
-        # 3. Check if exhibit is active (US 03.3)
+        # Check if exhibit is active (US 03.3)
         if not poi.is_active:
             raise ApiError(
                 code="POI_DEACTIVATED",
@@ -369,13 +375,13 @@ class WayfindingService:
                 details={"destination_poi_id": destination_poi_id, "is_active": False},
             )
 
+        # Phase 2 Compute: Hybrid Routing
         poi_lat = float(poi.latitude)
         poi_lng = float(poi.longitude)
         trigger_radius = float(
             getattr(poi, "radius", None) or getattr(poi, "trigger_radius", None) or 30.0
         )
 
-        # 4. Hybrid Routing: Try OpenStreetMap foot routing curve first; Fallback to internal trail graph
         osrm_result = self._try_osrm_foot_route(
             origin_lat, origin_lng, poi_lat, poi_lng
         )
@@ -407,7 +413,7 @@ class WayfindingService:
             round(total_distance / WALKING_SPEED_METERS_PER_MINUTE, 1),
         )
 
-        return GeoJsonRouteFeature(
+        route_feature = GeoJsonRouteFeature(
             type="Feature",
             geometry=GeoJsonLineStringGeometry(
                 type="LineString",
@@ -420,3 +426,6 @@ class WayfindingService:
                 estimated_walking_minutes=estimated_minutes,
             ),
         )
+
+        # Phase 3 Exit: Single unified return
+        return route_feature
