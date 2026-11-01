@@ -2,6 +2,10 @@
 
 import uuid
 
+import pytest
+
+from app.core.dependencies import get_current_admin
+from app.main import app
 from app.models.language import LanguageCode
 from app.models.poi import POI
 from app.models.translation import POITranslation
@@ -190,3 +194,17 @@ def test_should_return_404_when_publishing_nonexistent_translation(client, db_se
 
     response = client.post("/api/v1/admin/translations/TR_NONEXISTENT/publish")
     assert response.status_code == 404
+
+
+@pytest.fixture(autouse=True)
+def override_admin_auth():
+    app.dependency_overrides[get_current_admin] = lambda: "admin"
+    yield
+    app.dependency_overrides.pop(get_current_admin, None)
+
+
+def test_list_translations_rejects_unauthenticated_request(client):
+    app.dependency_overrides.pop(get_current_admin, None)
+    response = client.get("/api/v1/admin/translations")
+    assert response.status_code == 401
+    assert response.json()["error"]["code"] == "UNAUTHENTICATED"

@@ -2,6 +2,10 @@
 
 import io
 
+import pytest
+
+from app.core.dependencies import get_current_admin
+from app.main import app
 from app.models.language import LanguageCode
 from app.models.user import User
 
@@ -382,3 +386,17 @@ def test_should_unlock_content_for_paid_visitor_with_active_session(
     assert detail["is_locked"] is False
     assert detail["description"] == "Toàn văn lịch sử bệnh viện dã chiến dưới lòng đất"
     assert "/api/v1/audio/" in detail["audio_url"]
+
+
+@pytest.fixture(autouse=True)
+def override_admin_auth():
+    app.dependency_overrides[get_current_admin] = lambda: "admin"
+    yield
+    app.dependency_overrides.pop(get_current_admin, None)
+
+
+def test_create_poi_rejects_unauthenticated_request(client):
+    app.dependency_overrides.pop(get_current_admin, None)
+    response = client.post("/api/v1/admin/pois", json={"title": "Test"})
+    assert response.status_code == 401
+    assert response.json()["error"]["code"] == "UNAUTHENTICATED"

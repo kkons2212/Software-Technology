@@ -7,6 +7,7 @@ from starlette.requests import Request
 from app.core.dependencies import (
     get_audit_repository,
     get_auth_service,
+    get_current_admin,
     get_current_admin_profile,
     get_user_repository,
 )
@@ -21,9 +22,16 @@ ADMIN_USER_NAME = "admin"
 ADMIN_EMAIL = "admin@cuchi.vn"
 
 
-def _build_request(cookie_header: bytes | None = None) -> Request:
-    """Build a bare ASGI request scope, optionally carrying a session cookie."""
-    headers = [(b"cookie", cookie_header)] if cookie_header else []
+def _build_request(
+    cookie_header: bytes | None = None,
+    auth_header: bytes | None = None,
+) -> Request:
+    """Build a bare ASGI request scope, optionally carrying a session cookie or auth header."""
+    headers = []
+    if cookie_header:
+        headers.append((b"cookie", cookie_header))
+    if auth_header:
+        headers.append((b"authorization", auth_header))
     scope = {
         "type": "http",
         "http_version": "1.1",
@@ -126,3 +134,55 @@ def test_should_propagate_unauthenticated_error_from_service(mocker):
         )
 
     assert raised_error.value.status_code == 401
+
+
+def test_should_resolve_admin_profile_when_bearer_header_is_present(mocker):
+    expected_profile = AdminProfileResponse(
+        user_name=ADMIN_USER_NAME, email=ADMIN_EMAIL, full_name="System Administrator"
+    )
+    fake_auth_service = mocker.MagicMock(spec=AuthService)
+    fake_auth_service.resolve_authenticated_admin.return_value = expected_profile
+
+    profile = get_current_admin_profile(
+        request=_build_request(auth_header=b"Bearer test-bearer-token"),
+        auth_service=fake_auth_service,
+    )
+
+    assert profile == expected_profile
+    fake_auth_service.resolve_authenticated_admin.assert_called_once_with(
+        "test-bearer-token"
+    )
+
+
+def test_should_resolve_admin_username_via_get_current_admin(mocker):
+    expected_profile = AdminProfileResponse(
+        user_name="admin_user_custom", email="custom@cuchi.vn", full_name="Admin Custom"
+    )
+    fake_auth_service = mocker.MagicMock(spec=AuthService)
+    fake_auth_service.resolve_authenticated_admin.return_value = expected_profile
+
+    username = get_current_admin(
+        request=_build_request(auth_header=b"Bearer valid-jwt-token"),
+        auth_service=fake_auth_service,
+    )
+
+    assert username == "admin_user_custom"
+    fake_auth_service.resolve_authenticated_admin.assert_called_once_with(
+        "valid-jwt-token"
+    )
+
+
+def test_get_current_admin_rejects_when_credentials_absent(mocker):
+    fake_auth_service = mocker.MagicMock(spec=AuthService)
+    fake_auth_service.resolve_authenticated_admin.side_effect = ApiError(
+        status_code=401, code="UNAUTHENTICATED", message="session missing"
+    )
+
+    with pytest.raises(ApiError) as exc_info:
+        get_current_admin(
+            request=_build_request(),
+            auth_service=fake_auth_service,
+        )
+
+    assert exc_info.value.status_code == 401
+    assert exc_info.value.detail["code"] == "UNAUTHENTICATED"
