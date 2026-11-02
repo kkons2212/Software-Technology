@@ -9,7 +9,6 @@ from sqlalchemy.orm import Session
 from app.integrations.edge_tts_client import EdgeTTSClient, compute_audio_hash
 from app.models.audio import AUDIO_STATUS_READY
 from app.models.translation import (
-    TRANSLATION_STATUS_DRAFT,
     TRANSLATION_STATUS_NEEDS_UPDATE,
 )
 from app.repositories.audio_repository import AudioRepository
@@ -99,7 +98,7 @@ class AudioSynthesisWorker:
                 )
             return False
 
-        # STEP 3B: Open fresh JIT session to save audio record and mark translation DRAFT
+        # STEP 3B: Open fresh JIT session to save audio record and preserve/mark translation status
         with self.session_factory() as db:
             audio_repo = AudioRepository(db)
             audio_repo.upsert_audio(
@@ -107,11 +106,6 @@ class AudioSynthesisWorker:
                 audio_url=audio_url,
                 file_size=file_size,
                 status=AUDIO_STATUS_READY,
-            )
-            trans_repo = TranslationRepository(db)
-            trans_repo.update_translation(
-                stran_id=stran_id,
-                status=TRANSLATION_STATUS_DRAFT,
             )
 
         logger.info(

@@ -155,13 +155,16 @@ async def test_pipeline_service_should_orchestrate_all_target_languages(
         poi.poi_id, target_languages=["en", "ja", "ko", "zh"]
     )
 
-    assert len(results) == 4
+    # 4 target foreign languages + 1 primary Vietnamese audio synthesis
+    assert len(results) == 5
+    assert results["vi"]["translation"] is True
+    assert results["vi"]["audio"] is True
     for lang in ["en", "ja", "ko", "zh"]:
         assert results[lang]["translation"] is True
         assert results[lang]["audio"] is True
 
     assert mock_trans_worker.process_translation.call_count == 4
-    assert mock_audio_worker.process_audio_synthesis.call_count == 4
+    assert mock_audio_worker.process_audio_synthesis.call_count == 5
 
 
 @pytest.mark.asyncio
@@ -209,8 +212,10 @@ async def test_pipeline_service_should_dynamically_load_languages_from_database(
 
     assert "fr" in results
     assert "en" in results
-    assert "vi" not in results
+    assert "vi" in results
+    assert results["vi"]["audio"] is True
     assert "fr" in processed_languages
+    assert "vi" not in processed_languages
 
 
 @pytest.mark.asyncio
@@ -238,3 +243,29 @@ async def test_pipeline_service_should_apply_pacing_delay_between_languages(
     # 3 languages means 2 inter-language delays
     assert mock_sleep.call_count == 2
     mock_sleep.assert_called_with(2.0)
+
+
+@pytest.mark.asyncio
+async def test_pipeline_service_should_synthesize_vietnamese_source_audio(
+    db_session, mocker
+):
+    poi, tr_vi = _seed_poi_with_vi_source(db_session)
+
+    mock_trans_worker = mocker.MagicMock(spec=TranslationWorker)
+    mock_trans_worker.process_translation = AsyncMock(return_value=(True, "TR_EN"))
+
+    mock_audio_worker = mocker.MagicMock(spec=AudioSynthesisWorker)
+    mock_audio_worker.process_audio_synthesis = AsyncMock(return_value=True)
+
+    pipeline = TranslationPipelineService(
+        session_factory=lambda: db_session,
+        translation_worker=mock_trans_worker,
+        audio_worker=mock_audio_worker,
+        pacing_delay=0.0,
+    )
+
+    results = await pipeline.run_pipeline_for_poi(poi.poi_id, target_languages=[])
+
+    assert "vi" in results
+    assert results["vi"]["audio"] is True
+    mock_audio_worker.process_audio_synthesis.assert_called_once_with(tr_vi.stran_id)

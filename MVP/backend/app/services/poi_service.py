@@ -41,7 +41,7 @@ POI_GEOFENCE_UPDATED_DETAILS = "ADMIN_POI_GEOFENCE_UPDATED"
 POI_DEACTIVATED_DETAILS = "ADMIN_POI_DEACTIVATED"
 POI_ACTIVATED_DETAILS = "ADMIN_POI_ACTIVATED"
 
-TARGET_FOREIGN_LANGUAGES = ["en", "ja", "ko", "zh"]
+TARGET_FOREIGN_LANGUAGES = ["en", "ja", "ko", "zh", "fr"]
 
 
 def _is_within_cu_chi_bounds(latitude: float, longitude: float) -> bool:
@@ -124,16 +124,18 @@ class POIService:
 
     def _get_target_foreign_languages(self) -> list[str]:
         """Fetch target foreign languages dynamically from LanguageCode table (excluding 'vi')."""
+        resolved: list[str] = []
         if self.language_repo is not None:
             try:
                 languages = self.language_repo.list_target_foreign_language_ids(
                     source_language="vi"
                 )
                 if languages:
-                    return languages
+                    resolved = languages
             except Exception:
                 pass
-        return list(TARGET_FOREIGN_LANGUAGES)
+        final_languages = resolved if resolved else list(TARGET_FOREIGN_LANGUAGES)
+        return final_languages
 
     async def save_cover_image(self, file: UploadFile) -> str:
         """Validate and write uploaded image to disk with unified exit (SISE)."""

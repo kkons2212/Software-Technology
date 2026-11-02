@@ -158,3 +158,34 @@ async def test_should_skip_synthesis_for_empty_narrative(db_session, tmp_path):
 
     success = await worker.process_audio_synthesis(stran_id)
     assert success is False
+
+
+@pytest.mark.asyncio
+async def test_should_preserve_published_status_when_synthesizing_audio(
+    db_session, tmp_path, mocker
+):
+    tr = _seed_test_translation(
+        db_session, lang="vi", title="Địa đạo Củ Chi", desc="Di tích lịch sử"
+    )
+    tr.status = "PUBLISHED"
+    db_session.commit()
+    stran_id = tr.stran_id
+
+    mock_tts = mocker.MagicMock(spec=EdgeTTSClient)
+    mock_tts.synthesize_or_reuse = AsyncMock(
+        return_value=("/static/audio/vi_audio.mp3", 4096, False)
+    )
+
+    worker = AudioSynthesisWorker(
+        session_factory=lambda: db_session,
+        audio_dir=tmp_path,
+        tts_client=mock_tts,
+    )
+
+    success = await worker.process_audio_synthesis(stran_id)
+    assert success is True
+
+    updated_tr = db_session.query(POITranslation).filter_by(stran_id=stran_id).first()
+    assert updated_tr is not None
+    assert updated_tr.status == "PUBLISHED"
+    assert updated_tr.audio_url == "/static/audio/vi_audio.mp3"

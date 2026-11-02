@@ -44,44 +44,83 @@ class TranslationPipelineService:
             else getattr(settings, "TRANSLATION_PACING_DELAY", 1.5)
         )
 
+    def _query_db_target_languages(self) -> list[str]:
+        """Query foreign language ids from repository (SISE)."""
+        try:
+            with self.session_factory() as db:
+                from app.repositories.language_repository import LanguageRepository
+
+                return LanguageRepository(db).list_target_foreign_language_ids(
+                    source_language="vi"
+                )
+        except Exception:
+            return []
+
+    def _resolve_target_languages(
+        self, poi_id: str, target_languages: list[str] | None = None
+    ) -> list[str]:
+        """Dynamically resolve non-source target languages from LanguageCode table (SISE)."""
+        if target_languages is not None:
+            return list(target_languages)
+
+        db_langs = self._query_db_target_languages()
+        if db_langs:
+            return db_langs
+
+        return list(DEFAULT_TARGET_LANGUAGES)
+
+    async def _synthesize_source_vietnamese_audio(self, poi_id: str) -> bool:
+        """Synthesize TTS audio narration for the primary Vietnamese source narrative (SISE)."""
+        source_stran_id: str | None = None
+        with self.session_factory() as db:
+            from app.repositories.translation_repository import TranslationRepository
+
+            trans_repo = TranslationRepository(db)
+            source_trans = trans_repo.get_source_translation(poi_id)
+            if source_trans:
+                source_stran_id = source_trans.stran_id
+
+        if not source_stran_id:
+            logger.warning(
+                "No Vietnamese source translation found for POI %s to synthesize audio",
+                poi_id,
+            )
+            return False
+
+        logger.info(
+            "Synthesizing primary Vietnamese audio for POI %s (stran_id: %s)...",
+            poi_id,
+            source_stran_id,
+        )
+        audio_ok = await self.audio_worker.process_audio_synthesis(source_stran_id)
+        return audio_ok
+
     async def run_pipeline_for_poi(
         self,
         poi_id: str,
         target_languages: list[str] | None = None,
     ) -> dict[str, dict[str, bool]]:
-        """Run translation and audio synthesis for all configured foreign languages.
+        """Run translation and audio synthesis for Vietnamese and all configured foreign languages.
 
         US 04.4 - AC-04.4.1 through AC-04.4.4 & Direction 2:
-        Dispatches background worker jobs for all target languages dynamically from
-        the LanguageCode catalog table (excluding 'vi'). Translates text with
-        exponential backoff, applies inter-language pacing delay to prevent rate limits,
-        synthesizes MP3s with SHA-256 deduplication, and strictly enforces short-lived
-        JIT database sessions.
+        1. Synthesizes Vietnamese source audio so primary exhibit narration is immediately streamable.
+        2. Dispatches background worker jobs for all target languages dynamically from
+           the LanguageCode catalog table (excluding 'vi'). Translates text with
+           exponential backoff, applies inter-language pacing delay to prevent rate limits,
+           synthesizes MP3s with SHA-256 deduplication, and strictly enforces short-lived
+           JIT database sessions.
         """
-        if target_languages is None:
-            try:
-                with self.session_factory() as db:
-                    from app.repositories.language_repository import LanguageRepository
-
-                    lang_repo = LanguageRepository(db)
-                    db_langs = lang_repo.list_target_foreign_language_ids(
-                        source_language="vi"
-                    )
-                    languages = db_langs if db_langs else DEFAULT_TARGET_LANGUAGES
-            except Exception as exc:
-                logger.warning(
-                    "Could not retrieve dynamic languages from database for POI %s: %s. Using default targets.",
-                    poi_id,
-                    exc,
-                )
-                languages = DEFAULT_TARGET_LANGUAGES
-        else:
-            languages = target_languages
-
         results: dict[str, dict[str, bool]] = {}
 
+        # STEP 1: Synthesize Primary Vietnamese Source Audio
+        vi_audio_ok = await self._synthesize_source_vietnamese_audio(poi_id)
+        results["vi"] = {"translation": True, "audio": vi_audio_ok}
+
+        # STEP 2: Dynamically load target foreign languages from database
+        languages = self._resolve_target_languages(poi_id, target_languages)
+
         logger.info(
-            "Starting automated translation & audio pipeline for POI %s (languages: %s, pacing: %.2fs)",
+            "Starting automated translation & audio pipeline for POI %s (foreign languages: %s, pacing: %.2fs)",
             poi_id,
             languages,
             self.pacing_delay,
