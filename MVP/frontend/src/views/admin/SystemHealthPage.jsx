@@ -30,7 +30,7 @@ export default function SystemHealthPage() {
   const handleCleanSuccess = (result) => {
     setToastMessage(
       result?.message ||
-        `Successfully cleaned ${result?.deleted_count || 0} orphaned files (${result?.reclaimed_mb || 0} MB freed).`
+      `Successfully cleaned ${result?.deleted_count || 0} orphaned files (${result?.reclaimed_mb || 0} MB freed).`
     );
     // Automatically refresh storage health gauge upon completion (AC-05.3.3)
     fetchHealth();
@@ -103,7 +103,6 @@ export default function SystemHealthPage() {
               freeBytes={healthData.free_bytes}
               audioCacheBytes={healthData.audio_cache_bytes}
               audioCacheFiles={healthData.audio_cache_files}
-              onCleanClick={() => setIsCleanModalOpen(true)}
             />
 
             {/* Service & Database Health Cards */}
@@ -115,9 +114,8 @@ export default function SystemHealthPage() {
                 <div className="mt-4 flex items-center justify-between">
                   <div className="flex items-center space-x-3">
                     <span
-                      className={`inline-block h-3 w-3 rounded-full ${
-                        healthData.db_status === 'connected' ? 'bg-emerald-500' : 'bg-red-500'
-                      }`}
+                      className={`inline-block h-3 w-3 rounded-full ${healthData.db_status === 'connected' ? 'bg-emerald-500' : 'bg-red-500'
+                        }`}
                       aria-hidden="true"
                     />
                     <span className="text-base font-semibold capitalize text-slate-900">
@@ -141,9 +139,8 @@ export default function SystemHealthPage() {
                 <div className="mt-4 flex items-center justify-between">
                   <div className="flex items-center space-x-3">
                     <span
-                      className={`inline-block h-3 w-3 rounded-full ${
-                        healthData.external_services_ok ? 'bg-emerald-500' : 'bg-amber-500'
-                      }`}
+                      className={`inline-block h-3 w-3 rounded-full ${healthData.external_services_ok ? 'bg-emerald-500' : 'bg-amber-500'
+                        }`}
                       aria-hidden="true"
                     />
                     <span className="text-base font-semibold text-slate-900">

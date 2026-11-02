@@ -39,6 +39,10 @@ export default function AdminNavbar() {
     { path: '/admin/health', label: 'System Health' },
   ];
 
+  const isHealthPage =
+    location.pathname.startsWith('/admin/health') ||
+    location.pathname.startsWith('/admin/system');
+
   return (
     <>
       {/* Unified sticky container: ensures Header & Storage Alert NEVER overlap */}
@@ -83,7 +87,7 @@ export default function AdminNavbar() {
           </div>
         </header>
 
-        {storageAlert && (
+        {storageAlert && !isHealthPage && (
           <div className="w-full border-b border-slate-200 bg-slate-50/80 px-6 py-2">
             <StorageHealthBanner
               diskUsedPercent={storageAlert.disk_used_percent}
