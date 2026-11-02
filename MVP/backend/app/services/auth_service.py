@@ -250,11 +250,10 @@ class AuthService:
         last_logout_at = self.audit_repository.find_last_logout_at(admin_user_name)
         is_revoked = False
         if last_logout_at is not None:
-            issued_at_second = datetime.utcfromtimestamp(issued_at_epoch).replace(
+            issued_at_second = datetime.fromtimestamp(issued_at_epoch).replace(
                 microsecond=0
             )
             is_revoked = issued_at_second <= last_logout_at
-
         # Phase 3: Unified Exit
         return bool(is_revoked)
 
