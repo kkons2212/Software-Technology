@@ -114,7 +114,7 @@ CREATE TABLE IF NOT EXISTS `POITranslation` (
     CONSTRAINT `CHK_POITranslation_File_size` CHECK (`File_size` IS NULL OR `File_size` >= 0),
     CONSTRAINT `FK_POITranslation_POI` FOREIGN KEY (`PoiID`)
         REFERENCES `POI` (`PoiID`)
-        ON DELETE CASCADE,
+        ON DELETE RESTRICT,
     CONSTRAINT `FK_POITranslation_LanguageCode` FOREIGN KEY (`LanguageID`)
         REFERENCES `LanguageCode` (`LanguageID`)
         ON DELETE RESTRICT,
@@ -195,5 +195,5 @@ CREATE TABLE IF NOT EXISTS `POITrigger` (
         ON DELETE RESTRICT,
     CONSTRAINT `FK_POITrigger_POI` FOREIGN KEY (`PoiID`)
         REFERENCES `POI` (`PoiID`)
-        ON DELETE CASCADE
+        ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

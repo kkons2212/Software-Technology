@@ -7,7 +7,7 @@
 
 The system runs exclusively on **MySQL 8.0+ (InnoDB)** for local development, testing, and production. The Docker database image documented in `DatabaseSetup.md` (`kocoten/smart-museum-db:v1`) provisions this schema:
 - **High Performance & Non-blocking Concurrency:** Mobile visitor reads can occur simultaneously without being locked by backend write jobs (Google Translation & Edge-TTS synthesis background tasks).
-- **Data Integrity:** Deleting a POI cascades to its translations (including their audio metadata) and POI trigger records.
+- **Data Integrity & Immutability:** Deletion of a POI is restricted (`ON DELETE RESTRICT`) if translations or trigger records exist, preventing accidental data loss.
 
 ---
 
@@ -136,7 +136,7 @@ CREATE TABLE IF NOT EXISTS `POITranslation` (
     CONSTRAINT `CHK_POITranslation_File_size` CHECK (`File_size` IS NULL OR `File_size` >= 0),
     CONSTRAINT `FK_POITranslation_POI` FOREIGN KEY (`PoiID`)
         REFERENCES `POI` (`PoiID`)
-        ON DELETE CASCADE,
+        ON DELETE RESTRICT,
     CONSTRAINT `FK_POITranslation_LanguageCode` FOREIGN KEY (`LanguageID`)
         REFERENCES `LanguageCode` (`LanguageID`)
         ON DELETE RESTRICT,
@@ -217,7 +217,7 @@ CREATE TABLE IF NOT EXISTS `POITrigger` (
         ON DELETE RESTRICT,
     CONSTRAINT `FK_POITrigger_POI` FOREIGN KEY (`PoiID`)
         REFERENCES `POI` (`PoiID`)
-        ON DELETE CASCADE
+        ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
 
@@ -295,7 +295,7 @@ The full MySQL initialization DDL script is provided in section [2.1. MySQL Sche
 | `Create_at` | `DATETIME` | `DEFAULT CURRENT_TIMESTAMP` | Creation timestamp |
 | `Update_at` | `DATETIME` | `DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP` | Last update timestamp |
 | `Review_by` | `VARCHAR(20)` | `NULL, FK -> User(UserName), ON DELETE RESTRICT` | Reviewer account |
-| `PoiID` | `VARCHAR(20)` | `NOT NULL, FK -> POI(PoiID), ON DELETE CASCADE` | Associated POI |
+| `PoiID` | `VARCHAR(20)` | `NOT NULL, FK -> POI(PoiID), ON DELETE RESTRICT` | Associated POI |
 | `LanguageID` | `VARCHAR(20)` | `NOT NULL, FK -> LanguageCode(LanguageID), ON DELETE RESTRICT` | Target language |
 
 * **Unique Constraint:** `UNIQUE (PoiID, LanguageID)`; one current translation per POI and language.
@@ -346,4 +346,4 @@ The full MySQL initialization DDL script is provided in section [2.1. MySQL Sche
 | `DwellTime` | `INT` | `DEFAULT 0, CHECK (>= 0)` | Dwell time in seconds |
 | `Trigger_at` | `DATETIME` | `DEFAULT CURRENT_TIMESTAMP` | Trigger timestamp |
 | `SessionID` | `VARCHAR(20)` | `NOT NULL, FK -> VisitorSession(SessionID), ON DELETE RESTRICT` | Session; deletion blocked while referenced |
-| `PoiID` | `VARCHAR(20)` | `NOT NULL, FK -> POI(PoiID), ON DELETE CASCADE` | Triggered POI |
+| `PoiID` | `VARCHAR(20)` | `NOT NULL, FK -> POI(PoiID), ON DELETE RESTRICT` | Triggered POI |
