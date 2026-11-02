@@ -3,11 +3,13 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { mockAuthState } = vi.hoisted(() => ({
+const { mockAuthState, mockSystemHealth } = vi.hoisted(() => ({
   mockAuthState: { logout: vi.fn(), user: null },
+  mockSystemHealth: { getSystemHealth: vi.fn().mockResolvedValue(null) },
 }));
 
 vi.mock('../../../contexts/AuthContext.jsx', () => ({ useAuth: () => mockAuthState }));
+vi.mock('../../../api/systemApi.js', () => ({ getSystemHealth: () => mockSystemHealth.getSystemHealth() }));
 
 import AdminNavbar from '../AdminNavbar.jsx';
 
@@ -23,6 +25,7 @@ describe('AdminNavbar', () => {
   beforeEach(() => {
     mockAuthState.logout = vi.fn();
     mockAuthState.user = null;
+    mockSystemHealth.getSystemHealth = vi.fn().mockResolvedValue(null);
   });
 
   it('shows the signed-in administrator name from the profile contract', () => {
@@ -67,6 +70,29 @@ describe('AdminNavbar', () => {
     renderNavbar();
     const brandLink = screen.getByRole('link', { name: /Cu Chi Tunnels/i });
     expect(brandLink).toHaveAttribute('href', '/admin');
+  });
+
+  it('renders sticky storage banner on general admin pages when capacity exceeds 85%', async () => {
+    mockSystemHealth.getSystemHealth.mockResolvedValueOnce({
+      disk_used_percent: 97.0,
+      threshold_status: 'CRITICAL',
+    });
+
+    renderNavbar('/admin/pois');
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/Audio cache capacity exceeds 95%/i);
+  });
+
+  it('hides sticky storage banner when navigating to the System Health page to prevent duplicate alerts', async () => {
+    mockSystemHealth.getSystemHealth.mockResolvedValueOnce({
+      disk_used_percent: 97.0,
+      threshold_status: 'CRITICAL',
+    });
+
+    renderNavbar('/admin/health');
+
+    await new Promise((r) => setTimeout(r, 50));
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 });
 
