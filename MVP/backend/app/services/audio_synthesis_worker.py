@@ -99,7 +99,7 @@ class AudioSynthesisWorker:
                 )
             return False
 
-        # STEP 3B: Open fresh JIT session to save audio record and mark translation DRAFT
+        # STEP 3B: Open fresh JIT session to save audio record and preserve/mark translation status
         with self.session_factory() as db:
             audio_repo = AudioRepository(db)
             audio_repo.upsert_audio(
@@ -109,9 +109,15 @@ class AudioSynthesisWorker:
                 status=AUDIO_STATUS_READY,
             )
             trans_repo = TranslationRepository(db)
+            current_trans = trans_repo.get_by_id(stran_id)
+            target_status = (
+                current_trans.status
+                if current_trans and current_trans.status == "PUBLISHED"
+                else TRANSLATION_STATUS_DRAFT
+            )
             trans_repo.update_translation(
                 stran_id=stran_id,
-                status=TRANSLATION_STATUS_DRAFT,
+                status=target_status,
             )
 
         logger.info(

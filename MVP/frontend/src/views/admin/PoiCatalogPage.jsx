@@ -293,6 +293,8 @@ export default function PoiCatalogPage() {
                                   ? 'border-green-200 bg-green-50 text-green-700'
                                   : t.status === 'PENDING'
                                   ? 'border-amber-200 bg-amber-50 text-amber-700'
+                                  : t.status === 'DRAFT'
+                                  ? 'border-blue-200 bg-blue-50 text-blue-700'
                                   : 'border-red-200 bg-red-50 text-red-700'
                               }`}
                             >
