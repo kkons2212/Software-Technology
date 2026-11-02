@@ -9,7 +9,6 @@ from sqlalchemy.orm import Session
 from app.integrations.edge_tts_client import EdgeTTSClient, compute_audio_hash
 from app.models.audio import AUDIO_STATUS_READY
 from app.models.translation import (
-    TRANSLATION_STATUS_DRAFT,
     TRANSLATION_STATUS_NEEDS_UPDATE,
 )
 from app.repositories.audio_repository import AudioRepository
@@ -107,17 +106,6 @@ class AudioSynthesisWorker:
                 audio_url=audio_url,
                 file_size=file_size,
                 status=AUDIO_STATUS_READY,
-            )
-            trans_repo = TranslationRepository(db)
-            current_trans = trans_repo.get_by_id(stran_id)
-            target_status = (
-                current_trans.status
-                if current_trans and current_trans.status == "PUBLISHED"
-                else TRANSLATION_STATUS_DRAFT
-            )
-            trans_repo.update_translation(
-                stran_id=stran_id,
-                status=target_status,
             )
 
         logger.info(

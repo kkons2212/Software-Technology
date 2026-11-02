@@ -44,33 +44,30 @@ class TranslationPipelineService:
             else getattr(settings, "TRANSLATION_PACING_DELAY", 1.5)
         )
 
+    def _query_db_target_languages(self) -> list[str]:
+        """Query foreign language ids from repository (SISE)."""
+        try:
+            with self.session_factory() as db:
+                from app.repositories.language_repository import LanguageRepository
+
+                return LanguageRepository(db).list_target_foreign_language_ids(
+                    source_language="vi"
+                )
+        except Exception:
+            return []
+
     def _resolve_target_languages(
         self, poi_id: str, target_languages: list[str] | None = None
     ) -> list[str]:
         """Dynamically resolve non-source target languages from LanguageCode table (SISE)."""
-        resolved: list[str] = []
         if target_languages is not None:
-            resolved = list(target_languages)
-        else:
-            try:
-                with self.session_factory() as db:
-                    from app.repositories.language_repository import LanguageRepository
+            return list(target_languages)
 
-                    lang_repo = LanguageRepository(db)
-                    db_langs = lang_repo.list_target_foreign_language_ids(
-                        source_language="vi"
-                    )
-                    if db_langs:
-                        resolved = db_langs
-            except Exception as exc:
-                logger.warning(
-                    "Could not retrieve dynamic languages from database for POI %s: %s. Using default targets.",
-                    poi_id,
-                    exc,
-                )
+        db_langs = self._query_db_target_languages()
+        if db_langs:
+            return db_langs
 
-        final_languages = resolved if resolved else list(DEFAULT_TARGET_LANGUAGES)
-        return final_languages
+        return list(DEFAULT_TARGET_LANGUAGES)
 
     async def _synthesize_source_vietnamese_audio(self, poi_id: str) -> bool:
         """Synthesize TTS audio narration for the primary Vietnamese source narrative (SISE)."""

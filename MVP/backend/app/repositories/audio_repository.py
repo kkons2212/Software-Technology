@@ -105,6 +105,8 @@ class AudioRepository:
         target_status = status if status in valid_statuses else "DRAFT"
 
         if translation is not None:
+            if translation.status == "PUBLISHED":
+                target_status = "PUBLISHED"
             translation.audio_url = audio_url
             translation.file_size = file_size
             translation.status = target_status
