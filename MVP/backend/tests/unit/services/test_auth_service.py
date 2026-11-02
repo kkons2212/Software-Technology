@@ -567,7 +567,7 @@ def test_should_reject_a_token_issued_in_the_same_second_as_the_logout(
     _seed_logout_watermark(
         db_session,
         VALID_USER_NAME,
-        datetime.utcfromtimestamp(issued_at_epoch).replace(microsecond=0),
+        datetime.fromtimestamp(issued_at_epoch).replace(microsecond=0),
     )
 
     with pytest.raises(ApiError):
@@ -587,7 +587,7 @@ def test_should_keep_a_token_issued_after_the_logout_watermark(
     _seed_logout_watermark(
         db_session,
         VALID_USER_NAME,
-        datetime.utcfromtimestamp(issued_at_epoch).replace(microsecond=0)
+        datetime.fromtimestamp(issued_at_epoch).replace(microsecond=0)
         - timedelta(seconds=1),
     )
 
