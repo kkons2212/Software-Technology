@@ -31,15 +31,19 @@ class AuditRepository:
         status: str,
         ip_address: str | None = None,
         details: str | None = None,
+        create_at: datetime | None = None,
     ) -> Audit:
         """Insert one audit row and return it refreshed with the DB timestamp."""
-        log_entry = Audit(
-            audit_id=self.generate_audit_id(),
-            user_name=user_name,
-            status=status,
-            ip_address=ip_address,
-            details=details,
-        )
+        entry_kwargs = {
+            "audit_id": self.generate_audit_id(),
+            "user_name": user_name,
+            "status": status,
+            "ip_address": ip_address,
+            "details": details,
+        }
+        if create_at is not None:
+            entry_kwargs["create_at"] = create_at
+        log_entry = Audit(**entry_kwargs)
         self.db.add(log_entry)
         self.db.commit()
         self.db.refresh(log_entry)
