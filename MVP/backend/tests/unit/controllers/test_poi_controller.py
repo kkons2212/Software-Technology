@@ -3,6 +3,7 @@
 import io
 
 import pytest
+from PIL import Image
 
 from app.core.dependencies import get_current_admin
 from app.main import app
@@ -59,7 +60,9 @@ def test_should_create_poi_via_json_payload(client, db_session):
 def test_should_create_poi_via_multipart_form_data_with_image(client, db_session):
     _ensure_admin_user(db_session)
 
-    image_content = b"\xff\xd8\xff\xe0" + b"0" * 500  # Minimal valid JPG header bytes
+    image_buffer = io.BytesIO()
+    Image.new("RGB", (2, 2), color="red").save(image_buffer, format="JPEG")
+    image_content = image_buffer.getvalue()
     files = {"image": ("test_cover.jpg", io.BytesIO(image_content), "image/jpeg")}
     data = {
         "title": "Địa đạo Bến Dược",
@@ -76,7 +79,9 @@ def test_should_create_poi_via_multipart_form_data_with_image(client, db_session
     assert res_data["title"] == "Địa đạo Bến Dược"
     assert res_data["radius"] == 35
     assert res_data["image_url"] is not None
-    assert "/static/images/" in res_data["image_url"]
+    assert res_data["image_url"].startswith(
+        ("/static/images/", "/api/v1/media/poi-images/")
+    )
 
 
 def test_should_return_400_when_coordinates_out_of_bounds(client, db_session):

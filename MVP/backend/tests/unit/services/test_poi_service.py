@@ -12,6 +12,7 @@ from decimal import Decimal
 
 import pytest
 from fastapi import HTTPException, UploadFile
+from PIL import Image
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import ApiError
@@ -374,7 +375,84 @@ def test_should_raise_400_when_image_mime_invalid():
     with pytest.raises(HTTPException) as exc_info:
         validate_image_file(dummy_file, b"dummy pdf content")
     assert exc_info.value.status_code == 400
-    assert "Invalid image type" in str(exc_info.value.detail)
+    assert "Invalid image extension" in str(exc_info.value.detail)
+
+
+@pytest.mark.parametrize(
+    ("image_format", "filename", "content_type"),
+    [
+        ("JPEG", "valid.jpg", "image/jpeg"),
+        ("PNG", "valid.png", "image/png"),
+        ("WEBP", "valid.webp", "image/webp"),
+    ],
+)
+def test_should_accept_verified_raster_images(image_format, filename, content_type):
+    buffer = io.BytesIO()
+    Image.new("RGB", (2, 2), color="red").save(buffer, format=image_format)
+    upload = UploadFile(
+        filename=filename,
+        file=io.BytesIO(buffer.getvalue()),
+        headers={"content-type": content_type},
+    )
+
+    extension, verified_content_type = validate_image_file(upload, buffer.getvalue())
+
+    assert extension == {"JPEG": ".jpg", "PNG": ".png", "WEBP": ".webp"}[image_format]
+    assert verified_content_type == content_type
+
+
+def test_should_reject_non_image_bytes_with_valid_image_headers():
+    upload = UploadFile(
+        filename="fake.jpg",
+        file=io.BytesIO(b"<html><script>alert(1)</script></html>"),
+        headers={"content-type": "image/jpeg"},
+    )
+
+    with pytest.raises(HTTPException) as exc_info:
+        validate_image_file(upload, b"<html><script>alert(1)</script></html>")
+
+    assert exc_info.value.status_code == 400
+    assert "not a valid" in str(exc_info.value.detail)
+
+
+def test_should_reject_image_with_mismatched_extension_and_content():
+    buffer = io.BytesIO()
+    Image.new("RGB", (2, 2), color="red").save(buffer, format="PNG")
+    upload = UploadFile(
+        filename="image.jpg",
+        file=io.BytesIO(buffer.getvalue()),
+        headers={"content-type": "image/jpeg"},
+    )
+
+    with pytest.raises(HTTPException) as exc_info:
+        validate_image_file(upload, buffer.getvalue())
+
+    assert exc_info.value.status_code == 400
+    assert "does not match" in str(exc_info.value.detail)
+
+
+@pytest.mark.asyncio
+async def test_should_proxy_cloud_stored_poi_images():
+    class CloudStorageClient:
+        async def upload_file(self, relative_path, content, content_type):
+            assert relative_path.startswith("images/poi_")
+            assert content_type == "image/jpeg"
+            assert content
+            return "https://cdn.example.test/public/images/poi_image.jpg"
+
+    image_buffer = io.BytesIO()
+    Image.new("RGB", (2, 2), color="red").save(image_buffer, format="JPEG")
+    upload = UploadFile(
+        filename="cover.jpeg",
+        file=io.BytesIO(image_buffer.getvalue()),
+        headers={"content-type": "image/jpeg"},
+    )
+    service = POIService(storage_client=CloudStorageClient())
+
+    image_url = await service.save_cover_image(upload)
+
+    assert image_url.startswith("/api/v1/media/poi-images/poi_")
+    assert image_url.endswith(".jpg")
 
 
 def test_should_raise_400_when_image_exceeds_size_limit():

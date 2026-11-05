@@ -5,10 +5,13 @@ and Admin geofence writes.
 
 import os
 import uuid
+import warnings
 from decimal import Decimal
+from io import BytesIO
 from typing import Annotated
 
 from fastapi import BackgroundTasks, Depends, HTTPException, UploadFile, status
+from PIL import Image, UnidentifiedImageError
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -43,6 +46,12 @@ POI_DEACTIVATED_DETAILS = "ADMIN_POI_DEACTIVATED"
 POI_ACTIVATED_DETAILS = "ADMIN_POI_ACTIVATED"
 
 TARGET_FOREIGN_LANGUAGES = ["en", "ja", "ko", "zh", "fr"]
+SUPPORTED_IMAGE_EXTENSIONS = {
+    ".jpg": ("JPEG", "image/jpeg", ".jpg"),
+    ".jpeg": ("JPEG", "image/jpeg", ".jpg"),
+    ".png": ("PNG", "image/png", ".png"),
+    ".webp": ("WEBP", "image/webp", ".webp"),
+}
 
 
 def _is_within_cu_chi_bounds(latitude: float, longitude: float) -> bool:
@@ -75,12 +84,14 @@ def validate_coordinates_in_bounds(lat: float, lng: float) -> None:
         )
 
 
-def validate_image_file(file: UploadFile, content_bytes: bytes) -> None:
-    """Validate image MIME type and file size (< 5MB)."""
-    if file.content_type not in settings.ALLOWED_IMAGE_TYPES:
+def validate_image_file(file: UploadFile, content_bytes: bytes) -> tuple[str, str]:
+    """Validate the declared format, actual raster format, and image size."""
+    file_ext = os.path.splitext(file.filename or "")[1].lower()
+    expected_image = SUPPORTED_IMAGE_EXTENSIONS.get(file_ext)
+    if expected_image is None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid image type '{file.content_type}'. Only JPG, PNG, and WebP are allowed.",
+            detail="Invalid image extension. Only JPG, PNG, and WebP are allowed.",
         )
 
     if len(content_bytes) > settings.MAX_IMAGE_SIZE_BYTES:
@@ -88,6 +99,46 @@ def validate_image_file(file: UploadFile, content_bytes: bytes) -> None:
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Cover image file size exceeds the maximum permitted limit of 5MB.",
         )
+
+    if not content_bytes:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Uploaded file is not a valid JPG, PNG, or WebP image.",
+        )
+
+    image_format, expected_content_type, canonical_extension = expected_image
+    if file.content_type != expected_content_type:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Image content type does not match the permitted file extension.",
+        )
+
+    try:
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", Image.DecompressionBombWarning)
+            with Image.open(BytesIO(content_bytes)) as image:
+                detected_format = image.format
+                image.verify()
+            with Image.open(BytesIO(content_bytes)) as image:
+                image.load()
+    except (
+        Image.DecompressionBombError,
+        Image.DecompressionBombWarning,
+        UnidentifiedImageError,
+        OSError,
+    ) as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Uploaded file is not a valid JPG, PNG, or WebP image.",
+        ) from exc
+
+    if detected_format != image_format:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Image content does not match the permitted file extension.",
+        )
+
+    return canonical_extension, expected_content_type
 
 
 def get_poi_service(
@@ -143,18 +194,18 @@ class POIService:
     async def save_cover_image(self, file: UploadFile) -> str:
         """Validate and write uploaded image to disk with unified exit (SISE)."""
         content = await file.read()
-        validate_image_file(file, content)
+        file_ext, content_type = validate_image_file(file, content)
 
-        file_ext = os.path.splitext(file.filename or "")[1].lower() or ".jpg"
         filename = f"poi_{uuid.uuid4().hex[:16]}{file_ext}"
         if self.storage_client is not None:
-            content_type = file.content_type or "image/jpeg"
             image_url = await self.storage_client.upload_file(
                 relative_path=f"images/{filename}",
                 content=content,
                 content_type=content_type,
             )
-            return image_url
+            if image_url.startswith("/static/"):
+                return image_url
+            return f"/api/v1/media/poi-images/{filename}"
 
         destination_path = os.path.join(settings.IMAGE_UPLOAD_DIR, filename)
         with open(destination_path, "wb") as f:

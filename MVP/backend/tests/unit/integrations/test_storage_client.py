@@ -37,6 +37,9 @@ async def test_storage_client_cloud_upload_success(tmp_path):
         == "https://testproject.supabase.co/storage/v1/object/public/test-bucket/images/sample.jpg"
     )
     mock_client.post.assert_awaited_once()
+    assert (
+        mock_client.post.await_args.kwargs["headers"]["Content-Disposition"] == "inline"
+    )
 
 
 @pytest.mark.asyncio
@@ -96,6 +99,44 @@ async def test_storage_client_offline_mode_direct_local_save(tmp_path):
     saved_file = tmp_path / "audio" / "narration.mp3"
     assert saved_file.exists()
     assert saved_file.read_bytes() == b"audio-bytes"
+
+
+@pytest.mark.asyncio
+async def test_storage_client_downloads_local_image(tmp_path):
+    image_path = tmp_path / "images" / "poi_0123456789abcdef.jpg"
+    image_path.parent.mkdir(parents=True)
+    image_path.write_bytes(b"image-bytes")
+    client = StorageClient(static_dir=str(tmp_path))
+
+    content = await client.download_file("images/poi_0123456789abcdef.jpg")
+
+    assert content == b"image-bytes"
+
+
+@pytest.mark.asyncio
+async def test_storage_client_downloads_cloud_image_when_not_local(tmp_path):
+    client = StorageClient(
+        supabase_url="https://testproject.supabase.co",
+        supabase_key="test-key-123",
+        bucket_name="test-bucket",
+        static_dir=str(tmp_path),
+    )
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.content = b"cloud-image"
+    mock_client = AsyncMock()
+    mock_client.__aenter__.return_value = mock_client
+    mock_client.__aexit__.return_value = None
+    mock_client.get.return_value = mock_response
+
+    with patch("httpx.AsyncClient", return_value=mock_client):
+        content = await client.download_file("images/poi_0123456789abcdef.jpg")
+
+    assert content == b"cloud-image"
+    mock_client.get.assert_awaited_once_with(
+        "https://testproject.supabase.co/storage/v1/object/public/"
+        "test-bucket/images/poi_0123456789abcdef.jpg"
+    )
 
 
 @pytest.mark.asyncio
