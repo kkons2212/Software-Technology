@@ -1,4 +1,4 @@
-"""Integration client for automated text translation using Gemini AI, Google Translate Cloud REST, Offline Translator Container, and deep-translator."""
+"""Integration client for automated text translation using OpenRouter AI (Crouton Alpha), Gemini AI, Google Translate Cloud REST, Offline Translator Container, and deep-translator."""
 
 import asyncio
 import html
@@ -51,11 +51,14 @@ _DEFAULT_SENTINEL = object()
 class DeepTranslatorClient:
     """Multi-provider asynchronous translation client with cascade fallback and key rotation.
 
-    Hierarchy:
-    1. Offline Translator API (Local/LAN Docker container kocoten/offline-translator-api - Top Priority).
-    2. Google Cloud Translation REST API (Round-robin API Key pool).
-    3. Gemini AI (Prompt-engineered museum & cultural heritage translation).
-    4. deep-translator GoogleTranslator (Free web fallback, 0 config required).
+    Supported Providers:
+    - OpenRouter AI (Crouton Alpha - stealth/crouton-alpha)
+    - Offline Translator API (Local/LAN Docker container kocoten/offline-translator-api)
+    - Google Cloud Translation REST API (Round-robin API Key pool)
+    - Gemini AI (Prompt-engineered museum & cultural heritage translation)
+    - deep-translator GoogleTranslator (Free web fallback, 0 config required)
+
+    Priority order is fully configurable via TRANSLATION_PROVIDERS_ORDER in .env.
     """
 
     NARRATIVE_DELIMITER: ClassVar[str] = "\n<<<---POI_FIELD_BREAK--->>>\n"
@@ -70,12 +73,36 @@ class DeepTranslatorClient:
         "fr": "fr",
     }
 
+    # Aliases mapping user-configurable terms to canonical provider names
+    PROVIDER_ALIASES: ClassVar[dict[str, str]] = {
+        "openrouter": "openrouter",
+        "open_router": "openrouter",
+        "apikey": "openrouter",
+        "api_key": "openrouter",
+        "crouton": "openrouter",
+        "offline": "offline",
+        "container": "offline",
+        "docker": "offline",
+        "gemini": "gemini",
+        "google_cloud": "google_cloud",
+        "google": "google_cloud",
+        "deep_translator": "deep_translator",
+        "translate_library": "deep_translator",
+        "translate library": "deep_translator",
+        "library": "deep_translator",
+        "free": "deep_translator",
+    }
+
     def __init__(
         self,
         gemini_keys: list[str] | None = None,
         google_translate_keys: list[str] | None = None,
         offline_url: str | None | object = _DEFAULT_SENTINEL,
         gemini_model: str | None = None,
+        openrouter_key: str | None = None,
+        openrouter_model: str | None = None,
+        openrouter_base_url: str | None = None,
+        providers_order: list[str] | None = None,
         max_retries: int = DEFAULT_MAX_RETRIES,
         base_delay: float = DEFAULT_BASE_DELAY,
         chunk_size: int = DEFAULT_CHUNK_SIZE,
@@ -103,6 +130,35 @@ class DeepTranslatorClient:
         self.gemini_model = gemini_model or getattr(
             settings, "GEMINI_MODEL", "gemini-1.5-flash"
         )
+        self.openrouter_key = (
+            openrouter_key
+            if openrouter_key is not None
+            else getattr(settings, "OPENROUTER_API_KEY", "")
+        )
+        self.openrouter_model = openrouter_model or getattr(
+            settings, "OPENROUTER_MODEL", "stealth/crouton-alpha"
+        )
+        self.openrouter_base_url = openrouter_base_url or getattr(
+            settings, "OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1"
+        )
+        raw_order = (
+            providers_order
+            if providers_order is not None
+            else getattr(
+                settings,
+                "translation_providers_list",
+                [
+                    "openrouter",
+                    "offline",
+                    "google_cloud",
+                    "gemini",
+                    "deep_translator",
+                ],
+            )
+        )
+        self.providers_order: list[str] = [
+            p.strip().lower() for p in raw_order if p and p.strip()
+        ]
         self.max_retries = max_retries
         self.base_delay = base_delay
         self.chunk_size = chunk_size
@@ -541,6 +597,194 @@ class DeepTranslatorClient:
             "description": tr_desc,
         }
 
+    async def _translate_with_openrouter(
+        self, text: str, source_lang: str, target_lang: str
+    ) -> str | None:
+        """Translate text using OpenRouter AI model (Crouton Alpha)."""
+        if not self.openrouter_key or not self.openrouter_key.strip():
+            return None
+
+        client = await self._get_http_client()
+        url = f"{self.openrouter_base_url.rstrip('/')}/chat/completions"
+        headers = {
+            "Authorization": f"Bearer {self.openrouter_key}",
+            "Content-Type": "application/json",
+            "HTTP-Referer": "https://cuchitunnels.local",
+            "X-Title": "Cu Chi Tunnels Audio Guide",
+        }
+
+        system_prompt = (
+            "You are an expert museum and cultural heritage translator specializing in historical sites "
+            "(specifically Vietnam's historic Cu Chi Tunnels - Địa đạo Củ Chi).\n"
+            f"Translate the following text accurately from {source_lang} to {target_lang}.\n"
+            "Preserve historical significance, military and cultural terminology, and maintain a dignified, "
+            "engaging museum tour guide persona.\n"
+            "Output ONLY the translated text without extra commentary, markdown quotes, or formatting."
+        )
+
+        payload = {
+            "model": self.openrouter_model,
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": text},
+            ],
+            "temperature": 0.2,
+        }
+
+        for attempt in range(self.max_retries):
+            try:
+                response = await client.post(url, json=payload, headers=headers)
+                if response.status_code == 200:
+                    data = response.json()
+                    choices = data.get("choices", [])
+                    if choices:
+                        content_text = choices[0].get("message", {}).get("content", "")
+                        result = content_text.strip()
+                        if result:
+                            logger.info(
+                                "Successfully translated via OpenRouter (%s -> %s, model=%s)",
+                                source_lang,
+                                target_lang,
+                                self.openrouter_model,
+                            )
+                            return result
+                elif response.status_code == 429:
+                    logger.warning(
+                        "OpenRouter rate limit (429) on attempt %d",
+                        attempt + 1,
+                    )
+                else:
+                    logger.warning(
+                        "OpenRouter returned status %d on attempt %d: %s",
+                        response.status_code,
+                        attempt + 1,
+                        response.text[:200],
+                    )
+            except Exception as exc:
+                logger.warning(
+                    "OpenRouter translation failed on attempt %d: %s",
+                    attempt + 1,
+                    exc,
+                )
+
+            if attempt < self.max_retries - 1:
+                await asyncio.sleep(self.base_delay * (2**attempt))
+
+        logger.warning("OpenRouter translation exhausted %d attempts", self.max_retries)
+        return None
+
+    async def _translate_narrative_with_openrouter(
+        self,
+        title: str,
+        short_description: str | None,
+        description: str | None,
+        source_lang: str,
+        target_lang: str,
+    ) -> dict[str, str | None] | None:
+        """Translate exhibit narrative fields in a single batched OpenRouter call."""
+        if not self.openrouter_key or not self.openrouter_key.strip():
+            return None
+
+        client = await self._get_http_client()
+        url = f"{self.openrouter_base_url.rstrip('/')}/chat/completions"
+        headers = {
+            "Authorization": f"Bearer {self.openrouter_key}",
+            "Content-Type": "application/json",
+            "HTTP-Referer": "https://cuchitunnels.local",
+            "X-Title": "Cu Chi Tunnels Audio Guide",
+        }
+
+        input_data = {
+            "title": title,
+            "short_description": short_description or "",
+            "description": description or "",
+        }
+
+        system_prompt = (
+            "You are an expert museum and cultural heritage translator specializing in historical sites "
+            "(specifically Vietnam's historic Cu Chi Tunnels - Địa đạo Củ Chi).\n"
+            f"Translate the following exhibit fields accurately from {source_lang} to {target_lang}.\n"
+            "Preserve historical significance, military and cultural terminology, and maintain a dignified, "
+            "engaging museum tour guide persona.\n"
+            "Output ONLY a valid parseable JSON object with keys 'title', 'short_description', 'description'. "
+            "Do NOT include markdown quotes, markdown code fences, or any commentary."
+        )
+
+        payload = {
+            "model": self.openrouter_model,
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": json.dumps(input_data, ensure_ascii=False)},
+            ],
+            "response_format": {"type": "json_object"},
+            "temperature": 0.2,
+        }
+
+        for attempt in range(self.max_retries):
+            try:
+                response = await client.post(url, json=payload, headers=headers)
+                if response.status_code == 200:
+                    data = response.json()
+                    choices = data.get("choices", [])
+                    if choices:
+                        raw_text = (
+                            choices[0].get("message", {}).get("content", "").strip()
+                        )
+                        if raw_text.startswith("```"):
+                            raw_text = raw_text.strip("`")
+                            if raw_text.startswith("json"):
+                                raw_text = raw_text[4:].strip()
+                        try:
+                            parsed = json.loads(raw_text)
+                            logger.info(
+                                "Successfully translated narrative batch via OpenRouter (%s -> %s, model=%s)",
+                                source_lang,
+                                target_lang,
+                                self.openrouter_model,
+                            )
+                            return {
+                                "title": parsed.get("title", title),
+                                "short_description": (
+                                    parsed.get("short_description")
+                                    if short_description
+                                    else None
+                                ),
+                                "description": (
+                                    parsed.get("description") if description else None
+                                ),
+                            }
+                        except json.JSONDecodeError as jde:
+                            logger.warning(
+                                "Failed to parse OpenRouter JSON on attempt %d: %s (raw: %s)",
+                                attempt + 1,
+                                jde,
+                                raw_text[:200],
+                            )
+                elif response.status_code == 429:
+                    logger.warning(
+                        "OpenRouter rate limit (429) on narrative attempt %d",
+                        attempt + 1,
+                    )
+                else:
+                    logger.warning(
+                        "OpenRouter narrative returned status %d on attempt %d: %s",
+                        response.status_code,
+                        attempt + 1,
+                        response.text[:200],
+                    )
+            except Exception as exc:
+                logger.warning(
+                    "OpenRouter narrative translation failed on attempt %d: %s",
+                    attempt + 1,
+                    exc,
+                )
+
+            if attempt < self.max_retries - 1:
+                await asyncio.sleep(self.base_delay * (2**attempt))
+
+        logger.warning("OpenRouter narrative exhausted %d attempts", self.max_retries)
+        return None
+
     def _split_text_into_chunks(self, text: str) -> list[str]:
         """Split text exceeding GoogleTranslator character limit into manageable chunks."""
         if len(text) <= self.chunk_size:
@@ -742,7 +986,7 @@ class DeepTranslatorClient:
         target_lang: str,
         source_lang: str = "vi",
     ) -> str:
-        """Translate text through cascade providers: Offline Container -> Google Cloud -> Free Web fallback (REF-04.1).
+        """Translate text through configurable provider cascade (openrouter, offline, gemini, google_cloud, deep_translator).
 
         US 04.4 - AC-04.4.1: Seamless multi-provider fault tolerance.
         """
@@ -752,29 +996,70 @@ class DeepTranslatorClient:
 
         resolved_target = self._resolve_target_language(target_lang)
         resolved_source = self._resolve_target_language(source_lang)
-        translated_result: str | None = None
+        last_error: Exception | None = None
 
-        # Phase 2: Compute via sequential cascade tiers
-        # 1. Cascade Tier 1 (Top Priority): Local Offline Translator Container API
-        if self.offline_url:
-            translated_result = await self._translate_with_offline_api(
+        provider_map = {
+            "openrouter": lambda: self._translate_with_openrouter(
                 text, resolved_source, resolved_target
-            )
-
-        # 2. Cascade Tier 2: Google Cloud Translation REST API (Key pool rotation)
-        if translated_result is None and self.google_pool.has_keys():
-            translated_result = await self._translate_with_google_cloud(
+            ),
+            "offline": lambda: self._translate_with_offline_api(
                 text, resolved_source, resolved_target
-            )
-
-        # 3. Cascade Tier 3: Free deep-translator (Guaranteed zero-configuration fallback)
-        if translated_result is None:
-            translated_result = await self._translate_with_free_deep_translator(
+            ),
+            "gemini": lambda: self._translate_with_gemini(
                 text, resolved_source, resolved_target
-            )
+            ),
+            "google_cloud": lambda: self._translate_with_google_cloud(
+                text, resolved_source, resolved_target
+            ),
+            "deep_translator": lambda: self._translate_with_free_deep_translator(
+                text, resolved_source, resolved_target
+            ),
+        }
 
-        # Phase 3: Single unified exit
-        return translated_result
+        # Normalize configured providers list via aliases
+        effective_order = [
+            self.PROVIDER_ALIASES.get(p, p) for p in self.providers_order
+        ]
+
+        # Execute providers in configured priority order
+        for provider_name in effective_order:
+            handler = provider_map.get(provider_name)
+            if handler is None:
+                continue
+            try:
+                res = await handler()
+                if res:
+                    return res
+            except TranslationError as te:
+                last_error = te
+                logger.warning(
+                    "Provider '%s' raised TranslationError: %s", provider_name, te
+                )
+            except Exception as exc:
+                last_error = exc
+                logger.warning("Provider '%s' failed: %s", provider_name, exc)
+
+        # Fallback to free deep-translator if not in effective_order and no result yet
+        if "deep_translator" not in effective_order:
+            try:
+                res = await self._translate_with_free_deep_translator(
+                    text, resolved_source, resolved_target
+                )
+                if res:
+                    return res
+            except Exception as exc:
+                last_error = exc
+
+        if last_error is not None:
+            if isinstance(last_error, TranslationError):
+                raise last_error
+            raise TranslationError(
+                f"Failed to translate text to '{target_lang}' after exhausting providers: {last_error}"
+            ) from last_error
+
+        raise TranslationError(
+            f"All translation providers exhausted for text to '{target_lang}'"
+        )
 
     async def translate_exhibit_narrative(
         self,
@@ -786,32 +1071,54 @@ class DeepTranslatorClient:
     ) -> dict[str, str | None]:
         """Translate all fields of an exhibit narrative in 1 batched request per tier.
 
-        Hierarchy:
-        1. Gemini AI: 1 prompt returning JSON with title, short_description, description.
-        2. Google Cloud REST: 1 HTTP call with q=[title, short_desc, desc].
-        3. Offline Container API: Local/LAN call with sub-millisecond response.
-        4. deep-translator: 1 HTTP call with delimited text.
+        Hierarchy configured via providers_order (openrouter, offline, gemini, google_cloud, deep_translator).
         """
         resolved_target = self._resolve_target_language(target_lang)
         resolved_source = self._resolve_target_language(source_lang)
 
-        # 1. Cascade Tier 1 (Top Priority): Local Offline Translator Container API
-        if self.offline_url:
-            offline_result = await self._translate_narrative_with_offline_api(
+        narrative_map = {
+            "openrouter": lambda: self._translate_narrative_with_openrouter(
+                title, short_description, description, resolved_source, resolved_target
+            ),
+            "offline": lambda: self._translate_narrative_with_offline_api(
+                title, short_description, description, resolved_source, resolved_target
+            ),
+            "gemini": lambda: self._translate_narrative_with_gemini(
+                title, short_description, description, resolved_source, resolved_target
+            ),
+            "google_cloud": lambda: self._translate_narrative_with_google_cloud(
+                title, short_description, description, resolved_source, resolved_target
+            ),
+            "deep_translator": lambda: self._translate_narrative_with_free_deep_translator(
+                title, short_description, description, resolved_source, resolved_target
+            ),
+        }
+
+        effective_order = [
+            self.PROVIDER_ALIASES.get(p, p) for p in self.providers_order
+        ]
+
+        for provider_name in effective_order:
+            handler = narrative_map.get(provider_name)
+            if handler is None:
+                continue
+            try:
+                result = await handler()
+                if result is not None:
+                    return result
+            except Exception as exc:
+                logger.warning(
+                    "Narrative batch translation failed for provider '%s': %s",
+                    provider_name,
+                    exc,
+                )
+
+        # Final guarantee fallback to free deep-translator
+        if "deep_translator" not in effective_order:
+            return await self._translate_narrative_with_free_deep_translator(
                 title, short_description, description, resolved_source, resolved_target
             )
-            if offline_result is not None:
-                return offline_result
 
-        # 2. Cascade Tier 2: Google Cloud Translation REST API
-        if self.google_pool.has_keys():
-            cloud_result = await self._translate_narrative_with_google_cloud(
-                title, short_description, description, resolved_source, resolved_target
-            )
-            if cloud_result is not None:
-                return cloud_result
-
-        # 3. Cascade Tier 3: Free deep-translator
-        return await self._translate_narrative_with_free_deep_translator(
-            title, short_description, description, resolved_source, resolved_target
+        raise TranslationError(
+            f"All translation providers exhausted for narrative to '{target_lang}'"
         )

@@ -18,6 +18,7 @@ def client():
     return DeepTranslatorClient(
         gemini_keys=[],
         google_translate_keys=[],
+        openrouter_key="",
         offline_url=None,
         max_retries=3,
         base_delay=0.001,
@@ -165,6 +166,7 @@ async def test_should_batch_translate_narrative_via_gemini_json():
 
     client = DeepTranslatorClient(
         gemini_keys=["gemini_key_1"],
+        openrouter_key="",
         offline_url=None,
         http_client=mock_http,
     )
@@ -203,6 +205,7 @@ async def test_should_batch_translate_narrative_via_google_cloud():
     client = DeepTranslatorClient(
         gemini_keys=[],
         google_translate_keys=["google_key_1"],
+        openrouter_key="",
         offline_url=None,
         http_client=mock_http,
     )
@@ -237,6 +240,7 @@ async def test_should_translate_via_offline_translator_api():
     client = DeepTranslatorClient(
         gemini_keys=[],
         google_translate_keys=[],
+        openrouter_key="",
         offline_url="http://localhost:8001",
         http_client=mock_http,
     )
@@ -265,6 +269,7 @@ async def test_should_batch_translate_narrative_via_offline_translator_api():
     client = DeepTranslatorClient(
         gemini_keys=[],
         google_translate_keys=[],
+        openrouter_key="",
         offline_url="http://localhost:8001",
         http_client=mock_http,
     )
@@ -292,6 +297,7 @@ async def test_should_fallback_to_free_when_offline_translator_api_fails(mocker)
     client = DeepTranslatorClient(
         gemini_keys=[],
         google_translate_keys=[],
+        openrouter_key="",
         offline_url="http://localhost:8001",
         http_client=mock_http,
         max_retries=1,
@@ -354,6 +360,7 @@ async def test_should_translate_via_gemini_and_rotate_keys_on_rate_limit():
 
     client = DeepTranslatorClient(
         gemini_keys=["gemini_key_1", "gemini_key_2"],
+        openrouter_key="",
         offline_url=None,
         http_client=mock_http,
     )
@@ -387,6 +394,7 @@ async def test_should_fallback_from_offline_to_google_cloud_on_error():
 
     client = DeepTranslatorClient(
         google_translate_keys=["google_key_1"],
+        openrouter_key="",
         offline_url="http://localhost:8001",
         http_client=mock_http,
     )
@@ -408,6 +416,7 @@ async def test_should_fallback_to_free_translator_when_all_cloud_keys_fail(mocke
     client = DeepTranslatorClient(
         gemini_keys=["gemini_key_1"],
         google_translate_keys=["google_key_1"],
+        openrouter_key="",
         offline_url=None,
         http_client=mock_http,
         max_retries=1,
@@ -422,3 +431,120 @@ async def test_should_fallback_to_free_translator_when_all_cloud_keys_fail(mocke
     result = await client.translate_text("Địa đạo", target_lang="en")
     assert result == "Free fallback translation result"
     client._translate_sync.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_should_translate_text_via_openrouter():
+    mock_http = MagicMock(spec=httpx.AsyncClient)
+    resp_200 = MagicMock(
+        status_code=200,
+        json=lambda: {
+            "choices": [
+                {"message": {"content": "Cu Chi Tunnels - Underground Defense System"}}
+            ]
+        },
+    )
+    mock_http.post = AsyncMock(return_value=resp_200)
+
+    client = DeepTranslatorClient(
+        openrouter_key="sk-or-test-crouton-key",
+        openrouter_model="stealth/crouton-alpha",
+        offline_url=None,
+        http_client=mock_http,
+        providers_order=["openrouter", "deep_translator"],
+    )
+
+    result = await client.translate_text("Địa đạo Củ Chi", target_lang="en")
+    assert result == "Cu Chi Tunnels - Underground Defense System"
+    assert mock_http.post.call_count == 1
+    call_args = mock_http.post.call_args
+    assert "openrouter.ai/api/v1/chat/completions" in call_args[0][0]
+    assert call_args[1]["headers"]["Authorization"] == "Bearer sk-or-test-crouton-key"
+    assert call_args[1]["json"]["model"] == "stealth/crouton-alpha"
+
+
+@pytest.mark.asyncio
+async def test_should_batch_translate_narrative_via_openrouter_json():
+    mock_http = MagicMock(spec=httpx.AsyncClient)
+    resp_200 = MagicMock(
+        status_code=200,
+        json=lambda: {
+            "choices": [
+                {
+                    "message": {
+                        "content": '{"title": "Hoang Cam Stove", "short_description": "Smokeless battlefield stove", "description": "Historic invention during resistance war"}'
+                    }
+                }
+            ]
+        },
+    )
+    mock_http.post = AsyncMock(return_value=resp_200)
+
+    client = DeepTranslatorClient(
+        openrouter_key="sk-or-test-key",
+        openrouter_model="stealth/crouton-alpha",
+        offline_url=None,
+        http_client=mock_http,
+        providers_order=["openrouter", "deep_translator"],
+    )
+
+    narrative = await client.translate_exhibit_narrative(
+        title="Bếp Hoàng Cầm",
+        short_description="Bếp dã chiến giấu khói",
+        description="Sáng chế bếp độc đáo thời kháng chiến",
+        target_lang="en",
+    )
+
+    assert narrative["title"] == "Hoang Cam Stove"
+    assert narrative["short_description"] == "Smokeless battlefield stove"
+    assert narrative["description"] == "Historic invention during resistance war"
+    assert mock_http.post.call_count == 1
+    assert mock_http.post.call_args[1]["json"]["response_format"] == {
+        "type": "json_object"
+    }
+
+
+@pytest.mark.asyncio
+async def test_should_fallback_when_openrouter_fails_or_rate_limits(mocker):
+    mock_http = MagicMock(spec=httpx.AsyncClient)
+    resp_429 = MagicMock(status_code=429, text="Rate limit exceeded")
+    mock_http.post = AsyncMock(return_value=resp_429)
+
+    client = DeepTranslatorClient(
+        openrouter_key="sk-or-test-key",
+        offline_url=None,
+        http_client=mock_http,
+        max_retries=1,
+        providers_order=["openrouter", "deep_translator"],
+    )
+
+    mocker.patch.object(
+        client,
+        "_translate_sync",
+        return_value="DeepTranslator free fallback",
+    )
+
+    result = await client.translate_text("Xin chào", target_lang="en")
+    assert result == "DeepTranslator free fallback"
+    client._translate_sync.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_should_respect_custom_provider_order_and_aliases(mocker):
+    mock_http = MagicMock(spec=httpx.AsyncClient)
+    client = DeepTranslatorClient(
+        openrouter_key="sk-or-test-key",
+        offline_url=None,
+        http_client=mock_http,
+        providers_order=["library", "apikey"],
+    )
+
+    mocker.patch.object(
+        client,
+        "_translate_sync",
+        return_value="Direct from library",
+    )
+
+    result = await client.translate_text("Địa đạo Củ Chi", target_lang="en")
+    assert result == "Direct from library"
+    assert mock_http.post.call_count == 0
