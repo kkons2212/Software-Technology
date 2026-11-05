@@ -137,3 +137,31 @@ class StorageClient:
                 pass
 
         return deleted
+
+    async def upload_audio_file(
+        self,
+        file_name: str,
+        content: bytes,
+        content_type: str = "audio/mpeg",
+    ) -> str:
+        """Upload an MP3 narration file to Supabase Storage or local static URL (SISE)."""
+        clean_name = Path(file_name).name
+        return await self.upload_file(
+            relative_path=f"audio/{clean_name}",
+            content=content,
+            content_type=content_type,
+        )
+
+    async def upload_image_file(
+        self,
+        file_name: str,
+        content: bytes,
+        content_type: str = "image/jpeg",
+    ) -> str:
+        """Upload an exhibit image to Supabase Storage or local static URL (SISE)."""
+        clean_name = Path(file_name).name
+        return await self.upload_file(
+            relative_path=f"images/{clean_name}",
+            content=content,
+            content_type=content_type,
+        )
