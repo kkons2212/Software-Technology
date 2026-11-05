@@ -241,18 +241,24 @@ export default function POIFormModal({
           </div>
 
           <div>
-            <label
-              htmlFor="edit-poi-short-desc"
-              className="block text-xs font-medium text-slate-700"
-            >
-              Free Teaser Summary (Displayed on visitor preview cards)
-            </label>
+            <div className="flex justify-between items-center">
+              <label
+                htmlFor="edit-poi-short-desc"
+                className="block text-xs font-medium text-slate-700"
+              >
+                Free Teaser Summary (Displayed on visitor preview cards)
+              </label>
+              <span className={`text-[10px] ${shortDescription.length > 255 ? 'text-red-500 font-semibold' : 'text-slate-500'}`}>
+                {shortDescription.length}/255
+              </span>
+            </div>
             <textarea
               id="edit-poi-short-desc"
               rows={2}
+              maxLength={255}
               value={shortDescription}
               onChange={(e) => setShortDescription(e.target.value)}
-              placeholder="Brief summary shown on map bottom sheet..."
+              placeholder="Brief summary shown on map bottom sheet (max 255 chars)..."
               className="mt-1 w-full rounded-md border border-slate-300 px-3 py-1.5 text-xs text-slate-900 focus:border-slate-800 focus:outline-none"
             />
           </div>

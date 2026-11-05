@@ -7,10 +7,12 @@ from fastapi import (
     BackgroundTasks,
     Depends,
     Header,
+    HTTPException,
     Query,
     Request,
     status,
 )
+from pydantic import ValidationError
 
 from app.core.dependencies import get_current_admin, get_poi_service
 from app.schemas.poi_schema import (
@@ -111,18 +113,77 @@ async def create_poi(
         elif isinstance(image, str) and image:
             image_url = image
 
-        payload = POICreateRequest(
-            title=str(form.get("title", "")),
-            short_description=form.get("short_description"),
-            description=form.get("description"),
-            latitude=float(form.get("latitude", 0.0)),
-            longitude=float(form.get("longitude", 0.0)),
-            radius=int(form.get("radius", 30)),
-            image_url=image_url or form.get("image_url"),
-        )
+        try:
+            raw_lat = form.get("latitude")
+            raw_lng = form.get("longitude")
+            raw_rad = form.get("radius")
+            parsed_lat = (
+                float(raw_lat)
+                if raw_lat is not None and str(raw_lat).strip()
+                else 0.0
+            )
+            parsed_lng = (
+                float(raw_lng)
+                if raw_lng is not None and str(raw_lng).strip()
+                else 0.0
+            )
+            parsed_rad = (
+                int(raw_rad)
+                if raw_rad is not None and str(raw_rad).strip()
+                else 30
+            )
+
+            raw_short_desc = form.get("short_description")
+            short_desc = str(raw_short_desc).strip() if raw_short_desc else None
+            if short_desc == "":
+                short_desc = None
+
+            raw_desc = form.get("description")
+            desc = str(raw_desc).strip() if raw_desc else None
+            if desc == "":
+                desc = None
+
+            payload = POICreateRequest(
+                title=str(form.get("title", "")).strip(),
+                short_description=short_desc,
+                description=desc,
+                latitude=parsed_lat,
+                longitude=parsed_lng,
+                radius=parsed_rad,
+                image_url=image_url or form.get("image_url"),
+            )
+        except (ValueError, TypeError) as exc:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Invalid numeric value for coordinates or radius: {exc}",
+            )
+        except ValidationError as exc:
+            error_msg = "; ".join(
+                f"{'.'.join(str(loc) for loc in err.get('loc', []))}: {err.get('msg')}"
+                for err in exc.errors()
+            )
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Validation error: {error_msg}",
+            )
     else:
-        body = await request.json()
-        payload = POICreateRequest(**body)
+        try:
+            body = await request.json()
+            payload = POICreateRequest(**body)
+        except ValidationError as exc:
+            error_msg = "; ".join(
+                f"{'.'.join(str(loc) for loc in err.get('loc', []))}: {err.get('msg')}"
+                for err in exc.errors()
+            )
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Validation error: {error_msg}",
+            )
+        except Exception as exc:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Malformed JSON body: {exc}",
+            )
 
     return await poi_service.create_new_poi(
         payload=payload,

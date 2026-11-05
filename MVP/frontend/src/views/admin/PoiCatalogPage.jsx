@@ -123,6 +123,11 @@ export default function PoiCatalogPage() {
       return;
     }
 
+    if (shortDescription.trim().length > 255) {
+      setFormError('Mô tả ngắn tối đa 255 ký tự. Vui lòng chuyển nội dung dài xuống ô "Detailed Historical Narration Content".');
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       await createPoi(
@@ -379,15 +384,21 @@ export default function PoiCatalogPage() {
               </div>
 
               <div>
-                <label htmlFor="poi-short-desc" className="block text-xs font-medium text-slate-700">
-                  Free Teaser Summary (Displayed to visitors before session unlock)
-                </label>
+                <div className="flex justify-between items-center">
+                  <label htmlFor="poi-short-desc" className="block text-xs font-medium text-slate-700">
+                    Free Teaser Summary (Displayed to visitors before session unlock)
+                  </label>
+                  <span className={`text-[10px] ${shortDescription.length > 255 ? 'text-red-500 font-semibold' : 'text-slate-500'}`}>
+                    {shortDescription.length}/255
+                  </span>
+                </div>
                 <textarea
                   id="poi-short-desc"
                   rows={2}
+                  maxLength={255}
                   value={shortDescription}
                   onChange={(e) => setShortDescription(e.target.value)}
-                  placeholder="Brief preview summary shown on bottom sheet preview card..."
+                  placeholder="Brief preview summary shown on bottom sheet preview card (max 255 chars)..."
                   className="mt-1 w-full rounded-md border border-slate-300 px-3 py-1.5 text-xs text-slate-900 focus:border-slate-800 focus:outline-none"
                 />
               </div>
