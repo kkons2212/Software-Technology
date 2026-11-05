@@ -125,3 +125,35 @@ async def test_storage_client_delete_file_local_and_cloud(tmp_path):
     assert success is True
     assert not local_file.exists()
     mock_client.delete.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_storage_client_upload_audio_file_helper(tmp_path):
+    client = StorageClient(
+        supabase_url="",
+        supabase_key="",
+        bucket_name="test-bucket",
+        static_dir=str(tmp_path),
+    )
+    url = await client.upload_audio_file(
+        file_name="sample_audio.mp3",
+        content=b"sample-audio-data",
+    )
+    assert url == "/static/audio/sample_audio.mp3"
+    assert (tmp_path / "audio" / "sample_audio.mp3").exists()
+
+
+@pytest.mark.asyncio
+async def test_storage_client_upload_image_file_helper(tmp_path):
+    client = StorageClient(
+        supabase_url="",
+        supabase_key="",
+        bucket_name="test-bucket",
+        static_dir=str(tmp_path),
+    )
+    url = await client.upload_image_file(
+        file_name="sample_photo.jpg",
+        content=b"sample-photo-data",
+    )
+    assert url == "/static/images/sample_photo.jpg"
+    assert (tmp_path / "images" / "sample_photo.jpg").exists()

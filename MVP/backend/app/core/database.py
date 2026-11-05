@@ -19,9 +19,12 @@ class Base(DeclarativeBase):
 
 
 def create_database_engine(settings: Settings | None = None) -> Engine:
-    """Build the MySQL engine with the mandated connection-pool settings."""
+    """Build the database engine with connection-pool settings or SQLite for tests."""
     cfg = settings or get_settings()
     db_url = cfg.DATABASE_URL
+    if db_url.startswith("sqlite"):
+        return create_engine(db_url, connect_args={"check_same_thread": False})
+
     connect_args: dict[str, object] = {}
 
     if db_url.startswith("mysql://"):
