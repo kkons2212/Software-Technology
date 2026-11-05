@@ -4,6 +4,9 @@ Handles digital admission pass checkout, VietQR code generation, client polling 
 and cryptographic webhook processing.
 """
 
+from html import escape
+from urllib.parse import quote
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 
@@ -20,6 +23,7 @@ from app.schemas.payment_schema import (
 from app.services.payment_service import PaymentService
 
 router = APIRouter(prefix="/api/v1/payments", tags=["Payment & Checkout"])
+ORDER_ID_PATTERN = r"^TXN_[0-9A-F]{12}$"
 
 
 @router.post(
@@ -87,7 +91,11 @@ def handle_payment_webhook(
 @router.get("/paypal-checkout", response_class=HTMLResponse)
 def paypal_sandbox_checkout_page(
     order_id: str = Query(
-        ..., description="Order ID to simulate PayPal Sandbox payment"
+        ...,
+        min_length=16,
+        max_length=16,
+        pattern=ORDER_ID_PATTERN,
+        description="Transaction ID to simulate a development PayPal payment.",
     ),
 ) -> HTMLResponse:
     """Interactive PayPal Sandbox Mock Checkout Page for testing without live keys."""
@@ -96,6 +104,9 @@ def paypal_sandbox_checkout_page(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Payment simulation is available only in development.",
         )
+
+    safe_order_id = escape(order_id, quote=True)
+    encoded_order_id = quote(order_id, safe="")
 
     html_content = f"""<!DOCTYPE html>
 <html lang="vi">
@@ -120,7 +131,7 @@ def paypal_sandbox_checkout_page(
             <div class="mt-4 bg-slate-50 rounded-xl p-4 border border-slate-100 space-y-2 text-sm">
                 <div class="flex justify-between text-slate-600">
                     <span>Mã đơn hàng:</span>
-                    <span class="font-mono font-semibold text-slate-900">{order_id}</span>
+                    <span class="font-mono font-semibold text-slate-900">{safe_order_id}</span>
                 </div>
                 <div class="flex justify-between text-slate-600">
                     <span>Số tiền:</span>
@@ -133,7 +144,7 @@ def paypal_sandbox_checkout_page(
             </div>
         </div>
         <div class="space-y-3">
-            <a href="/api/v1/payments/paypal/confirm-mock?order_id={order_id}"
+            <a href="/api/v1/payments/paypal/confirm-mock?order_id={encoded_order_id}"
                class="block w-full text-center bg-[#0070ba] hover:bg-[#005ea6] text-white font-semibold py-3 px-4 rounded-xl shadow transition text-sm">
                 Xác nhận thanh toán PayPal Sandbox (50.000 đ)
             </a>
