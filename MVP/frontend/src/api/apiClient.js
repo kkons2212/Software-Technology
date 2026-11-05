@@ -24,7 +24,7 @@ export class ApiError extends Error {
   }
 }
 
-function buildRequestUrl(path) {
+export function buildRequestUrl(path) {
   if (/^https?:\/\//i.test(path)) {
     return path;
   }
@@ -52,6 +52,22 @@ function buildErrorFromResponse(response, payload) {
       code: backendError.code ?? FALLBACK_ERROR_CODE,
       message: backendError.message ?? FALLBACK_ERROR_MESSAGE,
       details: backendError.details ?? null,
+    });
+  }
+  const detail = payload?.detail;
+  if (typeof detail === 'string') {
+    return new ApiError({
+      status: response.status,
+      code: 'HTTP_ERROR',
+      message: detail,
+    });
+  }
+  if (detail && typeof detail === 'object') {
+    return new ApiError({
+      status: response.status,
+      code: detail.code || 'HTTP_ERROR',
+      message: detail.message || FALLBACK_ERROR_MESSAGE,
+      details: detail.details || null,
     });
   }
   return new ApiError({ status: response.status });
@@ -117,10 +133,37 @@ async function requestBlob(path, { headers, signal } = {}) {
   return { blob, filename };
 }
 
+async function requestFormData(path, formData, { method = 'POST', headers, signal } = {}) {
+  let response;
+  try {
+    response = await fetch(buildRequestUrl(path), {
+      method,
+      credentials: REQUEST_CREDENTIALS,
+      headers: { ...headers },
+      body: formData,
+      signal,
+    });
+  } catch (error) {
+    if (error.name === 'AbortError') {
+      throw error;
+    }
+    throw new ApiError({ code: NETWORK_ERROR_CODE, message: NETWORK_ERROR_MESSAGE });
+  }
+
+  const payload = await readResponsePayload(response);
+
+  if (!response.ok) {
+    throw buildErrorFromResponse(response, payload);
+  }
+
+  return payload?.data ?? payload;
+}
+
 export const apiClient = {
   get: (path, options) => requestJson(path, { ...options, method: 'GET' }),
   getBlob: (path, options) => requestBlob(path, options),
   post: (path, body, options) => requestJson(path, { ...options, method: 'POST', body }),
+  postFormData: (path, formData, options) => requestFormData(path, formData, options),
   put: (path, body, options) => requestJson(path, { ...options, method: 'PUT', body }),
   patch: (path, body, options) => requestJson(path, { ...options, method: 'PATCH', body }),
   delete: (path, options) => requestJson(path, { ...options, method: 'DELETE' }),

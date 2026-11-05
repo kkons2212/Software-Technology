@@ -1,0 +1,28 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://smart-museum-backend.onrender.com/api/:path*"
+    },
+    {
+      "source": "/static/:path*",
+      "destination": "https://smart-museum-backend.onrender.com/static/:path*"
+    },
+    {
+      "source": "/health",
+      "destination": "https://smart-museum-backend.onrender.com/health"
+    },
+    {
+      "source": "/docs",
+      "destination": "https://smart-museum-backend.onrender.com/docs"
+    },
+    {
+      "source": "/openapi.json",
+      "destination": "https://smart-museum-backend.onrender.com/openapi.json"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}

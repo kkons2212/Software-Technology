@@ -85,31 +85,7 @@ export async function createPoi(poiData, imageFile = null, { signal } = {}) {
     formData.append('radius', String(poiData.radius || 30));
     formData.append('image', imageFile);
 
-    try {
-      const response = await fetch(POI_ADMIN_BASE_PATH, {
-        method: 'POST',
-        body: formData,
-        credentials: 'include',
-        signal,
-      });
-
-      const payload = await response.json().catch(() => null);
-      if (!response.ok) {
-        throw new ApiError({
-          status: response.status,
-          code: payload?.error?.code || payload?.detail?.code || 'POI_CREATE_FAILED',
-          message: payload?.error?.message || payload?.detail?.message || payload?.detail || 'Failed to create POI exhibit',
-          details: payload?.error?.details || payload?.detail?.details,
-        });
-      }
-
-      return payload;
-    } catch (error) {
-      if (error instanceof ApiError || error.name === 'AbortError') {
-        throw error;
-      }
-      throw new ApiError({ message: 'Network error while uploading exhibit profile' });
-    }
+    return apiClient.postFormData(POI_ADMIN_BASE_PATH, formData, { signal });
   }
 
   return apiClient.post(POI_ADMIN_BASE_PATH, poiData, { signal });
@@ -153,28 +129,7 @@ export async function togglePoiVisibility(poiId, isActive, { signal } = {}) {
 export async function uploadPoiImage(file, { signal } = {}) {
   const formData = new FormData();
   formData.append('file', file);
-
-  try {
-    const response = await fetch(`${POI_ADMIN_BASE_PATH}/upload-image`, {
-      method: 'POST',
-      body: formData,
-      credentials: 'include',
-      signal,
-    });
-    const payload = await response.json().catch(() => null);
-    if (!response.ok) {
-      throw new ApiError({
-        status: response.status,
-        code: payload?.error?.code || 'IMAGE_UPLOAD_FAILED',
-        message: payload?.error?.message || payload?.detail || 'Failed to upload exhibit image',
-      });
-    }
-    return payload?.image_url;
-  } catch (error) {
-    if (error instanceof ApiError || error.name === 'AbortError') {
-      throw error;
-    }
-    throw new ApiError({ message: 'Network error while uploading exhibit image' });
-  }
+  const payload = await apiClient.postFormData(`${POI_ADMIN_BASE_PATH}/upload-image`, formData, { signal });
+  return payload?.image_url;
 }
 
