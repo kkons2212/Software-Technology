@@ -115,9 +115,9 @@ flowchart TD
 ### PHASE 3: Deploy Backend to Render.com (Web Service)
 > **Objective:** Host the FastAPI backend engine and background task workers on a 24/7 cloud runtime.
 
-- [ ] **TASK-03.1:** Log in to [Render.com](https://dashboard.render.com) using GitHub/GitLab.
-- [ ] **TASK-03.2:** Click **New +** $\rightarrow$ **Web Service** $\rightarrow$ Connect repository `Software-Technology`.
-- [ ] **TASK-03.3:** Configure Web Service deployment parameters:
+- [x] **TASK-03.1:** Log in to [Render.com](https://dashboard.render.com) using GitHub/GitLab.
+- [x] **TASK-03.2:** Click **New +** $\rightarrow$ **Web Service** $\rightarrow$ Connect repository `Software-Technology`.
+- [x] **TASK-03.3:** Configure Web Service deployment parameters:
   - **Name:** `smart-museum-backend`
   - **Region:** `Singapore (Southeast Asia)`
   - **Branch:** `main` (or designated release branch)
@@ -126,7 +126,7 @@ flowchart TD
   - **Build Command:** `pip install -r requirements.txt`
   - **Start Command:** `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
   - **Plan Type:** `Free`
-- [ ] **TASK-03.4:** Configure Render Environment Variables:
+- [x] **TASK-03.4:** Configure Render Environment Variables:
   - `DATABASE_URL`: `mysql+pymysql://avnadmin:<AIVEN_PASSWORD>@mysql-218752f0-self-hosting.f.aivencloud.com:21340/smart_museum?charset=utf8mb4`
   - `JWT_SECRET_KEY`: `<64_HEX_CHARACTERS_JWT_SECRET>`
   - `OPENROUTER_API_KEY`: `<YOUR_OPENROUTER_API_KEY>`
@@ -137,15 +137,15 @@ flowchart TD
   - `SUPABASE_KEY`: Supabase API key from Phase 1
   - `SUPABASE_BUCKET_NAME`: `museum-media`
   - `CORS_ORIGINS`: `http://localhost:5173` *(to be updated with Vercel domain in Phase 4)*
-- [ ] **TASK-03.5:** Initiate deployment and monitor build logs.
-- [ ] **TASK-03.6:** Record **Backend Public URL** (e.g. `https://smart-museum-backend.onrender.com`) and **Deploy Hook URL** (located in Settings $\rightarrow$ Deploy Hook).
+- [x] **TASK-03.5:** Initiate deployment and monitor build logs.
+- [x] **TASK-03.6:** Record **Backend Public URL** (e.g. `https://smart-museum-backend.onrender.com`) and **Deploy Hook URL** (located in Settings $\rightarrow$ Deploy Hook).
 
 ---
 
 ### PHASE 4: Deploy Frontend to Vercel (Edge SPA)
 > **Objective:** Deliver the visitor web app and admin portal across Vercel global edge CDN, optimized for low-latency mobile device access.
 
-- [ ] **TASK-04.1:** Log in to [Vercel.com](https://vercel.com) $\rightarrow$ Click **Add New Project** $\rightarrow$ Import repository `Software-Technology`.
+- [x] **TASK-04.1:** Log in to [Vercel.com](https://vercel.com) $\rightarrow$ Click **Add New Project** $\rightarrow$ Import repository `Software-Technology`.
 - [ ] **TASK-04.2:** Configure Project Settings:
   - **Framework Preset:** `Vite`
   - **Root Directory:** Edit $\rightarrow$ select `MVP/frontend`

@@ -58,7 +58,3 @@ MVP/e2e_playwright/
 *.exe
 **/cloudflared.exe
 .cloudflared/
-
-# Vercel deployment configuration
-vercel.json
-MVP/frontend/vercel.json
