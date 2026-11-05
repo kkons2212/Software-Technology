@@ -45,7 +45,9 @@ class Settings(BaseSettings):
     PROJECT_NAME: str = "Smart Multilingual Audio Guide - Cu Chi Tunnels"
     API_V1_STR: str = "/api/v1"
 
-    DATABASE_URL: str = "mysql+pymysql://museum_app_user:app_password_456@localhost:3306/smart_museum?charset=utf8mb4"
+    DATABASE_URL: str = (
+        "mysql+pymysql://museum_app_user:app_password_456@localhost:3306/smart_museum?charset=utf8mb4"
+    )
     JWT_SECRET_KEY: str = Field(
         ...,
         min_length=64,
