@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 from functools import lru_cache
 
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 BACKEND_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
@@ -15,7 +16,6 @@ DEFAULT_IMAGE_UPLOAD_DIR = os.path.join(DEFAULT_STATIC_DIR, "images")
 # Module-level defaults for backward compatibility with existing tests
 DEFAULT_BCRYPT_ROUNDS = 12
 DEFAULT_JWT_ALGORITHM = "HS256"
-DEFAULT_JWT_SECRET_KEY = "smart-museum-dev-placeholder-jwt-key"
 DEFAULT_ACCESS_TOKEN_EXPIRE_MINUTES = 60
 DEFAULT_IDLE_TIMEOUT_MINUTES = 30
 DEFAULT_ADMIN_SESSION_COOKIE_NAME = "admin_session"
@@ -48,8 +48,13 @@ class Settings(BaseSettings):
     DATABASE_URL: str = (
         "mysql+pymysql://museum_app_user:app_password_456@localhost:3306/smart_museum?charset=utf8mb4"
     )
-    JWT_SECRET_KEY: str = "smart-museum-dev-placeholder-jwt-key"
-    SECRET_KEY: str = "smart-museum-dev-placeholder-jwt-key"
+    JWT_SECRET_KEY: str = Field(
+        ...,
+        min_length=64,
+        max_length=64,
+        pattern=r"^[0-9a-fA-F]{64}$",
+        description="Required 256-bit JWT signing key encoded as 64 hexadecimal characters.",
+    )
     JWT_ALGORITHM: str = "HS256"
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60

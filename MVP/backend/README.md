@@ -35,10 +35,17 @@ the MySQL schema in `scripts/mysql_schema.sql`.
    ```powershell
    cd MVP\backend
    python -m pip install -r requirements.txt
+   Copy-Item .env.example .env
+   python -c "from pathlib import Path; import secrets; p=Path('.env'); text=p.read_text(encoding='utf-8'); p.write_text(text.replace('JWT_SECRET_KEY=', 'JWT_SECRET_KEY='+secrets.token_hex(32)), encoding='utf-8')"
    $env:DATABASE_URL = "mysql+pymysql://museum_app_user:app_password_456@localhost:3306/smart_museum"
    $env:CORS_ORIGINS = "http://localhost:5173,http://127.0.0.1:5173"
    python -m uvicorn app.main:app --reload --port 8000
    ```
+
+   The command above generates a unique 256-bit JWT signing key in the ignored
+   local `.env` file without printing it. Keep `.env` private and never commit
+   it. The backend refuses to start if `JWT_SECRET_KEY` is missing or is not
+   exactly 64 hexadecimal characters.
 
 3. In `MVP/frontend`, set `VITE_API_BASE_URL=http://localhost:8000` in the
    frontend environment before starting Vite, then run `npm.cmd run dev`.

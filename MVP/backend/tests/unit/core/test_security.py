@@ -126,7 +126,7 @@ def test_should_return_none_when_token_signed_with_another_secret():
     # are restored: the signature check must fail and degrade to `None`.
     with mock.patch(
         "app.core.security.get_settings",
-        return_value=Settings(JWT_SECRET_KEY="another-secret-key"),
+        return_value=Settings(JWT_SECRET_KEY="b" * 64),
     ):
         foreign_token = create_admin_access_token(ADMIN_USER_NAME)
 

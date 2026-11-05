@@ -13,6 +13,9 @@ BACKEND_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if BACKEND_ROOT not in sys.path:
     sys.path.insert(0, BACKEND_ROOT)
 
+# Unit tests use a fixed, non-production key before importing application settings.
+os.environ.setdefault("JWT_SECRET_KEY", "a" * 64)
+
 from app.core.config import Settings, settings  # noqa: E402
 from app.core.database import Base, create_database_engine, get_db  # noqa: E402
 from app.main import app  # noqa: E402
