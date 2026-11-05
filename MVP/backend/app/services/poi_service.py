@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.core.database import get_db
 from app.core.exceptions import ApiError
+from app.integrations.storage_client import StorageClient
 from app.models.audit import AUDIT_STATUS_SUCCESS
 from app.models.poi import POI
 from app.models.translation import POITranslation
@@ -108,7 +109,9 @@ class POIService:
         audit_repository: AuditRepository | None = None,
         session_repo: SessionRepository | None = None,
         language_repo: LanguageRepository | None = None,
+        storage_client: StorageClient | None = None,
     ):
+        self.storage_client = storage_client or StorageClient()
         self.poi_repo = poi_repo or repository
         self.repository = self.poi_repo
         self.audit_repo = audit_repo or audit_repository
@@ -144,8 +147,16 @@ class POIService:
 
         file_ext = os.path.splitext(file.filename or "")[1].lower() or ".jpg"
         filename = f"poi_{uuid.uuid4().hex[:16]}{file_ext}"
-        destination_path = os.path.join(settings.IMAGE_UPLOAD_DIR, filename)
+        if self.storage_client is not None:
+            content_type = file.content_type or "image/jpeg"
+            image_url = await self.storage_client.upload_file(
+                relative_path=f"images/{filename}",
+                content=content,
+                content_type=content_type,
+            )
+            return image_url
 
+        destination_path = os.path.join(settings.IMAGE_UPLOAD_DIR, filename)
         with open(destination_path, "wb") as f:
             f.write(content)
 

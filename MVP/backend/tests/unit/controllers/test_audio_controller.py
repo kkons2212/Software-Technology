@@ -228,3 +228,54 @@ def test_should_return_404_when_audio_not_found_for_valid_session(client, db_ses
     response = client.get("/api/v1/audio/POI_DOES_NOT_EXIST?token=token_404_active")
     assert response.status_code == 404
     assert response.json()["error"]["code"] == "AUDIO_NOT_FOUND"
+
+
+def test_should_redirect_to_cdn_when_audio_stored_in_cloud_307(client, db_session):
+    if not db_session.query(LanguageCode).filter_by(language_id="vi").first():
+        db_session.add(LanguageCode(language_id="vi", language_name="Tiếng Việt"))
+        db_session.commit()
+
+    tx = _ensure_test_tx(db_session, "TX_STREAM_CDN")
+    session = VisitorSession(
+        SessionID="SES_ACTIVE_CDN",
+        SessionCode="CCT-CDN01",
+        SessionToken="valid_cdn_token_888",
+        Status="ACTIVE",
+        Activate_at=datetime.utcnow(),
+        Expire_at=datetime.utcnow() + timedelta(hours=24),
+        TransactionID=tx.transaction_id,
+    )
+    db_session.add(session)
+
+    poi = POI(
+        poi_id="POI_STREAM_CDN",
+        title="Địa đạo Bến Dược",
+        short_description="Đền tưởng niệm",
+        description="Khu vực hầm",
+        latitude=11.1440,
+        longitude=106.4635,
+        radius=30,
+        is_active=True,
+    )
+    db_session.add(poi)
+    db_session.flush()
+
+    cdn_url = "https://vnzojzglicrwmannlrwz.supabase.co/storage/v1/object/public/museum-media/audio/test.mp3"
+    translation = POITranslation(
+        stran_id="TR_STREAM_CDN",
+        poi_id=poi.poi_id,
+        language_id="vi",
+        title=poi.title,
+        status="PUBLISHED",
+    )
+    translation.audio_url = cdn_url
+    translation.file_size = 12345
+    db_session.add(translation)
+    db_session.commit()
+
+    res = client.get(
+        "/api/v1/audio/POI_STREAM_CDN?token=valid_cdn_token_888",
+        follow_redirects=False,
+    )
+    assert res.status_code == 307
+    assert res.headers["location"] == cdn_url

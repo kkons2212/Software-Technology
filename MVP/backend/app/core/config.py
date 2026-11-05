@@ -73,6 +73,11 @@ class Settings(BaseSettings):
     MAX_IMAGE_SIZE_BYTES: int = 5 * 1024 * 1024  # 5 MB
     ALLOWED_IMAGE_TYPES: list[str] = ["image/jpeg", "image/png", "image/webp"]
 
+    # Cloud Object Storage (Supabase Storage)
+    SUPABASE_URL: str = ""
+    SUPABASE_KEY: str = ""
+    SUPABASE_BUCKET_NAME: str = "museum-media"
+
     # Payment Gateway Settings (US 06.1)
     PAYOS_CLIENT_ID: str = ""
     PAYOS_API_KEY: str = ""

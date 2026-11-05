@@ -7,6 +7,7 @@ from pathlib import Path
 from sqlalchemy.orm import Session
 
 from app.integrations.edge_tts_client import EdgeTTSClient, compute_audio_hash
+from app.integrations.storage_client import StorageClient
 from app.models.audio import AUDIO_STATUS_READY
 from app.models.translation import (
     TRANSLATION_STATUS_NEEDS_UPDATE,
@@ -25,10 +26,12 @@ class AudioSynthesisWorker:
         session_factory: Callable[[], Session],
         audio_dir: Path,
         tts_client: EdgeTTSClient | None = None,
+        storage_client: StorageClient | None = None,
     ):
         self.session_factory = session_factory
         self.audio_dir = audio_dir
         self.tts_client = tts_client or EdgeTTSClient()
+        self.storage_client = storage_client or StorageClient()
 
     async def process_audio_synthesis(self, stran_id: str) -> bool:
         """Synthesize localized narration into MP3 or reuse existing audio file.
@@ -80,6 +83,17 @@ class AudioSynthesisWorker:
                 audio_dir=self.audio_dir,
                 audio_hash=audio_hash,
             )
+            if self.storage_client and self.storage_client.is_cloud_enabled:
+                filename = f"audio_{audio_hash}.mp3"
+                local_mp3 = self.audio_dir / filename
+                if local_mp3.is_file():
+                    cloud_url = await self.storage_client.upload_file(
+                        relative_path=f"audio/{filename}",
+                        content=local_mp3.read_bytes(),
+                        content_type="audio/mpeg",
+                    )
+                    if cloud_url and cloud_url.startswith("http"):
+                        audio_url = cloud_url
         except Exception as exc:
             logger.exception(
                 "Audio synthesis failed for translation %s (%s): %s",

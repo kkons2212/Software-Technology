@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.core.exceptions import ApiError
 from app.integrations.edge_tts_client import EdgeTTSClient
+from app.integrations.storage_client import StorageClient
 from app.repositories.audio_repository import AudioRepository
 from app.schemas.audio_schema import AudioRegenerationResponse
 
@@ -23,10 +24,12 @@ class TTSService:
         session_factory: Callable[[], Session],
         audio_dir: Path,
         tts_client: EdgeTTSClient | None = None,
+        storage_client: StorageClient | None = None,
     ):
         self.session_factory = session_factory
         self.audio_dir = audio_dir
         self.tts_client = tts_client or EdgeTTSClient()
+        self.storage_client = storage_client or StorageClient()
 
     async def regenerate_audio(self, stran_id: str) -> AudioRegenerationResponse:
         """Synthesize the translation and publish its new audio metadata."""
@@ -82,6 +85,14 @@ class TTSService:
         try:
             temporary_path.replace(output_path)
             file_size = output_path.stat().st_size
+            if self.storage_client and self.storage_client.is_cloud_enabled:
+                cloud_url = await self.storage_client.upload_file(
+                    relative_path=f"audio/{filename}",
+                    content=output_path.read_bytes(),
+                    content_type="audio/mpeg",
+                )
+                if cloud_url and cloud_url.startswith("http"):
+                    audio_url = cloud_url
             with self.session_factory() as db:
                 AudioRepository(db).save_generated_audio(
                     stran_id=stran_id,
