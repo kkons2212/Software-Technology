@@ -17,7 +17,12 @@ import {
   Sparkles,
   X,
 } from 'lucide-react';
-import { createCheckoutOrder, simulatePaymentSuccess } from '../../api/paymentApi.js';
+import {
+  clearOrderCreatorToken,
+  createCheckoutOrder,
+  simulatePaymentSuccess,
+  storeOrderCreatorToken,
+} from '../../api/paymentApi.js';
 import { usePaymentPolling } from '../../hooks/usePaymentPolling.js';
 import { getVisitorText } from '../../locales/visitorTranslations.js';
 
@@ -43,6 +48,7 @@ export default function CheckoutModal({
 
   const handlePaymentSuccess = useCallback(
     (paidData) => {
+      clearOrderCreatorToken(paidData?.order_id);
       setIsPaidSuccess(true);
       setCompletedSession(paidData);
       onSuccess?.(paidData);
@@ -52,6 +58,7 @@ export default function CheckoutModal({
 
   const { status: orderStatus, isPolling } = usePaymentPolling({
     orderId: order?.order_id ?? null,
+    creatorToken: order?.creator_token ?? null,
     isOpen: isOpen && !isPaidSuccess,
     onPaymentSuccess: handlePaymentSuccess,
   });
@@ -65,6 +72,7 @@ export default function CheckoutModal({
           paymentMethod: method,
           preferredLanguage,
         });
+        storeOrderCreatorToken(orderData.order_id, orderData.creator_token);
         setOrder(orderData);
       } catch (err) {
         setOrderError(
@@ -388,8 +396,6 @@ export default function CheckoutModal({
                 {order?.checkout_url ? (
                   <a
                     href={order.checkout_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
                     className="mt-5 inline-flex w-full items-center justify-center rounded-xl bg-[#0070ba] py-3 px-4 text-xs font-semibold text-white shadow-md hover:bg-[#005ea6] transition"
                   >
                     {getVisitorText('continueWithPayPal', preferredLanguage, { amount: formattedAmount })}

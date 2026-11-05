@@ -19,6 +19,9 @@ vi.mock('../../../api/tourApi.js', () => ({
 
 vi.mock('../../../api/paymentApi.js', () => ({
   capturePaypalOrder: vi.fn(),
+  clearOrderCreatorToken: vi.fn(),
+  exchangeOrderSession: vi.fn(),
+  getOrderCreatorToken: vi.fn(),
   getOrderStatus: vi.fn(),
 }));
 
@@ -83,7 +86,13 @@ vi.mock('../VisitorMapView.jsx', () => ({
 import { getPublishedLanguages } from '../../../api/languageApi.js';
 import { getMapPois } from '../../../api/poiApi.js';
 import { reportPoiTrigger } from '../../../api/telemetryApi.js';
-import { capturePaypalOrder, getOrderStatus } from '../../../api/paymentApi.js';
+import {
+  capturePaypalOrder,
+  clearOrderCreatorToken,
+  exchangeOrderSession,
+  getOrderCreatorToken,
+  getOrderStatus,
+} from '../../../api/paymentApi.js';
 import VisitorTourPage from '../VisitorTourPage.jsx';
 
 const FROZEN_EPOCH_MS = 1_700_000_000_000;
@@ -93,6 +102,7 @@ beforeEach(() => {
   delete window.location;
   window.location = new URL('http://localhost:5173/');
   window.localStorage.clear();
+  window.sessionStorage.clear();
   getPublishedLanguages.mockResolvedValue([
     { code: 'vi', name: 'Tiếng Việt' },
     { code: 'en', name: 'English' },
@@ -100,6 +110,8 @@ beforeEach(() => {
   getMapPois.mockResolvedValue([]);
   getOrderStatus.mockReset();
   getOrderStatus.mockResolvedValue({ status: 'PENDING' });
+  getOrderCreatorToken.mockReset().mockReturnValue('creator-capability');
+  exchangeOrderSession.mockReset().mockResolvedValue({ status: 'PENDING' });
   capturePaypalOrder.mockReset();
   capturePaypalOrder.mockResolvedValue({ status: 'PENDING' });
   audioPlayerMock.play.mockClear();
@@ -272,9 +284,12 @@ describe('VisitorTourPage', () => {
     window.location = new URL('http://localhost:5173/tour?payment_success=true&order_id=ord-1&session_token=LEAKED');
     getOrderStatus.mockResolvedValueOnce({
       status: 'PAID',
+    });
+    exchangeOrderSession.mockResolvedValueOnce({
+      status: 'PAID',
       session_code: 'CODE123',
       session_token: 'TOKEN123',
-      expires_at: '2026-11-02T00:00:00Z',
+      session_expires_at: '2026-11-02T00:00:00Z',
     });
 
     await act(async () => {
@@ -283,11 +298,16 @@ describe('VisitorTourPage', () => {
 
     await waitFor(() => {
       expect(getOrderStatus).toHaveBeenCalledWith('ord-1');
+      expect(exchangeOrderSession).toHaveBeenCalledWith(
+        'ord-1',
+        'creator-capability'
+      );
       expect(visitorSessionMock.activateSession).toHaveBeenCalledWith({
         sessionCode: 'CODE123',
         sessionToken: 'TOKEN123',
         expiresAt: '2026-11-02T00:00:00Z',
       });
+      expect(clearOrderCreatorToken).toHaveBeenCalledWith('ord-1');
     });
   });
 
@@ -306,7 +326,11 @@ describe('VisitorTourPage', () => {
     });
 
     await waitFor(() => {
-      expect(capturePaypalOrder).toHaveBeenCalledWith('ord-paypal', 'paypal-order-1');
+      expect(capturePaypalOrder).toHaveBeenCalledWith(
+        'ord-paypal',
+        'paypal-order-1',
+        'creator-capability'
+      );
       expect(visitorSessionMock.activateSession).toHaveBeenCalledWith({
         sessionCode: 'CODE-PAYPAL',
         sessionToken: 'TOKEN-PAYPAL',
@@ -320,6 +344,9 @@ describe('VisitorTourPage', () => {
     window.location = new URL('http://localhost:5173/tour?payment_success=true&order_id=ord-fallback');
     getOrderStatus.mockResolvedValueOnce({
       status: 'PAID',
+    });
+    exchangeOrderSession.mockResolvedValueOnce({
+      status: 'PAID',
       session_code: 'CODE-FALLBACK',
       session_token: 'TOKEN-FALLBACK',
       session_expires_at: '2026-11-02T12:00:00Z',
@@ -331,6 +358,10 @@ describe('VisitorTourPage', () => {
 
     await waitFor(() => {
       expect(getOrderStatus).toHaveBeenCalledWith('ord-fallback');
+      expect(exchangeOrderSession).toHaveBeenCalledWith(
+        'ord-fallback',
+        'creator-capability'
+      );
       expect(visitorSessionMock.activateSession).toHaveBeenCalledWith({
         sessionCode: 'CODE-FALLBACK',
         sessionToken: 'TOKEN-FALLBACK',

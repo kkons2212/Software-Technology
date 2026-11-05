@@ -72,8 +72,8 @@ export const VISITOR_TRANSLATIONS = {
     // Restore Session Modal
     restoreModalTitle: 'Khôi phục quyền truy cập',
     restoreModalSubtitle: 'Nhập mã phiên để tiếp tục sử dụng audio guide',
-    sessionCodeInputLabel: 'Mã phiên (6-8 ký tự):',
-    sessionCodePlaceholder: 'CCT-XXXXXX',
+    sessionCodeInputLabel: 'Mã phiên:',
+    sessionCodePlaceholder: 'CCT-32-CHAR-CODE',
     restoreSessionBtn: 'Khôi phục phiên',
     checkingStatusBtn: 'Đang kiểm tra...',
     invalidSessionCodeError: 'Mã phiên không hợp lệ hoặc đã hết hạn. Vui lòng kiểm tra lại.',
@@ -166,8 +166,8 @@ export const VISITOR_TRANSLATIONS = {
     // Restore Session Modal
     restoreModalTitle: 'Restore Access Pass',
     restoreModalSubtitle: 'Enter your session code to continue using the audio guide',
-    sessionCodeInputLabel: 'Session code (6-8 chars):',
-    sessionCodePlaceholder: 'CCT-XXXXXX',
+    sessionCodeInputLabel: 'Session code:',
+    sessionCodePlaceholder: 'CCT-32-CHAR-CODE',
     restoreSessionBtn: 'Restore Session',
     checkingStatusBtn: 'Checking...',
     invalidSessionCodeError: 'Invalid or expired session code. Please verify and try again.',
@@ -261,7 +261,7 @@ export const VISITOR_TRANSLATIONS = {
     restoreModalTitle: 'アクセス権の復元',
     restoreModalSubtitle: '音声ガイドを引き続き利用するにはセッションコードを入力してください',
     sessionCodeInputLabel: 'セッションコード:',
-    sessionCodePlaceholder: 'CCT-XXXXXX',
+    sessionCodePlaceholder: 'CCT-32-CHAR-CODE',
     restoreSessionBtn: 'セッションを復元',
     checkingStatusBtn: '確認中...',
     invalidSessionCodeError: 'セッションコードが無効または期限切れです。',
@@ -355,7 +355,7 @@ export const VISITOR_TRANSLATIONS = {
     restoreModalTitle: '이용 권한 복원',
     restoreModalSubtitle: '오디오 가이드를 계속 사용하려면 세션 코드를 입력하세요',
     sessionCodeInputLabel: '세션 코드:',
-    sessionCodePlaceholder: 'CCT-XXXXXX',
+    sessionCodePlaceholder: 'CCT-32-CHAR-CODE',
     restoreSessionBtn: '세션 복원',
     checkingStatusBtn: '확인 중...',
     invalidSessionCodeError: '유효하지 않거나 만료된 세션 코드입니다.',
@@ -448,8 +448,8 @@ export const VISITOR_TRANSLATIONS = {
     // Restore Session Modal
     restoreModalTitle: 'Restaurer l’Accès',
     restoreModalSubtitle: 'Entrez votre code de session pour continuer l’audioguide',
-    sessionCodeInputLabel: 'Code de session (6-8 car.) :',
-    sessionCodePlaceholder: 'CCT-XXXXXX',
+    sessionCodeInputLabel: 'Code de session :',
+    sessionCodePlaceholder: 'CCT-32-CHAR-CODE',
     restoreSessionBtn: 'Restaurer la session',
     checkingStatusBtn: 'Vérification...',
     invalidSessionCodeError: 'Code de session invalide ou expiré.',
@@ -542,8 +542,8 @@ export const VISITOR_TRANSLATIONS = {
     // Restore Session Modal
     restoreModalTitle: '恢复访问通行证',
     restoreModalSubtitle: '输入您购买的会话代码，在当前设备上继续使用语音导览',
-    sessionCodeInputLabel: '会话代码 (6-8位):',
-    sessionCodePlaceholder: 'CCT-XXXXXX',
+    sessionCodeInputLabel: '会话代码:',
+    sessionCodePlaceholder: 'CCT-32-CHAR-CODE',
     restoreSessionBtn: '恢复会话',
     checkingStatusBtn: '验证中...',
     invalidSessionCodeError: '会话代码无效或已过期，请核对后重试。',
@@ -593,4 +593,3 @@ export function getVisitorText(key, lang = 'vi', params = {}) {
 
   return text;
 }
-

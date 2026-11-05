@@ -1,5 +1,6 @@
 """TransactionRepository encapsulating SQLAlchemy ORM data access for Transaction (US 06.1, US 06.2)."""
 
+import secrets
 import uuid
 from datetime import datetime, timedelta
 from typing import Any
@@ -109,7 +110,7 @@ class TransactionRepository:
         # Create or reuse active visitor session
         if not txn.session:
             session_id = f"SES_{uuid.uuid4().hex[:12].upper()}"
-            session_code = f"CCT-{uuid.uuid4().hex[:6].upper()}"
+            session_code = f"CCT-{secrets.token_hex(16).upper()}"
             session_token = uuid.uuid4().hex
 
             session = VisitorSession(

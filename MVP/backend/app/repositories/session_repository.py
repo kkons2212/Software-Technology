@@ -1,5 +1,6 @@
 """SessionRepository encapsulating SQLAlchemy ORM data access for VisitorSession (US 06.2)."""
 
+import secrets
 import uuid
 from datetime import datetime, timedelta
 
@@ -23,7 +24,7 @@ class SessionRepository:
     ) -> VisitorSession:
         """Create and persist a new 24-hour VisitorSession adhering to SISE."""
         s_id = f"SES_{uuid.uuid4().hex[:12].upper()}"
-        s_code = session_code or f"CCT-{uuid.uuid4().hex[:6].upper()}"
+        s_code = session_code or f"CCT-{secrets.token_hex(16).upper()}"
         s_token = session_token or uuid.uuid4().hex
         now = datetime.utcnow()
         expiry = expire_at or (now + timedelta(hours=24))
@@ -55,7 +56,7 @@ class SessionRepository:
         return session
 
     def get_by_code(self, session_code: str) -> VisitorSession | None:
-        """Retrieve a VisitorSession by unique session code (e.g., CCT-XXXXXX)."""
+        """Retrieve a VisitorSession by unique session code."""
         session = (
             self.db.query(VisitorSession)
             .filter(VisitorSession.SessionCode == session_code.strip())

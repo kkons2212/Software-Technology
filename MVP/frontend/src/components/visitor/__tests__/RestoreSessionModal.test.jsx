@@ -51,7 +51,7 @@ describe('RestoreSessionModal (US 06.3 - TSK-06.3.2 & TSK-06.3.3)', () => {
     expect(screen.getByRole('dialog')).toHaveAttribute('aria-modal', 'true');
     expect(screen.getByText('Khôi phục quyền truy cập')).toBeInTheDocument();
     expect(screen.getByLabelText(/mã phiên/i)).toBeInTheDocument();
-    expect(screen.getByPlaceholderText('CCT-XXXXXX')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('CCT-32-CHAR-CODE')).toBeInTheDocument();
     expect(
       screen.getByRole('button', { name: /khôi phục phiên/i })
     ).toBeInTheDocument();
@@ -62,7 +62,7 @@ describe('RestoreSessionModal (US 06.3 - TSK-06.3.2 & TSK-06.3.3)', () => {
       <RestoreSessionModal isOpen={true} onClose={vi.fn()} onSuccess={vi.fn()} />
     );
 
-    const input = screen.getByPlaceholderText('CCT-XXXXXX');
+    const input = screen.getByPlaceholderText('CCT-32-CHAR-CODE');
     fireEvent.change(input, { target: { value: ' cct - 894 201 ' } });
 
     expect(input.value).toBe('CCT-894201');
@@ -85,7 +85,7 @@ describe('RestoreSessionModal (US 06.3 - TSK-06.3.2 & TSK-06.3.3)', () => {
       />
     );
 
-    const input = screen.getByPlaceholderText('CCT-XXXXXX');
+    const input = screen.getByPlaceholderText('CCT-32-CHAR-CODE');
     fireEvent.change(input, { target: { value: 'cct-894201' } });
 
     const submitBtn = screen.getByRole('button', { name: /khôi phục phiên/i });
@@ -122,7 +122,7 @@ describe('RestoreSessionModal (US 06.3 - TSK-06.3.2 & TSK-06.3.3)', () => {
       <RestoreSessionModal isOpen={true} onClose={vi.fn()} onSuccess={vi.fn()} />
     );
 
-    const input = screen.getByPlaceholderText('CCT-XXXXXX');
+    const input = screen.getByPlaceholderText('CCT-32-CHAR-CODE');
     fireEvent.change(input, { target: { value: 'CCT-BAD000' } });
 
     const submitBtn = screen.getByRole('button', { name: /khôi phục phiên/i });
@@ -152,4 +152,3 @@ describe('RestoreSessionModal (US 06.3 - TSK-06.3.2 & TSK-06.3.3)', () => {
     expect(onClose).toHaveBeenCalledTimes(2);
   });
 });
-

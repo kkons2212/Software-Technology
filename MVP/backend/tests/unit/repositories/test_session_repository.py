@@ -12,6 +12,8 @@ def test_create_session_defaults(db_session):
     assert session is not None
     assert session.SessionID.startswith("SES_")
     assert session.SessionCode.startswith("CCT-")
+    assert len(session.SessionCode) == 36
+    assert all(character in "0123456789ABCDEF" for character in session.SessionCode[4:])
     assert len(session.SessionToken) == 32
     assert session.Status == "ACTIVE"
     assert session.PreferredLanguage == "vi"

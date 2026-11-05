@@ -2,10 +2,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, renderHook } from '@testing-library/react';
 
 vi.mock('../../api/paymentApi.js', () => ({
+  exchangeOrderSession: vi.fn(),
   getOrderStatus: vi.fn(),
 }));
 
-import { getOrderStatus } from '../../api/paymentApi.js';
+import { exchangeOrderSession, getOrderStatus } from '../../api/paymentApi.js';
 import { usePaymentPolling } from '../usePaymentPolling.js';
 
 describe('usePaymentPolling', () => {
@@ -77,13 +78,18 @@ describe('usePaymentPolling', () => {
       .mockResolvedValueOnce({
         order_id: 'order-1',
         status: 'PAID',
-        session_code: 'VN-1234',
-        session_token: 'secret-token',
       });
+    exchangeOrderSession.mockResolvedValueOnce({
+      order_id: 'order-1',
+      status: 'PAID',
+      session_code: 'VN-1234',
+      session_token: 'secret-token',
+    });
 
     const { result } = renderHook(() =>
       usePaymentPolling({
         orderId: 'order-1',
+        creatorToken: 'creator-capability',
         isOpen: true,
         onPaymentSuccess,
         pollIntervalMs: 2500,
@@ -106,6 +112,11 @@ describe('usePaymentPolling', () => {
 
     expect(result.current.status).toBe('PAID');
     expect(result.current.isPolling).toBe(false);
+    expect(exchangeOrderSession).toHaveBeenCalledWith(
+      'order-1',
+      'creator-capability',
+      { signal: expect.any(AbortSignal) }
+    );
     expect(onPaymentSuccess).toHaveBeenCalledWith(
       expect.objectContaining({
         order_id: 'order-1',
@@ -146,4 +157,3 @@ describe('usePaymentPolling', () => {
     expect(getOrderStatus).toHaveBeenCalledTimes(1);
   });
 });
-

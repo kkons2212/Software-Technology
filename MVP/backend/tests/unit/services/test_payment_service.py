@@ -1,5 +1,6 @@
 """Unit tests for PaymentService and Webhook Activation (US 06.2 & Task REF-06.5)."""
 
+import hashlib
 from datetime import datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock
 
@@ -11,8 +12,15 @@ from app.models.session import VisitorSession
 from app.models.transaction import Transaction
 from app.repositories.session_repository import SessionRepository
 from app.repositories.transaction_repository import TransactionRepository
-from app.schemas.payment_schema import CheckoutCreateRequest, PayOSWebhookPayload
+from app.schemas.payment_schema import (
+    CheckoutCreateRequest,
+    OrderSessionRequest,
+    PayOSWebhookPayload,
+)
 from app.services.payment_service import PaymentService
+
+TEST_CREATOR_TOKEN = "test-order-creator-capability-token-123456"
+TEST_CREATOR_TOKEN_HASH = hashlib.sha256(TEST_CREATOR_TOKEN.encode("utf-8")).hexdigest()
 
 
 @pytest.fixture
@@ -157,8 +165,8 @@ def test_mock_process_payment_webhook_success(
 
     assert res.success is True
     assert res.order_id == "TXN_WEBHOOK1"
-    assert res.session_code == "CCT-WH0001"
-    assert res.session_token == "mock_token_webhook"
+    assert not hasattr(res, "session_code")
+    assert not hasattr(res, "session_token")
     mock_tx_repo.mark_as_paid.assert_called_once_with(
         transaction_id="TXN_WEBHOOK1",
         preferred_language="vi",
@@ -208,8 +216,8 @@ def test_mock_process_payment_webhook_idempotent(
     assert res.success is True
     assert "idempotent" in res.message.lower()
     assert res.order_id == "TXN_PAID_ALREADY"
-    assert res.session_code == "CCT-EXIST1"
-    assert res.session_token == "existing_token"
+    assert not hasattr(res, "session_code")
+    assert not hasattr(res, "session_token")
     assert mock_sess_repo.create_session.call_count == 0
     assert mock_tx_repo.mark_as_paid.call_count == 0
 
@@ -274,7 +282,10 @@ async def test_capture_paypal_order_activates_session_only_after_verified_captur
         payment_method="CARD",
         status="PENDING",
         gateway_transaction_id="PAYPAL-ORDER-1",
-        gateway_payload={"preferred_language": "en"},
+        gateway_payload={
+            "preferred_language": "en",
+            "creator_token_hash": TEST_CREATOR_TOKEN_HASH,
+        },
     )
     mock_tx_repo.get_by_id.return_value = txn
     now = datetime.utcnow()
@@ -320,6 +331,7 @@ async def test_capture_paypal_order_activates_session_only_after_verified_captur
     response = await mock_payment_service.capture_paypal_order(
         order_id="TXN_PAYPAL1",
         paypal_order_id="PAYPAL-ORDER-1",
+        creator_token=TEST_CREATOR_TOKEN,
     )
 
     capture_order.assert_awaited_once_with("PAYPAL-ORDER-1")
@@ -373,6 +385,7 @@ async def test_capture_paypal_order_does_not_activate_when_capture_is_unsuccessf
         payment_method="CARD",
         status="PENDING",
         gateway_transaction_id="PAYPAL-ORDER-1",
+        gateway_payload={"creator_token_hash": TEST_CREATOR_TOKEN_HASH},
     )
     mocker.patch.object(
         paypal_client,
@@ -385,6 +398,7 @@ async def test_capture_paypal_order_does_not_activate_when_capture_is_unsuccessf
         await mock_payment_service.capture_paypal_order(
             order_id="TXN_PAYPAL1",
             paypal_order_id="PAYPAL-ORDER-1",
+            creator_token=TEST_CREATOR_TOKEN,
         )
 
     assert exc_info.value.status_code == 402
@@ -407,6 +421,7 @@ async def test_capture_paypal_order_rejects_foreign_paypal_order(
         payment_method="CARD",
         status="PENDING",
         gateway_transaction_id="PAYPAL-ORDER-1",
+        gateway_payload={"creator_token_hash": TEST_CREATOR_TOKEN_HASH},
     )
     capture_order = mocker.patch.object(
         paypal_client, "capture_order", new_callable=AsyncMock
@@ -416,6 +431,7 @@ async def test_capture_paypal_order_rejects_foreign_paypal_order(
         await mock_payment_service.capture_paypal_order(
             order_id="TXN_PAYPAL1",
             paypal_order_id="ANOTHER-ORDER",
+            creator_token=TEST_CREATOR_TOKEN,
         )
 
     assert exc_info.value.status_code == 400
@@ -435,6 +451,53 @@ def test_simulate_payment_success_is_disabled_outside_development(
     mock_tx_repo.get_by_id.assert_not_called()
 
 
+def test_exchange_order_session_requires_creator_capability(
+    mock_payment_service, mock_tx_repo
+):
+    now = datetime.utcnow()
+    session = VisitorSession(
+        SessionID="SES_EXCHANGE",
+        SessionCode="CCT-" + "A" * 32,
+        SessionToken="session-token",
+        Status="ACTIVE",
+        Activate_at=now,
+        Expire_at=now + timedelta(hours=24),
+    )
+    txn = Transaction(
+        transaction_id="TXN_EXCHANGE",
+        pay_amount=50000,
+        currency="VND",
+        payment_gateway="PAYOS",
+        status="PAID",
+        gateway_payload={"creator_token_hash": TEST_CREATOR_TOKEN_HASH},
+        session=session,
+    )
+    mock_tx_repo.get_by_id.return_value = txn
+
+    response = mock_payment_service.exchange_order_session(
+        "TXN_EXCHANGE", OrderSessionRequest(creator_token=TEST_CREATOR_TOKEN)
+    )
+
+    assert response.session_token == "session-token"
+    assert response.session_code == "CCT-" + "A" * 32
+
+    with pytest.raises(HTTPException) as exc_info:
+        mock_payment_service.exchange_order_session(
+            "TXN_EXCHANGE",
+            OrderSessionRequest(
+                creator_token="wrong-creator-capability-token-1234567890"
+            ),
+        )
+    assert exc_info.value.status_code == 404
+
+    txn.status = "PENDING"
+    with pytest.raises(HTTPException) as exc_info:
+        mock_payment_service.exchange_order_session(
+            "TXN_EXCHANGE", OrderSessionRequest(creator_token=TEST_CREATOR_TOKEN)
+        )
+    assert exc_info.value.status_code == 409
+
+
 # ==============================================================================
 # Database-Integrated Tests (Executed in CI with live MySQL container)
 # ==============================================================================
@@ -452,6 +515,13 @@ async def test_process_payment_webhook_success_activates_session_and_idempotent(
         CheckoutCreateRequest(payment_method="VIETQR", preferred_language="vi")
     )
     order_id = checkout_res.order_id
+    assert len(checkout_res.creator_token) >= 40
+    order_record = payment_service.transaction_repo.get_by_id(order_id)
+    assert (
+        order_record.gateway_payload["creator_token_hash"]
+        == hashlib.sha256(checkout_res.creator_token.encode("utf-8")).hexdigest()
+    )
+    assert checkout_res.creator_token not in str(order_record.gateway_payload)
 
     gateway_order_code = "777123"
     payment_service.transaction_repo.update_gateway_info(
@@ -477,27 +547,27 @@ async def test_process_payment_webhook_success_activates_session_and_idempotent(
     res1 = payment_service.process_payment_webhook(payload)
     assert res1.success is True
     assert res1.order_id == order_id
-    assert res1.session_code is not None
-    assert res1.session_code.startswith("CCT-")
-    assert res1.session_token is not None
-    assert res1.expires_at is not None
-    # 24h validity check
-    diff = res1.expires_at - datetime.utcnow()
-    assert 23.9 <= diff.total_seconds() / 3600 <= 24.1
+    assert not hasattr(res1, "session_code")
+    assert not hasattr(res1, "session_token")
+    assert not hasattr(res1, "expires_at")
 
     # Verify transaction in database
     db_txn = payment_service.transaction_repo.get_by_id(order_id)
     assert db_txn.status == "PAID"
     assert db_txn.session is not None
-    assert db_txn.session.SessionCode == res1.session_code
+    assert db_txn.session.SessionCode.startswith("CCT-")
+    assert len(db_txn.session.SessionCode) == 36
+    # 24h validity check
+    diff = db_txn.session.Expire_at - datetime.utcnow()
+    assert 23.9 <= diff.total_seconds() / 3600 <= 24.1
 
     # 4. Idempotent re-delivery of the same webhook
     res2 = payment_service.process_payment_webhook(payload)
     assert res2.success is True
     assert "idempotent" in res2.message.lower()
     assert res2.order_id == order_id
-    assert res2.session_code == res1.session_code
-    assert res2.session_token == res1.session_token
+    assert not hasattr(res2, "session_code")
+    assert not hasattr(res2, "session_token")
 
 
 @pytest.mark.asyncio
@@ -531,7 +601,7 @@ async def test_process_payment_webhook_lookup_by_description_memo(
     res = payment_service.process_payment_webhook(payload)
     assert res.success is True
     assert res.order_id == order_id
-    assert res.session_code.startswith("CCT-")
+    assert not hasattr(res, "session_code")
 
 
 @pytest.mark.asyncio

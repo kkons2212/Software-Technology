@@ -33,6 +33,7 @@ def test_should_create_checkout_order_for_vietqr(client, db_session):
     data = response.json()
     assert "order_id" in data
     assert data["order_id"].startswith("TXN_")
+    assert len(data["creator_token"]) >= 40
     assert data["pay_amount"] == 50000
     assert data["currency"] == "VND"
     assert data["payment_method"] == "VIETQR"
@@ -69,7 +70,8 @@ def test_should_get_order_status_pending(client, db_session):
     data = status_res.json()
     assert data["order_id"] == order_id
     assert data["status"] == "PENDING"
-    assert data["session_code"] is None
+    assert "session_code" not in data
+    assert "session_token" not in data
 
 
 def test_should_simulate_payment_success_and_activate_session(client, db_session):
@@ -79,6 +81,7 @@ def test_should_simulate_payment_success_and_activate_session(client, db_session
         json={"payment_method": "VIETQR", "preferred_language": "vi"},
     )
     order_id = create_res.json()["order_id"]
+    creator_token = create_res.json()["creator_token"]
 
     # Step 2: Simulate payment confirmation
     sim_res = client.post(f"/api/v1/payments/order/{order_id}/simulate-success")
@@ -90,12 +93,22 @@ def test_should_simulate_payment_success_and_activate_session(client, db_session
     assert sim_data["session_token"] is not None
     assert sim_data["paid_at"] is not None
 
-    # Step 3: Verify GET status returns PAID and session info
+    # Step 3: Public polling exposes payment state only.
     verify_res = client.get(f"/api/v1/payments/order/{order_id}/status")
     assert verify_res.status_code == 200
     verify_data = verify_res.json()
     assert verify_data["status"] == "PAID"
-    assert verify_data["session_code"] == sim_data["session_code"]
+    assert "session_code" not in verify_data
+    assert "session_token" not in verify_data
+
+    # The checkout capability is required to retrieve session credentials.
+    exchange_res = client.post(
+        f"/api/v1/payments/order/{order_id}/session",
+        json={"creator_token": creator_token},
+    )
+    assert exchange_res.status_code == 200
+    assert exchange_res.json()["session_code"] == sim_data["session_code"]
+    assert exchange_res.json()["session_token"] == sim_data["session_token"]
 
 
 def test_should_return_404_when_querying_unknown_order(client, db_session):
@@ -137,9 +150,9 @@ def test_should_handle_webhook_success_and_activate_session(
     res_data = res.json()
     assert res_data["success"] is True
     assert res_data["order_id"] == order_id
-    assert res_data["session_code"].startswith("CCT-")
-    assert res_data["session_token"] is not None
-    assert res_data["expires_at"] is not None
+    assert "session_code" not in res_data
+    assert "session_token" not in res_data
+    assert "expires_at" not in res_data
 
 
 def test_should_reject_webhook_with_invalid_signature_401(
@@ -181,13 +194,13 @@ def test_should_handle_idempotent_duplicate_webhook(client, db_session, monkeypa
     # Delivery 1
     res1 = client.post("/api/v1/payments/webhook", json=payload)
     assert res1.status_code == 200
-    session_code = res1.json()["session_code"]
+    assert "session_code" not in res1.json()
 
     # Delivery 2 (Idempotent duplicate)
     res2 = client.post("/api/v1/payments/webhook", json=payload)
     assert res2.status_code == 200
     assert res2.json()["success"] is True
-    assert res2.json()["session_code"] == session_code
+    assert "session_code" not in res2.json()
     assert "idempotent" in res2.json()["message"].lower()
 
 
@@ -237,6 +250,7 @@ def test_should_confirm_paypal_mock_payment_and_redirect(client, db_session):
         json={"payment_method": "CARD", "preferred_language": "ja"},
     )
     order_id = create_res.json()["order_id"]
+    creator_token = create_res.json()["creator_token"]
 
     res = client.get(
         f"/api/v1/payments/paypal/confirm-mock?order_id={order_id}",
@@ -252,11 +266,17 @@ def test_should_confirm_paypal_mock_payment_and_redirect(client, db_session):
     assert status_res.status_code == 200
     status_data = status_res.json()
     assert status_data["status"] == "PAID"
-    assert status_data["session_code"] is not None
+    assert "session_code" not in status_data
+    session_res = client.post(
+        f"/api/v1/payments/order/{order_id}/session",
+        json={"creator_token": creator_token},
+    )
+    assert session_res.status_code == 200
+    session_data = session_res.json()
 
     sess = (
         db_session.query(VisitorSession)
-        .filter(VisitorSession.SessionCode == status_data["session_code"])
+        .filter(VisitorSession.SessionCode == session_data["session_code"])
         .first()
     )
     assert sess is not None
@@ -274,7 +294,13 @@ def test_should_not_capture_paypal_order_without_gateway_credentials(
     )
     order_id = create_res.json()["order_id"]
 
-    cap_res = client.post(f"/api/v1/payments/order/{order_id}/paypal-capture")
+    cap_res = client.post(
+        f"/api/v1/payments/order/{order_id}/paypal-capture",
+        json={
+            "paypal_order_id": "PAYPAL-ORDER",
+            "creator_token": create_res.json()["creator_token"],
+        },
+    )
     assert cap_res.status_code == 503
     txn = db_session.query(Transaction).filter_by(transaction_id=order_id).one()
     assert txn.status == "PENDING"

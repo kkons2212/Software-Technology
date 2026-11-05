@@ -9,10 +9,10 @@ import { apiClient } from './apiClient.js';
 const SESSION_RESTORE_ENDPOINT = '/api/v1/sessions/restore';
 
 /**
- * Restores a 24-hour visiting session using a 6-character session code.
+ * Restores a 24-hour visiting session using its session code.
  *
  * @param {object} params
- * @param {string} params.sessionCode - Session code (e.g., 'CCT-894201' or '894201')
+ * @param {string} params.sessionCode - Session code printed at checkout
  * @param {object} [options]
  * @param {AbortSignal} [options.signal]
  * @returns {Promise<object>} Restored session details including session_code, session_token, expires_at, etc.
@@ -30,4 +30,3 @@ export async function restoreSession({ sessionCode }, { signal } = {}) {
 
   return payload;
 }
-

@@ -2,21 +2,26 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 
 vi.mock('../../api/paymentApi.js', () => ({
+  clearOrderCreatorToken: vi.fn(),
   createCheckoutOrder: vi.fn(),
   getOrderStatus: vi.fn(),
   simulatePaymentSuccess: vi.fn(),
+  storeOrderCreatorToken: vi.fn(),
 }));
 
 import {
+  clearOrderCreatorToken,
   createCheckoutOrder,
   getOrderStatus,
   simulatePaymentSuccess,
+  storeOrderCreatorToken,
 } from '../../api/paymentApi.js';
 import CheckoutModal from '../visitor/CheckoutModal.jsx';
 
 describe('CheckoutModal', () => {
   const mockOrder = {
     order_id: 'cct-order-999',
+    creator_token: 'creator-capability-token-12345678901234567890',
     status: 'PENDING',
     amount: 50000,
     currency: 'VND',
@@ -64,6 +69,10 @@ describe('CheckoutModal', () => {
           paymentMethod: 'VIETQR',
           preferredLanguage: 'vi',
         })
+      );
+      expect(storeOrderCreatorToken).toHaveBeenCalledWith(
+        'cct-order-999',
+        mockOrder.creator_token
       );
     });
 
@@ -164,6 +173,7 @@ describe('CheckoutModal', () => {
         session_code: 'VN-8888',
       })
     );
+    expect(clearOrderCreatorToken).toHaveBeenCalledWith('cct-order-999');
   });
 
   it('renders localized success view labels when preferredLanguage is Japanese', async () => {

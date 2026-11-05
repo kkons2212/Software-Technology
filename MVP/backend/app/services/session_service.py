@@ -22,7 +22,7 @@ class SessionService:
         """
         # Phase 1: Precondition Gate
         code = session_code.strip().upper()
-        if not code.startswith("CCT-") and len(code) == 6:
+        if not code.startswith("CCT-") and len(code) in {6, 32}:
             code = f"CCT-{code}"
 
         session = self.session_repo.get_by_code(code)
@@ -31,7 +31,6 @@ class SessionService:
                 status_code=404,
                 code="SESSION_NOT_FOUND",
                 message="Session code is invalid or has expired.",
-                details={"session_code": code},
             )
 
         # Phase 2: Linear Compute & Validation
@@ -40,16 +39,9 @@ class SessionService:
             session.Expire_at and session.Expire_at <= now
         ):
             raise ApiError(
-                status_code=410,
-                code="SESSION_EXPIRED",
+                status_code=404,
+                code="SESSION_NOT_FOUND",
                 message="Session code is invalid or has expired.",
-                details={
-                    "session_code": code,
-                    "status": session.Status,
-                    "expired_at": (
-                        session.Expire_at.isoformat() if session.Expire_at else None
-                    ),
-                },
             )
 
         # Guarantee session token without violating L2/L3 layering boundaries

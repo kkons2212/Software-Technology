@@ -112,17 +112,21 @@ This document maps the entire codebase of the MVP project, covering functions, m
 #### `app.controllers.payment_controller`
 - **Prefix / Tags**: `/api/v1/payments`, `payments`
 - **`create_checkout_order(payload: CheckoutCreateRequest, payment_service: PaymentService) -> CheckoutCreateResponse`**
-  - *Endpoint*: `POST /api/v1/payments/checkout`
+  - *Endpoint*: `POST /api/v1/payments/create-checkout`
   - *Parameters*: `payment_method` (`VIETQR`, `CARD`, `PAYPAL`), `preferred_language` (`vi`, `en`, etc.).
-  - *Returns*: `CheckoutCreateResponse` with `order_id`, `pay_amount`, `qr_code_url`, `checkout_url`, `transfer_bank`, `transfer_account`, `transfer_content`, `expires_at`.
+  - *Returns*: `CheckoutCreateResponse` with `order_id`, a private `creator_token`, `pay_amount`, `qr_code_url`, `checkout_url`, `transfer_bank`, `transfer_account`, `transfer_content`, `expires_at`.
 - **`get_order_status(order_id: str, payment_service: PaymentService) -> OrderStatusResponse`**
-  - *Endpoint*: `GET /api/v1/payments/order/{order_id}`
-  - *Returns*: `OrderStatusResponse` (`PENDING`, `PAID`, `EXPIRED`), `session_code`, `session_token`, `session_expires_at`.
-- **`simulate_payment_success(order_id: str, body: SimulatePaymentRequest, payment_service: PaymentService) -> OrderStatusResponse`**
+  - *Endpoint*: `GET /api/v1/payments/order/{order_id}/status`
+  - *Returns*: payment status only; session credentials are excluded.
+- **`exchange_order_session(order_id, payload: OrderSessionRequest, payment_service: PaymentService) -> OrderSessionResponse`**
+  - *Endpoint*: `POST /api/v1/payments/order/{order_id}/session`
+  - *Parameters*: the creator capability in the request body; only its hash is stored in `Transaction.GatewayPayload`.
+  - *Returns*: session credentials only after successful payment and capability verification.
+- **`simulate_payment_success(order_id: str, body: SimulatePaymentRequest, payment_service: PaymentService) -> OrderSessionResponse`**
   - *Endpoint*: `POST /api/v1/payments/order/{order_id}/simulate-success` (Development/testing environment).
 - **`handle_payment_webhook(payload: PayOSWebhookPayload, payment_service: PaymentService) -> WebhookResponse`**
   - *Endpoint*: `POST /api/v1/payments/webhook`
-  - *Parameters*: Signed webhook payload from PayOS gateway.
+  - *Parameters*: Signed webhook payload from PayOS gateway; the response never includes session credentials.
 
 ---
 
@@ -130,8 +134,9 @@ This document maps the entire codebase of the MVP project, covering functions, m
 - **Prefix / Tags**: `/api/v1/sessions`, `sessions`
 - **`restore_session(payload: SessionRestoreRequest, session_service: SessionService) -> SessionRestoreResponse`**
   - *Endpoint*: `POST /api/v1/sessions/restore`
-  - *Parameters*: `payload.session_code`: 6-character uppercase alphanumeric recovery code.
+  - *Parameters*: `payload.session_code`: `CCT-` plus 32 uppercase hexadecimal characters; legacy six-character codes remain accepted.
   - *Returns*: `SessionRestoreResponse` with `session_token`, `remaining_seconds`, `status`, `expires_at`, `preferred_language`.
+  - *Protection*: process-local rate limits by client address and hashed code; production multi-worker deployments also require a shared proxy/edge limit.
 
 ---
 
@@ -373,9 +378,9 @@ This document maps the entire codebase of the MVP project, covering functions, m
 2. Frontend calls `paymentApi.createCheckoutOrder` -> Backend creates record in `transactions` table and initializes PayOS/PayPal order.
 3. Hook `usePaymentPolling` checks order status every 2.5 seconds via `paymentApi.getOrderStatus`.
 4. Upon successful payment verification:
-   - Backend marks transaction as `PAID`.
-   - `SessionService` generates 24-hour `visitor_sessions` record, secret `session_token`, and 6-character `session_code`.
-5. Hook receives `PAID` status, stores credentials in `VisitorSessionContext` (`localStorage`), unlocks paywall, and enables premium narration streaming.
+   - Backend marks transaction as `PAID` and generates a 24-hour visitor session.
+   - Public status polling returns no session credentials.
+5. The client exchanges the paid order and its creator capability for session credentials, stores them in `VisitorSessionContext` (`localStorage`), unlocks paywall, and enables premium narration streaming.
 
 ### 4.3. Translation & Voice Synthesis Pipeline
 1. Admin creates or edits POI narrative in `POIFormModal`.

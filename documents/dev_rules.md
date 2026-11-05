@@ -11,7 +11,7 @@ The system is designed and operated around **strictly two actors**. Developers m
 1. **Visitor (Museum Visitor):**
    - No account creation or password authentication required (Zero-friction access).
    - Direct access via mobile browsers (PWA/Web App) by scanning QR codes at the entrance or exhibits.
-   - Identified by a 24-hour `session_code` (formatted as `CCT-XXXXXX`) activated upon service unlock payment.
+   - Identified by a 24-hour `session_code` (formatted as `CCT-` + 32 hexadecimal characters) activated upon service unlock payment. Existing 6-character codes remain accepted during migration.
 2. **Admin (System Administrator):**
    - Supports multiple independent administrator accounts in the `User` table. **No `role` column is used** (all internal accounts in the system are Administrators; omitting the role column avoids over-engineering).
    - Authenticated via username/email and cryptographic password hashes (`password_hash`).
@@ -390,7 +390,7 @@ App Shell (Root: AuthProvider ──> AudioPlayerProvider ──> Suspense)
 │   │   ├── [Dynamic Geofence Circles]   ──> L.circle according to individual trigger_radius (10m–50m)
 │   │   ├── [Teaser Preview Sheet]       ──> PoiPreviewCard (Thumbnail, Title, Distance, Free Summary, Play CTA)
 │   │   ├── [Unlock / Paywall Modal]     ──> PaymentModal (VietQR Transfer / Card Form, Session Restore) [US 06.1]
-│   │   └── [Session Recovery Modal]     ──> RestoreSessionModal (CCT-XXXXXX session recovery) [US 06.3]
+│   │   └── [Session Recovery Modal]     ──> RestoreSessionModal (session-code recovery) [US 06.3]
 │   ├── /tour                            ──> [Alias Redirect] ──> /visitor
 │   ├── /visitor/checkout/success        ──> CheckoutSuccessPage (Payment verification & session pass) [US 06.1, 06.2]
 │   └── /checkout/success                ──> [Alias Redirect] ──> /visitor/checkout/success
@@ -602,7 +602,9 @@ class POIRepository:
 
 ### 3.4. Visitor Session & Payment Activation
 - Sessions activated upon payment confirmation (or code restore).
-- Secure random session code generation: `session_code` prefix `CCT-` + 6 uppercase alphanumeric characters (e.g., `CCT-7X9K2M`).
+- Secure random session code generation: `session_code` prefix `CCT-` + 32 uppercase hexadecimal characters (128 bits of entropy); legacy 6-character codes remain restorable.
+- Payment status polling must not return session credentials. The checkout client exchanges its one-time creator capability for session credentials only after payment succeeds.
+- Rate-limit session restore attempts by client address and a hash of the submitted code. A shared reverse-proxy/edge limit is required when the application runs multiple workers or instances.
 - Session expiration: `expires_at = now() + timedelta(hours=24)`.
 - **Freemium Content Permissions:**
   - Unlocked / expired sessions: API returns only `short_description` and thumbnail images; full `description` and audio streams are omitted.

@@ -119,10 +119,10 @@ def test_restore_session_expired_timestamp(client, db_session):
         json={"session_code": session_code},
     )
 
-    assert response.status_code == 410
+    assert response.status_code == 404
     data = response.json()
     assert data["success"] is False
-    assert data["error"]["code"] == "SESSION_EXPIRED"
+    assert data["error"]["code"] == "SESSION_NOT_FOUND"
     assert "Session code is invalid or has expired." in data["error"]["message"]
 
 
@@ -145,10 +145,10 @@ def test_restore_session_inactive_status(client, db_session):
         json={"session_code": session_code},
     )
 
-    assert response.status_code == 410
+    assert response.status_code == 404
     data = response.json()
     assert data["success"] is False
-    assert data["error"]["code"] == "SESSION_EXPIRED"
+    assert data["error"]["code"] == "SESSION_NOT_FOUND"
 
 
 def test_restore_session_invalid_payload(client):
@@ -157,3 +157,23 @@ def test_restore_session_invalid_payload(client):
         json={"session_code": ""},
     )
     assert response.status_code == 422
+
+
+def test_restore_session_is_rate_limited_by_code(client, monkeypatch):
+    from app.controllers import session_controller
+    from app.core.session_restore_rate_limit import SessionRestoreRateLimiter
+
+    monkeypatch.setattr(
+        session_controller, "session_restore_rate_limiter", SessionRestoreRateLimiter()
+    )
+    payload = {"session_code": "CCT-RATE-LIMIT"}
+
+    responses = [
+        client.post("/api/v1/sessions/restore", json=payload) for _ in range(5)
+    ]
+    limited_response = client.post("/api/v1/sessions/restore", json=payload)
+
+    assert all(response.status_code == 404 for response in responses)
+    assert limited_response.status_code == 429
+    assert limited_response.headers["retry-after"]
+    assert limited_response.json()["error"]["code"] == "SESSION_RESTORE_RATE_LIMITED"
