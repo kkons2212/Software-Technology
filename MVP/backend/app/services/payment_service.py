@@ -5,6 +5,7 @@ import hmac
 import logging
 import urllib.parse
 from datetime import datetime, timedelta
+from decimal import Decimal
 from typing import Any
 
 import httpx
@@ -12,6 +13,7 @@ from fastapi import HTTPException, status
 
 from app.core.config import settings
 from app.integrations.paypal_client import paypal_client
+from app.models.transaction import Transaction
 from app.repositories.session_repository import SessionRepository
 from app.repositories.transaction_repository import TransactionRepository
 from app.schemas.payment_schema import (
@@ -151,6 +153,16 @@ class PaymentService:
         currency = settings.SERVICE_FEE_CURRENCY
         payment_method = payload.payment_method.upper()
 
+        if (
+            payment_method != "VIETQR"
+            and not paypal_client.is_configured()
+            and not settings.is_development
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="PayPal checkout is not configured.",
+            )
+
         target_lang = (payload.preferred_language or "vi").strip().lower()
         pref_lang = target_lang if target_lang in SUPPORTED_LANGUAGES else "vi"
 
@@ -209,12 +221,21 @@ class PaymentService:
                     return_url=return_url,
                     cancel_url=cancel_url,
                 )
-                if paypal_data and paypal_data.get("approve_url"):
+                if (
+                    paypal_data
+                    and paypal_data.get("approve_url")
+                    and paypal_data.get("paypal_order_id")
+                ):
                     checkout_url = paypal_data["approve_url"]
                     gateway_id = str(paypal_data.get("paypal_order_id") or "")
                     self.transaction_repo.update_gateway_info(txn, gateway_id)
 
             if not checkout_url:
+                if not settings.is_development:
+                    raise HTTPException(
+                        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                        detail="PayPal checkout is not configured.",
+                    )
                 checkout_url = f"/api/v1/payments/paypal-checkout?order_id={order_id}"
 
         response = CheckoutCreateResponse(
@@ -278,6 +299,12 @@ class PaymentService:
     ) -> OrderStatusResponse:
         """Simulate payment success for developer testing and demonstration adhering to SISE."""
         # Phase 1: Precondition Gate
+        if not settings.is_development:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Payment simulation is available only in development.",
+            )
+
         txn = self.transaction_repo.get_by_id(order_id)
         if not txn:
             raise HTTPException(
@@ -324,7 +351,7 @@ class PaymentService:
         paypal_order_id: str | None = None,
         preferred_language: str = "vi",
     ) -> OrderStatusResponse:
-        """Capture PayPal Sandbox order and activate 24-hour VisitorSession adhering to SISE."""
+        """Capture and verify a PayPal order before activating its visitor session."""
         # Phase 1: Precondition Gate
         txn = self.transaction_repo.get_by_id(order_id)
         if not txn:
@@ -333,16 +360,45 @@ class PaymentService:
                 detail=f"Order '{order_id}' not found.",
             )
 
+        if txn.payment_gateway != "PAYPAL":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Order is not associated with PayPal.",
+            )
+
         # Phase 2: Compute
         if txn.status == "PAID":
             response = self.get_order_status(order_id)
         else:
-            target_paypal_id = paypal_order_id or txn.gateway_transaction_id
-            if paypal_client.is_configured() and target_paypal_id:
-                try:
-                    await paypal_client.capture_order(target_paypal_id)
-                except Exception as exc:
-                    logger.warning("PayPal capture order error: %s", exc)
+            if txn.status != "PENDING":
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="PayPal order is not awaiting capture.",
+                )
+            if not paypal_client.is_configured():
+                raise HTTPException(
+                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    detail="PayPal capture is not configured.",
+                )
+
+            stored_paypal_id = txn.gateway_transaction_id
+            if not stored_paypal_id or (
+                paypal_order_id and paypal_order_id != stored_paypal_id
+            ):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="PayPal order does not match this checkout.",
+                )
+
+            capture_response = await paypal_client.capture_order(stored_paypal_id)
+            capture_id = self._get_verified_paypal_capture_id(
+                capture_response, txn, stored_paypal_id
+            )
+            if capture_id is None:
+                raise HTTPException(
+                    status_code=status.HTTP_402_PAYMENT_REQUIRED,
+                    detail="PayPal has not confirmed a successful payment.",
+                )
 
             saved_lang = None
             if txn.gateway_payload and isinstance(txn.gateway_payload, dict):
@@ -359,7 +415,7 @@ class PaymentService:
             updated_txn, session = self.transaction_repo.mark_as_paid(
                 transaction_id=order_id,
                 preferred_language=resolved_lang,
-                gateway_transaction_id=target_paypal_id or f"PP_{order_id}",
+                gateway_transaction_id=capture_id,
             )
             response = OrderStatusResponse(
                 order_id=updated_txn.transaction_id,
@@ -376,6 +432,47 @@ class PaymentService:
         # Phase 3: Unified Exit
         return response
 
+    @staticmethod
+    def _get_verified_paypal_capture_id(
+        capture_response: dict[str, Any] | None,
+        txn: Transaction,
+        paypal_order_id: str,
+    ) -> str | None:
+        """Return a capture ID only when PayPal confirms the expected amount and order."""
+        if not capture_response or capture_response.get("status") != "COMPLETED":
+            return None
+
+        try:
+            exchange_rate = Decimal(str(settings.PAYPAL_EXCHANGE_RATE))
+            expected_amount = max(
+                Decimal("1.00"),
+                Decimal(str(txn.pay_amount)) / exchange_rate,
+            ).quantize(Decimal("0.01"))
+        except (ArithmeticError, ValueError):
+            logger.error("Invalid PayPal exchange rate configuration.")
+            return None
+
+        expected_currency = settings.PAYPAL_CURRENCY or "USD"
+        for purchase_unit in capture_response.get("purchase_units", []):
+            if purchase_unit.get("reference_id") != txn.transaction_id:
+                continue
+            for capture in purchase_unit.get("payments", {}).get("captures", []):
+                amount = capture.get("amount") or {}
+                if (
+                    capture.get("status") == "COMPLETED"
+                    and amount.get("currency_code") == expected_currency
+                    and amount.get("value") == f"{expected_amount:.2f}"
+                    and capture.get("id")
+                ):
+                    return str(capture["id"])
+
+        logger.warning(
+            "PayPal capture response did not match order '%s' (PayPal order '%s').",
+            txn.transaction_id,
+            paypal_order_id,
+        )
+        return None
+
     def process_payment_webhook(
         self,
         payload: PayOSWebhookPayload | dict[str, Any],
@@ -385,13 +482,27 @@ class PaymentService:
         if isinstance(payload, PayOSWebhookPayload):
             data = payload.data
             signature = payload.signature
+            response_code = payload.code
         elif isinstance(payload, dict):
             data = payload.get("data", {})
             signature = payload.get("signature", "")
+            response_code = payload.get("code")
         else:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Invalid webhook payload format.",
+            )
+
+        if not isinstance(data, dict):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid PayOS webhook data.",
+            )
+
+        if response_code != "00" or data.get("code") != "00":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="PayOS webhook does not report a successful payment.",
             )
 
         if not self.verify_payos_webhook_signature(data, signature):
@@ -402,13 +513,12 @@ class PaymentService:
             )
 
         # Phase 2: Locate transaction record
-        txn = None
-        if data.get("order_id"):
-            txn = self.transaction_repo.get_by_id(str(data["order_id"]))
-        if not txn and data.get("orderCode"):
-            txn = self.transaction_repo.find_by_reference(str(data["orderCode"]))
-        if not txn and data.get("description"):
-            txn = self.transaction_repo.find_by_reference(str(data["description"]))
+        order_code = data.get("orderCode")
+        txn = (
+            self.transaction_repo.find_by_reference(str(order_code))
+            if order_code is not None
+            else None
+        )
 
         if not txn:
             ref_info = f"orderCode={data.get('orderCode')}, description={data.get('description')}"
@@ -416,6 +526,25 @@ class PaymentService:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Transaction not found for payment reference ({ref_info}).",
+            )
+
+        try:
+            paid_amount = Decimal(str(data.get("amount", "0")))
+        except (ArithmeticError, ValueError):
+            paid_amount = Decimal("0")
+        try:
+            is_payment_mismatch = (
+                txn.payment_gateway != "PAYOS"
+                or txn.gateway_transaction_id != str(order_code)
+                or paid_amount != Decimal(str(txn.pay_amount))
+                or data.get("currency", txn.currency) != txn.currency
+            )
+        except (ArithmeticError, ValueError):
+            is_payment_mismatch = True
+        if is_payment_mismatch:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="PayOS payment details do not match the checkout order.",
             )
 
         # Phase 3: Linear State Resolution & Unified Exit Accumulator
@@ -434,10 +563,11 @@ class PaymentService:
                 expires_at=session.Expire_at if session else None,
             )
         else:
-            ref_val = data.get("reference") or data.get("orderCode")
-            gateway_tx_id = (
-                str(ref_val) if ref_val is not None else f"WH_{txn.transaction_id}"
-            )
+            if txn.status != "PENDING":
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="PayOS order is not awaiting payment.",
+                )
             saved_lang = None
             if txn.gateway_payload and isinstance(txn.gateway_payload, dict):
                 saved_lang = txn.gateway_payload.get("preferred_language")
@@ -451,7 +581,7 @@ class PaymentService:
             updated_txn, session = self.transaction_repo.mark_as_paid(
                 transaction_id=txn.transaction_id,
                 preferred_language=webhook_language,
-                gateway_transaction_id=gateway_tx_id,
+                gateway_transaction_id=str(order_code),
             )
             logger.info(
                 "Transaction '%s' successfully marked as PAID via webhook. Session '%s' activated.",

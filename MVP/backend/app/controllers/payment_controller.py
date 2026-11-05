@@ -4,9 +4,10 @@ Handles digital admission pass checkout, VietQR code generation, client polling 
 and cryptographic webhook processing.
 """
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 
+from app.core.config import settings
 from app.core.dependencies import get_payment_service
 from app.schemas.payment_schema import (
     CheckoutCreateRequest,
@@ -58,6 +59,12 @@ def simulate_payment_success(
     payment_service: PaymentService = Depends(get_payment_service),
 ) -> OrderStatusResponse:
     """Simulate payment success for developer testing and interactive demo."""
+    if not settings.is_development:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Payment simulation is available only in development.",
+        )
+
     return payment_service.simulate_payment_success(
         order_id=order_id,
         preferred_language=body.preferred_language,
@@ -84,6 +91,12 @@ def paypal_sandbox_checkout_page(
     ),
 ) -> HTMLResponse:
     """Interactive PayPal Sandbox Mock Checkout Page for testing without live keys."""
+    if not settings.is_development:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Payment simulation is available only in development.",
+        )
+
     html_content = f"""<!DOCTYPE html>
 <html lang="vi">
 <head>
@@ -144,19 +157,19 @@ def confirm_paypal_mock_payment(
     payment_service: PaymentService = Depends(get_payment_service),
 ) -> RedirectResponse:
     """Process mock confirmation and redirect back to visitor tour."""
-    status_res = payment_service.simulate_payment_success(order_id=order_id)
+    if not settings.is_development:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Payment simulation is available only in development.",
+        )
+
+    payment_service.simulate_payment_success(order_id=order_id)
     return RedirectResponse(
-        url=(
-            f"http://localhost:5173/tour?payment_success=true&order_id={order_id}"
-            f"&session_code={status_res.session_code or ''}"
-            f"&session_token={status_res.session_token or ''}"
-            f"&expires_at={(status_res.session_expires_at or status_res.expires_at).isoformat() if (status_res.session_expires_at or status_res.expires_at) else ''}"
-        ),
+        url=f"http://localhost:5173/tour?payment_success=true&order_id={order_id}",
         status_code=status.HTTP_302_FOUND,
     )
 
 
-@router.get("/paypal/capture", response_model=OrderStatusResponse)
 @router.post("/order/{order_id}/paypal-capture", response_model=OrderStatusResponse)
 async def capture_paypal_payment(
     order_id: str,

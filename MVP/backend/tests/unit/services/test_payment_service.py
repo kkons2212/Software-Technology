@@ -1,7 +1,7 @@
 """Unit tests for PaymentService and Webhook Activation (US 06.2 & Task REF-06.5)."""
 
 from datetime import datetime, timedelta
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from fastapi import HTTPException
@@ -83,7 +83,7 @@ def test_process_payment_webhook_invalid_signature_raises_401(
     payload = {
         "code": "00",
         "desc": "success",
-        "data": {"orderCode": 999999, "amount": 50000},
+        "data": {"orderCode": 999999, "amount": 50000, "code": "00"},
         "signature": "forged_signature_hex",
     }
 
@@ -100,7 +100,12 @@ def test_process_payment_webhook_not_found_raises_404(
     monkeypatch.setattr(settings, "PAYOS_CHECKSUM_KEY", test_key)
     mock_tx_repo.find_by_reference.return_value = None
 
-    data = {"orderCode": 888888, "amount": 50000, "description": "NON_EXISTENT"}
+    data = {
+        "orderCode": 888888,
+        "amount": 50000,
+        "description": "NON_EXISTENT",
+        "code": "00",
+    }
     sig = mock_payment_service._generate_payos_signature(data, test_key)
     payload = {"code": "00", "desc": "success", "data": data, "signature": sig}
 
@@ -119,8 +124,10 @@ def test_mock_process_payment_webhook_success(
         transaction_id="TXN_WEBHOOK1",
         pay_amount=50000,
         currency="VND",
+        payment_gateway="PAYOS",
         payment_method="VIETQR",
         status="PENDING",
+        gateway_transaction_id="123456",
     )
     mock_tx_repo.find_by_reference.return_value = fake_txn
 
@@ -137,7 +144,12 @@ def test_mock_process_payment_webhook_success(
     mock_sess_repo.ensure_session_token.return_value = "mock_token_webhook"
     mock_tx_repo.mark_as_paid.return_value = (fake_txn, fake_session)
 
-    data = {"orderCode": 123456, "amount": 50000, "description": "CCT WH0001"}
+    data = {
+        "orderCode": 123456,
+        "amount": 50000,
+        "description": "CCT WH0001",
+        "code": "00",
+    }
     sig = mock_payment_service._generate_payos_signature(data, test_key)
     payload = {"code": "00", "desc": "success", "data": data, "signature": sig}
 
@@ -173,14 +185,21 @@ def test_mock_process_payment_webhook_idempotent(
         transaction_id="TXN_PAID_ALREADY",
         pay_amount=50000,
         currency="VND",
+        payment_gateway="PAYOS",
         payment_method="VIETQR",
         status="PAID",
+        gateway_transaction_id="999000",
         session=existing_session,
     )
     mock_tx_repo.find_by_reference.return_value = fake_paid_txn
     mock_sess_repo.ensure_session_token.return_value = "existing_token"
 
-    data = {"orderCode": 999000, "amount": 50000, "description": "CCT EXIST1"}
+    data = {
+        "orderCode": 999000,
+        "amount": 50000,
+        "description": "CCT EXIST1",
+        "code": "00",
+    }
     sig = mock_payment_service._generate_payos_signature(data, test_key)
     payload = {"code": "00", "desc": "success", "data": data, "signature": sig}
 
@@ -193,6 +212,227 @@ def test_mock_process_payment_webhook_idempotent(
     assert res.session_token == "existing_token"
     assert mock_sess_repo.create_session.call_count == 0
     assert mock_tx_repo.mark_as_paid.call_count == 0
+
+
+def test_process_payment_webhook_rejects_unsuccessful_payment_status(
+    mock_payment_service, monkeypatch
+):
+    test_key = "secret_key_123"
+    monkeypatch.setattr(settings, "PAYOS_CHECKSUM_KEY", test_key)
+    data = {"orderCode": 123456, "amount": 50000, "code": "01"}
+    signature = mock_payment_service._generate_payos_signature(data, test_key)
+
+    with pytest.raises(HTTPException) as exc_info:
+        mock_payment_service.process_payment_webhook(
+            {"code": "00", "data": data, "signature": signature}
+        )
+
+    assert exc_info.value.status_code == 400
+
+
+def test_process_payment_webhook_rejects_amount_mismatch(
+    mock_payment_service, mock_tx_repo, monkeypatch
+):
+    test_key = "secret_key_123"
+    monkeypatch.setattr(settings, "PAYOS_CHECKSUM_KEY", test_key)
+    mock_tx_repo.find_by_reference.return_value = Transaction(
+        transaction_id="TXN_WEBHOOK1",
+        pay_amount=50000,
+        currency="VND",
+        payment_gateway="PAYOS",
+        payment_method="VIETQR",
+        status="PENDING",
+        gateway_transaction_id="123456",
+    )
+    data = {"orderCode": 123456, "amount": 10000, "code": "00"}
+    signature = mock_payment_service._generate_payos_signature(data, test_key)
+
+    with pytest.raises(HTTPException) as exc_info:
+        mock_payment_service.process_payment_webhook(
+            {"code": "00", "data": data, "signature": signature}
+        )
+
+    assert exc_info.value.status_code == 400
+    mock_tx_repo.mark_as_paid.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_capture_paypal_order_activates_session_only_after_verified_capture(
+    mock_payment_service, mock_tx_repo, mocker, monkeypatch
+):
+    from app.integrations.paypal_client import paypal_client
+
+    monkeypatch.setattr(settings, "PAYPAL_CLIENT_ID", "sandbox-client")
+    monkeypatch.setattr(settings, "PAYPAL_CLIENT_SECRET", "sandbox-secret")
+    monkeypatch.setattr(settings, "PAYPAL_CURRENCY", "USD")
+    monkeypatch.setattr(settings, "PAYPAL_EXCHANGE_RATE", 25000.0)
+    txn = Transaction(
+        transaction_id="TXN_PAYPAL1",
+        pay_amount=50000,
+        currency="VND",
+        payment_gateway="PAYPAL",
+        payment_method="CARD",
+        status="PENDING",
+        gateway_transaction_id="PAYPAL-ORDER-1",
+        gateway_payload={"preferred_language": "en"},
+    )
+    mock_tx_repo.get_by_id.return_value = txn
+    now = datetime.utcnow()
+    session = VisitorSession(
+        SessionID="SES_PAYPAL1",
+        SessionCode="CCT-PP0001",
+        SessionToken="paypal-session-token",
+        Status="ACTIVE",
+        Activate_at=now,
+        Expire_at=now + timedelta(hours=24),
+    )
+    updated_txn = Transaction(
+        transaction_id="TXN_PAYPAL1",
+        pay_amount=50000,
+        currency="VND",
+        payment_gateway="PAYPAL",
+        payment_method="CARD",
+        status="PAID",
+        gateway_transaction_id="PAYPAL-CAPTURE-1",
+    )
+    mock_tx_repo.mark_as_paid.return_value = (updated_txn, session)
+    capture = {
+        "status": "COMPLETED",
+        "purchase_units": [
+            {
+                "reference_id": "TXN_PAYPAL1",
+                "payments": {
+                    "captures": [
+                        {
+                            "id": "PAYPAL-CAPTURE-1",
+                            "status": "COMPLETED",
+                            "amount": {"currency_code": "USD", "value": "2.00"},
+                        }
+                    ]
+                },
+            }
+        ],
+    }
+    capture_order = mocker.patch.object(
+        paypal_client, "capture_order", new_callable=AsyncMock, return_value=capture
+    )
+
+    response = await mock_payment_service.capture_paypal_order(
+        order_id="TXN_PAYPAL1",
+        paypal_order_id="PAYPAL-ORDER-1",
+    )
+
+    capture_order.assert_awaited_once_with("PAYPAL-ORDER-1")
+    mock_tx_repo.mark_as_paid.assert_called_once_with(
+        transaction_id="TXN_PAYPAL1",
+        preferred_language="en",
+        gateway_transaction_id="PAYPAL-CAPTURE-1",
+    )
+    assert response.status == "PAID"
+    assert response.session_token == "paypal-session-token"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "capture_response",
+    [
+        {"status": "PENDING", "purchase_units": []},
+        {
+            "status": "COMPLETED",
+            "purchase_units": [
+                {
+                    "reference_id": "TXN_PAYPAL1",
+                    "payments": {
+                        "captures": [
+                            {
+                                "id": "PAYPAL-CAPTURE-1",
+                                "status": "COMPLETED",
+                                "amount": {"currency_code": "USD", "value": "3.00"},
+                            }
+                        ]
+                    },
+                }
+            ],
+        },
+    ],
+)
+async def test_capture_paypal_order_does_not_activate_when_capture_is_unsuccessful(
+    mock_payment_service, mock_tx_repo, mocker, monkeypatch, capture_response
+):
+    from app.integrations.paypal_client import paypal_client
+
+    monkeypatch.setattr(settings, "PAYPAL_CLIENT_ID", "sandbox-client")
+    monkeypatch.setattr(settings, "PAYPAL_CLIENT_SECRET", "sandbox-secret")
+    monkeypatch.setattr(settings, "PAYPAL_CURRENCY", "USD")
+    monkeypatch.setattr(settings, "PAYPAL_EXCHANGE_RATE", 25000.0)
+    mock_tx_repo.get_by_id.return_value = Transaction(
+        transaction_id="TXN_PAYPAL1",
+        pay_amount=50000,
+        currency="VND",
+        payment_gateway="PAYPAL",
+        payment_method="CARD",
+        status="PENDING",
+        gateway_transaction_id="PAYPAL-ORDER-1",
+    )
+    mocker.patch.object(
+        paypal_client,
+        "capture_order",
+        new_callable=AsyncMock,
+        return_value=capture_response,
+    )
+
+    with pytest.raises(HTTPException) as exc_info:
+        await mock_payment_service.capture_paypal_order(
+            order_id="TXN_PAYPAL1",
+            paypal_order_id="PAYPAL-ORDER-1",
+        )
+
+    assert exc_info.value.status_code == 402
+    mock_tx_repo.mark_as_paid.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_capture_paypal_order_rejects_foreign_paypal_order(
+    mock_payment_service, mock_tx_repo, mocker, monkeypatch
+):
+    from app.integrations.paypal_client import paypal_client
+
+    monkeypatch.setattr(settings, "PAYPAL_CLIENT_ID", "sandbox-client")
+    monkeypatch.setattr(settings, "PAYPAL_CLIENT_SECRET", "sandbox-secret")
+    mock_tx_repo.get_by_id.return_value = Transaction(
+        transaction_id="TXN_PAYPAL1",
+        pay_amount=50000,
+        currency="VND",
+        payment_gateway="PAYPAL",
+        payment_method="CARD",
+        status="PENDING",
+        gateway_transaction_id="PAYPAL-ORDER-1",
+    )
+    capture_order = mocker.patch.object(
+        paypal_client, "capture_order", new_callable=AsyncMock
+    )
+
+    with pytest.raises(HTTPException) as exc_info:
+        await mock_payment_service.capture_paypal_order(
+            order_id="TXN_PAYPAL1",
+            paypal_order_id="ANOTHER-ORDER",
+        )
+
+    assert exc_info.value.status_code == 400
+    capture_order.assert_not_awaited()
+    mock_tx_repo.mark_as_paid.assert_not_called()
+
+
+def test_simulate_payment_success_is_disabled_outside_development(
+    mock_payment_service, mock_tx_repo, monkeypatch
+):
+    monkeypatch.setattr(settings, "ENVIRONMENT", "production")
+
+    with pytest.raises(HTTPException) as exc_info:
+        mock_payment_service.simulate_payment_success("TXN_TEST")
+
+    assert exc_info.value.status_code == 404
+    mock_tx_repo.get_by_id.assert_not_called()
 
 
 # ==============================================================================
@@ -213,11 +453,17 @@ async def test_process_payment_webhook_success_activates_session_and_idempotent(
     )
     order_id = checkout_res.order_id
 
-    # 2. Prepare valid webhook payload referencing order_id
+    gateway_order_code = "777123"
+    payment_service.transaction_repo.update_gateway_info(
+        payment_service.transaction_repo.get_by_id(order_id), gateway_order_code
+    )
+
+    # 2. Prepare valid webhook payload referencing the PayOS order code
     data = {
-        "order_id": order_id,
+        "orderCode": int(gateway_order_code),
         "amount": 50000,
         "description": f"CCT {order_id[-6:]}",
+        "code": "00",
     }
     sig = payment_service._generate_payos_signature(data, test_key)
     payload = PayOSWebhookPayload(
@@ -269,10 +515,15 @@ async def test_process_payment_webhook_lookup_by_description_memo(
     memo = f"CCT {order_id[-6:]}"
 
     # Webhook contains description memo without explicit order_id
+    gateway_order_code = "777124"
+    payment_service.transaction_repo.update_gateway_info(
+        payment_service.transaction_repo.get_by_id(order_id), gateway_order_code
+    )
     data = {
-        "orderCode": 777123,
+        "orderCode": int(gateway_order_code),
         "amount": 50000,
         "description": memo,
+        "code": "00",
     }
     sig = payment_service._generate_payos_signature(data, test_key)
     payload = {"code": "00", "desc": "success", "data": data, "signature": sig}
@@ -291,6 +542,23 @@ async def test_create_checkout_order_card_fallback(payment_service):
     assert checkout_res.order_id.startswith("TXN_")
     assert checkout_res.payment_method == "CARD"
     assert "/api/v1/payments/paypal-checkout" in checkout_res.checkout_url
+
+
+@pytest.mark.asyncio
+async def test_create_checkout_order_fails_closed_without_paypal_in_production(
+    mock_payment_service, mock_tx_repo, monkeypatch
+):
+    monkeypatch.setattr(settings, "ENVIRONMENT", "production")
+    monkeypatch.setattr(settings, "PAYPAL_CLIENT_ID", "")
+    monkeypatch.setattr(settings, "PAYPAL_CLIENT_SECRET", "")
+
+    with pytest.raises(HTTPException) as exc_info:
+        await mock_payment_service.create_checkout_order(
+            CheckoutCreateRequest(payment_method="CARD", preferred_language="en")
+        )
+
+    assert exc_info.value.status_code == 503
+    mock_tx_repo.create_transaction.assert_not_called()
 
 
 @pytest.mark.asyncio

@@ -394,7 +394,7 @@ export default function CheckoutModal({
                   >
                     {getVisitorText('continueWithPayPal', preferredLanguage, { amount: formattedAmount })}
                   </a>
-                ) : (
+                ) : import.meta.env.DEV ? (
                   <button
                     type="button"
                     onClick={handleSimulate}
@@ -402,6 +402,10 @@ export default function CheckoutModal({
                   >
                     {getVisitorText('simulatePayPalPayment', preferredLanguage, { amount: formattedAmount })}
                   </button>
+                ) : (
+                  <p className="mt-5 text-xs text-red-600">
+                    PayPal checkout is currently unavailable.
+                  </p>
                 )}
               </div>
             )}
@@ -421,7 +425,7 @@ export default function CheckoutModal({
             </div>
 
             {/* Sandbox Simulation Bar (Dev & Test Convenience) */}
-            {order && (
+            {import.meta.env.DEV && order && (
               <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between">
                 <span className="text-[10px] text-slate-400">Sandbox Test Mode:</span>
                 <button

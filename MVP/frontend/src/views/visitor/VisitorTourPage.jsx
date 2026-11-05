@@ -5,7 +5,7 @@ import PoiPreviewCard from '../../components/visitor/PoiPreviewCard.jsx';
 import CheckoutModal from '../../components/visitor/CheckoutModal.jsx';
 import RestoreSessionModal from '../../components/visitor/RestoreSessionModal.jsx';
 import { getPublishedLanguages } from '../../api/languageApi.js';
-import { getOrderStatus } from '../../api/paymentApi.js';
+import { capturePaypalOrder, getOrderStatus } from '../../api/paymentApi.js';
 import { getMapPois } from '../../api/poiApi.js';
 import { getWalkingRoute } from '../../api/tourApi.js';
 import { useAudioPlayer } from '../../contexts/AudioPlayerContext.jsx';
@@ -71,20 +71,15 @@ export default function VisitorTourPage({
     const params = new URLSearchParams(window.location.search);
     if (params.get('payment_success') === 'true') {
       const orderId = params.get('order_id');
-      const code = params.get('session_code');
-      const token = params.get('session_token');
-      const expires = params.get('expires_at');
-      if (token || code) {
-        activateSession({
-          sessionCode: code,
-          sessionToken: token,
-          expiresAt: expires,
-        });
-        window.history.replaceState({}, '', window.location.pathname);
-      } else if (orderId) {
-        getOrderStatus(orderId)
+      const paypalOrderId = params.get('token');
+
+      if (orderId) {
+        const resolvePayment = paypalOrderId
+          ? capturePaypalOrder(orderId, paypalOrderId)
+          : getOrderStatus(orderId);
+        resolvePayment
           .then((orderData) => {
-            if (orderData?.status === 'PAID' && (orderData.session_token || orderData.session_code)) {
+            if (orderData?.status === 'PAID' && orderData.session_token) {
               activateSession({
                 sessionCode: orderData.session_code,
                 sessionToken: orderData.session_token,

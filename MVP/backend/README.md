@@ -38,6 +38,7 @@ the MySQL schema in `scripts/mysql_schema.sql`.
    Copy-Item .env.example .env
    python -c "from pathlib import Path; import secrets; p=Path('.env'); text=p.read_text(encoding='utf-8'); p.write_text(text.replace('JWT_SECRET_KEY=', 'JWT_SECRET_KEY='+secrets.token_hex(32)), encoding='utf-8')"
    $env:DATABASE_URL = "mysql+pymysql://museum_app_user:app_password_456@localhost:3306/smart_museum"
+   $env:ENVIRONMENT = "development"
    $env:CORS_ORIGINS = "http://localhost:5173,http://127.0.0.1:5173"
    python -m uvicorn app.main:app --reload --port 8000
    ```
@@ -82,3 +83,25 @@ The test suite runs against the MySQL container above (`smart_museum`). Each
 test uses an isolated transaction that is rolled back, so test data is not
 retained and existing development data is not modified. Start the container
 before running tests.
+
+## Payment sandbox and simulation
+
+Set `ENVIRONMENT=development` only for local development. In this environment,
+the mock PayPal checkout and payment-simulation endpoints are available for
+testing without a real gateway transaction. The setting defaults to
+`production`; mock checkout pages and simulation routes return 404 outside
+development. Never set `ENVIRONMENT=development` in staging or production.
+
+When PayPal Sandbox credentials are configured, checkout uses PayPal's sandbox
+API. Returning from PayPal causes the frontend to submit the PayPal order ID to
+the backend; the backend captures it and activates a visitor pass only after
+verifying the completed capture, order reference, amount, and currency. Missing
+or unsuccessful capture responses leave the order unpaid.
+
+PayOS orders are activated only by a webhook with a valid PayOS checksum
+signature, successful payment status, matching order reference, and matching
+amount/currency. Configure PayOS credentials and the public webhook URL before
+expecting VietQR payments to be automatically confirmed. A displayed QR image
+without PayOS credentials does not itself verify payment.
+
+Session tokens are returned in JSON responses, not placed in redirect URLs.
