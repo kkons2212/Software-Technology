@@ -15,6 +15,7 @@ from app.controllers.analytics_controller import router as analytics_router
 from app.controllers.audio_controller import router as audio_router
 from app.controllers.auth_controller import router as auth_router
 from app.controllers.language_controller import router as language_router
+from app.controllers.media_controller import router as media_router
 from app.controllers.payment_controller import router as payment_router
 from app.controllers.poi_controller import router as poi_router
 from app.controllers.session_controller import router as session_router
@@ -57,6 +58,20 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
+    @application.middleware("http")
+    async def protect_static_images(request, call_next):
+        response = await call_next(request)
+        if request.url.path.startswith("/static/images/"):
+            response.headers["X-Content-Type-Options"] = "nosniff"
+            content_type = response.headers.get("content-type", "").split(";", 1)[0]
+            disposition = (
+                "inline"
+                if content_type in {"image/jpeg", "image/png", "image/webp"}
+                else "attachment"
+            )
+            response.headers["Content-Disposition"] = disposition
+        return response
+
     # Static file serving for images and media
     os.makedirs(settings.STATIC_DIR, exist_ok=True)
     os.makedirs(settings.IMAGE_UPLOAD_DIR, exist_ok=True)
@@ -79,6 +94,7 @@ def create_app() -> FastAPI:
     application.include_router(public_system_router)
     application.include_router(audio_router)
     application.include_router(tour_router)
+    application.include_router(media_router)
 
     @application.get("/health", tags=["System Health"])
     def health_check():

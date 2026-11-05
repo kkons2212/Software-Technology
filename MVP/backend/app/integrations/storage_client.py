@@ -77,6 +77,8 @@ class StorageClient:
                 "Content-Type": content_type,
                 "x-upsert": "true",
             }
+            if clean_path.startswith("images/") and content_type.startswith("image/"):
+                headers["Content-Disposition"] = "inline"
             try:
                 async with httpx.AsyncClient(
                     timeout=self.DEFAULT_TIMEOUT_SECONDS
@@ -104,6 +106,23 @@ class StorageClient:
 
         # Phase 2: Local disk fallback (always guaranteed)
         return self._save_local_file(clean_path, content)
+
+    async def download_file(self, relative_path: str) -> bytes:
+        """Read a stored object from local disk or the configured public bucket."""
+        clean_path = relative_path.lstrip("/\\")
+        local_path = Path(self.static_dir) / clean_path
+        if local_path.is_file():
+            return local_path.read_bytes()
+
+        if not self.is_cloud_enabled:
+            raise FileNotFoundError(clean_path)
+
+        async with httpx.AsyncClient(timeout=self.DEFAULT_TIMEOUT_SECONDS) as client:
+            response = await client.get(self._get_public_cdn_url(clean_path))
+        if response.status_code == 404:
+            raise FileNotFoundError(clean_path)
+        response.raise_for_status()
+        return response.content
 
     async def delete_file(self, relative_path: str) -> bool:
         """Delete file from cloud storage or local disk."""

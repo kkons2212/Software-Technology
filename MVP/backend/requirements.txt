@@ -26,6 +26,7 @@ bcrypt==4.1.2
 python-jose[cryptography]==3.3.0
 # Multipart parser for file/image uploads (< 5MB)
 python-multipart==0.0.9
+Pillow==12.3.0
 
 # --- 4. AI TRANSLATION & NEURAL VOICE TTS SYNTHESIS ---
 # Text translation pipeline for en, ja, ko, zh

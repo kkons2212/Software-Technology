@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
 from app.core.database import SessionLocal, get_db
+from app.integrations.storage_client import StorageClient
 from app.repositories.audio_repository import AudioRepository
 from app.repositories.audit_repository import AuditRepository
 from app.repositories.language_repository import LanguageRepository
@@ -28,6 +29,11 @@ from app.services.poi_service import POIService
 from app.services.session_service import SessionService
 from app.services.translation_service import TranslationService
 from app.services.tts_service import TTSService
+
+
+def get_storage_client() -> StorageClient:
+    """Build the media-storage adapter for request handlers."""
+    return StorageClient()
 
 
 def get_user_repository(db: Session = Depends(get_db)) -> UserRepository:
