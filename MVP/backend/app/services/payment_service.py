@@ -3,6 +3,7 @@
 import hashlib
 import hmac
 import logging
+import secrets
 import urllib.parse
 from datetime import datetime, timedelta
 from decimal import Decimal
@@ -19,6 +20,8 @@ from app.repositories.transaction_repository import TransactionRepository
 from app.schemas.payment_schema import (
     CheckoutCreateRequest,
     CheckoutCreateResponse,
+    OrderSessionRequest,
+    OrderSessionResponse,
     OrderStatusResponse,
     PayOSWebhookPayload,
     WebhookResponse,
@@ -166,13 +169,19 @@ class PaymentService:
         target_lang = (payload.preferred_language or "vi").strip().lower()
         pref_lang = target_lang if target_lang in SUPPORTED_LANGUAGES else "vi"
 
+        creator_token = secrets.token_urlsafe(32)
         gateway_name = "PAYOS" if payment_method == "VIETQR" else "PAYPAL"
         txn = self.transaction_repo.create_transaction(
             pay_amount=fee_amount,
             payment_gateway=gateway_name,
             payment_method=payment_method,
             currency=currency,
-            gateway_payload={"preferred_language": pref_lang},
+            gateway_payload={
+                "preferred_language": pref_lang,
+                "creator_token_hash": hashlib.sha256(
+                    creator_token.encode("utf-8")
+                ).hexdigest(),
+            },
         )
 
         order_id = txn.transaction_id
@@ -240,6 +249,7 @@ class PaymentService:
 
         response = CheckoutCreateResponse(
             order_id=order_id,
+            creator_token=creator_token,
             pay_amount=fee_amount,
             currency=currency,
             payment_method=payment_method,
@@ -269,26 +279,55 @@ class PaymentService:
             )
 
         # Phase 2: Compute
-        session_code = None
-        session_token = None
-        session_expires_at = None
-
-        if txn.session and txn.status == "PAID":
-            session_code = txn.session.SessionCode
-            session_token = txn.session.SessionToken
-            session_expires_at = txn.session.Expire_at
-
-        # Phase 3: Unified Exit
         response = OrderStatusResponse(
             order_id=txn.transaction_id,
             status=txn.status,
             pay_amount=txn.pay_amount,
             currency=txn.currency,
             paid_at=txn.paid_at,
-            session_code=session_code,
-            session_token=session_token,
-            session_expires_at=session_expires_at,
-            expires_at=session_expires_at,
+        )
+        return response
+
+    def exchange_order_session(
+        self, order_id: str, payload: OrderSessionRequest
+    ) -> OrderSessionResponse:
+        """Return session credentials only to the client holding the checkout capability."""
+        txn = self.transaction_repo.get_by_id(order_id)
+        expected_hash = None
+        if txn and isinstance(txn.gateway_payload, dict):
+            expected_hash = txn.gateway_payload.get("creator_token_hash")
+
+        provided_hash = hashlib.sha256(
+            payload.creator_token.encode("utf-8")
+        ).hexdigest()
+        has_valid_capability = bool(
+            expected_hash
+            and hmac.compare_digest(
+                str(expected_hash).encode("utf-8"), provided_hash.encode("utf-8")
+            )
+        )
+        if not txn or not has_valid_capability:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Order not found or checkout capability is invalid.",
+            )
+        if txn.status != "PAID" or not txn.session:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Order has not been paid.",
+            )
+
+        session = txn.session
+        response = OrderSessionResponse(
+            order_id=txn.transaction_id,
+            status=txn.status,
+            pay_amount=txn.pay_amount,
+            currency=txn.currency,
+            paid_at=txn.paid_at,
+            session_code=session.SessionCode,
+            session_token=session.SessionToken,
+            session_expires_at=session.Expire_at,
+            expires_at=session.Expire_at,
         )
         return response
 
@@ -296,7 +335,7 @@ class PaymentService:
         self,
         order_id: str,
         preferred_language: str = "vi",
-    ) -> OrderStatusResponse:
+    ) -> OrderSessionResponse:
         """Simulate payment success for developer testing and demonstration adhering to SISE."""
         # Phase 1: Precondition Gate
         if not settings.is_development:
@@ -332,7 +371,7 @@ class PaymentService:
         )
 
         # Phase 3: Unified Exit
-        response = OrderStatusResponse(
+        response = OrderSessionResponse(
             order_id=updated_txn.transaction_id,
             status=updated_txn.status,
             pay_amount=updated_txn.pay_amount,
@@ -348,16 +387,27 @@ class PaymentService:
     async def capture_paypal_order(
         self,
         order_id: str,
-        paypal_order_id: str | None = None,
+        paypal_order_id: str,
+        creator_token: str,
         preferred_language: str = "vi",
-    ) -> OrderStatusResponse:
+    ) -> OrderSessionResponse:
         """Capture and verify a PayPal order before activating its visitor session."""
         # Phase 1: Precondition Gate
         txn = self.transaction_repo.get_by_id(order_id)
-        if not txn:
+        stored_hash = None
+        if txn and isinstance(txn.gateway_payload, dict):
+            stored_hash = txn.gateway_payload.get("creator_token_hash")
+        provided_hash = hashlib.sha256(creator_token.encode("utf-8")).hexdigest()
+        has_valid_capability = bool(
+            stored_hash
+            and hmac.compare_digest(
+                str(stored_hash).encode("utf-8"), provided_hash.encode("utf-8")
+            )
+        )
+        if not txn or not has_valid_capability:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Order '{order_id}' not found.",
+                detail="Order not found or checkout capability is invalid.",
             )
 
         if txn.payment_gateway != "PAYPAL":
@@ -368,7 +418,23 @@ class PaymentService:
 
         # Phase 2: Compute
         if txn.status == "PAID":
-            response = self.get_order_status(order_id)
+            session = txn.session
+            if not session:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="Paid order has no active visitor session.",
+                )
+            response = OrderSessionResponse(
+                order_id=txn.transaction_id,
+                status=txn.status,
+                pay_amount=txn.pay_amount,
+                currency=txn.currency,
+                paid_at=txn.paid_at,
+                session_code=session.SessionCode,
+                session_token=session.SessionToken,
+                session_expires_at=session.Expire_at,
+                expires_at=session.Expire_at,
+            )
         else:
             if txn.status != "PENDING":
                 raise HTTPException(
@@ -382,9 +448,7 @@ class PaymentService:
                 )
 
             stored_paypal_id = txn.gateway_transaction_id
-            if not stored_paypal_id or (
-                paypal_order_id and paypal_order_id != stored_paypal_id
-            ):
+            if not stored_paypal_id or paypal_order_id != stored_paypal_id:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail="PayPal order does not match this checkout.",
@@ -417,7 +481,7 @@ class PaymentService:
                 preferred_language=resolved_lang,
                 gateway_transaction_id=capture_id,
             )
-            response = OrderStatusResponse(
+            response = OrderSessionResponse(
                 order_id=updated_txn.transaction_id,
                 status=updated_txn.status,
                 pay_amount=updated_txn.pay_amount,
@@ -553,14 +617,10 @@ class PaymentService:
                 "Transaction '%s' already marked as PAID (idempotent duplicate webhook).",
                 txn.transaction_id,
             )
-            session = txn.session
             response = WebhookResponse(
                 success=True,
                 message="Transaction already processed (idempotent)",
                 order_id=txn.transaction_id,
-                session_code=session.SessionCode if session else None,
-                session_token=session.SessionToken if session else None,
-                expires_at=session.Expire_at if session else None,
             )
         else:
             if txn.status != "PENDING":
@@ -592,9 +652,6 @@ class PaymentService:
                 success=True,
                 message="Session activated successfully",
                 order_id=updated_txn.transaction_id,
-                session_code=session.SessionCode,
-                session_token=session.SessionToken,
-                expires_at=session.Expire_at,
             )
 
         return response

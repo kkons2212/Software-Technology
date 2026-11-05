@@ -714,7 +714,7 @@
 ### 📌 US 06.2: Webhook-Driven 24-Hour Visiting Session Activation
 > **As the** System Backend,  
 > **I need to** process payment webhooks with HMAC signatures,  
-> **So that** a 24-hour visiting session is activated and a unique Session Code (`CCT-XXXXXX`) is issued to the visitor.
+> **So that** a 24-hour visiting session is activated and a high-entropy Session Code (`CCT-` + 32 hexadecimal characters) is issued to the visitor.
 >
 > * **Priority:** Must Have | **Estimate:** 5 SP
 > * **Progress:** [x] 4/4 Tasks Completed
@@ -722,7 +722,7 @@
 #### Acceptance Criteria:
 - [x] **AC-06.2.1:** Verify cryptographic HMAC SHA-256 signature from payment gateway to prevent counterfeit requests.
 - [x] **AC-06.2.2:** Mark `Transaction.Status = 'PAID'`, create `VisitorSession` valid for exactly 24 hours (`Expire_at = now() + 24 hours`).
-- [x] **AC-06.2.3:** Issue unique Session Code (e.g., `CCT-894201`) and store session token in visitor's `localStorage`.
+- [x] **AC-06.2.3:** Issue unique Session Code with 128 bits of entropy and store the session token in the visitor's `localStorage`.
 
 #### Task Checklist:
 - [x] `TSK-06.2.1` `[Backend]` **Secure Webhook Handler (`POST /api/v1/payments/webhook`)**
@@ -730,8 +730,8 @@
   - **DoD:** Rejects invalid signatures with HTTP 401; idempotent handling of duplicate webhooks.
   - **Paired Unit Test:** `tests/unit/services/test_payment_service.py`
 - [x] `TSK-06.2.2` `[Database]` **`VisitorSession` & `Transaction` Schema Alignment**
-  - **Scope:** Configure 24h lifespan, unique `SessionCode` (`VARCHAR(20)`), and ON DELETE CASCADE constraints.
-  - **DoD:** Passes CI schema verification in container.
+  - **Scope:** Keep the existing unique `SessionCode` (`VARCHAR(255)`) and `Transaction.GatewayPayload` JSON fields; the new session-code format and creator-capability hash require no schema migration.
+  - **DoD:** Passes CI schema verification without modifying `mysql_schema.sql`.
   - **Paired Unit Test:** `tests/unit/repositories/test_session_repository.py`
 - [x] `TSK-06.2.3` `[Frontend]` **Visitor Session Context (`VisitorSessionContext.jsx`)**
   - **Scope:** Persist session token and code in `localStorage`, expose global `isUnlocked`, `sessionCode`, and `timeRemaining` properties.
@@ -753,13 +753,13 @@
 > * **Progress:** [x] 3/3 Tasks Completed
 
 #### Acceptance Criteria:
-- [x] **AC-06.3.1:** Visitor enters uppercase code (e.g., `CCT-894201`).
+- [x] **AC-06.3.1:** Visitor enters the uppercase Session Code; legacy six-character codes remain accepted.
 - [x] **AC-06.3.2:** If code is valid and unexpired, return new session token and restore tour state. If expired or invalid, display: "Session code is invalid or has expired."
 
 #### Task Checklist:
 - [x] `TSK-06.3.1` `[Backend]` **Session Restore Endpoint (`POST /api/v1/sessions/restore`)**
-  - **Scope:** Query `session_code` in `VisitorSession`. Verify `Expire_at > now()`. Return new token and remaining validity seconds.
-  - **DoD:** Returns HTTP 404/410 on invalid or expired code.
+  - **Scope:** Rate-limit restore attempts, query `session_code` in `VisitorSession`, and verify `Expire_at > now()`. Return the session token and remaining validity seconds for a valid code.
+  - **DoD:** Returns the same HTTP 404 response for invalid and expired codes; excessive attempts receive HTTP 429.
   - **Paired Unit Test:** `tests/unit/controllers/test_session_controller.py`
 - [x] `TSK-06.3.2` `[Frontend]` **Session Restore Modal Dialog (`RestoreSessionModal.jsx`)**
   - **Scope:** Monospace uppercase text input, inline validation, and error alert handling.

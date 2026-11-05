@@ -271,7 +271,7 @@ Every refactoring task in this backlog must strictly comply with the quantitativ
 - [ ] `REF-06.2` `[Layer 2 - Service]` **Refactor 24-Hour Session Lifecycle Manager (`app/services/session_service.py`)**
   - **Smells & Anti-patterns:** `restore_session` and `validate_session` have redundant checks for null tokens and expiration timestamps with scattered raises.
   - **Refactoring Scope:**
-    1. Linearize `restore_session(restore_token)`: Phase 1 (validate 6-character format) $\rightarrow$ Phase 2 (fetch session by `session_code`, check `expire_at > now()`) $\rightarrow$ Phase 3 (return `SessionRestoreResponse`).
+    1. Linearize `restore_session(restore_token)`: Phase 1 (normalize the new `CCT-` + 32-hex format while accepting legacy six-character codes) $\rightarrow$ Phase 2 (fetch session by `session_code`, check `expire_at > now()`) $\rightarrow$ Phase 3 (return `SessionRestoreResponse`); rate-limit restore attempts and return the same not-found response for invalid or expired codes.
     2. Ensure deterministic single return for `is_session_active(token)`.
   - **Layer 1 Fit:** Methods `create_24h_session`, `restore_session`, `validate_session` preserve exact signatures for `session_controller.py`.
   - **Metric Target:** $K = 2$, $M \le 4$.

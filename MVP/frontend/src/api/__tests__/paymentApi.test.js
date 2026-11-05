@@ -11,11 +11,26 @@ import { apiClient } from '../apiClient.js';
 import {
   createCheckoutOrder,
   capturePaypalOrder,
+  exchangeOrderSession,
+  clearOrderCreatorToken,
   getOrderStatus,
+  getOrderCreatorToken,
   simulatePaymentSuccess,
+  storeOrderCreatorToken,
 } from '../paymentApi.js';
 
 describe('paymentApi', () => {
+  describe('order creator capability storage', () => {
+    it('stores, reads, and removes the capability from sessionStorage', () => {
+      storeOrderCreatorToken('order-1', 'private-capability');
+
+      expect(getOrderCreatorToken('order-1')).toBe('private-capability');
+
+      clearOrderCreatorToken('order-1');
+      expect(getOrderCreatorToken('order-1')).toBeNull();
+    });
+  });
+
   describe('createCheckoutOrder', () => {
     it('creates checkout order with default options', async () => {
       const mockResponse = {
@@ -71,8 +86,6 @@ describe('paymentApi', () => {
       const mockStatus = {
         order_id: 'cct-order-123',
         status: 'PAID',
-        session_code: 'VN-1234',
-        session_token: 'secret-token-123',
       };
       apiClient.get.mockResolvedValueOnce(mockStatus);
 
@@ -87,6 +100,22 @@ describe('paymentApi', () => {
     it('throws error if orderId is missing', async () => {
       await expect(getOrderStatus('')).rejects.toThrow('orderId is required');
       await expect(getOrderStatus(null)).rejects.toThrow('orderId is required');
+    });
+
+    describe('exchangeOrderSession', () => {
+      it('sends the creator capability in the request body', async () => {
+        const mockResponse = { order_id: 'cct-order-123', status: 'PAID' };
+        apiClient.post.mockResolvedValueOnce(mockResponse);
+
+        const result = await exchangeOrderSession('cct-order-123', 'creator-capability');
+
+        expect(apiClient.post).toHaveBeenCalledWith(
+          '/api/v1/payments/order/cct-order-123/session',
+          { creator_token: 'creator-capability' },
+          { signal: undefined }
+        );
+        expect(result).toEqual(mockResponse);
+      });
     });
   });
 
@@ -134,22 +163,30 @@ describe('paymentApi', () => {
         const mockResponse = { order_id: 'cct-order-789', status: 'PAID' };
         apiClient.post.mockResolvedValueOnce(mockResponse);
 
-        const result = await capturePaypalOrder('cct order/789', 'paypal-order-1');
+        const result = await capturePaypalOrder(
+          'cct order/789',
+          'paypal-order-1',
+          'creator-capability'
+        );
 
         expect(apiClient.post).toHaveBeenCalledWith(
-          '/api/v1/payments/order/cct%20order%2F789/paypal-capture?paypal_order_id=paypal-order-1',
-          undefined,
+          '/api/v1/payments/order/cct%20order%2F789/paypal-capture',
+          {
+            paypal_order_id: 'paypal-order-1',
+            creator_token: 'creator-capability',
+            preferred_language: 'vi',
+          },
           { signal: undefined }
         );
         expect(result).toEqual(mockResponse);
       });
 
       it('requires both checkout and PayPal order identifiers', async () => {
-        await expect(capturePaypalOrder('', 'paypal-order-1')).rejects.toThrow(
-          'orderId and paypalOrderId are required'
+        await expect(capturePaypalOrder('', 'paypal-order-1', 'capability')).rejects.toThrow(
+          'orderId, paypalOrderId, and creatorToken are required'
         );
-        await expect(capturePaypalOrder('order-1', '')).rejects.toThrow(
-          'orderId and paypalOrderId are required'
+        await expect(capturePaypalOrder('order-1', 'paypal-order-1', '')).rejects.toThrow(
+          'orderId, paypalOrderId, and creatorToken are required'
         );
       });
     });

@@ -57,7 +57,7 @@ No flashy gradients, neon colors, or more than 3 colors on a single screen.
   * When the visitor selects **VietQR** or **International Card (Stripe / PayOS)** (`POST /api/v1/payments/create-checkout`), the client listens for confirmation via polling or WebSocket/SSE.
   * Immediately upon Backend confirmation of `PAID`:
     1. Close the Checkout Modal and remove all lock icons across all screens without requiring a page reload.
-    2. Store the `SessionToken`, `SessionCode` (6–8 alphanumeric characters, e.g., `CCT-8942`), and expiration timestamp `expires_at = now() + 24 hours` in browser storage.
+    2. Store the `SessionToken`, `SessionCode` (`CCT-` plus 32 hexadecimal characters for new sessions; existing codes remain valid), and expiration timestamp `expires_at = now() + 24 hours` in browser storage.
     3. Display a modal prompting the visitor to record or copy their `SessionCode` with a 1-tap copy button.
 * **Session Recovery Rule (`POST /api/v1/sessions/restore`):**
   * If a visitor changes devices, clears browser cache, or uses incognito mode, they can tap `"Restore Tour Session"` (accessible on the Header and Checkout Modal) and enter their `SessionCode`.
@@ -132,4 +132,4 @@ The system enforces a **Unified Multi-Admin Model**: Every authenticated Adminis
 | **Interactive Map & POI Radius** | Sets coordinates inside Cu Chi boundary and configures custom radius (`10m–50m`, default `30m`). | Updates pin on outdoor map; auto-triggers narration when walking into the POI's specific radius. |
 | **Content & Multilingual Setup** | Creates source text, adjusts translations, and clicks `Approve & Publish`. | Dynamic language selector shows only `PUBLISHED` languages; updates free summary and locked narration. |
 | **Audio Guide Pipeline** | Clicks `Regenerate Audio Guide` upon text edits to ensure 100% audio-text sync before publishing. | Seamless playback via `Floating Mini Player` (seek `±10s`, speed `0.8x–1.2x`), auto-falls back to `Web Speech API`. |
-| **24h Session & Operations** | Monitors real-time density on Heatmap, views revenue metrics, and runs storage cleanup. | Unlocks full 24h pass via `VietQR` / `Stripe`, receives `SessionCode` (6–8 chars) for cross-device recovery. |
+| **24h Session & Operations** | Monitors real-time density on Heatmap, views revenue metrics, and runs storage cleanup. | Unlocks full 24h pass via `VietQR` / `Stripe`, receives a high-entropy `SessionCode` for cross-device recovery. |

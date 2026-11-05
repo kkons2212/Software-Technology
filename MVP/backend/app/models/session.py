@@ -1,6 +1,7 @@
 """SQLAlchemy model for VisitorSession table."""
 
 import datetime
+import secrets
 import uuid
 from decimal import Decimal
 
@@ -14,6 +15,10 @@ def get_default_expire_at():
     return datetime.datetime.utcnow() + datetime.timedelta(hours=24)
 
 
+def generate_session_code() -> str:
+    return f"CCT-{secrets.token_hex(16).upper()}"
+
+
 class VisitorSession(Base):
     __tablename__ = "VisitorSession"
 
@@ -24,7 +29,7 @@ class VisitorSession(Base):
         String(255),
         unique=True,
         nullable=False,
-        default=lambda: uuid.uuid4().hex[:8].upper(),
+        default=generate_session_code,
     )
     SessionToken = Column(
         String(255), unique=True, nullable=False, default=lambda: uuid.uuid4().hex

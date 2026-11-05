@@ -6,7 +6,7 @@ from typing import Annotated
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, field_validator
 
 SESSION_CODE_MIN_LENGTH = 3
-SESSION_CODE_MAX_LENGTH = 32
+SESSION_CODE_MAX_LENGTH = 36
 
 CleanSessionCode = Annotated[
     str,
@@ -23,15 +23,15 @@ class SessionRestoreRequest(BaseModel):
 
     session_code: CleanSessionCode = Field(
         ...,
-        description="Session code previously issued upon checkout (e.g., CCT-894201 or 894201).",
+        description="Session code previously issued upon checkout.",
     )
 
     @field_validator("session_code", mode="after")
     @classmethod
     def normalize_code(cls, v: str) -> str:
         code = v.strip().upper()
-        # Automatically prepend 'CCT-' if user only entered the 6-character hex/alphanumeric code
-        if not code.startswith("CCT-") and len(code) == 6:
+        # Accept the suffix-only form for both legacy and newly issued codes.
+        if not code.startswith("CCT-") and len(code) in {6, 32}:
             code = f"CCT-{code}"
         return code
 

@@ -65,7 +65,9 @@ def _render_http_exception(exc: StarletteHTTPException) -> JSONResponse:
         content = build_error_envelope(
             code=HTTP_ERROR_CODE, message=str(detail), details=None
         )
-    return JSONResponse(status_code=exc.status_code, content=content)
+    return JSONResponse(
+        status_code=exc.status_code, content=content, headers=exc.headers
+    )
 
 
 def register_error_handlers(app: FastAPI) -> None:

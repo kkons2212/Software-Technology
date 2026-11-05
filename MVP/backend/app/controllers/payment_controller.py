@@ -15,8 +15,11 @@ from app.core.dependencies import get_payment_service
 from app.schemas.payment_schema import (
     CheckoutCreateRequest,
     CheckoutCreateResponse,
+    OrderSessionRequest,
+    OrderSessionResponse,
     OrderStatusResponse,
     PayOSWebhookPayload,
+    PayPalCaptureRequest,
     SimulatePaymentRequest,
     WebhookResponse,
 )
@@ -54,14 +57,14 @@ def get_order_status(
 
 @router.post(
     "/order/{order_id}/simulate-success",
-    response_model=OrderStatusResponse,
+    response_model=OrderSessionResponse,
     status_code=status.HTTP_200_OK,
 )
 def simulate_payment_success(
     order_id: str,
     body: SimulatePaymentRequest = SimulatePaymentRequest(),
     payment_service: PaymentService = Depends(get_payment_service),
-) -> OrderStatusResponse:
+) -> OrderSessionResponse:
     """Simulate payment success for developer testing and interactive demo."""
     if not settings.is_development:
         raise HTTPException(
@@ -181,18 +184,26 @@ def confirm_paypal_mock_payment(
     )
 
 
-@router.post("/order/{order_id}/paypal-capture", response_model=OrderStatusResponse)
+@router.post("/order/{order_id}/session", response_model=OrderSessionResponse)
+def exchange_order_session(
+    order_id: str,
+    payload: OrderSessionRequest,
+    payment_service: PaymentService = Depends(get_payment_service),
+) -> OrderSessionResponse:
+    """Exchange a paid order for session credentials using its creator capability."""
+    return payment_service.exchange_order_session(order_id, payload)
+
+
+@router.post("/order/{order_id}/paypal-capture", response_model=OrderSessionResponse)
 async def capture_paypal_payment(
     order_id: str,
-    paypal_order_id: str | None = None,
-    preferred_language: str = Query(
-        default="vi", description="Visitor preferred language code."
-    ),
+    payload: PayPalCaptureRequest,
     payment_service: PaymentService = Depends(get_payment_service),
-) -> OrderStatusResponse:
+) -> OrderSessionResponse:
     """Capture PayPal Sandbox order (TSK-06.1.1)."""
     return await payment_service.capture_paypal_order(
         order_id=order_id,
-        paypal_order_id=paypal_order_id,
-        preferred_language=preferred_language,
+        paypal_order_id=payload.paypal_order_id,
+        creator_token=payload.creator_token,
+        preferred_language=payload.preferred_language,
     )

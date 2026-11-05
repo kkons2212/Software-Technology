@@ -5,7 +5,13 @@ import PoiPreviewCard from '../../components/visitor/PoiPreviewCard.jsx';
 import CheckoutModal from '../../components/visitor/CheckoutModal.jsx';
 import RestoreSessionModal from '../../components/visitor/RestoreSessionModal.jsx';
 import { getPublishedLanguages } from '../../api/languageApi.js';
-import { capturePaypalOrder, getOrderStatus } from '../../api/paymentApi.js';
+import {
+  capturePaypalOrder,
+  clearOrderCreatorToken,
+  exchangeOrderSession,
+  getOrderCreatorToken,
+  getOrderStatus,
+} from '../../api/paymentApi.js';
 import { getMapPois } from '../../api/poiApi.js';
 import { getWalkingRoute } from '../../api/tourApi.js';
 import { useAudioPlayer } from '../../contexts/AudioPlayerContext.jsx';
@@ -74,12 +80,22 @@ export default function VisitorTourPage({
       const paypalOrderId = params.get('token');
 
       if (orderId) {
+        const creatorToken = getOrderCreatorToken(orderId);
         const resolvePayment = paypalOrderId
-          ? capturePaypalOrder(orderId, paypalOrderId)
-          : getOrderStatus(orderId);
+          ? creatorToken
+            ? capturePaypalOrder(orderId, paypalOrderId, creatorToken)
+            : Promise.reject(new Error('Checkout access is unavailable for this PayPal order.'))
+          : getOrderStatus(orderId).then((orderData) => {
+              if (orderData?.status !== 'PAID') return orderData;
+              if (!creatorToken) {
+                throw new Error('Checkout access is unavailable for this paid order.');
+              }
+              return exchangeOrderSession(orderId, creatorToken);
+            });
         resolvePayment
           .then((orderData) => {
             if (orderData?.status === 'PAID' && orderData.session_token) {
+              clearOrderCreatorToken(orderId);
               activateSession({
                 sessionCode: orderData.session_code,
                 sessionToken: orderData.session_token,

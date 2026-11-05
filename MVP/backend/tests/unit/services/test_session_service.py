@@ -34,7 +34,7 @@ def test_restore_session_not_found_raises_404(session_service, mock_session_repo
     mock_session_repo.get_by_code.assert_called_once_with("CCT-NOTFOUND")
 
 
-def test_restore_session_expired_status_raises_410(session_service, mock_session_repo):
+def test_restore_session_expired_status_raises_404(session_service, mock_session_repo):
     # Arrange
     session = VisitorSession(
         SessionID="SES_001",
@@ -51,11 +51,11 @@ def test_restore_session_expired_status_raises_410(session_service, mock_session
     with pytest.raises(ApiError) as exc_info:
         session_service.restore_session("CCT-EXPIRED1")
 
-    assert exc_info.value.status_code == 410
-    assert exc_info.value.detail["code"] == "SESSION_EXPIRED"
+    assert exc_info.value.status_code == 404
+    assert exc_info.value.detail["code"] == "SESSION_NOT_FOUND"
 
 
-def test_restore_session_expired_timestamp_raises_410(
+def test_restore_session_expired_timestamp_raises_404(
     session_service, mock_session_repo
 ):
     # Arrange
@@ -74,8 +74,8 @@ def test_restore_session_expired_timestamp_raises_410(
     with pytest.raises(ApiError) as exc_info:
         session_service.restore_session("CCT-EXPIRED2")
 
-    assert exc_info.value.status_code == 410
-    assert exc_info.value.detail["code"] == "SESSION_EXPIRED"
+    assert exc_info.value.status_code == 404
+    assert exc_info.value.detail["code"] == "SESSION_NOT_FOUND"
 
 
 def test_restore_session_success_active(session_service, mock_session_repo):
@@ -131,6 +131,29 @@ def test_restore_session_prefix_normalization(session_service, mock_session_repo
     assert res.success is True
     assert res.data.session_code == "CCT-123456"
     mock_session_repo.get_by_code.assert_called_once_with("CCT-123456")
+
+
+def test_restore_session_normalizes_new_code_without_prefix(
+    session_service, mock_session_repo
+):
+    session_code = f"CCT-{'A' * 32}"
+    now = datetime.utcnow()
+    session = VisitorSession(
+        SessionID="SES_LONG_CODE",
+        SessionCode=session_code,
+        SessionToken="token_long_code",
+        Status="ACTIVE",
+        Activate_at=now,
+        Expire_at=now + timedelta(hours=24),
+        PreferredLanguage="vi",
+    )
+    mock_session_repo.get_by_code.return_value = session
+    mock_session_repo.ensure_session_token.return_value = session.SessionToken
+
+    response = session_service.restore_session("A" * 32)
+
+    assert response.data.session_code == session_code
+    mock_session_repo.get_by_code.assert_called_once_with(session_code)
 
 
 def test_validate_session_active_checks(session_service, mock_session_repo):

@@ -5,17 +5,19 @@
 // =============================================================================
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { getOrderStatus } from '../api/paymentApi.js';
+import { exchangeOrderSession, getOrderStatus } from '../api/paymentApi.js';
 
 const DEFAULT_POLL_INTERVAL_MS = 2500;
+const TERMINAL_STATUSES = new Set(['PAID', 'EXPIRED', 'FAILED', 'CANCELLED']);
 
 /**
  * Custom React hook for polling payment order status until completion.
- * Automatically halts upon reaching terminal statuses (PAID, EXPIRED, CANCELLED)
+ * Automatically halts upon reaching terminal statuses (PAID, EXPIRED, FAILED, CANCELLED)
  * or when the modal closes / component unmounts.
  *
  * @param {object} options
  * @param {string|null} options.orderId - The order ID to poll
+ * @param {string|null} options.creatorToken - Capability issued at checkout
  * @param {boolean} options.isOpen - Whether the checkout modal is currently active
  * @param {function} [options.onPaymentSuccess] - Callback executed when status reaches 'PAID'
  * @param {function} [options.onError] - Callback executed upon persistent polling error
@@ -23,6 +25,7 @@ const DEFAULT_POLL_INTERVAL_MS = 2500;
  */
 export function usePaymentPolling({
   orderId,
+  creatorToken,
   isOpen = false,
   onPaymentSuccess,
   onError,
@@ -57,19 +60,29 @@ export function usePaymentPolling({
     abortControllerRef.current = new AbortController();
 
     try {
-      const data = await getOrderStatus(orderId, {
+      const statusData = await getOrderStatus(orderId, {
         signal: abortControllerRef.current.signal,
       });
 
       if (!isMountedRef.current) return;
 
-      setOrderData(data);
-      setStatus(data.status);
-      setError(null);
-
-      if (data.status === 'PAID') {
+      if (statusData.status === 'PAID') {
+        if (!creatorToken) {
+          throw new Error('Checkout access is unavailable. Reopen checkout to try again.');
+        }
+        const sessionData = await exchangeOrderSession(orderId, creatorToken, {
+          signal: abortControllerRef.current.signal,
+        });
+        if (!isMountedRef.current) return;
+        setOrderData(sessionData);
+        setStatus('PAID');
+        setError(null);
         setIsPolling(false);
-        onSuccessRef.current?.(data);
+        onSuccessRef.current?.(sessionData);
+      } else {
+        setOrderData(statusData);
+        setStatus(statusData.status);
+        setError(null);
       }
     } catch (err) {
       if (err.name === 'AbortError' || !isMountedRef.current) {
@@ -81,12 +94,12 @@ export function usePaymentPolling({
     } finally {
       inFlightRef.current = false;
     }
-  }, [orderId]);
+  }, [creatorToken, orderId]);
 
   useEffect(() => {
     isMountedRef.current = true;
 
-    if (!isOpen || !orderId || status === 'PAID') {
+    if (!isOpen || !orderId || TERMINAL_STATUSES.has(status)) {
       setIsPolling(false);
       return undefined;
     }
@@ -129,4 +142,3 @@ export function usePaymentPolling({
     pollOnce,
   };
 }
-

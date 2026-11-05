@@ -1,7 +1,7 @@
 // =============================================================================
 // TIER 1 - VISITOR SESSION RESTORE MODAL (US 06.3)
 // Standardized in dev_rules.md, ui_rules.md & ux_rules.md
-// Allows visitors to enter their 6-character session code to regain access
+// Allows visitors to enter their session code to regain access
 // across multiple devices or after clearing browser storage.
 // =============================================================================
 
@@ -185,8 +185,8 @@ export default function RestoreSessionModal({
                 autoComplete="off"
                 autoCorrect="off"
                 spellCheck="false"
-                maxLength={20}
-                placeholder="CCT-XXXXXX"
+                maxLength={36}
+                placeholder="CCT-32-CHAR-CODE"
                 value={sessionCodeInput}
                 onChange={handleInputChange}
                 disabled={isLoading || isSuccess}
@@ -194,7 +194,7 @@ export default function RestoreSessionModal({
               />
             </div>
             <p className="mt-1.5 text-[11px] text-slate-500">
-              Mã gồm 6 ký tự in trên hoá đơn hoặc màn hình thanh toán trước đó (ví dụ: <span className="font-mono font-medium text-slate-700">CCT-894201</span>).
+              Mã phiên gồm tiền tố CCT- và 32 ký tự hex (có thể nhập cả mã cũ 6 ký tự).
             </p>
           </div>
 

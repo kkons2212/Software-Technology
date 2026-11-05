@@ -23,6 +23,10 @@ class CheckoutCreateResponse(BaseModel):
     """Response returned upon checkout order initialization."""
 
     order_id: str = Field(..., description="Unique transaction/order identifier.")
+    creator_token: str = Field(
+        ...,
+        description="Private checkout capability required to retrieve the visitor session.",
+    )
     pay_amount: int = Field(..., description="Service fee amount.")
     amount: int | None = Field(default=None, description="Alias for pay_amount.")
     currency: str = Field(default="VND", description="Currency code (e.g., VND).")
@@ -91,22 +95,39 @@ class OrderStatusResponse(BaseModel):
         default=None,
         description="Timestamp when payment was confirmed.",
     )
-    session_code: str | None = Field(
-        default=None,
-        description="Issued 24-hour session code (e.g. CCT-XXXXXX) when paid.",
+
+
+class OrderSessionRequest(BaseModel):
+    """Capability used to exchange a paid order for its visitor session."""
+
+    creator_token: str = Field(..., min_length=40, max_length=64)
+
+
+class OrderSessionResponse(BaseModel):
+    """Visitor session details returned after capability verification."""
+
+    order_id: str = Field(..., description="Unique transaction/order identifier.")
+    status: str = Field(..., description="Current order status.")
+    pay_amount: int = Field(..., description="Service fee amount.")
+    currency: str = Field(default="VND", description="Currency code.")
+    paid_at: datetime | None = Field(default=None)
+    session_code: str = Field(..., description="Issued visitor session code.")
+    session_token: str = Field(
+        ..., description="Session token granting audio streaming access."
     )
-    session_token: str | None = Field(
-        default=None,
-        description="Session token granting audio streaming decryption when paid.",
+    session_expires_at: datetime = Field(
+        ..., description="Expiration timestamp of the visitor session."
     )
-    session_expires_at: datetime | None = Field(
-        default=None,
-        description="Expiration timestamp of the 24-hour visitor session.",
+    expires_at: datetime = Field(
+        ..., description="Alias for the visitor session expiration timestamp."
     )
-    expires_at: datetime | None = Field(
-        default=None,
-        description="Direct alias for session_expires_at for seamless frontend consumption.",
-    )
+
+
+class PayPalCaptureRequest(OrderSessionRequest):
+    """PayPal capture details, including the checkout capability."""
+
+    paypal_order_id: str = Field(..., min_length=1, max_length=255)
+    preferred_language: str = Field(default="vi", max_length=20)
 
 
 class SimulatePaymentRequest(BaseModel):
@@ -177,11 +198,4 @@ class WebhookResponse(BaseModel):
     )
     order_id: str | None = Field(
         default=None, description="Associated transaction order ID."
-    )
-    session_code: str | None = Field(
-        default=None, description="Issued 24-hour session code."
-    )
-    session_token: str | None = Field(default=None, description="Issued session token.")
-    expires_at: datetime | None = Field(
-        default=None, description="Session expiration timestamp."
     )
