@@ -53,13 +53,13 @@ class AudioService:
                 message="Visiting session required or expired. Please purchase digital admission pass.",
             )
 
-    def get_audio_file_for_poi(
+    def get_audio_source_for_poi(
         self,
         poi_id: str,
         language: str = "vi",
         session_token: str | None = None,
-    ) -> Path:
-        """Authorize and resolve the physical audio file path for a POI and language."""
+    ) -> tuple[Path | None, str | None]:
+        """Authorize and resolve the audio source (local Path or remote CDN URL)."""
         self.verify_streaming_access(session_token)
 
         audio = self.audio_repository.get_audio_by_poi_and_language(
@@ -77,6 +77,11 @@ class AudioService:
                 message=f"Audio narration for POI '{poi_id}' in language '{language}' not found.",
             )
 
+        if audio.audio_url.startswith("http://") or audio.audio_url.startswith(
+            "https://"
+        ):
+            return None, audio.audio_url
+
         filename = Path(audio.audio_url).name
         file_path = self.audio_dir / filename
 
@@ -88,4 +93,24 @@ class AudioService:
                 message=f"Audio narration file for POI '{poi_id}' is missing from server storage.",
             )
 
+        return file_path, None
+
+    def get_audio_file_for_poi(
+        self,
+        poi_id: str,
+        language: str = "vi",
+        session_token: str | None = None,
+    ) -> Path:
+        """Authorize and resolve physical audio file path (backward compatibility)."""
+        file_path, _ = self.get_audio_source_for_poi(
+            poi_id=poi_id,
+            language=language,
+            session_token=session_token,
+        )
+        if file_path is None:
+            raise ApiError(
+                status_code=404,
+                code="AUDIO_FILE_MISSING",
+                message="Audio file is hosted on cloud CDN.",
+            )
         return file_path

@@ -73,12 +73,12 @@ flowchart TD
 ### PHASE 1: Initialize Cloud Object Storage (Supabase Storage)
 > **Objective:** Establish persistent cloud media storage for synthesized MP3 audio narrations and exhibit images, eliminating local disk dependency on Render.
 
-- [ ] **TASK-01.1:** Sign up / Log in to [Supabase](https://supabase.com) using GitHub account credentials (no credit card required).
-- [ ] **TASK-01.2:** Create a new project (Name: `cuchi-tunnels-media`, Region: **Singapore (`ap-southeast-1`)** for minimal latency to Vietnam).
-- [ ] **TASK-01.3:** Navigate to **Storage** $\rightarrow$ Create a new bucket named `museum-media`.
+- [x] **TASK-01.1:** Sign up / Log in to [Supabase](https://supabase.com) using GitHub account credentials (no credit card required).
+- [x] **TASK-01.2:** Create a new project (Name: `cuchi-tunnels-media`, Region: **Singapore (`ap-southeast-1`)** for minimal latency to Vietnam).
+- [x] **TASK-01.3:** Navigate to **Storage** $\rightarrow$ Create a new bucket named `museum-media`.
   - Enable **Public bucket** access (enables visitors to stream MP3 audio and render images directly via public CDN URLs).
-- [ ] **TASK-01.4:** Retrieve API credentials from **Project Settings** $\rightarrow$ **API**:
-  - `SUPABASE_URL` (e.g. `https://xyzproject.supabase.co`).
+- [x] **TASK-01.4:** Retrieve API credentials from **Project Settings** $\rightarrow$ **API**:
+  - `SUPABASE_URL` (e.g. `https://vnzojzglicrwmannlrwz.supabase.co`).
   - `SUPABASE_SERVICE_ROLE_KEY` / `SUPABASE_ANON_KEY` (write access token for file uploads).
 
 ---
@@ -86,7 +86,7 @@ flowchart TD
 ### PHASE 2: Implement Storage Adapter in Backend Codebase
 > **Objective:** Enable dual-mode media storage supporting both Cloud CDN uploads in production and local filesystem storage during offline development.
 
-- [ ] **TASK-02.1: Update Backend Environment Configuration**
+- [x] **TASK-02.1: Update Backend Environment Configuration**
   - Files: `MVP/backend/app/core/config.py` and `MVP/backend/.env.example`.
   - Add configuration settings:
     ```python
@@ -94,20 +94,19 @@ flowchart TD
     SUPABASE_KEY: str = ""
     SUPABASE_BUCKET_NAME: str = "museum-media"
     ```
-- [ ] **TASK-02.2: Construct Lightweight Storage Client Integration**
+- [x] **TASK-02.2: Construct Lightweight Storage Client Integration**
   - File: `MVP/backend/app/integrations/storage_client.py`.
   - Leverage native async `httpx` client (zero heavy SDK dependencies, preserving lean architecture):
-    - `upload_audio_file(file_name: str, content: bytes, content_type: str = "audio/mpeg") -> str`
-    - `upload_image_file(file_name: str, content: bytes, content_type: str = "image/jpeg") -> str`
-    - Return public CDN URL: `https://<id>.supabase.co/storage/v1/object/public/museum-media/audio/<file_name>`.
+    - `upload_file(relative_path: str, content: bytes, content_type: str) -> str`
+    - Return public CDN URL: `https://<id>.supabase.co/storage/v1/object/public/museum-media/<relative_path>`.
     - Automatically fall back to local disk (`/static/...`) if `SUPABASE_URL` is unconfigured.
-- [ ] **TASK-02.3: Integrate Storage Client with AudioSynthesisWorker**
+- [x] **TASK-02.3: Integrate Storage Client with AudioSynthesisWorker**
   - File: `MVP/backend/app/services/audio_synthesis_worker.py`.
   - Upon Edge-TTS MP3 generation, upload binary buffer to Supabase Storage and persist the CDN URL in `POIAudio.audio_url`.
-- [ ] **TASK-02.4: Integrate Storage Client with POIService (Cover Image Uploads)**
+- [x] **TASK-02.4: Integrate Storage Client with POIService (Cover Image Uploads)**
   - File: `MVP/backend/app/services/poi_service.py`.
   - Stream uploaded cover images to Supabase Storage CDN rather than storing exclusively on local disk.
-- [ ] **TASK-02.5: Author Unit Tests for Storage Client**
+- [x] **TASK-02.5: Author Unit Tests for Storage Client**
   - File: `MVP/backend/tests/unit/integrations/test_storage_client.py`.
   - Verify 100% test coverage for successful cloud uploads, error fallback, and local fallback paths.
 

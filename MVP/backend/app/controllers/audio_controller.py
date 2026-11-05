@@ -5,8 +5,8 @@ Enforces 24-hour visiting session authorization before streaming POI audio narra
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Header, Query
-from fastapi.responses import FileResponse
+from fastapi import APIRouter, Depends, Header, Query, Response
+from fastapi.responses import FileResponse, RedirectResponse
 
 from app.core.dependencies import get_audio_service
 from app.services.audio_service import AudioService
@@ -42,14 +42,16 @@ def stream_poi_audio(
     x_session_token: Annotated[str | None, Header(alias="X-Session-Token")] = None,
     authorization: Annotated[str | None, Header()] = None,
     audio_service: AudioService = Depends(get_audio_service),
-) -> FileResponse:
+) -> Response:
     """Stream protected audio file for an exhibit. Rejects unpaid/expired with HTTP 403 (TSK-06.4.1)."""
     session_token = _extract_token(token, x_session_token, authorization)
-    file_path = audio_service.get_audio_file_for_poi(
+    file_path, cdn_url = audio_service.get_audio_source_for_poi(
         poi_id=poi_id,
         language=language,
         session_token=session_token,
     )
+    if cdn_url:
+        return RedirectResponse(url=cdn_url, status_code=307)
     return FileResponse(
         path=file_path,
         media_type="audio/mpeg",
@@ -69,7 +71,7 @@ def stream_poi_audio_alias(
     x_session_token: Annotated[str | None, Header(alias="X-Session-Token")] = None,
     authorization: Annotated[str | None, Header()] = None,
     audio_service: AudioService = Depends(get_audio_service),
-) -> FileResponse:
+) -> Response:
     return stream_poi_audio(
         poi_id=poi_id,
         language=language,
