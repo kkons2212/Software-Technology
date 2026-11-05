@@ -4,6 +4,8 @@ US 02.1 / dev_rules Section 4.4: a session is opened only to run a query and is
 closed immediately afterwards - it is never held open across external I/O.
 """
 
+import re
+import ssl
 from collections.abc import Generator
 
 from sqlalchemy import Engine, create_engine
@@ -19,8 +21,27 @@ class Base(DeclarativeBase):
 def create_database_engine(settings: Settings | None = None) -> Engine:
     """Build the MySQL engine with the mandated connection-pool settings."""
     cfg = settings or get_settings()
+    db_url = cfg.DATABASE_URL
+    connect_args: dict[str, object] = {}
+
+    if db_url.startswith("mysql://"):
+        db_url = db_url.replace("mysql://", "mysql+pymysql://", 1)
+
+    if "ssl-mode=" in db_url or "ssl_mode=" in db_url or "aivencloud" in db_url:
+        db_url = re.sub(r"[?&]ssl[-_]mode=[^&]*", "", db_url)
+        db_url = re.sub(r"\?&", "?", db_url).rstrip("?").rstrip("&")
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+        connect_args["ssl"] = ctx
+
+    if "charset=" not in db_url:
+        delimiter = "&" if "?" in db_url else "?"
+        db_url = f"{db_url}{delimiter}charset=utf8mb4"
+
     return create_engine(
-        cfg.DATABASE_URL,
+        db_url,
+        connect_args=connect_args,
         pool_size=cfg.DB_POOL_SIZE,
         max_overflow=cfg.DB_MAX_OVERFLOW,
         pool_recycle=cfg.DB_POOL_RECYCLE_SECONDS,
