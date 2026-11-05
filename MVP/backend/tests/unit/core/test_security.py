@@ -4,10 +4,12 @@ from datetime import datetime, timedelta, timezone
 from unittest import mock
 
 import pytest
+from jose import jwt
 
 from app.core.config import DEFAULT_BCRYPT_ROUNDS, Settings
 from app.core.security import (
     JWT_EXPIRES_AT_CLAIM,
+    JWT_ISSUED_AT_CLAIM,
     JWT_SUBJECT_CLAIM,
     create_admin_access_token,
     decode_admin_access_token,
@@ -108,6 +110,61 @@ def test_should_return_none_when_token_signature_is_tampered():
 def test_should_return_none_when_token_is_garbage():
     assert decode_admin_access_token("this.is.not-a-jwt") is None
     assert decode_admin_access_token("") is None
+
+
+def test_should_reject_token_missing_issued_at_claim():
+    settings = Settings()
+    token_without_iat = jwt.encode(
+        {
+            JWT_SUBJECT_CLAIM: ADMIN_USER_NAME,
+            JWT_EXPIRES_AT_CLAIM: datetime.now(timezone.utc) + timedelta(minutes=30),
+        },
+        settings.JWT_SECRET_KEY,
+        algorithm=settings.JWT_ALGORITHM,
+    )
+
+    assert decode_admin_access_token(token_without_iat) is None
+
+
+def test_should_reject_token_with_issued_at_beyond_clock_skew(mocker):
+    settings = Settings()
+    current_time = 1_800_000_000
+    mocker.patch("app.core.security.time.time", return_value=current_time)
+    future_token = jwt.encode(
+        {
+            JWT_SUBJECT_CLAIM: ADMIN_USER_NAME,
+            JWT_ISSUED_AT_CLAIM: current_time + 6,
+            JWT_EXPIRES_AT_CLAIM: datetime.now(timezone.utc) + timedelta(minutes=30),
+        },
+        settings.JWT_SECRET_KEY,
+        algorithm=settings.JWT_ALGORITHM,
+    )
+
+    assert decode_admin_access_token(future_token) is None
+
+
+def test_should_accept_token_with_issued_at_within_clock_skew(mocker):
+    settings = Settings()
+    current_time = 1_800_000_000
+    mocker.patch("app.core.security.time.time", return_value=current_time)
+    slightly_future_token = jwt.encode(
+        {
+            JWT_SUBJECT_CLAIM: ADMIN_USER_NAME,
+            JWT_ISSUED_AT_CLAIM: current_time + 5,
+            JWT_EXPIRES_AT_CLAIM: datetime.now(timezone.utc) + timedelta(minutes=30),
+        },
+        settings.JWT_SECRET_KEY,
+        algorithm=settings.JWT_ALGORITHM,
+    )
+
+    assert decode_admin_access_token(slightly_future_token) is not None
+
+
+@pytest.mark.parametrize("issued_at", [None, "invalid", True, float("inf")])
+def test_should_reject_invalid_issued_at_claim(issued_at):
+    from app.core.security import is_valid_jwt_issued_at
+
+    assert is_valid_jwt_issued_at(issued_at) is False
 
 
 def test_should_return_none_when_token_has_expired(mocker):

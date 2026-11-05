@@ -638,11 +638,30 @@ def test_should_not_revoke_when_the_watermark_does_not_exist(
     assert resolved_profile.user_name == VALID_USER_NAME
 
 
-def test_should_not_revoke_when_the_token_carries_no_issued_at_claim(
+@pytest.mark.parametrize(
+    "issued_at_epoch",
+    [None, "invalid", True, float("inf"), 1_800_000_006],
+)
+def test_should_revoke_when_issued_at_is_missing_invalid_or_future(
+    mocker, issued_at_epoch
+):
+    mocker.patch("app.core.security.time.time", return_value=1_800_000_000)
+    audit_repository = mocker.MagicMock(spec=AuditRepository)
+    auth_service = AuthService(
+        user_repository=mocker.MagicMock(spec=UserRepository),
+        audit_repository=audit_repository,
+    )
+
+    is_revoked = auth_service._is_token_revoked(VALID_USER_NAME, issued_at_epoch)
+
+    assert is_revoked is True
+    audit_repository.find_last_logout_at.assert_not_called()
+
+
+def test_should_reject_session_when_the_token_carries_no_issued_at_claim(
     auth_service, active_admin, db_session
 ):
-    # A token minted without `iat` cannot be placed on the watermark timeline;
-    # the signature still has to be valid for the session to resolve at all.
+    # A signed token without `iat` is invalid regardless of the logout watermark.
     settings = get_settings()
     legacy_token = jwt.encode(
         {
@@ -654,9 +673,10 @@ def test_should_not_revoke_when_the_token_carries_no_issued_at_claim(
     )
     _seed_logout_watermark(db_session, VALID_USER_NAME, datetime(2026, 1, 1, 12, 0, 0))
 
-    resolved_profile = auth_service.resolve_authenticated_admin(legacy_token)
+    with pytest.raises(ApiError) as raised_error:
+        auth_service.resolve_authenticated_admin(legacy_token)
 
-    assert resolved_profile.user_name == VALID_USER_NAME
+    assert raised_error.value.status_code == 401
 
 
 def test_authenticate_admin_timing_hardening_runs_dummy_hash(mocker):

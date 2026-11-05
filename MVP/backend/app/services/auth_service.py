@@ -23,6 +23,7 @@ from app.core.security import (
     JWT_SUBJECT_CLAIM,
     create_admin_access_token,
     decode_admin_access_token,
+    is_valid_jwt_issued_at,
     verify_password,
 )
 from app.models.audit import (
@@ -243,8 +244,8 @@ class AuthService:
     ) -> bool:
         """Return True when the token was issued in or before the logout second."""
         # Phase 1: Precondition Gate
-        if issued_at_epoch is None:
-            return False
+        if not is_valid_jwt_issued_at(issued_at_epoch):
+            return True
 
         # Phase 2: Compute
         last_logout_at = self.audit_repository.find_last_logout_at(admin_user_name)
