@@ -202,6 +202,31 @@ def test_should_render_paypal_mock_checkout_page(client, db_session):
     assert res.status_code == 200
     assert "PayPal" in res.text
     assert order_id in res.text
+    assert (
+        f'href="/api/v1/payments/paypal/confirm-mock?order_id={order_id}"' in res.text
+    )
+
+
+def test_should_reject_html_order_id_before_rendering_checkout(monkeypatch):
+    from fastapi.testclient import TestClient
+
+    monkeypatch.setattr(settings, "ENVIRONMENT", "development")
+    payment_service = MagicMock()
+    monkeypatch.setitem(
+        app.dependency_overrides,
+        get_payment_service,
+        lambda: payment_service,
+    )
+
+    with TestClient(app) as test_client:
+        response = test_client.get(
+            "/api/v1/payments/paypal-checkout",
+            params={"order_id": "<script>alert(1)</script>"},
+        )
+
+    assert response.status_code == 422
+    assert response.headers["content-type"].startswith("application/json")
+    payment_service.simulate_payment_success.assert_not_called()
 
 
 def test_should_confirm_paypal_mock_payment_and_redirect(client, db_session):
@@ -281,6 +306,7 @@ def test_should_disable_mock_payment_routes_outside_development(
 def test_mock_routes_are_disabled_without_database_outside_development(monkeypatch):
     from fastapi.testclient import TestClient
 
+    order_id = "TXN_0123456789AB"
     monkeypatch.setattr(settings, "ENVIRONMENT", "production")
     payment_service = MagicMock()
     monkeypatch.setitem(
@@ -291,13 +317,13 @@ def test_mock_routes_are_disabled_without_database_outside_development(monkeypat
 
     with TestClient(app) as test_client:
         simulation_res = test_client.post(
-            "/api/v1/payments/order/TXN_TEST/simulate-success"
+            f"/api/v1/payments/order/{order_id}/simulate-success"
         )
         checkout_res = test_client.get(
-            "/api/v1/payments/paypal-checkout?order_id=TXN_TEST"
+            f"/api/v1/payments/paypal-checkout?order_id={order_id}"
         )
         confirm_res = test_client.get(
-            "/api/v1/payments/paypal/confirm-mock?order_id=TXN_TEST"
+            f"/api/v1/payments/paypal/confirm-mock?order_id={order_id}"
         )
 
     assert simulation_res.status_code == 404
@@ -309,6 +335,7 @@ def test_mock_routes_are_disabled_without_database_outside_development(monkeypat
 def test_mock_paypal_redirect_does_not_expose_session_token(monkeypatch):
     from fastapi.testclient import TestClient
 
+    order_id = "TXN_0123456789AB"
     monkeypatch.setattr(settings, "ENVIRONMENT", "development")
     payment_service = MagicMock()
     payment_service.simulate_payment_success.return_value.session_token = (
@@ -322,7 +349,7 @@ def test_mock_paypal_redirect_does_not_expose_session_token(monkeypatch):
 
     with TestClient(app) as test_client:
         response = test_client.get(
-            "/api/v1/payments/paypal/confirm-mock?order_id=TXN_TEST",
+            f"/api/v1/payments/paypal/confirm-mock?order_id={order_id}",
             follow_redirects=False,
         )
 
