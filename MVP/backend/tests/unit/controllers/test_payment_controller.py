@@ -2,8 +2,12 @@
 
 import hashlib
 import hmac
+from unittest.mock import MagicMock
 
 from app.core.config import settings
+from app.core.dependencies import get_payment_service
+from app.main import app
+from app.models.transaction import Transaction
 
 
 def _generate_sig(data: dict, checksum_key: str) -> str:
@@ -14,6 +18,12 @@ def _generate_sig(data: dict, checksum_key: str) -> str:
         sign_string.encode("utf-8"),
         hashlib.sha256,
     ).hexdigest()
+
+
+def _set_payos_order_code(db_session, order_id: str, order_code: str) -> None:
+    txn = db_session.query(Transaction).filter_by(transaction_id=order_id).one()
+    txn.gateway_transaction_id = order_code
+    db_session.commit()
 
 
 def test_should_create_checkout_order_for_vietqr(client, db_session):
@@ -107,10 +117,12 @@ def test_should_handle_webhook_success_and_activate_session(
     order_id = create_res.json()["order_id"]
 
     # 2. Call Webhook
+    _set_payos_order_code(db_session, order_id, "123456")
     data = {
-        "order_id": order_id,
+        "orderCode": 123456,
         "amount": 50000,
         "description": f"CCT {order_id[-6:]}",
+        "code": "00",
     }
     sig = _generate_sig(data, test_key)
     payload = {
@@ -137,7 +149,7 @@ def test_should_reject_webhook_with_invalid_signature_401(
     payload = {
         "code": "00",
         "desc": "success",
-        "data": {"orderCode": 12345},
+        "data": {"orderCode": 12345, "code": "00"},
         "signature": "bad_signature_hex",
     }
     res = client.post("/api/v1/payments/webhook", json=payload)
@@ -161,7 +173,8 @@ def test_should_handle_idempotent_duplicate_webhook(client, db_session, monkeypa
     )
     order_id = create_res.json()["order_id"]
 
-    data = {"order_id": order_id, "amount": 50000}
+    _set_payos_order_code(db_session, order_id, "123457")
+    data = {"orderCode": 123457, "amount": 50000, "code": "00"}
     sig = _generate_sig(data, test_key)
     payload = {"code": "00", "desc": "success", "data": data, "signature": sig}
 
@@ -207,8 +220,8 @@ def test_should_confirm_paypal_mock_payment_and_redirect(client, db_session):
     assert res.status_code == 302
     location = res.headers["location"]
     assert "payment_success=true" in location
-    assert "session_code=" in location
-    assert "session_token=" in location
+    assert f"order_id={order_id}" in location
+    assert "session_token" not in location
 
     status_res = client.get(f"/api/v1/payments/order/{order_id}/status")
     assert status_res.status_code == 200
@@ -225,7 +238,11 @@ def test_should_confirm_paypal_mock_payment_and_redirect(client, db_session):
     assert sess.PreferredLanguage == "ja"
 
 
-def test_should_capture_paypal_order(client, db_session):
+def test_should_not_capture_paypal_order_without_gateway_credentials(
+    client, db_session, monkeypatch
+):
+    monkeypatch.setattr(settings, "PAYPAL_CLIENT_ID", "")
+    monkeypatch.setattr(settings, "PAYPAL_CLIENT_SECRET", "")
     create_res = client.post(
         "/api/v1/payments/create-checkout",
         json={"payment_method": "CARD"},
@@ -233,7 +250,81 @@ def test_should_capture_paypal_order(client, db_session):
     order_id = create_res.json()["order_id"]
 
     cap_res = client.post(f"/api/v1/payments/order/{order_id}/paypal-capture")
-    assert cap_res.status_code == 200
-    data = cap_res.json()
-    assert data["status"] == "PAID"
-    assert data["session_code"] is not None
+    assert cap_res.status_code == 503
+    txn = db_session.query(Transaction).filter_by(transaction_id=order_id).one()
+    assert txn.status == "PENDING"
+
+
+def test_should_disable_mock_payment_routes_outside_development(
+    client, db_session, monkeypatch
+):
+    monkeypatch.setattr(settings, "ENVIRONMENT", "production")
+    create_res = client.post(
+        "/api/v1/payments/create-checkout",
+        json={"payment_method": "VIETQR"},
+    )
+    order_id = create_res.json()["order_id"]
+
+    simulation_res = client.post(f"/api/v1/payments/order/{order_id}/simulate-success")
+    mock_checkout_res = client.get(
+        f"/api/v1/payments/paypal-checkout?order_id={order_id}"
+    )
+    mock_confirm_res = client.get(
+        f"/api/v1/payments/paypal/confirm-mock?order_id={order_id}"
+    )
+
+    assert simulation_res.status_code == 404
+    assert mock_checkout_res.status_code == 404
+    assert mock_confirm_res.status_code == 404
+
+
+def test_mock_routes_are_disabled_without_database_outside_development(monkeypatch):
+    from fastapi.testclient import TestClient
+
+    monkeypatch.setattr(settings, "ENVIRONMENT", "production")
+    payment_service = MagicMock()
+    monkeypatch.setitem(
+        app.dependency_overrides,
+        get_payment_service,
+        lambda: payment_service,
+    )
+
+    with TestClient(app) as test_client:
+        simulation_res = test_client.post(
+            "/api/v1/payments/order/TXN_TEST/simulate-success"
+        )
+        checkout_res = test_client.get(
+            "/api/v1/payments/paypal-checkout?order_id=TXN_TEST"
+        )
+        confirm_res = test_client.get(
+            "/api/v1/payments/paypal/confirm-mock?order_id=TXN_TEST"
+        )
+
+    assert simulation_res.status_code == 404
+    assert checkout_res.status_code == 404
+    assert confirm_res.status_code == 404
+    payment_service.simulate_payment_success.assert_not_called()
+
+
+def test_mock_paypal_redirect_does_not_expose_session_token(monkeypatch):
+    from fastapi.testclient import TestClient
+
+    monkeypatch.setattr(settings, "ENVIRONMENT", "development")
+    payment_service = MagicMock()
+    payment_service.simulate_payment_success.return_value.session_token = (
+        "sensitive-session-token"
+    )
+    monkeypatch.setitem(
+        app.dependency_overrides,
+        get_payment_service,
+        lambda: payment_service,
+    )
+
+    with TestClient(app) as test_client:
+        response = test_client.get(
+            "/api/v1/payments/paypal/confirm-mock?order_id=TXN_TEST",
+            follow_redirects=False,
+        )
+
+    assert response.status_code == 302
+    assert "sensitive-session-token" not in response.headers["location"]

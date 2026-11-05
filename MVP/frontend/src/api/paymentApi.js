@@ -9,6 +9,8 @@ import { apiClient } from './apiClient.js';
 const CHECKOUT_CREATE_ENDPOINT = '/api/v1/payments/create-checkout';
 const ORDER_STATUS_ENDPOINT = (orderId) => `/api/v1/payments/order/${encodeURIComponent(orderId)}/status`;
 const ORDER_SIMULATE_ENDPOINT = (orderId) => `/api/v1/payments/order/${encodeURIComponent(orderId)}/simulate-success`;
+const PAYPAL_CAPTURE_ENDPOINT = (orderId, paypalOrderId) =>
+  `/api/v1/payments/order/${encodeURIComponent(orderId)}/paypal-capture?paypal_order_id=${encodeURIComponent(paypalOrderId)}`;
 
 /**
  * Creates a new checkout order for the 24-hour smart audio guide service.
@@ -68,4 +70,23 @@ export async function simulatePaymentSuccess(orderId, { signal, preferredLanguag
     { signal }
   );
   return payload;
+}
+
+/**
+ * Captures a PayPal order after the visitor returns from the provider.
+ * @param {string} orderId
+ * @param {string} paypalOrderId
+ * @param {object} [options]
+ * @param {AbortSignal} [options.signal]
+ * @returns {Promise<object>} Verified order status with visitor session details
+ */
+export async function capturePaypalOrder(orderId, paypalOrderId, { signal } = {}) {
+  if (!orderId || !paypalOrderId) {
+    throw new Error('orderId and paypalOrderId are required to capture PayPal payment');
+  }
+  return apiClient.post(
+    PAYPAL_CAPTURE_ENDPOINT(orderId, paypalOrderId),
+    undefined,
+    { signal }
+  );
 }

@@ -44,6 +44,7 @@ class Settings(BaseSettings):
 
     PROJECT_NAME: str = "Smart Multilingual Audio Guide - Cu Chi Tunnels"
     API_V1_STR: str = "/api/v1"
+    ENVIRONMENT: str = "production"
 
     DATABASE_URL: str = (
         "mysql+pymysql://museum_app_user:app_password_456@localhost:3306/smart_museum?charset=utf8mb4"
@@ -99,6 +100,11 @@ class Settings(BaseSettings):
     TRANSLATION_PROVIDERS_ORDER: str = (
         "openrouter,offline,google_cloud,gemini,deep_translator"
     )
+
+    @property
+    def is_development(self) -> bool:
+        """Return whether development-only features may be enabled."""
+        return self.ENVIRONMENT.strip().lower() == "development"
 
     # Geographic Perimeter Bounds
     ALLOW_GLOBAL_COORDINATES: bool = False

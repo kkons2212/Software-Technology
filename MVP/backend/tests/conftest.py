@@ -69,6 +69,7 @@ def use_low_cost_bcrypt(mocker):
         "app.core.security.get_settings",
         return_value=Settings(BCRYPT_ROUNDS=LOW_COST_BCRYPT_ROUNDS),
     )
+    mocker.patch.object(settings, "ENVIRONMENT", "development")
 
 
 @pytest.fixture()

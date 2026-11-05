@@ -18,6 +18,7 @@ vi.mock('../../../api/tourApi.js', () => ({
 }));
 
 vi.mock('../../../api/paymentApi.js', () => ({
+  capturePaypalOrder: vi.fn(),
   getOrderStatus: vi.fn(),
 }));
 
@@ -82,7 +83,7 @@ vi.mock('../VisitorMapView.jsx', () => ({
 import { getPublishedLanguages } from '../../../api/languageApi.js';
 import { getMapPois } from '../../../api/poiApi.js';
 import { reportPoiTrigger } from '../../../api/telemetryApi.js';
-import { getOrderStatus } from '../../../api/paymentApi.js';
+import { capturePaypalOrder, getOrderStatus } from '../../../api/paymentApi.js';
 import VisitorTourPage from '../VisitorTourPage.jsx';
 
 const FROZEN_EPOCH_MS = 1_700_000_000_000;
@@ -99,6 +100,8 @@ beforeEach(() => {
   getMapPois.mockResolvedValue([]);
   getOrderStatus.mockReset();
   getOrderStatus.mockResolvedValue({ status: 'PENDING' });
+  capturePaypalOrder.mockReset();
+  capturePaypalOrder.mockResolvedValue({ status: 'PENDING' });
   audioPlayerMock.play.mockClear();
   geofenceMock.activeGeofencePois = [];
   geofenceMock.onTrigger = null;
@@ -264,18 +267,51 @@ describe('VisitorTourPage', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
   });
 
-  it('activates session from redirect query params upon payment_success', async () => {
+  it('resolves the session from the order instead of redirect query tokens', async () => {
     delete window.location;
-    window.location = new URL('http://localhost:5173/tour?payment_success=true&order_id=ord-1&session_code=CODE123&session_token=TOKEN123&expires_at=2026-11-02T00:00:00Z');
+    window.location = new URL('http://localhost:5173/tour?payment_success=true&order_id=ord-1&session_token=LEAKED');
+    getOrderStatus.mockResolvedValueOnce({
+      status: 'PAID',
+      session_code: 'CODE123',
+      session_token: 'TOKEN123',
+      expires_at: '2026-11-02T00:00:00Z',
+    });
 
     await act(async () => {
       render(<VisitorTourPage />);
     });
 
-    expect(visitorSessionMock.activateSession).toHaveBeenCalledWith({
-      sessionCode: 'CODE123',
-      sessionToken: 'TOKEN123',
-      expiresAt: '2026-11-02T00:00:00Z',
+    await waitFor(() => {
+      expect(getOrderStatus).toHaveBeenCalledWith('ord-1');
+      expect(visitorSessionMock.activateSession).toHaveBeenCalledWith({
+        sessionCode: 'CODE123',
+        sessionToken: 'TOKEN123',
+        expiresAt: '2026-11-02T00:00:00Z',
+      });
+    });
+  });
+
+  it('captures PayPal using the provider order token before resolving the session', async () => {
+    delete window.location;
+    window.location = new URL('http://localhost:5173/tour?payment_success=true&order_id=ord-paypal&token=paypal-order-1');
+    capturePaypalOrder.mockResolvedValueOnce({
+      status: 'PAID',
+      session_code: 'CODE-PAYPAL',
+      session_token: 'TOKEN-PAYPAL',
+      session_expires_at: '2026-11-02T12:00:00Z',
+    });
+
+    await act(async () => {
+      render(<VisitorTourPage />);
+    });
+
+    await waitFor(() => {
+      expect(capturePaypalOrder).toHaveBeenCalledWith('ord-paypal', 'paypal-order-1');
+      expect(visitorSessionMock.activateSession).toHaveBeenCalledWith({
+        sessionCode: 'CODE-PAYPAL',
+        sessionToken: 'TOKEN-PAYPAL',
+        expiresAt: '2026-11-02T12:00:00Z',
+      });
     });
   });
 

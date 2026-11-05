@@ -110,7 +110,7 @@ class OrderStatusResponse(BaseModel):
 
 
 class SimulatePaymentRequest(BaseModel):
-    """Optional body for the sandbox simulate-success endpoint."""
+    """Optional body for the development-only mock payment endpoint."""
 
     preferred_language: str = Field(
         default="vi",

@@ -10,6 +10,7 @@ vi.mock('../apiClient.js', () => ({
 import { apiClient } from '../apiClient.js';
 import {
   createCheckoutOrder,
+  capturePaypalOrder,
   getOrderStatus,
   simulatePaymentSuccess,
 } from '../paymentApi.js';
@@ -127,6 +128,30 @@ describe('paymentApi', () => {
     it('throws error if orderId is missing', async () => {
       await expect(simulatePaymentSuccess('')).rejects.toThrow('orderId is required');
     });
+
+    describe('capturePaypalOrder', () => {
+      it('captures the returned PayPal order for the checkout', async () => {
+        const mockResponse = { order_id: 'cct-order-789', status: 'PAID' };
+        apiClient.post.mockResolvedValueOnce(mockResponse);
+
+        const result = await capturePaypalOrder('cct order/789', 'paypal-order-1');
+
+        expect(apiClient.post).toHaveBeenCalledWith(
+          '/api/v1/payments/order/cct%20order%2F789/paypal-capture?paypal_order_id=paypal-order-1',
+          undefined,
+          { signal: undefined }
+        );
+        expect(result).toEqual(mockResponse);
+      });
+
+      it('requires both checkout and PayPal order identifiers', async () => {
+        await expect(capturePaypalOrder('', 'paypal-order-1')).rejects.toThrow(
+          'orderId and paypalOrderId are required'
+        );
+        await expect(capturePaypalOrder('order-1', '')).rejects.toThrow(
+          'orderId and paypalOrderId are required'
+        );
+      });
+    });
   });
 });
-

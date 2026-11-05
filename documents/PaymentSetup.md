@@ -13,8 +13,8 @@ Hệ thống hỗ trợ 2 cổng thanh toán số dành cho khách tham quan:
 2. **PayPal Sandbox (Thẻ quốc tế & Tài khoản PayPal)**: Cổng thanh toán quốc tế hỗ trợ thanh toán bảo mật bằng thẻ Visa, Mastercard, JCB hoặc số dư tài khoản PayPal Sandbox.
 
 > [!NOTE]
-> **Cơ chế Tự bảo vệ (Graceful Fallback - Zero Broken Build):**
-> Nếu bạn mới pull mã nguồn về và **chưa kịp cấu hình các khóa API bên dưới**, Backend sẽ **không bị crash hay báo lỗi**. Hệ thống sẽ tự động phát hiện và kích hoạt chế độ **Internal Sandbox Simulator** để giao diện và toàn bộ unit test vẫn chạy mượt mà 100%. Khi bạn điền các khóa API vào file `.env`, hệ thống sẽ tự động chuyển sang gọi trực tiếp server Sandbox của PayOS & PayPal.
+> **Chế độ giả lập chỉ dành cho phát triển:**
+> `ENVIRONMENT` mặc định là `production`. Chỉ đặt `ENVIRONMENT=development` trên máy local để sử dụng trang PayPal giả lập và nút mô phỏng thanh toán. Các route giả lập trả về 404 ở staging/production. Thiếu PayPal credentials ngoài development sẽ làm checkout thất bại thay vì cấp phiên miễn phí. Không dùng `ENVIRONMENT=development` trên môi trường được triển khai.
 
 ---
 
@@ -23,6 +23,8 @@ Hệ thống hỗ trợ 2 cổng thanh toán số dành cho khách tham quan:
 Các biến sau cần được khai báo trong file `.env` tại thư mục `MVP/backend/.env` (bạn có thể sao chép từ file mẫu `MVP/backend/.env.example`):
 
 ```env
+ENVIRONMENT=development
+
 # ==============================================================================
 # 1. PAYOS SANDBOX CREDENTIALS (VIETQR THANH TOÁN NỘI ĐỊA)
 # ==============================================================================
@@ -124,8 +126,12 @@ PayPal đã tự động tạo sẵn các tài khoản thử nghiệm đi kèm t
 5. Ngay sau khi hoàn tất, hệ thống tự động xác nhận và kích hoạt phiên 24h trên giao diện khách tham quan!
 
 > [!TIP]
-> **Chế độ Giả lập tương tác (Interactive PayPal Simulator):**
-> Nếu bạn chưa có tài khoản PayPal Developer, Backend vẫn cung cấp trang web mô phỏng PayPal Sandbox tích hợp sẵn (`/api/v1/payments/paypal-checkout?order_id=...`). Bạn có thể bấm nút tiếp tục thanh toán và xác nhận ngay lập tức mà không cần tài khoản ngoài!
+> **Chế độ Giả lập tương tác (development only):**
+> Nếu chưa có tài khoản PayPal Developer, hãy đặt `ENVIRONMENT=development`. Backend sẽ cung cấp trang giả lập (`/api/v1/payments/paypal-checkout?order_id=...`), nhưng chỉ trong môi trường phát triển. Trang này không thực hiện giao dịch với PayPal; không thể dùng giả lập trên staging/production.
+
+Khi dùng PayPal Sandbox thật, ứng dụng gửi mã đơn PayPal về backend sau khi người mua duyệt thanh toán. Backend gọi capture và chỉ kích hoạt phiên nếu PayPal xác nhận capture `COMPLETED`, đúng order, số tiền và tiền tệ. Session token được trao qua phản hồi JSON, không nằm trong URL redirect.
+
+VietQR chỉ tự xác nhận sau khi PayOS gửi webhook hợp lệ: chữ ký checksum, trạng thái thanh toán, mã đơn, số tiền và tiền tệ phải khớp. QR tĩnh khi thiếu PayOS credentials không phải là xác nhận thanh toán.
 
 ---
 

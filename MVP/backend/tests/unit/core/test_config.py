@@ -20,6 +20,15 @@ def test_settings_default_values():
     assert cfg.ALLOW_GLOBAL_COORDINATES is False
 
 
+def test_settings_defaults_to_production_environment(monkeypatch):
+    monkeypatch.delenv("ENVIRONMENT", raising=False)
+
+    cfg = Settings(_env_file=None, JWT_SECRET_KEY=secrets.token_hex(32))
+
+    assert cfg.ENVIRONMENT == "production"
+    assert cfg.is_development is False
+
+
 def test_settings_requires_jwt_secret(monkeypatch):
     monkeypatch.delenv("JWT_SECRET_KEY", raising=False)
 
