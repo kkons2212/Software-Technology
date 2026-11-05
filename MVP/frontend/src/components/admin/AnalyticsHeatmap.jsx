@@ -49,6 +49,56 @@ const RANGE_OPTIONS = [
   { value: ANALYTICS_TIME_RANGES.LAST_30_DAYS, label: 'Last 30 days' },
 ];
 
+function createHeatmapPopup(point, count, intensity, tierColor, congestionStatus) {
+  const popup = document.createElement('div');
+  popup.className = 'text-xs font-sans min-w-[170px] p-1';
+
+  const title = document.createElement('strong');
+  title.className = 'text-slate-900 block font-bold text-sm mb-1';
+  title.textContent = String(point.poi_title ?? '');
+  popup.append(title);
+
+  const countRow = document.createElement('div');
+  countRow.className = 'flex justify-between text-slate-600 mb-0.5';
+  const countLabel = document.createElement('span');
+  countLabel.textContent = 'Lượt khách:';
+  const countValue = document.createElement('strong');
+  countValue.className = 'text-slate-900 font-mono';
+  countValue.textContent = `${count} lượt`;
+  countRow.append(countLabel, countValue);
+  popup.append(countRow);
+
+  const intensityRow = document.createElement('div');
+  intensityRow.className = 'flex justify-between text-slate-600 mb-1';
+  const intensityLabel = document.createElement('span');
+  intensityLabel.textContent = 'Mật độ tương đối:';
+  const intensityValue = document.createElement('strong');
+  intensityValue.style.color = tierColor;
+  intensityValue.textContent = `${intensity}%`;
+  intensityRow.append(intensityLabel, intensityValue);
+  popup.append(intensityRow);
+
+  const status = document.createElement('span');
+  status.className = `inline-block mt-1 px-1.5 py-0.5 rounded text-[10px] font-bold text-white ${congestionStatus.className}`;
+  status.textContent = congestionStatus.label;
+  popup.append(status);
+
+  return popup;
+}
+
+function getCongestionStatus(hasVisitors, isCongested, isModerate) {
+  if (!hasVisitors) {
+    return { className: 'bg-slate-400', label: 'CHƯA CÓ KHÁCH (0 lượt)' };
+  }
+  if (isCongested) {
+    return { className: 'bg-red-600', label: 'CẢNH BÁO ÙN TẮC' };
+  }
+  if (isModerate) {
+    return { className: 'bg-amber-500', label: 'MẬT ĐỘ VỪA PHẢI' };
+  }
+  return { className: 'bg-emerald-600', label: 'THÔNG THOÁNG' };
+}
+
 export default function AnalyticsHeatmap({
   range: externalRange,
   onRangeChange: externalOnRangeChange,
@@ -218,6 +268,12 @@ export default function AnalyticsHeatmap({
               : isModerate
                 ? '#EAB308'
                 : '#22C55E';
+          const intensity = Math.round((Number(point.intensity) || 0) * 100);
+          const congestionStatus = getCongestionStatus(
+            hasVisitors,
+            isCongested,
+            isModerate,
+          );
 
           // Pulsing / glowing background circle for active points
           if (hasVisitors && typeof L.circle === 'function') {
@@ -242,38 +298,15 @@ export default function AnalyticsHeatmap({
             });
 
             if (marker && typeof marker.bindPopup === 'function') {
-              marker.bindPopup(`
-                <div class="text-xs font-sans min-w-[170px] p-1">
-                  <strong class="text-slate-900 block font-bold text-sm mb-1">${point.poi_title}</strong>
-                  <div class="flex justify-between text-slate-600 mb-0.5">
-                    <span>Lượt khách:</span>
-                    <strong class="text-slate-900 font-mono">${count} lượt</strong>
-                  </div>
-                  <div class="flex justify-between text-slate-600 mb-1">
-                    <span>Mật độ tương đối:</span>
-                    <strong style="color: ${tierColor};">${(point.intensity * 100).toFixed(0)}%</strong>
-                  </div>
-                  <span class="inline-block mt-1 px-1.5 py-0.5 rounded text-[10px] font-bold text-white ${
-                    !hasVisitors
-                      ? 'bg-slate-400'
-                      : isCongested
-                        ? 'bg-red-600'
-                        : isModerate
-                          ? 'bg-amber-500'
-                          : 'bg-emerald-600'
-                  }">
-                    ${
-                      !hasVisitors
-                        ? 'CHƯA CÓ KHÁCH (0 lượt)'
-                        : isCongested
-                          ? 'CẢNH BÁO ÙN TẮC'
-                          : isModerate
-                            ? 'MẬT ĐỘ VỪA PHẢI'
-                            : 'THÔNG THOÁNG'
-                    }
-                  </span>
-                </div>
-              `);
+              marker.bindPopup(
+                createHeatmapPopup(
+                  point,
+                  count,
+                  intensity,
+                  tierColor,
+                  congestionStatus,
+                ),
+              );
             }
             markersLayerGroupRef.current.addLayer(marker);
           }

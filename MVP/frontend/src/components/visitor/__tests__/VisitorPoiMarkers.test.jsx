@@ -68,10 +68,10 @@ describe('VisitorPoiMarkers', () => {
     );
     expect(leafletMocks.marker.addTo).toHaveBeenCalledWith(map);
     expect(leafletMocks.marker.on).toHaveBeenCalledWith('click', expect.any(Function));
-    expect(leafletMocks.marker.bindTooltip).toHaveBeenCalledWith(
-      'Tunnel',
-      { direction: 'top', offset: [0, -12] },
-    );
+    const [tooltip, tooltipOptions] = leafletMocks.marker.bindTooltip.mock.calls[0];
+    expect(tooltip).toBeInstanceOf(HTMLElement);
+    expect(tooltip.textContent).toBe('Tunnel');
+    expect(tooltipOptions).toEqual({ direction: 'top', offset: [0, -12] });
     expect(leafletMocks.divIcon.mock.calls[0][0].html).toContain('>1</span>');
     expect(leafletMocks.divIcon.mock.calls[1][0].html).toContain('>2</span>');
     expect(leafletMocks.circleFactory).toHaveBeenNthCalledWith(
@@ -92,6 +92,29 @@ describe('VisitorPoiMarkers', () => {
     expect(leafletMocks.marker.remove).toHaveBeenCalled();
     expect(leafletMocks.radius.remove).toHaveBeenCalled();
     expect(leafletMocks.marker.off).toHaveBeenCalledWith('click');
+  });
+
+  it('renders POI titles as tooltip text instead of HTML', () => {
+    const unsafeTitle = '<img src=x onerror=alert(1)>Tunnel';
+
+    render(
+      <VisitorPoiMarkers
+        map={{ map: true }}
+        pois={[
+          {
+            id: 'poi-xss',
+            latitude: 11.14,
+            longitude: 106.46,
+            title: unsafeTitle,
+          },
+        ]}
+      />,
+    );
+
+    const [tooltip] = leafletMocks.marker.bindTooltip.mock.calls[0];
+    expect(tooltip).toBeInstanceOf(HTMLElement);
+    expect(tooltip.textContent).toBe(unsafeTitle);
+    expect(tooltip.querySelector('img')).toBeNull();
   });
 
   it('updates playing and listened marker styles without recreating the markers', () => {

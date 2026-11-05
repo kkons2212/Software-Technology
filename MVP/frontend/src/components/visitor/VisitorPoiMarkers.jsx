@@ -25,6 +25,12 @@ function createPoiIcon(index, status) {
   });
 }
 
+function createPoiTooltip(title) {
+  const tooltip = document.createElement('span');
+  tooltip.textContent = String(title ?? '');
+  return tooltip;
+}
+
 export default function VisitorPoiMarkers({
   map,
   pois,
@@ -49,7 +55,9 @@ export default function VisitorPoiMarkers({
       });
 
       marker.on('click', () => onSelectPOIRef.current?.(poi.id));
-      marker.addTo(map).bindTooltip(poi.title, { direction: 'top', offset: [0, -12] });
+      marker
+        .addTo(map)
+        .bindTooltip(createPoiTooltip(poi.title), { direction: 'top', offset: [0, -12] });
 
       const radius = L.circle([poi.latitude, poi.longitude], {
         radius: getTriggerRadius(poi),
