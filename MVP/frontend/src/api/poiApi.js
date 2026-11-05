@@ -3,7 +3,7 @@
 // Strictly decoupled from UI presentations.
 // =============================================================================
 
-import { apiClient, ApiError } from './apiClient.js';
+import { apiClient } from './apiClient.js';
 
 const POI_ADMIN_BASE_PATH = '/api/v1/admin/pois';
 const POIS_ENDPOINT = '/api/v1/pois';
