@@ -1,5 +1,10 @@
 """Unit test suite for application configuration singleton (REF-07.2)."""
 
+import secrets
+
+import pytest
+from pydantic import ValidationError
+
 from app.core.config import Settings, get_settings
 
 
@@ -13,6 +18,35 @@ def test_settings_default_values():
     assert cfg.PAYPAL_MODE == "sandbox"
     assert cfg.SERVICE_FEE_CURRENCY == "VND"
     assert cfg.ALLOW_GLOBAL_COORDINATES is False
+
+
+def test_settings_requires_jwt_secret(monkeypatch):
+    monkeypatch.delenv("JWT_SECRET_KEY", raising=False)
+
+    with pytest.raises(ValidationError):
+        Settings(_env_file=None)
+
+
+@pytest.mark.parametrize(
+    "secret",
+    [
+        "",
+        "short-secret",
+        "smart-museum-dev-placeholder-jwt-key",
+        "g" * 64,
+    ],
+)
+def test_settings_rejects_weak_or_malformed_jwt_secret(secret):
+    with pytest.raises(ValidationError):
+        Settings(_env_file=None, JWT_SECRET_KEY=secret)
+
+
+def test_settings_accepts_256_bit_hex_jwt_secret():
+    secret = secrets.token_hex(32)
+
+    cfg = Settings(_env_file=None, JWT_SECRET_KEY=secret)
+
+    assert cfg.JWT_SECRET_KEY == secret
 
 
 def test_gemini_keys_list_parsing():
