@@ -162,6 +162,33 @@ describe('AnalyticsHeatmap Component (US 05.1)', () => {
     expect(alert).toHaveTextContent('100% relative density');
   });
 
+  it('renders POI titles as text in Leaflet popups instead of interpreting HTML', async () => {
+    const unsafeTitle = '<img src=x onerror=alert(1)>Bunker';
+    getHeatmapData.mockResolvedValueOnce({
+      ...MOCK_HEATMAP_CONGESTED,
+      points: [
+        {
+          ...MOCK_HEATMAP_CONGESTED.points[0],
+          poi_title: unsafeTitle,
+        },
+      ],
+      total_points: 1,
+    });
+
+    render(<AnalyticsHeatmap />);
+
+    await waitFor(() => {
+      expect(leafletMocks.circleMarkerInstance.bindPopup).toHaveBeenCalled();
+    });
+
+    const [popup] = leafletMocks.circleMarkerInstance.bindPopup.mock.calls[0];
+    expect(popup).toBeInstanceOf(HTMLElement);
+    expect(popup.querySelector('strong').textContent).toBe(unsafeTitle);
+    expect(popup.querySelector('img')).toBeNull();
+    expect(popup.textContent).toContain('500 lượt');
+    expect(popup.textContent).toContain('100%');
+  });
+
   it('allows switching reporting window between Today, Last 7 Days and Last 30 Days (AC-05.1.2)', async () => {
     render(<AnalyticsHeatmap />);
 
