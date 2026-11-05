@@ -99,7 +99,7 @@ flowchart TD
    * Updates translation records to `READY` status and writes CDN URLs to Aiven MySQL.
 
 ---
-
+<!--
 ## 4. ENVIRONMENT VARIABLES MAPPING BY HOST
 
 ### A. Render.com Web Service (`MVP/backend`)
@@ -131,7 +131,7 @@ PAYOS_CHECKSUM_KEY=dev_payos_checksum_key_cuchi_demo
 # Base URL pointing to the deployed Render backend API
 VITE_API_BASE_URL=https://smart-museum-backend.onrender.com
 ```
-
+-->
 ---
 
 ## 5. QUICK ARCHITECTURE REFERENCE
