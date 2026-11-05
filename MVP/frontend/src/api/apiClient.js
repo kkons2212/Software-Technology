@@ -6,7 +6,8 @@ const NETWORK_ERROR_MESSAGE = 'Unable to reach the server. Please check your con
 const FALLBACK_ERROR_CODE = 'UNKNOWN_ERROR';
 const FALLBACK_ERROR_MESSAGE = 'An unexpected error occurred. Please try again.';
 
-const API_BASE_URL = import.meta.env?.VITE_API_BASE_URL ?? DEFAULT_API_BASE_URL;
+const RAW_API_BASE_URL = import.meta.env?.VITE_API_BASE_URL ?? DEFAULT_API_BASE_URL;
+const API_BASE_URL = typeof RAW_API_BASE_URL === 'string' ? RAW_API_BASE_URL.replace(/\/+$/, '') : '';
 
 export class ApiError extends Error {
   constructor({
@@ -27,7 +28,8 @@ function buildRequestUrl(path) {
   if (/^https?:\/\//i.test(path)) {
     return path;
   }
-  return `${API_BASE_URL}${path}`;
+  const cleanPath = path.startsWith('/') ? path : `/${path}`;
+  return `${API_BASE_URL}${cleanPath}`;
 }
 
 async function readResponsePayload(response) {
