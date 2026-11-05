@@ -4,6 +4,8 @@ US 02.1 - AC-02.1.2 (one-way Bcrypt hashes, cost factor >= 12) and
 AC-02.1.3 (HS256 JWT with a hard 60-minute expiration).
 """
 
+import math
+import time
 from datetime import datetime, timedelta, timezone
 from typing import Any, Final
 
@@ -19,6 +21,7 @@ PASSWORD_HASH_CONTEXT: Final = CryptContext(
 JWT_SUBJECT_CLAIM = "sub"
 JWT_ISSUED_AT_CLAIM = "iat"
 JWT_EXPIRES_AT_CLAIM = "exp"
+JWT_IAT_CLOCK_SKEW_SECONDS: Final = 5
 SECONDS_PER_MINUTE = 60
 
 
@@ -54,13 +57,34 @@ def decode_admin_access_token(access_token: str) -> dict[str, Any] | None:
     """Decode and verify a session token; returns None for any invalid token."""
     settings = get_settings()
     try:
-        return jwt.decode(
+        claims = jwt.decode(
             access_token,
             settings.JWT_SECRET_KEY,
             algorithms=[settings.JWT_ALGORITHM],
+            options={"verify_iat": False},
         )
     except JWTError:
         return None
+
+    issued_at = claims.get(JWT_ISSUED_AT_CLAIM)
+    if not is_valid_jwt_issued_at(issued_at):
+        return None
+
+    return claims
+
+
+def is_valid_jwt_issued_at(issued_at: Any) -> bool:
+    """Validate a JWT NumericDate, allowing at most five seconds of clock skew."""
+    is_numeric_timestamp = (
+        isinstance(issued_at, int | float)
+        and not isinstance(issued_at, bool)
+        and math.isfinite(issued_at)
+    )
+    if not is_numeric_timestamp:
+        return False
+
+    is_not_in_future = issued_at <= time.time() + JWT_IAT_CLOCK_SKEW_SECONDS
+    return is_not_in_future
 
 
 def get_access_token_max_age_seconds() -> int:
