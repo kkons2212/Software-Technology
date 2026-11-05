@@ -93,6 +93,12 @@ class Settings(BaseSettings):
     GOOGLE_TRANSLATE_API_KEYS: str = ""
     GEMINI_MODEL: str = "gemini-1.5-flash"
     OFFLINE_TRANSLATOR_URL: str = "http://localhost:8001"
+    OPENROUTER_API_KEY: str = ""
+    OPENROUTER_MODEL: str = "stealth/crouton-alpha"
+    OPENROUTER_BASE_URL: str = "https://openrouter.ai/api/v1"
+    TRANSLATION_PROVIDERS_ORDER: str = (
+        "openrouter,offline,google_cloud,gemini,deep_translator"
+    )
 
     # Geographic Perimeter Bounds
     ALLOW_GLOBAL_COORDINATES: bool = False
@@ -135,6 +141,26 @@ class Settings(BaseSettings):
 
         # Phase 3 Exit: Single structured return
         return resolved_keys
+
+    @property
+    def translation_providers_list(self) -> list[str]:
+        """Parse comma-separated translation providers order (SISE Compliant)."""
+        if (
+            not self.TRANSLATION_PROVIDERS_ORDER
+            or not self.TRANSLATION_PROVIDERS_ORDER.strip()
+        ):
+            return [
+                "openrouter",
+                "offline",
+                "google_cloud",
+                "gemini",
+                "deep_translator",
+            ]
+        return [
+            p.strip().lower()
+            for p in self.TRANSLATION_PROVIDERS_ORDER.split(",")
+            if p.strip()
+        ]
 
 
 @lru_cache
