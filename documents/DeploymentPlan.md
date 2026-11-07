@@ -77,7 +77,7 @@ flowchart TD
 | **Phase 2: Storage Adapter in Codebase** | **FastAPI Backend** | ✅ **COMPLETED** | `MVP/backend/app/integrations/storage_client.py` (Dual-mode CDN) |
 | **Phase 3: Deploy Backend Web Service** | **Render.com** | ✅ **COMPLETED** | `https://smart-museum-backend.onrender.com` |
 | **Phase 4: Deploy Frontend Edge SPA** | **Vercel** | ✅ **COMPLETED** | `https://cuchitunnel.vercel.app` (Edge Reverse Proxy) |
-| **Phase 5: Automated CI/CD Deploy Hooks** | **GitHub Actions** | ⏳ **PENDING** | Render Deploy Hook trigger upon passing CI gate |
+| **Phase 5: Automated CI/CD Deploy Hooks** | **GitHub Actions** | 🟡 **WORKFLOW CONFIGURED** | Gated deploy job added to `.github/workflows/ci.yml` |
 | **Phase 6: E2E Acceptance & Integrity Testing** | **Live Production** | ⏳ **PENDING** | Mobile testing, media streaming, restart persistence |
 
 ---
@@ -172,28 +172,19 @@ flowchart TD
 
 ---
 
-### PHASE 5: Establish Automated CI/CD Pipelines (GitHub Actions & GitLab CI)
+### PHASE 5: Establish Automated CI/CD Pipelines (GitHub Actions Gated Deploy)
 > **Objective:** Guarantee automated deployment only occurs when all code quality checks, architecture gates, and test suites pass 100%.
 
-- [ ] **TASK-05.1: Configure Repository Secrets**
-  - Repository $\rightarrow$ **Settings** $\rightarrow$ **Secrets and variables** $\rightarrow$ **Actions**.
+- [ ] **TASK-05.1: Configure Repository Secret (User Action)**
+  - Open GitHub Repository $\rightarrow$ **Settings** $\rightarrow$ **Secrets and variables** $\rightarrow$ **Actions**.
   - Add Secret: `RENDER_DEPLOY_HOOK_URL` = Render Deploy Hook URL from Task 03.6.
-- [ ] **TASK-05.2: Append Gated Deployment Job to GitHub Actions**
+  - In Render Dashboard $\rightarrow$ `smart-museum-backend` $\rightarrow$ **Settings** $\rightarrow$ set **Auto-Deploy** to **No** (ensures deployments occur strictly upon passing GitHub CI).
+- [x] **TASK-05.2: Append Gated Deployment Job to GitHub Actions**
   - File: `.github/workflows/ci.yml`.
-  - Add deployment job triggered upon successful completion of `ci-gate` on the `main` branch:
-    ```yaml
-      deploy-production:
-        name: Trigger Production Deploy (Render)
-        needs: [ci-gate]
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-        runs-on: ubuntu-latest
-        steps:
-          - name: Execute Render Deploy Webhook
-            run: curl -s -X POST "${{ secrets.RENDER_DEPLOY_HOOK_URL }}"
-    ```
-- [ ] **TASK-05.3: Provide Equivalent GitLab CI Configuration Template**
-  - File: `.gitlab-ci.yml` (root directory).
-  - Define stages: `quality_check` $\rightarrow$ `backend_test` $\rightarrow$ `frontend_test` $\rightarrow$ `auto_deploy`.
+  - Added `deploy-production` job triggered strictly upon successful completion of `ci-gate` on the `main` branch.
+  - Implemented defensive check: logs warning if secret is not yet configured without failing the build.
+- [x] **TASK-05.3: Pipeline Platform Standardization**
+  - Project standardized exclusively on GitHub Actions per team decision (GitLab CI omitted to maintain clean single-pipeline architecture).
 - [ ] **TASK-05.4: Validate Automated Pipeline Execution**
   - Submit feature branch pull request.
   - Verify automated CI testing $\rightarrow$ Merge to `main` $\rightarrow$ Confirm automated deployment to Vercel and Render.
