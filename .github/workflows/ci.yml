@@ -258,9 +258,13 @@ jobs:
     steps:
       - name: Verify Deploy Hook Configuration
         id: check-hook
+        env:
+          HOOK_FROM_SECRET: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+          HOOK_FROM_VAR: ${{ vars.RENDER_DEPLOY_HOOK_URL }}
         run: |
-          if [ -z "${{ secrets.RENDER_DEPLOY_HOOK_URL }}" ]; then
-            echo "::warning::RENDER_DEPLOY_HOOK_URL secret is not set in GitHub repository settings. Skipping production deployment trigger."
+          DEPLOY_URL="${HOOK_FROM_SECRET:-$HOOK_FROM_VAR}"
+          if [ -z "$DEPLOY_URL" ]; then
+            echo "::warning::RENDER_DEPLOY_HOOK_URL is not set in GitHub repository secrets or variables. Skipping production deployment trigger."
             echo "configured=false" >> $GITHUB_OUTPUT
           else
             echo "configured=true" >> $GITHUB_OUTPUT
@@ -268,9 +272,13 @@ jobs:
 
       - name: Execute Render Deploy Webhook
         if: steps.check-hook.outputs.configured == 'true'
+        env:
+          HOOK_FROM_SECRET: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+          HOOK_FROM_VAR: ${{ vars.RENDER_DEPLOY_HOOK_URL }}
         run: |
+          DEPLOY_URL="${HOOK_FROM_SECRET:-$HOOK_FROM_VAR}"
           echo "🚀 Quality Gate passed 100%! Triggering Render production deployment..."
-          HTTP_RESPONSE=$(curl -s -o deploy_response.json -w "%{http_code}" -X POST "${{ secrets.RENDER_DEPLOY_HOOK_URL }}")
+          HTTP_RESPONSE=$(curl -s -o deploy_response.json -w "%{http_code}" -X POST "$DEPLOY_URL")
           echo "Render API response HTTP code: $HTTP_RESPONSE"
           cat deploy_response.json || true
           if [[ "$HTTP_RESPONSE" -ge 200 && "$HTTP_RESPONSE" -lt 300 ]]; then
