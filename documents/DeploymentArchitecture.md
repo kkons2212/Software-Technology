@@ -14,17 +14,17 @@ flowchart TD
     end
 
     subgraph VercelCDN["2. Frontend Edge Hosting (Vercel)"]
-        VercelApp["Vercel Global Edge Network<br/><b>Source:</b> MVP/frontend<br/>React 18 + Vite + TailwindCSS"]
+        VercelApp["Vercel Global Edge Network<br/><b>Live:</b> cuchitunnel.vercel.app<br/><b>Proxy:</b> vercel.json rewrites /api to Render<br/>React 18 + Vite + TailwindCSS"]
     end
 
     subgraph RenderBackend["3. Backend Hosting (Render.com)"]
-        FastAPI["Render Free Web Service (Singapore)<br/><b>Source:</b> MVP/backend<br/>FastAPI + Uvicorn Runtime"]
+        FastAPI["Render Web Service (Singapore)<br/><b>Live:</b> smart-museum-backend.onrender.com<br/>FastAPI + Uvicorn Runtime"]
         BackgroundWorker["Background Task Workers<br/>- Edge-TTS Voice Generation<br/>- 24h Session Paywall Authorization"]
     end
 
     subgraph CloudData["4. Data & Persistent Media (Cloud Infrastructure)"]
         AivenDB[("Aiven Cloud MySQL 8.0<br/>(Region: Singapore)<br/><b>Database: smart_museum</b><br/>8 Relational Tables")]
-        SupabaseCDN[("Supabase Storage CDN<br/>(Region: Singapore)<br/><b>Bucket: museum-media</b><br/>JPG/PNG Images & MP3 Audio")]
+        SupabaseCDN[("Supabase Storage CDN<br/>(Region: Singapore)<br/><b>Live:</b> vnzojzglicrwmannlrwz.supabase.co<br/><b>Bucket: museum-media</b><br/>JPG/PNG Images & MP3 Audio")]
     end
 
     subgraph ExternalServices["5. Cloud AI & External APIs"]
@@ -62,8 +62,8 @@ flowchart TD
 
 | Subsystem / Directory | Source Code Path | Cloud Provider | Service Type | Host Region | Pricing Tier | Core Operational Responsibility |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Frontend Web App** | `MVP/frontend/` | **Vercel** | Web SPA (Edge Static & Routing) | Global Edge Network | **Hobby (Free)** | Delivers the responsive visitor application (Interactive Leaflet map, audio player, QR scanner) and desktop Admin Dashboard. |
-| **Backend API Engine** | `MVP/backend/` | **Render.com** | Web Service (Python 3.10) | **Singapore (`ap-southeast-1`)** | **Free Web Service** | Central application hub: Handles business logic, JWT authentication, GPS perimeter checks, Edge-TTS coordination, and payment webhooks. |
+| **Frontend Web App** | `MVP/frontend/` | **Vercel** | Web SPA + Reverse Proxy | Global Edge Network | **Hobby (Free)** | **Live:** `https://cuchitunnel.vercel.app`. Delivers visitor app, Leaflet map, audio player, and Admin Portal with edge rewrites to Render. |
+| **Backend API Engine** | `MVP/backend/` | **Render.com** | Web Service (Python 3.10) | **Singapore (`ap-southeast-1`)** | **Free Web Service** | **Live:** `https://smart-museum-backend.onrender.com`. Central API: JWT auth, GPS checks, Edge-TTS, and payments. |
 | **Relational Database** | Managed via SQLAlchemy ORM | **Aiven Cloud** | Managed MySQL Database 8.0 | **Singapore (`ap-southeast-1`)** | **Free Tier** | Stores 8 structured relational tables: `POI`, `POITranslation`, `POIAudio`, `VisitorSession`, `Transaction`, `User`, `LanguageCode`, and `AuditLog`. |
 | **Media Object Storage** | `app/integrations/storage_client.py` | **Supabase** | Cloud Object Storage (S3-compatible) | **Singapore (`ap-southeast-1`)** | **Free Tier (1GB Storage)** | Permanently stores synthesized Edge-TTS MP3 audio narrations and exhibit cover images. Serves files directly via public CDN URLs. |
 | **AI Translation Gateway** | `app/integrations/deep_translator_client.py` | **OpenRouter** | Cloud AI LLM API | Global Cloud | **Free / Pay-per-use** | Translates Vietnamese exhibit narratives into English, Japanese, Korean, and Chinese using the `crouton-alpha` neural model. |
@@ -99,7 +99,6 @@ flowchart TD
    * Updates translation records to `READY` status and writes CDN URLs to Aiven MySQL.
 
 ---
-<!--
 ## 4. ENVIRONMENT VARIABLES MAPPING BY HOST
 
 ### A. Render.com Web Service (`MVP/backend`)
@@ -108,7 +107,7 @@ flowchart TD
 DATABASE_URL=mysql+pymysql://avnadmin:<AIVEN_PASSWORD>@mysql-218752f0-self-hosting.f.aivencloud.com:21340/smart_museum?charset=utf8mb4
 
 # 2. Security & Session Lifecycle
-JWT_SECRET_KEY=cb9a3a29c918ec28129e68d3c5cb1112b1163b7c10100f6445ca6c829e2c6fbf
+JWT_SECRET_KEY=<64_HEX_CHARACTERS_JWT_SECRET>
 ENVIRONMENT=production
 
 # 3. Supabase Cloud Storage (Persistent Media CDN)
@@ -123,7 +122,8 @@ OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
 TRANSLATION_PROVIDERS_ORDER=openrouter,offline,google_cloud,gemini,deep_translator
 
 # 5. Payment Gateway Configuration
-PAYOS_CHECKSUM_KEY=dev_payos_checksum_key_cuchi_demo
+PAYOS_CHECKSUM_KEY=<PAYOS_CHECKSUM_KEY>
+CORS_ORIGINS=https://cuchitunnel.vercel.app,http://localhost:5173
 ```
 
 ### B. Vercel Hosting (`MVP/frontend`)
@@ -131,12 +131,12 @@ PAYOS_CHECKSUM_KEY=dev_payos_checksum_key_cuchi_demo
 # Base URL pointing to the deployed Render backend API
 VITE_API_BASE_URL=https://smart-museum-backend.onrender.com
 ```
--->
 ---
 
 ## 5. QUICK ARCHITECTURE REFERENCE
-* **Where is the Frontend hosted?** $\rightarrow$ **Vercel** (`MVP/frontend`).
-* **Where is the Backend API hosted?** $\rightarrow$ **Render.com** (`MVP/backend`).
-* **Where is the Relational Database hosted?** $\rightarrow$ **Aiven Cloud** (MySQL 8.0).
-* **Where are images & MP3 audio files hosted?** $\rightarrow$ **Supabase Storage** (Bucket `museum-media`).
-* **Where does AI Translation run?** $\rightarrow$ **OpenRouter Cloud API** (`stealth/crouton-alpha`).
+* **Frontend Live URL:** [https://cuchitunnel.vercel.app](https://cuchitunnel.vercel.app) *(Vercel Edge SPA)*
+* **Backend Live URL:** [https://smart-museum-backend.onrender.com](https://smart-museum-backend.onrender.com) *(Render Web Service)*
+* **Backend API Docs:** [https://smart-museum-backend.onrender.com/docs](https://smart-museum-backend.onrender.com/docs) *(Swagger UI)*
+* **Database Host:** Aiven Cloud MySQL 8.0 (Singapore `ap-southeast-1`, TLS Encrypted)
+* **Media Storage CDN:** Supabase Storage (Bucket `museum-media`, Singapore `ap-southeast-1`)
+* **AI Neural Translation:** OpenRouter API (`stealth/crouton-alpha`)

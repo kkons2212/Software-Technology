@@ -70,6 +70,18 @@ flowchart TD
 
 ## 3. ACTIONABLE TASK BREAKDOWN
 
+### 📊 Deployment Progress Status (Updated November 2026)
+| Deployment Phase | Target Platform | Status | Live Endpoint / Artifact |
+| :--- | :--- | :---: | :--- |
+| **Phase 1: Cloud Object Storage Setup** | **Supabase** | ✅ **COMPLETED** | `https://vnzojzglicrwmannlrwz.supabase.co` (`museum-media`) |
+| **Phase 2: Storage Adapter in Codebase** | **FastAPI Backend** | ✅ **COMPLETED** | `MVP/backend/app/integrations/storage_client.py` (Dual-mode CDN) |
+| **Phase 3: Deploy Backend Web Service** | **Render.com** | ✅ **COMPLETED** | `https://smart-museum-backend.onrender.com` |
+| **Phase 4: Deploy Frontend Edge SPA** | **Vercel** | ✅ **COMPLETED** | `https://cuchitunnel.vercel.app` (Edge Reverse Proxy) |
+| **Phase 5: Automated CI/CD Deploy Hooks** | **GitHub Actions** | ⏳ **PENDING** | Render Deploy Hook trigger upon passing CI gate |
+| **Phase 6: E2E Acceptance & Integrity Testing** | **Live Production** | ⏳ **PENDING** | Mobile testing, media streaming, restart persistence |
+
+---
+
 ### PHASE 1: Initialize Cloud Object Storage (Supabase Storage)
 > **Objective:** Establish persistent cloud media storage for synthesized MP3 audio narrations and exhibit images, eliminating local disk dependency on Render.
 
