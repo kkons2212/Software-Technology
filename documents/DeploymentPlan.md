@@ -146,17 +146,17 @@ flowchart TD
 > **Objective:** Deliver the visitor web app and admin portal across Vercel global edge CDN, optimized for low-latency mobile device access.
 
 - [x] **TASK-04.1:** Log in to [Vercel.com](https://vercel.com) $\rightarrow$ Click **Add New Project** $\rightarrow$ Import repository `Software-Technology`.
-- [ ] **TASK-04.2:** Configure Project Settings:
+- [x] **TASK-04.2:** Configure Project Settings:
   - **Framework Preset:** `Vite`
   - **Root Directory:** Edit $\rightarrow$ select `MVP/frontend`
   - **Build Command:** `npm run build`
   - **Output Directory:** `dist`
-- [ ] **TASK-04.3:** Set Environment Variables on Vercel:
+- [x] **TASK-04.3:** Set Environment Variables on Vercel:
   - `VITE_API_BASE_URL` = Render backend URL (e.g. `https://smart-museum-backend.onrender.com`).
-- [ ] **TASK-04.4:** Deploy and acquire Vercel Production Domain (e.g. `https://smart-museum-frontend.vercel.app`).
-- [ ] **TASK-04.5: Update Backend CORS Origins**
+- [x] **TASK-04.4:** Deploy and acquire Vercel Production Domain (e.g. `https://smart-museum-frontend.vercel.app`).
+- [x] **TASK-04.5: Update Backend CORS Origins**
   - Navigate to Render $\rightarrow$ `smart-museum-backend` $\rightarrow$ **Environment**.
-  - Update `CORS_ORIGINS` = `http://localhost:5173,https://smart-museum-frontend.vercel.app`.
+  - Update `CORS_ORIGINS` = `cuchitunnel.vercel.app`.
 
 ---
 
