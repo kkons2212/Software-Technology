@@ -8,7 +8,8 @@
 
 ## Level 2 DFD
 ## 4.0 Digital Admission Payment & Tour Session Activation
-<img width="2200" height="1200" alt="image (2)" src="https://github.com/user-attachments/assets/332f8c5d-8395-46d4-8240-c47bae2643e0" />
+<img width="2200" height="1100" alt="image (3)" src="https://github.com/user-attachments/assets/6784c7a0-26e0-450f-b811-cbd69c88eac4" />
+
 
 ## 5.0 Interactive Map, GPS Geofencing & Smart Wayfinding
 <img width="2038" height="1216" alt="DFD 5 0 1" src="https://github.com/user-attachments/assets/b7275220-e11b-4d6d-b442-7ad97e6424ff" />
