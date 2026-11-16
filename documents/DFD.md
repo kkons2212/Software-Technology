@@ -8,6 +8,8 @@
 </p>
 
 ## Level 2 DFD
+## 1.0 Administrative Authentication & Session Security
+<img width="1442" height="889" alt="1 0" src="https://github.com/user-attachments/assets/07d6d57f-6e6b-4fcc-8dd6-62072451d2ba" />
 
 ## 2.0 Exhibition & Catalog Management
 
