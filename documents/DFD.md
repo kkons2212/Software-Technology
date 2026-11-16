@@ -74,3 +74,7 @@
 | 5.7 | Detect Geofence and Apply Cooldown | Detect entry into a POI geofence and prevent repeated triggers during the cooldown period. | [useGeofenceTrigger.js](../MVP/frontend/src/hooks/useGeofenceTrigger.js), [cooldownService.js](../MVP/frontend/src/services/cooldownService.js), [VisitorTourPage.jsx](../MVP/frontend/src/views/visitor/VisitorTourPage.jsx) |
 | 5.8 | Authorize and Retrieve Audio | Verify audio access and provide the requested narration stream. | [audio_controller.py](../MVP/backend/app/controllers/audio_controller.py), [audio_service.py](../MVP/backend/app/services/audio_service.py), [audio_repository.py](../MVP/backend/app/repositories/audio_repository.py), [AudioPlayerContext.jsx](../MVP/frontend/src/contexts/AudioPlayerContext.jsx) |
 | 5.9 | Calculate Walking Route | Calculate a walking route to the selected POI and return route geometry and distance. | [tour_controller.py](../MVP/backend/app/controllers/tour_controller.py), [wayfinding_service.py](../MVP/backend/app/services/wayfinding_service.py), [tourApi.js](../MVP/frontend/src/api/tourApi.js), [RouteOverlay.jsx](../MVP/frontend/src/components/visitor/RouteOverlay.jsx) |
+
+
+## 6.0 Telemetry & Health 
+<img width="4372" height="3732" alt="image" src="https://github.com/user-attachments/assets/2136cfdd-7061-4378-bcf9-832d4b6b216e" />
