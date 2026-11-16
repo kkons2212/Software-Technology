@@ -77,7 +77,8 @@
 
 
 ## 6.0 Telemetry & Health 
-<img width="4372" height="3732" alt="image" src="https://github.com/user-attachments/assets/2136cfdd-7061-4378-bcf9-832d4b6b216e" />
+<img width="4420" height="3732" alt="image" src="https://github.com/user-attachments/assets/d8dbb9c9-816f-47a5-a6dd-532751b5034d" />
+
 
 
 | Process ID | Subprocess | Business Function | Related Modules |
