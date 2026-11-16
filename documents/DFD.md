@@ -7,8 +7,17 @@
 </p>
 
 ## Level 2 DFD
+
 ## 1.0 Administrative Authentication & Session Security
 <img width="4224" height="2848" alt="image" src="https://github.com/user-attachments/assets/d56266c7-1d32-4e7f-bd6e-a660da790293" />
+
+
+| Process ID | Subprocess | Business Function | Related Modules |
+|---|---|---|---|
+| 1.1 | Credential Ingestion & Identity Verification | Accept administrator username or email and password, retrieve user security credentials from Admin and Audit Storage, and verify identity against stored cryptographic password hashes. | [AdminLoginView.jsx](../MVP/frontend/src/views/admin/AdminLoginView.jsx), [authApi.js](../MVP/frontend/src/api/authApi.js), [auth_controller.py](../MVP/backend/app/controllers/auth_controller.py), [auth_service.py](../MVP/backend/app/services/auth_service.py), [auth_schema.py](../MVP/backend/app/schemas/auth_schema.py), [user_repository.py](../MVP/backend/app/repositories/user_repository.py), [user.py](../MVP/backend/app/models/user.py) |
+| 1.2 | Brute-Force Defense & Account Lockout | Track consecutive failed authentication attempts, enforce 15-minute account lockouts upon reaching the failure threshold (5 attempts), notify the administrator, and persist security violation audit logs. | [AccountLockoutModal.jsx](../MVP/frontend/src/components/admin/AccountLockoutModal.jsx), [auth_service.py](../MVP/backend/app/services/auth_service.py), [user_repository.py](../MVP/backend/app/repositories/user_repository.py), [audit_repository.py](../MVP/backend/app/repositories/audit_repository.py), [user.py](../MVP/backend/app/models/user.py), [audit.py](../MVP/backend/app/models/audit.py) |
+| 1.3 | Session Issuance & Token Management | Reset failed login counters upon successful authentication, issue cryptographically signed JWT access tokens transmitted via HttpOnly cookies, return administrator profile data, and validate active sessions. | [AuthContext.jsx](../MVP/frontend/src/contexts/AuthContext.jsx), [authApi.js](../MVP/frontend/src/api/authApi.js), [auth_controller.py](../MVP/backend/app/controllers/auth_controller.py), [auth_service.py](../MVP/backend/app/services/auth_service.py), [user_repository.py](../MVP/backend/app/repositories/user_repository.py), [audit_repository.py](../MVP/backend/app/repositories/audit_repository.py), [user.py](../MVP/backend/app/models/user.py), [audit.py](../MVP/backend/app/models/audit.py) |
+| 1.4 | Session Revocation & Security Audit Logging | Process explicit logout requests, invalidate and clear HttpOnly session cookies, record termination events in Admin and Audit Storage, and redirect the administrator to the login portal. | [AuthContext.jsx](../MVP/frontend/src/contexts/AuthContext.jsx), [authApi.js](../MVP/frontend/src/api/authApi.js), [auth_controller.py](../MVP/backend/app/controllers/auth_controller.py), [auth_service.py](../MVP/backend/app/services/auth_service.py), [audit_repository.py](../MVP/backend/app/repositories/audit_repository.py), [audit.py](../MVP/backend/app/models/audit.py) |
 
 ## 2.0 Exhibition & Catalog Management
 
