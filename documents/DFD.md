@@ -3,8 +3,7 @@
 ## Level 1 DFD
 
 <p alt="center">
-<img width="6752" height="4380" alt="image" src="https://github.com/user-attachments/assets/6b7adac3-8538-47fb-b067-3a9141afc9aa" />
-
+<img width="6752" height="4380" alt="image" src="https://github.com/user-attachments/assets/81cabbe3-124e-4404-b43d-0c0dd4db2ff7" />
 </p>
 
 ## Level 2 DFD
