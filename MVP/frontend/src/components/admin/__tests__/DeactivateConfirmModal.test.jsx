@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import DeactivateConfirmModal from '../DeactivateConfirmModal.jsx';
+import { ADMIN_TRANSLATIONS } from '../../../locales/adminTranslations.js';
 
 describe('DeactivateConfirmModal Component (US 03.3)', () => {
   const activePoi = {
@@ -50,13 +51,13 @@ describe('DeactivateConfirmModal Component (US 03.3)', () => {
     );
 
     expect(screen.getByRole('dialog')).toBeInTheDocument();
-    expect(screen.getByText('Hide Exhibit from Visitor Map')).toBeInTheDocument();
+    expect(screen.getByText(ADMIN_TRANSLATIONS.hideExhibitModalTitle)).toBeInTheDocument();
     expect(screen.getByText(/"Secret Trapdoor Bunkers"/)).toBeInTheDocument();
     expect(
-      screen.getByText(/immediately exclude it from visitor interactive maps/i)
+      screen.getByText(/ngay lập tức bị ẩn khỏi bản đồ du khách/i)
     ).toBeInTheDocument();
 
-    const confirmBtn = screen.getByRole('button', { name: 'Hide Exhibit' });
+    const confirmBtn = screen.getByRole('button', { name: ADMIN_TRANSLATIONS.btnConfirmHide });
     expect(confirmBtn).toBeInTheDocument();
     expect(confirmBtn).toHaveClass('bg-red-700');
   });
@@ -73,14 +74,14 @@ describe('DeactivateConfirmModal Component (US 03.3)', () => {
 
     expect(screen.getByRole('dialog')).toBeInTheDocument();
     expect(
-      screen.getByRole('heading', { level: 3, name: 'Reactivate Exhibit' })
+      screen.getByRole('heading', { level: 3, name: ADMIN_TRANSLATIONS.reactivateExhibitModalTitle })
     ).toBeInTheDocument();
     expect(screen.getByText(/"Hoang Cam Field Stove"/)).toBeInTheDocument();
     expect(
-      screen.getByText(/reappear on visitor maps and resume automated proximity narrations/i)
+      screen.getByText(/tiếp tục phát thuyết minh tự động khi du khách đến gần/i)
     ).toBeInTheDocument();
 
-    const confirmBtn = screen.getByRole('button', { name: 'Reactivate Exhibit' });
+    const confirmBtn = screen.getByRole('button', { name: ADMIN_TRANSLATIONS.btnConfirmReactivate });
     expect(confirmBtn).toBeInTheDocument();
     expect(confirmBtn).toHaveClass('bg-slate-800');
   });
@@ -96,7 +97,7 @@ describe('DeactivateConfirmModal Component (US 03.3)', () => {
       />
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'Hide Exhibit' }));
+    fireEvent.click(screen.getByRole('button', { name: ADMIN_TRANSLATIONS.btnConfirmHide }));
     expect(handleConfirm).toHaveBeenCalledTimes(1);
   });
 
@@ -111,7 +112,7 @@ describe('DeactivateConfirmModal Component (US 03.3)', () => {
       />
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    fireEvent.click(screen.getByRole('button', { name: ADMIN_TRANSLATIONS.btnCancel }));
     expect(handleClose).toHaveBeenCalledTimes(1);
   });
 
@@ -160,10 +161,10 @@ describe('DeactivateConfirmModal Component (US 03.3)', () => {
       />
     );
 
-    const cancelBtn = screen.getByRole('button', { name: 'Cancel' });
+    const cancelBtn = screen.getByRole('button', { name: ADMIN_TRANSLATIONS.btnCancel });
     expect(cancelBtn).toBeDisabled();
 
-    expect(screen.getByText('Processing...')).toBeInTheDocument();
+    expect(screen.getByText(ADMIN_TRANSLATIONS.btnProcessing)).toBeInTheDocument();
 
     // Escape should not trigger close while loading
     fireEvent.keyDown(window, { key: 'Escape' });

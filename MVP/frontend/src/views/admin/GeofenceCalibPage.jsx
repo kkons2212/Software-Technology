@@ -15,10 +15,11 @@ import { useParams } from 'react-router-dom';
 import AdminMapPicker from '../../components/admin/AdminMapPicker.jsx';
 import { getMapPois } from '../../api/poiApi.js';
 import { updatePoi } from '../../api/adminPoiApi.js';
+import { ADMIN_TRANSLATIONS } from '../../locales/adminTranslations.js';
 
-const LOAD_ERROR_MESSAGE = 'Unable to load exhibits right now.';
-const SAVE_ERROR_MESSAGE = 'Unable to save changes right now.';
-const SAVE_SUCCESS_MESSAGE = 'Geofence calibration saved.';
+const LOAD_ERROR_MESSAGE = ADMIN_TRANSLATIONS.geofenceLoadError;
+const SAVE_ERROR_MESSAGE = ADMIN_TRANSLATIONS.geofenceSaveError;
+const SAVE_SUCCESS_MESSAGE = ADMIN_TRANSLATIONS.geofenceSavedSuccess;
 
 export default function GeofenceCalibPage() {
   const { id: routePoiId } = useParams();
@@ -88,14 +89,14 @@ export default function GeofenceCalibPage() {
 
   return (
     <div className="mx-auto w-full max-w-5xl px-6 py-8">
-      <h1 className="text-xl font-semibold text-slate-900">Geofence Calibration</h1>
+      <h1 className="text-xl font-semibold text-slate-900">{ADMIN_TRANSLATIONS.geofenceCalibTitle}</h1>
       <p className="mt-2 text-sm text-slate-600">
-        Drag the pin to an exhibit&apos;s exact position and calibrate its proximity trigger radius.
+        {ADMIN_TRANSLATIONS.geofenceCalibSubtitle}
       </p>
 
       {isLoading && (
         <p role="status" className="mt-6 text-sm text-slate-600">
-          Loading exhibits...
+          {ADMIN_TRANSLATIONS.loadingExhibits}
         </p>
       )}
 
@@ -108,14 +109,14 @@ export default function GeofenceCalibPage() {
       {!isLoading && !loadError && (
         <div className="mt-6 flex flex-col gap-6">
           <label className="flex max-w-md flex-col gap-1 text-sm font-medium text-slate-700">
-            Exhibit
+            {ADMIN_TRANSLATIONS.labelExhibitSelect}
             <select
               value={selectedPoiId}
               onChange={handleSelectPoi}
-              aria-label="Exhibit"
+              aria-label={ADMIN_TRANSLATIONS.labelExhibitSelect}
               className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-600"
             >
-              <option value="">Select an exhibit</option>
+              <option value="">{ADMIN_TRANSLATIONS.selectExhibitPrompt}</option>
               {pois.map((poi) => (
                 <option key={poi.id} value={poi.id}>
                   {poi.title}
@@ -131,12 +132,16 @@ export default function GeofenceCalibPage() {
               initialLatitude={selectedPoi.latitude}
               initialLongitude={selectedPoi.longitude}
               initialRadius={selectedPoi.trigger_radius}
+              latitudeLabel={ADMIN_TRANSLATIONS.latitude}
+              longitudeLabel={ADMIN_TRANSLATIONS.longitude}
+              radiusLabel={ADMIN_TRANSLATIONS.triggerRadius}
+              outOfBoundsMessage={ADMIN_TRANSLATIONS.outOfBoundsError}
               isSaving={isSaving}
               onSave={handleSave}
             />
           ) : (
             <p className="text-sm text-slate-600">
-              Select an exhibit to place its pin and calibrate the geofence radius.
+              {ADMIN_TRANSLATIONS.selectExhibitHint}
             </p>
           )}
 

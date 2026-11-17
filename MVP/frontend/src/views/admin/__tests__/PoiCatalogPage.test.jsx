@@ -40,6 +40,7 @@ vi.mock('../../../api/poiApi.js', () => ({
 
 import PoiCatalogPage from '../PoiCatalogPage.jsx';
 import { getPois, createPoi, togglePoiVisibility } from '../../../api/poiApi.js';
+import { ADMIN_TRANSLATIONS } from '../../../locales/adminTranslations.js';
 
 function renderPoiCatalog() {
   return render(
@@ -59,14 +60,14 @@ describe('PoiCatalogPage', () => {
     getPois.mockResolvedValue(mockPoisData);
     renderPoiCatalog();
 
-    expect(screen.getByRole('heading', { level: 1, name: /poi & geofence catalog/i })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: new RegExp(ADMIN_TRANSLATIONS.poiCatalogTitle, 'i') })).toBeInTheDocument();
     expect(await screen.findByText('Bếp Hoàng Cầm')).toBeInTheDocument();
     expect(screen.getByText('Bếp dã chiến không khói nổi tiếng.')).toBeInTheDocument();
     expect(screen.getByText('30m')).toBeInTheDocument();
     expect(screen.getByText('11.1432, 106.4631')).toBeInTheDocument();
     expect(screen.getByText('en: PENDING')).toBeInTheDocument();
     expect(screen.getByText('ja: READY')).toBeInTheDocument();
-    expect(screen.getByText(/showing 1 of 1 exhibit entries/i)).toBeInTheDocument();
+    expect(screen.getByText(/hiển thị 1 trên tổng số 1/i)).toBeInTheDocument();
 
     const img = screen.getByRole('img', { name: 'Bếp Hoàng Cầm' });
     expect(img).toHaveAttribute('src', 'http://localhost:8000/static/images/bep_hoang_cam.jpg');
@@ -77,7 +78,7 @@ describe('PoiCatalogPage', () => {
     renderPoiCatalog();
 
     expect(
-      await screen.findByText(/no exhibits found. click "\+ new exhibit" to digitize/i)
+      await screen.findByText(ADMIN_TRANSLATIONS.noExhibitsFound)
     ).toBeInTheDocument();
   });
 
@@ -93,7 +94,7 @@ describe('PoiCatalogPage', () => {
     getPois.mockResolvedValue(mockPoisData);
     renderPoiCatalog();
 
-    const searchInput = screen.getByPlaceholderText(/search exhibits by title/i);
+    const searchInput = screen.getByPlaceholderText(new RegExp(ADMIN_TRANSLATIONS.searchPoisPlaceholder, 'i'));
     await user.type(searchInput, 'Địa đạo');
 
     await waitFor(() => {
@@ -106,16 +107,16 @@ describe('PoiCatalogPage', () => {
     getPois.mockResolvedValue(mockPoisData);
     renderPoiCatalog();
 
-    await user.click(screen.getByRole('button', { name: /\+ new exhibit/i }));
+    await user.click(screen.getByRole('button', { name: ADMIN_TRANSLATIONS.newExhibitButton }));
 
     expect(
-      await screen.findByRole('heading', { level: 2, name: /create digitized exhibit profile/i })
+      await screen.findByRole('heading', { level: 2, name: new RegExp(ADMIN_TRANSLATIONS.createExhibitTitle, 'i') })
     ).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: /cancel/i }));
+    await user.click(screen.getByRole('button', { name: new RegExp(ADMIN_TRANSLATIONS.btnCancel, 'i') }));
 
     await waitFor(() => {
-      expect(screen.queryByRole('heading', { level: 2, name: /create digitized exhibit profile/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole('heading', { level: 2, name: new RegExp(ADMIN_TRANSLATIONS.createExhibitTitle, 'i') })).not.toBeInTheDocument();
     });
   });
 
@@ -124,9 +125,9 @@ describe('PoiCatalogPage', () => {
     getPois.mockResolvedValue(mockPoisData);
     renderPoiCatalog();
 
-    await user.click(screen.getByRole('button', { name: /\+ new exhibit/i }));
+    await user.click(screen.getByRole('button', { name: ADMIN_TRANSLATIONS.newExhibitButton }));
 
-    const latInput = screen.getByLabelText(/latitude \(wgs84\)/i);
+    const latInput = screen.getByLabelText(/vĩ độ \(wgs84\)/i);
     await user.clear(latInput);
     await user.type(latInput, '95.1234');
 
@@ -134,7 +135,7 @@ describe('PoiCatalogPage', () => {
       await screen.findByText(/cảnh báo: tọa độ không hợp lệ/i)
     ).toBeInTheDocument();
 
-    const saveBtn = screen.getByRole('button', { name: /save & digitize/i });
+    const saveBtn = screen.getByRole('button', { name: new RegExp(ADMIN_TRANSLATIONS.btnSaveAndDigitize, 'i') });
     expect(saveBtn).toBeDisabled();
   });
 
@@ -143,15 +144,15 @@ describe('PoiCatalogPage', () => {
     getPois.mockResolvedValue(mockPoisData);
     renderPoiCatalog();
 
-    await user.click(screen.getByRole('button', { name: /\+ new exhibit/i }));
+    await user.click(screen.getByRole('button', { name: ADMIN_TRANSLATIONS.newExhibitButton }));
 
     const largeFile = new File(['a'.repeat(6 * 1024 * 1024)], 'huge.jpg', { type: 'image/jpeg' });
     Object.defineProperty(largeFile, 'size', { value: 6 * 1024 * 1024 });
 
-    const fileInput = screen.getByLabelText(/cover photo/i);
+    const fileInput = screen.getByLabelText(/ảnh bìa/i);
     await user.upload(fileInput, largeFile);
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(/image size exceeds maximum limit of 5mb/i);
+    expect(await screen.findByRole('alert')).toHaveTextContent(new RegExp(ADMIN_TRANSLATIONS.errorImageTooLarge, 'i'));
   });
 
   it('submits valid exhibit profile with uploaded cover image', async () => {
@@ -160,12 +161,12 @@ describe('PoiCatalogPage', () => {
     createPoi.mockResolvedValue({ poi_id: 2, title: 'Hầm Chỉ Huy' });
     renderPoiCatalog();
 
-    await user.click(screen.getByRole('button', { name: /\+ new exhibit/i }));
+    await user.click(screen.getByRole('button', { name: ADMIN_TRANSLATIONS.newExhibitButton }));
 
-    const titleInput = screen.getByLabelText(/exhibit title \(vietnamese\)/i);
-    const shortDescInput = screen.getByLabelText(/free teaser summary/i);
-    const fullDescInput = screen.getByLabelText(/detailed historical narration/i);
-    const fileInput = screen.getByLabelText(/cover photo/i);
+    const titleInput = screen.getByLabelText(/tên điểm tham quan/i);
+    const shortDescInput = screen.getByLabelText(/tóm tắt giới thiệu/i);
+    const fullDescInput = screen.getByLabelText(/bài thuyết minh lịch sử/i);
+    const fileInput = screen.getByLabelText(/ảnh bìa/i);
 
     await user.type(titleInput, 'Hầm Chỉ Huy');
     await user.type(shortDescInput, 'Bản đồ sa bàn tác chiến');
@@ -174,7 +175,7 @@ describe('PoiCatalogPage', () => {
     const validImage = new File(['fake-image-bytes'], 'ham_chi_huy.jpg', { type: 'image/jpeg' });
     await user.upload(fileInput, validImage);
 
-    const saveBtn = screen.getByRole('button', { name: /save & digitize/i });
+    const saveBtn = screen.getByRole('button', { name: new RegExp(ADMIN_TRANSLATIONS.btnSaveAndDigitize, 'i') });
     await user.click(saveBtn);
 
     await waitFor(() => {
@@ -192,34 +193,35 @@ describe('PoiCatalogPage', () => {
     });
 
     await waitFor(() => {
-      expect(screen.queryByRole('heading', { level: 2, name: /create digitized exhibit profile/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole('heading', { level: 2, name: new RegExp(ADMIN_TRANSLATIONS.createExhibitTitle, 'i') })).not.toBeInTheDocument();
     });
   });
+
   it('renders Active status badge and opens deactivation modal when clicking Hide', async () => {
     const user = userEvent.setup();
     getPois.mockResolvedValue(mockPoisData);
     togglePoiVisibility.mockResolvedValue({ poi_id: 1, is_active: false });
     renderPoiCatalog();
 
-    expect(await screen.findByText('Active')).toBeInTheDocument();
-    const hideBtn = screen.getByRole('button', { name: 'Hide' });
+    expect(await screen.findByText(ADMIN_TRANSLATIONS.statusActive)).toBeInTheDocument();
+    const hideBtn = screen.getByRole('button', { name: ADMIN_TRANSLATIONS.btnHide });
     expect(hideBtn).toBeInTheDocument();
 
     await user.click(hideBtn);
 
     expect(
-      await screen.findByRole('heading', { level: 3, name: /hide exhibit from visitor map/i })
+      await screen.findByRole('heading', { level: 3, name: new RegExp(ADMIN_TRANSLATIONS.hideExhibitModalTitle, 'i') })
     ).toBeInTheDocument();
 
-    const confirmBtn = screen.getByRole('button', { name: 'Hide Exhibit' });
+    const confirmBtn = screen.getByRole('button', { name: ADMIN_TRANSLATIONS.btnConfirmHide });
     await user.click(confirmBtn);
 
     await waitFor(() => {
       expect(togglePoiVisibility).toHaveBeenCalledWith(1, false);
     });
 
-    expect(await screen.findByText('Hidden')).toBeInTheDocument();
-    expect(await screen.findByText(/hidden from visitor map/i)).toBeInTheDocument();
+    expect(await screen.findByText(ADMIN_TRANSLATIONS.statusHidden)).toBeInTheDocument();
+    expect(await screen.findByText(/đã ẩn điểm tham quan/i)).toBeInTheDocument();
   });
 
   it('renders Hidden status badge and reactivates exhibit when clicking Show', async () => {
@@ -232,24 +234,24 @@ describe('PoiCatalogPage', () => {
     togglePoiVisibility.mockResolvedValue({ poi_id: 1, is_active: true });
     renderPoiCatalog();
 
-    expect(await screen.findByText('Hidden')).toBeInTheDocument();
-    const showBtn = screen.getByRole('button', { name: 'Show' });
+    expect(await screen.findByText(ADMIN_TRANSLATIONS.statusHidden)).toBeInTheDocument();
+    const showBtn = screen.getByRole('button', { name: ADMIN_TRANSLATIONS.btnShow });
     expect(showBtn).toBeInTheDocument();
 
     await user.click(showBtn);
 
     expect(
-      await screen.findByRole('heading', { level: 3, name: /reactivate exhibit/i })
+      await screen.findByRole('heading', { level: 3, name: new RegExp(ADMIN_TRANSLATIONS.reactivateExhibitModalTitle, 'i') })
     ).toBeInTheDocument();
 
-    const confirmBtn = screen.getByRole('button', { name: 'Reactivate Exhibit' });
+    const confirmBtn = screen.getByRole('button', { name: ADMIN_TRANSLATIONS.btnConfirmReactivate });
     await user.click(confirmBtn);
 
     await waitFor(() => {
       expect(togglePoiVisibility).toHaveBeenCalledWith(1, true);
     });
 
-    expect(await screen.findByText('Active')).toBeInTheDocument();
-    expect(await screen.findByText(/reactivated and made visible on visitor map/i)).toBeInTheDocument();
+    expect(await screen.findByText(ADMIN_TRANSLATIONS.statusActive)).toBeInTheDocument();
+    expect(await screen.findByText(/kích hoạt lại và hiển thị trên bản đồ/i)).toBeInTheDocument();
   });
 });

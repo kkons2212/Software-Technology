@@ -49,6 +49,7 @@ vi.mock('leaflet', () => ({
 }));
 
 import AdminMapPicker from '../AdminMapPicker.jsx';
+import { ADMIN_TRANSLATIONS } from '../../../locales/adminTranslations.js';
 
 const POI_ID = 'poi-1';
 const INITIAL_LATITUDE = 11.1445;
@@ -100,9 +101,9 @@ describe('AdminMapPicker', () => {
       [INITIAL_LATITUDE, INITIAL_LONGITUDE],
       expect.objectContaining({ radius: INITIAL_RADIUS, color: '#1D4ED8' }),
     );
-    expect(screen.getByLabelText('Latitude')).toHaveValue(INITIAL_LATITUDE);
-    expect(screen.getByLabelText('Longitude')).toHaveValue(INITIAL_LONGITUDE);
-    expect(screen.getByLabelText('Trigger Radius').value).toBe(String(INITIAL_RADIUS));
+    expect(screen.getByLabelText(ADMIN_TRANSLATIONS.latitude)).toHaveValue(INITIAL_LATITUDE);
+    expect(screen.getByLabelText(ADMIN_TRANSLATIONS.longitude)).toHaveValue(INITIAL_LONGITUDE);
+    expect(screen.getByLabelText(ADMIN_TRANSLATIONS.triggerRadius).value).toBe(String(INITIAL_RADIUS));
   });
 
   it('republishes the pin coordinates into the numeric fields after a drag', () => {
@@ -111,15 +112,15 @@ describe('AdminMapPicker', () => {
 
     act(() => markerEventHandler('dragend')());
 
-    expect(screen.getByLabelText('Latitude')).toHaveValue(11.145);
-    expect(screen.getByLabelText('Longitude')).toHaveValue(106.462);
+    expect(screen.getByLabelText(ADMIN_TRANSLATIONS.latitude)).toHaveValue(11.145);
+    expect(screen.getByLabelText(ADMIN_TRANSLATIONS.longitude)).toHaveValue(106.462);
     expect(leafletMocks.circleInstance.setLatLng).toHaveBeenCalledWith([11.145, 106.462]);
   });
 
   it('moves the pin and the circle when a coordinate is typed', () => {
     renderPicker();
 
-    fireEvent.change(screen.getByLabelText('Latitude'), { target: { value: '11.16' } });
+    fireEvent.change(screen.getByLabelText(ADMIN_TRANSLATIONS.latitude), { target: { value: '11.16' } });
 
     expect(leafletMocks.markerInstance.setLatLng).toHaveBeenCalledWith([11.16, INITIAL_LONGITUDE]);
     expect(leafletMocks.circleInstance.setLatLng).toHaveBeenCalledWith([11.16, INITIAL_LONGITUDE]);
@@ -128,7 +129,7 @@ describe('AdminMapPicker', () => {
   it('resizes the geofence circle in real time while the slider moves', () => {
     renderPicker();
 
-    fireEvent.change(screen.getByLabelText('Trigger Radius'), { target: { value: '45' } });
+    fireEvent.change(screen.getByLabelText(ADMIN_TRANSLATIONS.triggerRadius), { target: { value: '45' } });
 
     expect(leafletMocks.circleInstance.setRadius).toHaveBeenCalledWith(45);
     expect(screen.getByText('45m')).toBeInTheDocument();
@@ -138,13 +139,13 @@ describe('AdminMapPicker', () => {
     const onSave = vi.fn();
     renderPicker({ onSave });
 
-    fireEvent.change(screen.getByLabelText('Latitude'), { target: { value: '95' } });
+    fireEvent.change(screen.getByLabelText(ADMIN_TRANSLATIONS.latitude), { target: { value: '95' } });
 
-    expect(screen.getByRole('alert')).toHaveTextContent('valid latitude');
+    expect(screen.getByRole('alert')).toHaveTextContent(/tọa độ không hợp lệ/i);
     expect(screen.getByTestId('admin-map-picker-canvas')).toHaveStyle({
       borderColor: '#B91C1C',
     });
-    expect(screen.getByRole('button', { name: 'Save Changes' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: ADMIN_TRANSLATIONS.btnSaveChanges })).toBeDisabled();
     expect(onSave).not.toHaveBeenCalled();
   });
 
@@ -152,8 +153,8 @@ describe('AdminMapPicker', () => {
     const onSave = vi.fn();
     renderPicker({ onSave });
 
-    fireEvent.change(screen.getByLabelText('Trigger Radius'), { target: { value: '45' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }));
+    fireEvent.change(screen.getByLabelText(ADMIN_TRANSLATIONS.triggerRadius), { target: { value: '45' } });
+    fireEvent.click(screen.getByRole('button', { name: ADMIN_TRANSLATIONS.btnSaveChanges }));
 
     expect(onSave).toHaveBeenCalledWith({
       poiId: POI_ID,
@@ -167,11 +168,11 @@ describe('AdminMapPicker', () => {
     const onSave = vi.fn();
     renderPicker({ onSave });
 
-    const latInput = screen.getByLabelText('Latitude');
+    const latInput = screen.getByLabelText(ADMIN_TRANSLATIONS.latitude);
     fireEvent.keyDown(latInput, { key: 'a' });
 
     expect(screen.getByRole('alert')).toHaveTextContent(/tọa độ không hợp lệ/i);
-    expect(screen.getByRole('button', { name: 'Save Changes' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: ADMIN_TRANSLATIONS.btnSaveChanges })).toBeDisabled();
     expect(onSave).not.toHaveBeenCalled();
   });
 
@@ -179,10 +180,10 @@ describe('AdminMapPicker', () => {
     const onSave = vi.fn();
     renderPicker({ onSave });
 
-    fireEvent.change(screen.getByLabelText('Trigger Radius'), { target: { value: '99' } });
+    fireEvent.change(screen.getByLabelText(ADMIN_TRANSLATIONS.triggerRadius), { target: { value: '99' } });
 
     expect(screen.getByRole('alert')).toHaveTextContent(/bán kính kích hoạt không hợp lệ/i);
-    expect(screen.getByRole('button', { name: 'Save Changes' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: ADMIN_TRANSLATIONS.btnSaveChanges })).toBeDisabled();
     expect(onSave).not.toHaveBeenCalled();
   });
 
@@ -190,18 +191,18 @@ describe('AdminMapPicker', () => {
     const onSave = vi.fn();
     renderPicker({ onSave });
 
-    const radiusInput = screen.getByLabelText('Trigger Radius');
+    const radiusInput = screen.getByLabelText(ADMIN_TRANSLATIONS.triggerRadius);
     fireEvent.keyDown(radiusInput, { key: '.' });
 
     expect(screen.getByRole('alert')).toHaveTextContent(/bán kính kích hoạt không hợp lệ/i);
-    expect(screen.getByRole('button', { name: 'Save Changes' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: ADMIN_TRANSLATIONS.btnSaveChanges })).toBeDisabled();
     expect(onSave).not.toHaveBeenCalled();
   });
 
   it('locks the save action while the host persists the change', () => {
     renderPicker({ onSave: vi.fn(), isSaving: true });
 
-    const saveButton = screen.getByRole('button', { name: 'Saving...' });
+    const saveButton = screen.getByRole('button', { name: ADMIN_TRANSLATIONS.btnSaving });
 
     expect(saveButton).toBeDisabled();
   });
@@ -209,6 +210,6 @@ describe('AdminMapPicker', () => {
   it('renders no save action when the host owns persistence', () => {
     renderPicker();
 
-    expect(screen.queryByRole('button', { name: 'Save Changes' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: ADMIN_TRANSLATIONS.btnSaveChanges })).not.toBeInTheDocument();
   });
 });

@@ -3,6 +3,7 @@ import { getPois, createPoi, togglePoiVisibility } from '../../api/poiApi.js';
 import DeactivateConfirmModal from '../../components/admin/DeactivateConfirmModal.jsx';
 import AdminMapPicker from '../../components/admin/AdminMapPicker.jsx';
 import POIFormModal from '../../components/admin/POIFormModal.jsx';
+import { ADMIN_TRANSLATIONS } from '../../locales/adminTranslations.js';
 
 function isOutOfBounds(lat, lng) {
   const numLat = parseFloat(lat);
@@ -50,7 +51,7 @@ export default function PoiCatalogPage() {
       setPois(data?.items || []);
       setTotal(data?.total || 0);
     } catch (err) {
-      setError(err?.message || 'Failed to load POI catalog.');
+      setError(err?.message || ADMIN_TRANSLATIONS.errorLoadCatalogFailed);
     } finally {
       setIsLoading(false);
     }
@@ -84,13 +85,13 @@ export default function PoiCatalogPage() {
       );
       setSuccessMessage(
         newActiveState
-          ? `Exhibit "${deactivatingPoi.title}" reactivated and made visible on visitor map.`
-          : `Exhibit "${deactivatingPoi.title}" hidden from visitor map.`
+          ? ADMIN_TRANSLATIONS.successReactivatedMsg.replace('{title}', deactivatingPoi.title)
+          : ADMIN_TRANSLATIONS.successHiddenMsg.replace('{title}', deactivatingPoi.title)
       );
       setIsDeactivateModalOpen(false);
       setDeactivatingPoi(null);
     } catch (err) {
-      setError(err?.message || 'Failed to update exhibit visibility.');
+      setError(err?.message || ADMIN_TRANSLATIONS.errorUpdatePoiFailed);
     } finally {
       setIsTogglingVisibility(false);
     }
@@ -100,7 +101,7 @@ export default function PoiCatalogPage() {
     const file = e.target.files?.[0];
     if (file) {
       if (file.size > 5 * 1024 * 1024) {
-        setFormError('Image size exceeds maximum limit of 5MB.');
+        setFormError(ADMIN_TRANSLATIONS.errorImageTooLarge);
         return;
       }
       setSelectedImage(file);
@@ -114,12 +115,12 @@ export default function PoiCatalogPage() {
     setFormError('');
 
     if (!title.trim()) {
-      setFormError('Exhibit title is required.');
+      setFormError(ADMIN_TRANSLATIONS.errorTitleRequired);
       return;
     }
 
     if (coordinateInvalid) {
-      setFormError('Tọa độ không hợp lệ (Vĩ độ: [-90, 90], Kinh độ: [-180, 180]).');
+      setFormError(ADMIN_TRANSLATIONS.errorInvalidCoordinates);
       return;
     }
 
@@ -151,7 +152,7 @@ export default function PoiCatalogPage() {
       // Refresh list
       fetchCatalog(search);
     } catch (err) {
-      setFormError(err?.message || 'Failed to create exhibit profile.');
+      setFormError(err?.message || ADMIN_TRANSLATIONS.errorCreatePoiFailed);
     } finally {
       setIsSubmitting(false);
     }
@@ -167,20 +168,20 @@ export default function PoiCatalogPage() {
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-xl font-bold tracking-tight text-slate-900">
-              POI & Geofence Catalog
+              {ADMIN_TRANSLATIONS.poiCatalogTitle}
             </h1>
             <p className="mt-1 text-xs text-slate-600">
-              Digitized historic exhibits, coordinates, and automated proximity trigger radiuses.
+              {ADMIN_TRANSLATIONS.poiCatalogSubtitle}
             </p>
           </div>
 
           <div className="flex items-center space-x-3">
             <input
               type="search"
-              placeholder="Search exhibits by title..."
+              placeholder={ADMIN_TRANSLATIONS.searchPoisPlaceholder}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              aria-label="Search exhibits"
+              aria-label={ADMIN_TRANSLATIONS.searchPoisAriaLabel}
               className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs text-slate-900 placeholder-slate-400 focus:border-slate-800 focus:outline-none"
             />
             <button
@@ -188,7 +189,7 @@ export default function PoiCatalogPage() {
               onClick={() => setIsModalOpen(true)}
               className="inline-flex items-center rounded-md bg-slate-800 px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-slate-700 focus:outline-none"
             >
-              + New Exhibit
+              {ADMIN_TRANSLATIONS.newExhibitButton}
             </button>
           </div>
         </div>
@@ -219,26 +220,26 @@ export default function PoiCatalogPage() {
           <table className="w-full border-collapse text-left text-xs" aria-label="Exhibits Catalog Table">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-100 font-semibold text-slate-700">
-                <th scope="col" className="px-4 py-3">Thumbnail</th>
-                <th scope="col" className="px-4 py-3">Exhibit Title & Overview</th>
-                <th scope="col" className="px-4 py-3">Status</th>
-                <th scope="col" className="px-4 py-3">Trigger Radius</th>
-                <th scope="col" className="px-4 py-3">Coordinates (WGS84)</th>
-                <th scope="col" className="px-4 py-3">AI Multi-Language Status</th>
-                <th scope="col" className="px-4 py-3 text-right">Actions</th>
+                <th scope="col" className="px-4 py-3">{ADMIN_TRANSLATIONS.colThumbnail}</th>
+                <th scope="col" className="px-4 py-3">{ADMIN_TRANSLATIONS.colTitleOverview}</th>
+                <th scope="col" className="px-4 py-3">{ADMIN_TRANSLATIONS.colStatus}</th>
+                <th scope="col" className="px-4 py-3">{ADMIN_TRANSLATIONS.colTriggerRadius}</th>
+                <th scope="col" className="px-4 py-3">{ADMIN_TRANSLATIONS.colCoordinates}</th>
+                <th scope="col" className="px-4 py-3">{ADMIN_TRANSLATIONS.colLanguageStatus}</th>
+                <th scope="col" className="px-4 py-3 text-right">{ADMIN_TRANSLATIONS.colActions}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200">
               {isLoading ? (
                 <tr>
                   <td colSpan={7} className="py-8 text-center text-slate-500">
-                    Loading exhibits catalog...
+                    {ADMIN_TRANSLATIONS.loadingExhibits}
                   </td>
                 </tr>
               ) : pois.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="py-8 text-center text-slate-500">
-                    No exhibits found. Click "+ New Exhibit" to digitize the first historical point of interest.
+                    {ADMIN_TRANSLATIONS.noExhibitsFound}
                   </td>
                 </tr>
               ) : (
@@ -253,7 +254,7 @@ export default function PoiCatalogPage() {
                         />
                       ) : (
                         <div className="flex h-12 w-12 items-center justify-center rounded bg-slate-100 text-[10px] text-slate-400 border border-slate-200">
-                          No Photo
+                          {ADMIN_TRANSLATIONS.noPhoto}
                         </div>
                       )}
                     </td>
@@ -271,7 +272,7 @@ export default function PoiCatalogPage() {
                             : 'border-slate-300 bg-slate-100 text-slate-600'
                         }`}
                       >
-                        {poi.is_active !== false ? 'Active' : 'Hidden'}
+                        {poi.is_active !== false ? ADMIN_TRANSLATIONS.statusActive : ADMIN_TRANSLATIONS.statusHidden}
                       </span>
                     </td>
                     <td className="px-4 py-3">
@@ -313,7 +314,7 @@ export default function PoiCatalogPage() {
                           onClick={() => setEditingPoi(poi)}
                           className="rounded px-2.5 py-1 text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-300"
                         >
-                          Edit
+                          {ADMIN_TRANSLATIONS.btnEdit}
                         </button>
                         <button
                           type="button"
@@ -324,7 +325,7 @@ export default function PoiCatalogPage() {
                               : 'text-slate-700 bg-slate-100 border-slate-300 hover:bg-slate-200'
                           }`}
                         >
-                          {poi.is_active !== false ? 'Hide' : 'Show'}
+                          {poi.is_active !== false ? ADMIN_TRANSLATIONS.btnHide : ADMIN_TRANSLATIONS.btnShow}
                         </button>
                       </div>
                     </td>
@@ -335,7 +336,7 @@ export default function PoiCatalogPage() {
           </table>
 
           <div className="flex items-center justify-between border-t border-slate-200 bg-slate-50 px-4 py-2.5 text-xs text-slate-600">
-            <span>Showing {pois.length} of {total} exhibit entries</span>
+            <span>Hiển thị {pois.length} trên tổng số {total} điểm di tích</span>
           </div>
         </div>
       </main>
@@ -350,10 +351,10 @@ export default function PoiCatalogPage() {
         >
           <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-lg border border-slate-200 bg-white p-5 sm:p-6 shadow-xl">
             <h2 id="modal-headline" className="text-base font-bold text-slate-900">
-              Create Digitized Exhibit Profile
+              {ADMIN_TRANSLATIONS.createExhibitTitle}
             </h2>
             <p className="mt-0.5 text-xs text-slate-600">
-              Enter historical details, coordinates within Cu Chi site bounds, and upload cover photo.
+              {ADMIN_TRANSLATIONS.createExhibitSubtitle}
             </p>
 
             {formError && (
@@ -365,7 +366,7 @@ export default function PoiCatalogPage() {
             <form onSubmit={handleCreateSubmit} className="mt-4 space-y-4">
               <div>
                 <label htmlFor="poi-title" className="block text-xs font-medium text-slate-700">
-                  Exhibit Title (Vietnamese) *
+                  {ADMIN_TRANSLATIONS.fieldTitle}
                 </label>
                 <input
                   id="poi-title"
@@ -373,52 +374,52 @@ export default function PoiCatalogPage() {
                   required
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  placeholder="e.g., Bếp Hoàng Cầm, Địa đạo Bến Dược"
+                  placeholder={ADMIN_TRANSLATIONS.fieldTitlePlaceholder}
                   className="mt-1 w-full rounded-md border border-slate-300 px-3 py-1.5 text-xs text-slate-900 focus:border-slate-800 focus:outline-none"
                 />
               </div>
 
               <div>
                 <label htmlFor="poi-short-desc" className="block text-xs font-medium text-slate-700">
-                  Free Teaser Summary (Displayed to visitors before session unlock)
+                  {ADMIN_TRANSLATIONS.fieldShortDesc}
                 </label>
                 <textarea
                   id="poi-short-desc"
                   rows={2}
                   value={shortDescription}
                   onChange={(e) => setShortDescription(e.target.value)}
-                  placeholder="Brief preview summary shown on bottom sheet preview card..."
+                  placeholder={ADMIN_TRANSLATIONS.fieldShortDescPlaceholder}
                   className="mt-1 w-full rounded-md border border-slate-300 px-3 py-1.5 text-xs text-slate-900 focus:border-slate-800 focus:outline-none"
                 />
               </div>
 
               <div>
                 <label htmlFor="poi-full-desc" className="block text-xs font-medium text-slate-700">
-                  Detailed Historical Narration Content (Unlocked upon payment)
+                  {ADMIN_TRANSLATIONS.fieldFullDesc}
                 </label>
                 <textarea
                   id="poi-full-desc"
                   rows={3}
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Full historical chronicle used for AI translation and audio synthesis..."
+                  placeholder={ADMIN_TRANSLATIONS.fieldFullDescPlaceholder}
                   className="mt-1 w-full rounded-md border border-slate-300 px-3 py-1.5 text-xs text-slate-900 focus:border-slate-800 focus:outline-none"
                 />
               </div>
 
               <div>
                 <span className="block text-xs font-medium text-slate-700 mb-1">
-                  Interactive Geofence Calibration (Pin & Radius: 10m–50m)
+                  {ADMIN_TRANSLATIONS.interactiveGeofenceTitle}
                 </span>
                 <AdminMapPicker
                   poiId="new-exhibit-picker"
                   initialLatitude={Number.isFinite(parseFloat(latitude)) ? parseFloat(latitude) : 11.1432}
                   initialLongitude={Number.isFinite(parseFloat(longitude)) ? parseFloat(longitude) : 106.4631}
                   initialRadius={radius}
-                  latitudeLabel="Latitude (WGS84) *"
-                  longitudeLabel="Longitude (WGS84) *"
-                  radiusLabel="Proximity Trigger Radius"
-                  outOfBoundsMessage="Cảnh báo: Tọa độ không hợp lệ (Vĩ độ: [-90, 90], Kinh độ: [-180, 180])."
+                  latitudeLabel={ADMIN_TRANSLATIONS.latitude}
+                  longitudeLabel={ADMIN_TRANSLATIONS.longitude}
+                  radiusLabel={ADMIN_TRANSLATIONS.triggerRadius}
+                  outOfBoundsMessage={ADMIN_TRANSLATIONS.outOfBoundsError}
                   onChange={({ latitude: nextLat, longitude: nextLng, radius: nextRad, isValid }) => {
                     setLatitude(Number.isFinite(nextLat) ? String(nextLat) : 'invalid');
                     setLongitude(Number.isFinite(nextLng) ? String(nextLng) : 'invalid');
@@ -430,7 +431,7 @@ export default function PoiCatalogPage() {
 
               <div>
                 <label htmlFor="poi-image" className="block text-xs font-medium text-slate-700">
-                  Cover Photo (JPG, PNG, WebP &lt; 5MB)
+                  {ADMIN_TRANSLATIONS.fieldCoverPhoto}
                 </label>
                 <input
                   id="poi-image"
@@ -456,14 +457,14 @@ export default function PoiCatalogPage() {
                   onClick={() => setIsModalOpen(false)}
                   className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
                 >
-                  Cancel
+                  {ADMIN_TRANSLATIONS.btnCancel}
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmitting || coordinateInvalid}
                   className="rounded-md bg-slate-800 px-4 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-slate-700 disabled:opacity-50"
                 >
-                  {isSubmitting ? 'Creating...' : 'Save & Digitize'}
+                  {isSubmitting ? ADMIN_TRANSLATIONS.btnCreating : ADMIN_TRANSLATIONS.btnSaveAndDigitize}
                 </button>
               </div>
             </form>
