@@ -2,6 +2,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import CleanOrphansModal from '../CleanOrphansModal.jsx';
 import * as systemApi from '../../../api/systemApi.js';
+import { ADMIN_TRANSLATIONS } from '../../../locales/adminTranslations.js';
 
 describe('CleanOrphansModal', () => {
   afterEach(() => {
@@ -22,14 +23,14 @@ describe('CleanOrphansModal', () => {
     const dialog = screen.getByRole('dialog');
     expect(dialog).toBeInTheDocument();
     expect(dialog.className).toContain('z-[9999]');
-    expect(screen.getByRole('heading', { name: /clean orphaned audio/i })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: ADMIN_TRANSLATIONS.cleanOrphansModalTitle })).toBeInTheDocument();
   });
 
   it('triggers onClose when Cancel button is clicked', () => {
     const onClose = vi.fn();
     render(<CleanOrphansModal isOpen={true} onClose={onClose} />);
 
-    fireEvent.click(screen.getByRole('button', { name: /cancel/i }));
+    fireEvent.click(screen.getByRole('button', { name: ADMIN_TRANSLATIONS.btnCancel }));
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
@@ -45,7 +46,7 @@ describe('CleanOrphansModal', () => {
       <CleanOrphansModal isOpen={true} onClose={onClose} onSuccess={onSuccess} />
     );
 
-    fireEvent.click(screen.getByRole('button', { name: /confirm & prune/i }));
+    fireEvent.click(screen.getByRole('button', { name: ADMIN_TRANSLATIONS.btnConfirmPrune }));
 
     await waitFor(() => {
       expect(mockClean).toHaveBeenCalledTimes(1);

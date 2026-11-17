@@ -1,4 +1,5 @@
 import PropTypes from 'prop-types';
+import { ADMIN_TRANSLATIONS } from '../../locales/adminTranslations.js';
 
 export const WARNING_THRESHOLD_PERCENT = 85.0;
 export const CRITICAL_THRESHOLD_PERCENT = 95.0;
@@ -73,11 +74,11 @@ export default function StorageHealthBanner({
             </svg>
             <div className="text-xs sm:text-sm">
               <span className="font-semibold">
-                {isCritical ? 'Critical Alert: ' : 'Warning: '}
+                {isCritical ? ADMIN_TRANSLATIONS.alertCriticalTitle : ADMIN_TRANSLATIONS.alertWarningTitle}{' '}
               </span>
               {isCritical
-                ? 'Audio cache capacity exceeds 95%. Please prune files before generating new audio or uploading media.'
-                : 'Audio cache capacity exceeds 85%. Please prune orphaned files.'}
+                ? ADMIN_TRANSLATIONS.storageCriticalMsg
+                : ADMIN_TRANSLATIONS.storageWarningMsg}
             </div>
           </div>
 
@@ -88,7 +89,7 @@ export default function StorageHealthBanner({
               onClick={onCleanClick}
               className={`inline-flex shrink-0 items-center rounded-md px-3 py-1.5 text-xs font-semibold shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 ${buttonClasses}`}
             >
-              Clean Orphaned Audio
+              {ADMIN_TRANSLATIONS.btnCleanOrphanedAudio}
             </button>
           )}
         </aside>
@@ -101,7 +102,7 @@ export default function StorageHealthBanner({
         >
           <div>
             <div className="flex items-center justify-between text-sm">
-              <span className="font-semibold text-slate-800">Static Audio Cache Disk Usage</span>
+              <span className="font-semibold text-slate-800">{ADMIN_TRANSLATIONS.audioCacheDiskUsage}</span>
               <span className="font-medium text-slate-600">
                 {percent.toFixed(1)}%
                 <span className="ml-1 text-xs text-slate-500">
@@ -116,7 +117,7 @@ export default function StorageHealthBanner({
               aria-valuenow={percent}
               aria-valuemin="0"
               aria-valuemax="100"
-              aria-label="Audio cache storage disk usage"
+              aria-label={ADMIN_TRANSLATIONS.audioCacheProgressAriaLabel}
               className="mt-2 h-3.5 w-full overflow-hidden rounded-full bg-slate-100 p-0.5"
             >
               <div
@@ -126,31 +127,31 @@ export default function StorageHealthBanner({
             </div>
 
             <div className="mt-2 flex justify-between text-xs text-slate-500">
-              <span>Used: {formatBytes(usedBytes)}</span>
-              <span>Total: {formatBytes(totalBytes)}</span>
+              <span>{ADMIN_TRANSLATIONS.labelUsed.replace('{used}', formatBytes(usedBytes))}</span>
+              <span>{ADMIN_TRANSLATIONS.labelTotal.replace('{total}', formatBytes(totalBytes))}</span>
             </div>
           </div>
 
           {/* Stats summary breakdown */}
           <div className="mt-6 grid grid-cols-2 gap-4 border-t border-slate-100 pt-4 sm:grid-cols-4">
             <div>
-              <p className="text-xs text-slate-600">Free Space</p>
+              <p className="text-xs text-slate-600">{ADMIN_TRANSLATIONS.labelFreeSpace}</p>
               <p className="mt-0.5 text-sm font-semibold text-slate-800">{formatBytes(freeBytes)}</p>
             </div>
             <div>
-              <p className="text-xs text-slate-600">Audio Cache Size</p>
+              <p className="text-xs text-slate-600">{ADMIN_TRANSLATIONS.labelAudioCacheSize}</p>
               <p className="mt-0.5 text-sm font-semibold text-slate-800">{formatBytes(audioCacheBytes)}</p>
             </div>
             <div>
-              <p className="text-xs text-slate-600">Audio Cache Files</p>
+              <p className="text-xs text-slate-600">{ADMIN_TRANSLATIONS.labelAudioCacheFiles}</p>
               <p className="mt-0.5 text-sm font-semibold text-slate-800">
-                {audioCacheFiles !== undefined && audioCacheFiles !== null ? `${audioCacheFiles} files` : '—'}
+                {audioCacheFiles !== undefined && audioCacheFiles !== null ? `${audioCacheFiles} ${ADMIN_TRANSLATIONS.filesUnit}` : '—'}
               </p>
             </div>
             <div>
-              <p className="text-xs text-slate-600">Threshold Alert</p>
+              <p className="text-xs text-slate-600">{ADMIN_TRANSLATIONS.labelThresholdAlert}</p>
               <p className={`mt-0.5 text-sm font-semibold ${isCritical ? 'text-red-600' : isWarning ? 'text-amber-600' : 'text-emerald-600'}`}>
-                {isCritical ? 'Critical (≥95%)' : isWarning ? 'Warning (≥85%)' : 'Healthy (<85%)'}
+                {isCritical ? ADMIN_TRANSLATIONS.thresholdCritical : isWarning ? ADMIN_TRANSLATIONS.thresholdWarning : ADMIN_TRANSLATIONS.thresholdHealthy}
               </p>
             </div>
           </div>

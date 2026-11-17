@@ -224,4 +224,53 @@ export const ADMIN_TRANSLATIONS = {
   heatRadiusLabel: 'Bán kính nhiệt:',
   blurOpacityLabel: 'Độ mờ tản:',
   totalExhibitsMonitored: 'Tổng số điểm giám sát:',
+
+  // --- Phase 5: System Health & Storage Monitoring ---
+  healthTitle: 'Tình trạng Hệ thống & Giám sát Bộ nhớ',
+  healthSubtitle:
+    'Viễn trắc máy chủ thời gian thực, cảnh báo ngưỡng dung lượng cache audio (85%/95%) và dọn dẹp file âm thanh mồ côi.',
+  btnRefreshTelemetry: 'Làm mới viễn trắc',
+  btnRefreshingTelemetry: 'Đang làm mới...',
+  btnCleanOrphanedAudio: 'Dọn dẹp âm thanh rác',
+  btnDismiss: 'Bỏ qua',
+  loadHealthError: 'Không thể tải dữ liệu viễn trắc hệ thống.',
+  cleanSuccessToast:
+    'Dọn dẹp thành công {count} file âm thanh mồ côi (giải phóng {mb} MB).',
+  dbConnectivityHeading: 'Kết nối Cơ sở dữ liệu Quan hệ',
+  mySqlDatabase: 'Cơ sở dữ liệu MySQL',
+  pingRoundtripLatency: 'Độ trễ Ping Khứ hồi:',
+  dbStatusConnected: 'Đã kết nối',
+  dbStatusDisconnected: 'Mất kết nối',
+  externalServicesHeading: 'Tích hợp Dịch vụ Bên ngoài',
+  statusOperational: 'Hoạt động bình thường',
+  servicesNeuralTTSAndPayment: 'Giọng đọc AI & Cổng thanh toán',
+  apiServerState: 'Trạng thái Máy chủ API:',
+
+  // Storage Health Banner
+  alertWarningTitle: 'Cảnh báo:',
+  alertCriticalTitle: 'Cảnh báo nguy cấp:',
+  storageWarningMsg:
+    'Dung lượng bộ nhớ đệm âm thanh đã vượt quá 85%. Vui lòng dọn dẹp các file âm thanh mồ côi.',
+  storageCriticalMsg:
+    'Dung lượng bộ nhớ đệm âm thanh đã vượt quá 95%. Vui lòng dọn dẹp các file mồ côi trước khi tạo audio mới hoặc tải ảnh lên.',
+  audioCacheDiskUsage: 'Dung lượng Ổ đĩa Cache Âm thanh',
+  audioCacheProgressAriaLabel: 'Dung lượng sử dụng ổ đĩa cache âm thanh',
+  labelUsed: 'Đã dùng: {used}',
+  labelTotal: 'Tổng: {total}',
+  labelFreeSpace: 'Còn trống',
+  labelAudioCacheSize: 'Dung lượng Cache Audio',
+  labelAudioCacheFiles: 'Số file Cache Audio',
+  filesUnit: 'file',
+  labelThresholdAlert: 'Mức cảnh báo ngưỡng',
+  thresholdCritical: 'Nguy cấp (≥95%)',
+  thresholdWarning: 'Cảnh báo (≥85%)',
+  thresholdHealthy: 'Bình thường (<85%)',
+
+  // Clean Orphans Modal
+  cleanOrphansModalTitle: 'Dọn dẹp âm thanh rác',
+  cleanOrphansModalDesc:
+    'Thao tác này quét dung lượng ổ đĩa tại thư mục {path}, xác định toàn bộ các file MP3 không còn liên kết với bất kỳ bản dịch điểm tham quan nào và xóa vĩnh viễn để giải phóng bộ nhớ.',
+  btnConfirmPrune: 'Xác nhận & Dọn dẹp',
+  btnCleaningPrune: 'Đang dọn dẹp...',
+  cleanOrphansError: 'Không thể dọn dẹp các file âm thanh mồ côi.',
 };

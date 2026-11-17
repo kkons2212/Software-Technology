@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import StorageHealthBanner, {
   formatBytes,
 } from '../admin/StorageHealthBanner.jsx';
+import { ADMIN_TRANSLATIONS } from '../../locales/adminTranslations.js';
 
 describe('StorageHealthBanner', () => {
   afterEach(() => {
@@ -53,7 +54,7 @@ describe('StorageHealthBanner', () => {
 
     const alert = screen.getByRole('alert');
     expect(alert).toBeInTheDocument();
-    expect(alert).toHaveTextContent(/audio cache capacity exceeds 85%/i);
+    expect(alert).toHaveTextContent(ADMIN_TRANSLATIONS.storageWarningMsg);
 
     const cleanButton = screen.getByTestId('clean-orphans-btn');
     expect(cleanButton).toBeInTheDocument();
@@ -73,7 +74,7 @@ describe('StorageHealthBanner', () => {
 
     const alert = screen.getByRole('alert');
     expect(alert).toBeInTheDocument();
-    expect(alert).toHaveTextContent(/critical alert: audio cache capacity exceeds 95%/i);
+    expect(alert).toHaveTextContent(ADMIN_TRANSLATIONS.storageCriticalMsg);
 
     const cleanButton = screen.getByTestId('clean-orphans-btn');
     fireEvent.click(cleanButton);

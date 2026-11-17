@@ -81,7 +81,7 @@ describe('AdminNavbar', () => {
 
     renderNavbar('/admin/pois');
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(/Audio cache capacity exceeds 95%/i);
+    expect(await screen.findByRole('alert')).toHaveTextContent(ADMIN_TRANSLATIONS.storageCriticalMsg);
   });
 
   it('hides sticky storage banner when navigating to the System Health page to prevent duplicate alerts', async () => {

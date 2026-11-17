@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import StorageHealthBanner from '../../components/admin/StorageHealthBanner.jsx';
 import CleanOrphansModal from '../../components/admin/CleanOrphansModal.jsx';
 import { getSystemHealth } from '../../api/systemApi.js';
+import { ADMIN_TRANSLATIONS } from '../../locales/adminTranslations.js';
 
 export default function SystemHealthPage() {
   const [healthData, setHealthData] = useState(null);
@@ -17,7 +18,7 @@ export default function SystemHealthPage() {
       const data = await getSystemHealth();
       setHealthData(data);
     } catch (err) {
-      setError(err?.message || 'Failed to retrieve system health telemetry.');
+      setError(err?.message || ADMIN_TRANSLATIONS.loadHealthError);
     } finally {
       setIsLoading(false);
     }
@@ -30,7 +31,9 @@ export default function SystemHealthPage() {
   const handleCleanSuccess = (result) => {
     setToastMessage(
       result?.message ||
-      `Successfully cleaned ${result?.deleted_count || 0} orphaned files (${result?.reclaimed_mb || 0} MB freed).`
+      ADMIN_TRANSLATIONS.cleanSuccessToast
+        .replace('{count}', result?.deleted_count || 0)
+        .replace('{mb}', result?.reclaimed_mb || 0)
     );
     // Automatically refresh storage health gauge upon completion (AC-05.3.3)
     fetchHealth();
@@ -52,7 +55,7 @@ export default function SystemHealthPage() {
               onClick={() => setToastMessage(null)}
               className="text-xs font-semibold text-emerald-700 hover:text-emerald-900"
             >
-              Dismiss
+              {ADMIN_TRANSLATIONS.btnDismiss}
             </button>
           </div>
         )}
@@ -60,10 +63,10 @@ export default function SystemHealthPage() {
         <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-              System Health & Storage Monitoring
+              {ADMIN_TRANSLATIONS.healthTitle}
             </h1>
             <p className="mt-1 text-sm text-slate-600">
-              Real-time server telemetry, audio cache threshold alerts (85%/95%), and orphan file pruning.
+              {ADMIN_TRANSLATIONS.healthSubtitle}
             </p>
           </div>
 
@@ -74,14 +77,14 @@ export default function SystemHealthPage() {
               onClick={fetchHealth}
               className="inline-flex items-center rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50 disabled:opacity-50"
             >
-              {isLoading ? 'Refreshing...' : 'Refresh Telemetry'}
+              {isLoading ? ADMIN_TRANSLATIONS.btnRefreshingTelemetry : ADMIN_TRANSLATIONS.btnRefreshTelemetry}
             </button>
             <button
               type="button"
               onClick={() => setIsCleanModalOpen(true)}
               className="inline-flex items-center rounded-lg bg-indigo-600 px-3.5 py-2 text-xs font-semibold text-white shadow-sm hover:bg-indigo-700"
             >
-              Clean Orphaned Audio
+              {ADMIN_TRANSLATIONS.btnCleanOrphanedAudio}
             </button>
           </div>
         </div>
@@ -109,7 +112,7 @@ export default function SystemHealthPage() {
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
               <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
                 <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-500">
-                  Relational Database Connectivity
+                  {ADMIN_TRANSLATIONS.dbConnectivityHeading}
                 </h2>
                 <div className="mt-4 flex items-center justify-between">
                   <div className="flex items-center space-x-3">
@@ -119,13 +122,13 @@ export default function SystemHealthPage() {
                       aria-hidden="true"
                     />
                     <span className="text-base font-semibold capitalize text-slate-900">
-                      {healthData.db_status}
+                      {healthData.db_status === 'connected' ? ADMIN_TRANSLATIONS.dbStatusConnected : (healthData.db_status || ADMIN_TRANSLATIONS.dbStatusDisconnected)}
                     </span>
                   </div>
-                  <span className="text-xs text-slate-500">MySQL Database</span>
+                  <span className="text-xs text-slate-500">{ADMIN_TRANSLATIONS.mySqlDatabase}</span>
                 </div>
                 <div className="mt-4 flex justify-between border-t border-slate-100 pt-3 text-xs text-slate-600">
-                  <span>Ping Roundtrip Latency:</span>
+                  <span>{ADMIN_TRANSLATIONS.pingRoundtripLatency}</span>
                   <span className="font-mono font-medium text-slate-800">
                     {healthData.db_latency_ms >= 0 ? `${healthData.db_latency_ms} ms` : 'N/A'}
                   </span>
@@ -134,7 +137,7 @@ export default function SystemHealthPage() {
 
               <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
                 <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-500">
-                  External Service Integrations
+                  {ADMIN_TRANSLATIONS.externalServicesHeading}
                 </h2>
                 <div className="mt-4 flex items-center justify-between">
                   <div className="flex items-center space-x-3">
@@ -144,13 +147,13 @@ export default function SystemHealthPage() {
                       aria-hidden="true"
                     />
                     <span className="text-base font-semibold text-slate-900">
-                      Operational
+                      {ADMIN_TRANSLATIONS.statusOperational}
                     </span>
                   </div>
-                  <span className="text-xs text-slate-500">Neural TTS & Payment Gateway</span>
+                  <span className="text-xs text-slate-500">{ADMIN_TRANSLATIONS.servicesNeuralTTSAndPayment}</span>
                 </div>
                 <div className="mt-4 flex justify-between border-t border-slate-100 pt-3 text-xs text-slate-600">
-                  <span>API Server State:</span>
+                  <span>{ADMIN_TRANSLATIONS.apiServerState}</span>
                   <span className="font-semibold uppercase text-emerald-700">
                     {healthData.status}
                   </span>

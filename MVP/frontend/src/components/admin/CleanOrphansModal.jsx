@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import PropTypes from 'prop-types';
 import { cleanOrphanedAudio } from '../../api/systemApi.js';
+import { ADMIN_TRANSLATIONS } from '../../locales/adminTranslations.js';
 
 export default function CleanOrphansModal({ isOpen, onClose, onSuccess }) {
   const [isCleaning, setIsCleaning] = useState(false);
@@ -17,7 +18,7 @@ export default function CleanOrphansModal({ isOpen, onClose, onSuccess }) {
       onSuccess?.(result);
       onClose();
     } catch (err) {
-      setError(err?.message || 'Failed to prune orphaned audio files.');
+      setError(err?.message || ADMIN_TRANSLATIONS.cleanOrphansError);
     } finally {
       setIsCleaning(false);
     }
@@ -47,13 +48,13 @@ export default function CleanOrphansModal({ isOpen, onClose, onSuccess }) {
             />
           </svg>
           <h2 id="clean-orphans-title" className="text-lg font-semibold text-slate-900">
-            Clean Orphaned Audio
+            {ADMIN_TRANSLATIONS.cleanOrphansModalTitle}
           </h2>
         </div>
 
         <p className="mt-3 text-sm leading-relaxed text-slate-600">
-          This operation scans physical storage in <code className="rounded bg-slate-100 px-1 py-0.5 text-xs text-slate-800">/static/audio</code>,
-          identifies all cached MP3 files that are no longer linked to any exhibit translation, and permanently unlinks them.
+          Thao tác này quét bộ nhớ vật lý trong <code className="rounded bg-slate-100 px-1 py-0.5 text-xs text-slate-800">/static/audio</code>,
+          phát hiện toàn bộ file MP3 đã lưu cache không còn liên kết với bất kỳ bản dịch hiện vật nào, và xóa vĩnh viễn chúng.
         </p>
 
         {error && (
@@ -69,7 +70,7 @@ export default function CleanOrphansModal({ isOpen, onClose, onSuccess }) {
             onClick={onClose}
             className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
           >
-            Cancel
+            {ADMIN_TRANSLATIONS.btnCancel}
           </button>
           <button
             type="button"
@@ -77,7 +78,7 @@ export default function CleanOrphansModal({ isOpen, onClose, onSuccess }) {
             onClick={handleClean}
             className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-red-700 disabled:opacity-50"
           >
-            {isCleaning ? 'Cleaning...' : 'Confirm & Prune'}
+            {isCleaning ? ADMIN_TRANSLATIONS.btnCleaningPrune : ADMIN_TRANSLATIONS.btnConfirmPrune}
           </button>
         </div>
       </div>
