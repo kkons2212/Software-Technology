@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { ADMIN_TRANSLATIONS } from '../../locales/adminTranslations.js';
 
 const leafletMocks = vi.hoisted(() => {
   const mapInstance = { remove: vi.fn() };
@@ -88,15 +89,15 @@ describe('POIFormModal', () => {
     render(<POIFormModal isOpen={true} poi={mockPoi} onClose={vi.fn()} />);
 
     expect(
-      screen.getByRole('heading', { name: /edit exhibit details & geofence/i }),
+      screen.getByRole('heading', { name: ADMIN_TRANSLATIONS.editExhibitTitle }),
     ).toBeInTheDocument();
-    expect(screen.getByLabelText(/exhibit title/i)).toHaveValue(
+    expect(screen.getByLabelText(/tên điểm tham quan/i)).toHaveValue(
       'Hầm thông tin liên lạc',
     );
-    expect(screen.getByLabelText(/free teaser summary/i)).toHaveValue(
+    expect(screen.getByLabelText(/tóm tắt giới thiệu/i)).toHaveValue(
       'Trung tâm thông tin chiến trường',
     );
-    expect(screen.getByLabelText(/detailed historical narration/i)).toHaveValue(
+    expect(screen.getByLabelText(/bài thuyết minh lịch sử chi tiết/i)).toHaveValue(
       mockPoi.description,
     );
 
@@ -108,13 +109,13 @@ describe('POIFormModal', () => {
     const user = userEvent.setup();
     render(<POIFormModal isOpen={true} poi={mockPoi} onClose={vi.fn()} />);
 
-    const titleInput = screen.getByLabelText(/exhibit title/i);
+    const titleInput = screen.getByLabelText(/tên điểm tham quan/i);
     await user.clear(titleInput);
 
-    const saveButton = screen.getByRole('button', { name: /save changes/i });
+    const saveButton = screen.getByRole('button', { name: ADMIN_TRANSLATIONS.btnSaveChanges });
     await user.click(saveButton);
 
-    expect(screen.getByRole('alert')).toHaveTextContent(/exhibit title is required/i);
+    expect(screen.getByRole('alert')).toHaveTextContent(ADMIN_TRANSLATIONS.errorTitleRequired);
     expect(updatePoi).not.toHaveBeenCalled();
   });
 
@@ -122,7 +123,7 @@ describe('POIFormModal', () => {
     const outOfBoundsPoi = { ...mockPoi, latitude: 95.0000 };
     render(<POIFormModal isOpen={true} poi={outOfBoundsPoi} onClose={vi.fn()} />);
 
-    const saveButton = screen.getByRole('button', { name: /save changes/i });
+    const saveButton = screen.getByRole('button', { name: ADMIN_TRANSLATIONS.btnSaveChanges });
     expect(saveButton).toBeDisabled();
   });
 
@@ -132,12 +133,12 @@ describe('POIFormModal', () => {
     const largeFile = new File(['x'.repeat(6 * 1024 * 1024)], 'large.jpg', {
       type: 'image/jpeg',
     });
-    const fileInput = screen.getByLabelText(/cover photo/i);
+    const fileInput = screen.getByLabelText(/ảnh bìa/i);
 
     fireEvent.change(fileInput, { target: { files: [largeFile] } });
 
     expect(screen.getByRole('alert')).toHaveTextContent(
-      /image size exceeds maximum limit of 5mb/i,
+      ADMIN_TRANSLATIONS.errorImageTooLarge,
     );
     expect(updatePoi).not.toHaveBeenCalled();
   });
@@ -147,11 +148,11 @@ describe('POIFormModal', () => {
     const handleClose = vi.fn();
     render(<POIFormModal isOpen={true} poi={mockPoi} onClose={handleClose} />);
 
-    const cancelButton = screen.getByRole('button', { name: /cancel/i });
+    const cancelButton = screen.getByRole('button', { name: ADMIN_TRANSLATIONS.btnCancel });
     await user.click(cancelButton);
     expect(handleClose).toHaveBeenCalledTimes(1);
 
-    const closeIconButton = screen.getByRole('button', { name: /close modal/i });
+    const closeIconButton = screen.getByRole('button', { name: ADMIN_TRANSLATIONS.closeModal || 'Đóng cửa sổ' });
     await user.click(closeIconButton);
     expect(handleClose).toHaveBeenCalledTimes(2);
   });
@@ -171,11 +172,11 @@ describe('POIFormModal', () => {
       />,
     );
 
-    const titleInput = screen.getByLabelText(/exhibit title/i);
+    const titleInput = screen.getByLabelText(/tên điểm tham quan/i);
     await user.clear(titleInput);
     await user.type(titleInput, 'Hầm thông tin liên lạc (Nâng cấp)');
 
-    const saveButton = screen.getByRole('button', { name: /save changes/i });
+    const saveButton = screen.getByRole('button', { name: ADMIN_TRANSLATIONS.btnSaveChanges });
     await user.click(saveButton);
 
     await waitFor(() => {
@@ -193,7 +194,7 @@ describe('POIFormModal', () => {
     });
 
     expect(screen.getByTestId('success-toast')).toHaveTextContent(
-      /exhibit updated successfully/i,
+      ADMIN_TRANSLATIONS.successUpdatePoi,
     );
     expect(handleSuccess).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -212,10 +213,10 @@ describe('POIFormModal', () => {
     const newFile = new File(['valid-image-bytes'], 'tunnel_new.jpg', {
       type: 'image/jpeg',
     });
-    const fileInput = screen.getByLabelText(/cover photo/i);
+    const fileInput = screen.getByLabelText(/ảnh bìa/i);
     fireEvent.change(fileInput, { target: { files: [newFile] } });
 
-    const saveButton = screen.getByRole('button', { name: /save changes/i });
+    const saveButton = screen.getByRole('button', { name: ADMIN_TRANSLATIONS.btnSaveChanges });
     await user.click(saveButton);
 
     await waitFor(() => {
@@ -235,7 +236,7 @@ describe('POIFormModal', () => {
 
     render(<POIFormModal isOpen={true} poi={mockPoi} onClose={vi.fn()} />);
 
-    const saveButton = screen.getByRole('button', { name: /save changes/i });
+    const saveButton = screen.getByRole('button', { name: ADMIN_TRANSLATIONS.btnSaveChanges });
     await user.click(saveButton);
 
     expect(await screen.findByRole('alert')).toHaveTextContent(

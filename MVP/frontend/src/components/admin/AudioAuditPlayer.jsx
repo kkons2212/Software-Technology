@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { ADMIN_TRANSLATIONS } from '../../locales/adminTranslations.js';
 
 function formatTime(seconds) {
   if (!Number.isFinite(seconds) || seconds < 0) return '0:00';
@@ -39,7 +40,7 @@ export default function AudioAuditPlayer({ translationId, audioUrl }) {
       const playback = audio.play();
       playback?.catch((error) => {
         setIsPlaying(false);
-        setPlaybackError(error?.message || 'Unable to play this audio.');
+        setPlaybackError(error?.message || ADMIN_TRANSLATIONS.audioUnableToPlay);
       });
     } else {
       audio.pause();
@@ -59,7 +60,7 @@ export default function AudioAuditPlayer({ translationId, audioUrl }) {
         data-testid={`audio-missing-${translationId}`}
         className="mt-4 rounded-md bg-slate-50 px-3 py-2 text-xs text-slate-500"
       >
-        Audio Guide not generated.
+        {ADMIN_TRANSLATIONS.audioMissingMessage}
       </div>
     );
   }
@@ -86,13 +87,13 @@ export default function AudioAuditPlayer({ translationId, audioUrl }) {
         }}
         onError={() => {
           setIsPlaying(false);
-          setPlaybackError('Unable to load this audio.');
+          setPlaybackError(ADMIN_TRANSLATIONS.audioUnableToLoad);
         }}
         className="hidden"
       />
       <button
         type="button"
-        aria-label={isPlaying ? 'Pause audio preview' : 'Play audio preview'}
+        aria-label={isPlaying ? ADMIN_TRANSLATIONS.audioPausePreview : ADMIN_TRANSLATIONS.audioPlayPreview}
         onClick={togglePlayback}
         className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-800 text-sm font-semibold text-white hover:bg-slate-700"
       >
@@ -103,7 +104,7 @@ export default function AudioAuditPlayer({ translationId, audioUrl }) {
       </span>
       <input
         type="range"
-        aria-label="Audio progress"
+        aria-label={ADMIN_TRANSLATIONS.audioProgress}
         min="0"
         max={duration || 0}
         step="0.1"

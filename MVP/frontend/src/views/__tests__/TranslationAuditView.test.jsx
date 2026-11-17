@@ -3,7 +3,8 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import TranslationAuditView from '../admin/TranslationAuditView.jsx';
 import * as translationApi from '../../api/translationApi.js';
 import * as poiApi from '../../api/poiApi.js';
-import * as languageApi from '../../api/languageApi.js';
+import * as languageApi from '../../api/languageApi.js';
+import { ADMIN_TRANSLATIONS } from '../../locales/adminTranslations.js';
 
 describe('TranslationAuditView (US 04.1 Multilingual Translation Audit & US 04.3 Publication)', () => {
   const mockPois = [
@@ -151,7 +152,7 @@ describe('TranslationAuditView (US 04.1 Multilingual Translation Audit & US 04.3
     fireEvent.change(titleInput, { target: { value: 'Ben Duoc Historical Relic Tunnel' } });
 
     expect(titleInput.value).toBe('Ben Duoc Historical Relic Tunnel');
-    expect(screen.getByText('Unsaved Edits')).toBeDefined();
+    expect(screen.getByText(ADMIN_TRANSLATIONS.colUnsavedEdits)).toBeDefined();
     expect(screen.getByTestId('save-btn-TR_001').disabled).toBe(false);
   });
 
@@ -274,7 +275,7 @@ describe('TranslationAuditView (US 04.1 Multilingual Translation Audit & US 04.3
     });
     expect(screen.getByTestId('audio-player-TR_002')).toBeDefined();
     expect(screen.getByTestId('audit-notification').textContent).toContain(
-      'Audio Guide regenerated successfully'
+      ADMIN_TRANSLATIONS.notificationRegeneratedSuccess
     );
     expect(translationApi.regenerateTranslationAudio).toHaveBeenCalledWith('TR_002');
   });
@@ -322,7 +323,7 @@ describe('TranslationAuditView (US 04.1 Multilingual Translation Audit & US 04.3
 
     await waitFor(() => {
       expect(screen.getByTestId('audit-notification').textContent).toContain(
-        "Published 'Booby Trap' successfully. Now live for visitors."
+        ADMIN_TRANSLATIONS.notificationPublishedSuccess.replace('{title}', 'Booby Trap')
       );
     });
   });

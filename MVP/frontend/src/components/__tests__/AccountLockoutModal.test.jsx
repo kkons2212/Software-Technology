@@ -5,6 +5,7 @@ import AccountLockoutModal, {
   LOCKOUT_STORAGE_KEY,
   formatCountdown,
 } from '../admin/AccountLockoutModal.jsx';
+import { ADMIN_TRANSLATIONS } from '../../locales/adminTranslations.js';
 
 describe('formatCountdown', () => {
   it('formats seconds into MM:SS correctly', () => {
@@ -42,10 +43,10 @@ describe('AccountLockoutModal', () => {
 
     expect(screen.getByRole('dialog')).toBeInTheDocument();
     expect(
-      screen.getByRole('heading', { level: 2, name: /account temporarily locked/i })
+      screen.getByRole('heading', { level: 2, name: ADMIN_TRANSLATIONS.lockoutTitle })
     ).toBeInTheDocument();
     expect(screen.getByTestId('lockout-countdown')).toHaveTextContent('15:00');
-    expect(screen.getByText(/5 attempts limit/i)).toBeInTheDocument();
+    expect(screen.getByText(/giới hạn 5 lần/i)).toBeInTheDocument();
   });
 
   it('counts down live every 1-second interval', () => {
@@ -122,7 +123,7 @@ describe('AccountLockoutModal', () => {
       />
     );
 
-    const dismissBtn = screen.getByRole('button', { name: /dismiss notice/i });
+    const dismissBtn = screen.getByRole('button', { name: ADMIN_TRANSLATIONS.dismissNotice });
     await user.click(dismissBtn);
 
     expect(onClose).toHaveBeenCalledTimes(1);

@@ -99,7 +99,7 @@ export default function POIFormModal({
     const file = event.target.files?.[0];
     if (file) {
       if (file.size > MAX_IMAGE_FILE_SIZE_BYTES) {
-        setFormError('Image size exceeds maximum limit of 5MB.');
+        setFormError(ADMIN_TRANSLATIONS.errorImageTooLarge);
         return;
       }
       setSelectedFile(file);
@@ -194,7 +194,7 @@ export default function POIFormModal({
           <button
             type="button"
             onClick={onClose}
-            aria-label="Close modal"
+            aria-label={ADMIN_TRANSLATIONS.closeModal || 'Đóng cửa sổ'}
             className="rounded p-1 text-slate-400 hover:text-slate-600 focus:outline-none"
           >
             ✕

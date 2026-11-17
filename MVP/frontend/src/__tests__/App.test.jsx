@@ -3,6 +3,7 @@ import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import App from '../App.jsx';
 import { AuthProvider } from '../contexts/AuthContext.jsx';
+import { ADMIN_TRANSLATIONS } from '../locales/adminTranslations.js';
 
 // Leaflet cannot run in jsdom, so the map engine and its marker overlay are
 // mocked the same way VisitorMapView.test.jsx does it. This keeps these
@@ -67,9 +68,9 @@ describe('App', () => {
     renderApp('/admin/login');
 
     expect(
-      await screen.findByRole('heading', { level: 1, name: /administrator sign in/i }, { timeout: 5000 }),
+      await screen.findByRole('heading', { level: 1, name: ADMIN_TRANSLATIONS.loginTitle }, { timeout: 5000 }),
     ).toBeInTheDocument();
-    expect(screen.getByLabelText(/^password$/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(ADMIN_TRANSLATIONS.password)).toBeInTheDocument();
   });
 
   it('renders the visitor tour page with the outdoor map on the visitor route', async () => {
@@ -109,7 +110,7 @@ describe('App', () => {
     renderApp('/admin/pois');
 
     expect(
-      await screen.findByRole('heading', { level: 1, name: /administrator sign in/i }, { timeout: 5000 }),
+      await screen.findByRole('heading', { level: 1, name: ADMIN_TRANSLATIONS.loginTitle }, { timeout: 5000 }),
     ).toBeInTheDocument();
   });
 
@@ -138,10 +139,10 @@ describe('App', () => {
     renderApp('/admin/health');
 
     expect(
-      await screen.findByRole('navigation', { name: /admin navigation/i }, { timeout: 5000 }),
+      await screen.findByRole('navigation', { name: new RegExp(ADMIN_TRANSLATIONS.navAriaLabel, 'i') }, { timeout: 5000 }),
     ).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /system health/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /sign out/i })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: new RegExp(ADMIN_TRANSLATIONS.navHealth, 'i') })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: new RegExp(ADMIN_TRANSLATIONS.signOut, 'i') })).toBeInTheDocument();
   });
 
   it('renders the 404 not found page on any unknown wildcard route', async () => {
