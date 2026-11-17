@@ -217,7 +217,7 @@ export default function PoiCatalogPage() {
 
         {/* Catalog Data Table */}
         <div className="mt-6 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
-          <table className="w-full border-collapse text-left text-xs" aria-label="Exhibits Catalog Table">
+          <table className="w-full border-collapse text-left text-xs" aria-label={ADMIN_TRANSLATIONS.exhibitsTableAriaLabel}>
             <thead>
               <tr className="border-b border-slate-200 bg-slate-100 font-semibold text-slate-700">
                 <th scope="col" className="px-4 py-3">{ADMIN_TRANSLATIONS.colThumbnail}</th>
@@ -303,7 +303,7 @@ export default function PoiCatalogPage() {
                             </span>
                           ))
                         ) : (
-                          <span className="text-slate-400">None</span>
+                          <span className="text-slate-400">{ADMIN_TRANSLATIONS.noneValue}</span>
                         )}
                       </div>
                     </td>

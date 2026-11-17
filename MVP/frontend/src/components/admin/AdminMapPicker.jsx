@@ -381,11 +381,11 @@ export default function AdminMapPicker({
     }`;
 
   return (
-    <section className="flex flex-col gap-4" aria-label="Geofence calibration map">
+    <section className="flex flex-col gap-4" aria-label={ADMIN_TRANSLATIONS.geofenceMapSectionAriaLabel}>
       <div
         ref={mapElementRef}
         role="application"
-        aria-label="Interactive geofence map with draggable pin"
+        aria-label={ADMIN_TRANSLATIONS.interactiveMapAriaLabel}
         data-testid="admin-map-picker-canvas"
         className="w-full rounded-md border bg-slate-100 touch-none relative z-0 cursor-crosshair"
         style={{

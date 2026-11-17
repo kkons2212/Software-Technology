@@ -5,6 +5,7 @@
 
 export const ADMIN_TRANSLATIONS = {
   // Navigation & Header
+  verifyingSession: 'Đang xác thực phiên làm việc quản trị viên...',
   brandTitle: 'Địa đạo Củ Chi',
   brandSubtitle: 'Quản trị',
   defaultAdminName: 'Quản trị viên',
@@ -64,6 +65,8 @@ export const ADMIN_TRANSLATIONS = {
   btnEdit: 'Chỉnh sửa',
   btnHide: 'Ẩn',
   btnShow: 'Hiện',
+  noneValue: 'Chưa có',
+  exhibitsTableAriaLabel: 'Bảng danh mục hiện vật',
 
   // POI Form Modal (Create & Edit)
   createExhibitTitle: 'Tạo hồ sơ điểm tham quan số hóa',
@@ -124,6 +127,8 @@ export const ADMIN_TRANSLATIONS = {
   invalidCharCoordError: 'Tọa độ không hợp lệ: Vui lòng chỉ nhập số thực (ví dụ: 11.1432), không được nhập chữ cái hoặc ký tự đặc biệt.',
   invalidRadiusError: 'Bán kính kích hoạt không hợp lệ (vui lòng chỉ nhập số nguyên từ 10m đến 50m, không nhập số thập phân).',
   outOfBoundsError: 'Cảnh báo: Tọa độ không hợp lệ (Vĩ độ: [-90, 90], Kinh độ: [-180, 180]).',
+  geofenceMapSectionAriaLabel: 'Bản đồ hiệu chuẩn geofence',
+  interactiveMapAriaLabel: 'Bản đồ geofence tương tác với điểm đánh dấu có thể kéo',
 
   // --- Phase 3: Multilingual Translation Audit & Audio Publishing ---
   translationAuditTitle: 'Kiểm duyệt Dịch thuật & Hiệu chỉnh Thuật ngữ Lịch sử',

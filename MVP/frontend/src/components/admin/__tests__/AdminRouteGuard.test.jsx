@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { ADMIN_TRANSLATIONS } from '../../../locales/adminTranslations.js';
 
 const { mockAuthState } = vi.hoisted(() => ({
   mockAuthState: { isAuthenticated: false, isBootstrapping: false, logoutReason: null },
@@ -49,7 +50,7 @@ describe('AdminRouteGuard', () => {
 
     renderGuard();
 
-    expect(screen.getByRole('status')).toHaveTextContent('Verifying administrator session');
+    expect(screen.getByRole('status')).toHaveTextContent(ADMIN_TRANSLATIONS.verifyingSession);
     expect(screen.queryByText('Protected Admin Workspace')).not.toBeInTheDocument();
   });
 
