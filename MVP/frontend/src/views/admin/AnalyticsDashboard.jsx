@@ -13,12 +13,13 @@ import {
 } from '../../api/analyticsApi.js';
 import AnalyticsExport from '../../components/admin/AnalyticsExport.jsx';
 import AnalyticsHeatmap from '../../components/admin/AnalyticsHeatmap.jsx';
+import { ADMIN_TRANSLATIONS } from '../../locales/adminTranslations.js';
 
 // Reporting windows exposed by the segmented control, in display order.
 const RANGE_OPTIONS = [
-  { value: ANALYTICS_TIME_RANGES.TODAY, label: 'Today' },
-  { value: ANALYTICS_TIME_RANGES.LAST_7_DAYS, label: 'Last 7 days' },
-  { value: ANALYTICS_TIME_RANGES.LAST_30_DAYS, label: 'Last 30 days' },
+  { value: ANALYTICS_TIME_RANGES.TODAY, label: ADMIN_TRANSLATIONS.rangeToday },
+  { value: ANALYTICS_TIME_RANGES.LAST_7_DAYS, label: ADMIN_TRANSLATIONS.rangeLast7Days },
+  { value: ANALYTICS_TIME_RANGES.LAST_30_DAYS, label: ADMIN_TRANSLATIONS.rangeLast30Days },
 ];
 
 const DEFAULT_RANGE = ANALYTICS_TIME_RANGES.LAST_7_DAYS;
@@ -27,8 +28,7 @@ const PERCENTAGE_BASE = 100;
 // even when one exhibit dominates the reporting window.
 const MIN_BAR_WIDTH_PERCENT = 2;
 const EMPTY_EXHIBIT_PLACEHOLDER = '—';
-const LOAD_ERROR_MESSAGE =
-  'Unable to load visitor analytics. Check your connection and try again.';
+const LOAD_ERROR_MESSAGE = ADMIN_TRANSLATIONS.loadAnalyticsError;
 
 /**
  * Formats a whole-number metric with thousands separators for KPI legibility.
@@ -109,18 +109,17 @@ export default function AnalyticsDashboard() {
       {/* Page Title */}
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-          Visitor Analytics &amp; Exhibition Impact
+          {ADMIN_TRANSLATIONS.analyticsTitle}
         </h1>
         <p className="mt-1 text-sm text-slate-600">
-          Aggregated visitor KPIs, Top 10 exhibit rankings, average tour duration,
-          spatial density heatmap, data export and language demographics.
+          {ADMIN_TRANSLATIONS.analyticsSubtitle}
         </p>
       </div>
 
       {/* AC-05.2.2: Reporting window segmented control (touch targets >= 44px) */}
       <div
         role="group"
-        aria-label="Reporting period"
+        aria-label={ADMIN_TRANSLATIONS.reportingPeriodAriaLabel}
         data-testid="analytics-range-control"
         className="mt-6 inline-flex flex-wrap gap-2 rounded-md border border-slate-200 bg-white p-1"
       >
@@ -171,7 +170,7 @@ export default function AnalyticsDashboard() {
             <div className="h-64 animate-pulse rounded-md bg-slate-200" />
             <div className="h-64 animate-pulse rounded-md bg-slate-200" />
           </div>
-          <span className="sr-only">Loading visitor analytics...</span>
+          <span className="sr-only">{ADMIN_TRANSLATIONS.loadingAnalytics}</span>
         </div>
       )}
 
@@ -189,7 +188,7 @@ export default function AnalyticsDashboard() {
             onClick={handleRetry}
             className="mt-3 inline-flex min-h-[44px] items-center rounded-md bg-red-900 px-4 py-2 text-sm font-semibold text-white hover:bg-red-800"
           >
-            Retry
+            {ADMIN_TRANSLATIONS.btnRetry}
           </button>
         </div>
       )}
@@ -206,7 +205,7 @@ export default function AnalyticsDashboard() {
               data-testid="analytics-kpi-total-visitors"
               className="rounded-md border border-slate-200 bg-white p-4"
             >
-              <p className="text-xs text-slate-600">Total Visitors</p>
+              <p className="text-xs text-slate-600">{ADMIN_TRANSLATIONS.kpiTotalVisitors}</p>
               <p className="mt-1 text-2xl font-bold text-slate-900">
                 {formatCount(kpis?.total_visitors)}
               </p>
@@ -216,7 +215,7 @@ export default function AnalyticsDashboard() {
               data-testid="analytics-kpi-total-audio-plays"
               className="rounded-md border border-slate-200 bg-white p-4"
             >
-              <p className="text-xs text-slate-600">Total Audio Plays</p>
+              <p className="text-xs text-slate-600">{ADMIN_TRANSLATIONS.kpiTotalAudioPlays}</p>
               <p className="mt-1 text-2xl font-bold text-slate-900">
                 {formatCount(kpis?.total_audio_plays)}
               </p>
@@ -226,7 +225,7 @@ export default function AnalyticsDashboard() {
               data-testid="analytics-kpi-top-exhibit"
               className="rounded-md border border-slate-200 bg-white p-4"
             >
-              <p className="text-xs text-slate-600">Top Exhibit</p>
+              <p className="text-xs text-slate-600">{ADMIN_TRANSLATIONS.kpiTopExhibit}</p>
               <p
                 className="mt-1 truncate text-2xl font-bold text-slate-900"
                 title={kpis?.top_exhibit_title ?? EMPTY_EXHIBIT_PLACEHOLDER}
@@ -239,9 +238,9 @@ export default function AnalyticsDashboard() {
               data-testid="analytics-kpi-average-duration"
               className="rounded-md border border-slate-200 bg-white p-4"
             >
-              <p className="text-xs text-slate-600">Average Tour Duration</p>
+              <p className="text-xs text-slate-600">{ADMIN_TRANSLATIONS.kpiAverageTourDuration}</p>
               <p className="mt-1 text-2xl font-bold text-slate-900">
-                {(Number(kpis?.average_tour_duration_minutes) || 0).toFixed(1)} min
+                {(Number(kpis?.average_tour_duration_minutes) || 0).toFixed(1)} {ADMIN_TRANSLATIONS.unitMinutes}
               </p>
             </div>
           </div>
@@ -263,7 +262,7 @@ export default function AnalyticsDashboard() {
                 id="analytics-top-exhibits-heading"
                 className="text-sm font-semibold text-slate-900"
               >
-                Top 10 Exhibits by Trigger Volume
+                {ADMIN_TRANSLATIONS.topExhibitsHeading}
               </h2>
 
               {topPois.length === 0 ? (
@@ -271,7 +270,7 @@ export default function AnalyticsDashboard() {
                   data-testid="analytics-top-exhibits-empty-state"
                   className="mt-4 text-sm text-slate-500"
                 >
-                  No exhibit triggers were recorded for this period.
+                  {ADMIN_TRANSLATIONS.noExhibitsTriggers}
                 </p>
               ) : (
                 <ul className="mt-4 space-y-3">
@@ -312,7 +311,7 @@ export default function AnalyticsDashboard() {
                 id="analytics-languages-heading"
                 className="text-sm font-semibold text-slate-900"
               >
-                Visitor Language Distribution
+                {ADMIN_TRANSLATIONS.languageDistributionHeading}
               </h2>
 
               {languageDistribution.length === 0 ? (
@@ -320,7 +319,7 @@ export default function AnalyticsDashboard() {
                   data-testid="analytics-language-empty-state"
                   className="mt-4 text-sm text-slate-500"
                 >
-                  No visitor languages were recorded for this period.
+                  {ADMIN_TRANSLATIONS.noLanguageRecorded}
                 </p>
               ) : (
                 <ul className="mt-4 space-y-3">

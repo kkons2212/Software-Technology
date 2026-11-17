@@ -180,4 +180,48 @@ export const ADMIN_TRANSLATIONS = {
     "Đã xuất bản '{title}' thành công. Đang hiển thị trực tiếp cho du khách.",
   notificationSaveError: 'Không thể lưu bản dịch.',
   notificationPublishError: 'Không thể xuất bản bản dịch.',
+
+  // --- Phase 4: Analytics Dashboard & Visitor Heatmap ---
+  analyticsTitle: 'Thống kê Du khách & Hiệu quả Trưng bày',
+  analyticsSubtitle:
+    'Chỉ số KPI tổng hợp, bảng xếp hạng 10 điểm nổi bật, thời lượng tham quan trung bình, bản đồ nhiệt mật độ không gian, xuất báo cáo và cơ cấu ngôn ngữ.',
+  reportingPeriodAriaLabel: 'Khoảng thời gian báo cáo',
+  rangeToday: 'Hôm nay',
+  rangeLast7Days: '7 ngày qua',
+  rangeLast30Days: '30 ngày qua',
+  loadingAnalytics: 'Đang tải dữ liệu thống kê du khách...',
+  loadAnalyticsError:
+    'Không thể tải dữ liệu thống kê du khách. Vui lòng kiểm tra kết nối và thử lại.',
+  btnRetry: 'Thử lại',
+  kpiTotalVisitors: 'Tổng lượt du khách',
+  kpiTotalAudioPlays: 'Lượt phát thuyết minh',
+  kpiTopExhibit: 'Điểm tham quan hàng đầu',
+  kpiAverageTourDuration: 'Thời lượng tour trung bình',
+  unitMinutes: 'phút',
+  topExhibitsHeading: 'Top 10 Điểm tham quan theo Lượt kích hoạt',
+  noExhibitsTriggers: 'Chưa có lượt kích hoạt nào được ghi nhận trong khoảng thời gian này.',
+  languageDistributionHeading: 'Cơ cấu Ngôn ngữ Du khách',
+  noLanguageRecorded: 'Chưa có dữ liệu ngôn ngữ du khách trong khoảng thời gian này.',
+
+  // Analytics Heatmap
+  heatmapTitle: 'Bản đồ nhiệt Mật độ Du khách Thời gian thực',
+  liveTelemetryBadge: 'Viễn trắc Trực tiếp',
+  heatmapSubtitle: 'Giám sát cảnh báo ùn tắc không gian trong toàn bộ khu di tích Địa đạo Củ Chi.',
+  heatmapReportingWindowAriaLabel: 'Khoảng thời gian bản đồ nhiệt',
+  congestionAlertTitle: 'Cảnh báo ùn tắc:',
+  congestionAlertDescription:
+    'Mật độ du khách cao tại {poi} ({count} lượt kích hoạt, {density}% mật độ tương đối). Cân nhắc điều phối nhân viên hướng dẫn để phân luồng du khách.',
+  heatmapCanvasAriaLabel: 'Bản đồ nhiệt mật độ du khách',
+  loadingHeatmapTelemetry: 'Đang tổng hợp dữ liệu GPS viễn trắc...',
+  loadHeatmapError: 'Không thể tải dữ liệu bản đồ nhiệt. Vui lòng kiểm tra kết nối và thử lại.',
+  heatmapEmptyState:
+    'Chưa có lượt kích hoạt điểm nào trong khoảng thời gian này. Bản đồ nhiệt sẽ hiển thị khi có du khách tham quan.',
+  densityScale: 'Thang đo Mật độ',
+  densityLow: 'Thấp (0 - 40%)',
+  densityModerate: 'Vừa phải (40 - 70%)',
+  densityCongestion: 'Ùn tắc (> 70%)',
+  densityZero: 'Chưa có khách (0)',
+  heatRadiusLabel: 'Bán kính nhiệt:',
+  blurOpacityLabel: 'Độ mờ tản:',
+  totalExhibitsMonitored: 'Tổng số điểm giám sát:',
 };

@@ -67,6 +67,7 @@ vi.mock('../../../api/analyticsApi.js', () => ({
 
 import { getHeatmapData } from '../../../api/analyticsApi.js';
 import AnalyticsHeatmap from '../AnalyticsHeatmap.jsx';
+import { ADMIN_TRANSLATIONS } from '../../../locales/adminTranslations.js';
 
 const MOCK_HEATMAP_CONGESTED = {
   time_range: 'LAST_7_DAYS',
@@ -123,7 +124,7 @@ describe('AnalyticsHeatmap Component (US 05.1)', () => {
     render(<AnalyticsHeatmap />);
 
     expect(screen.getByTestId('analytics-heatmap-container')).toBeInTheDocument();
-    expect(screen.getByText('Real-Time Visitor Density Heatmap')).toBeInTheDocument();
+    expect(screen.getByText(ADMIN_TRANSLATIONS.heatmapTitle)).toBeInTheDocument();
     expect(screen.getByTestId('heatmap-leaflet-map')).toBeInTheDocument();
 
     await waitFor(() => {
@@ -143,9 +144,9 @@ describe('AnalyticsHeatmap Component (US 05.1)', () => {
     });
 
     const legend = screen.getByTestId('heatmap-legend');
-    expect(legend).toHaveTextContent(/Low \(0 - 40%\)/i);
-    expect(legend).toHaveTextContent(/Moderate \(40 - 70%\)/i);
-    expect(legend).toHaveTextContent(/Congestion \(> 70%\)/i);
+    expect(legend).toHaveTextContent(ADMIN_TRANSLATIONS.densityLow);
+    expect(legend).toHaveTextContent(ADMIN_TRANSLATIONS.densityModerate);
+    expect(legend).toHaveTextContent(ADMIN_TRANSLATIONS.densityCongestion);
   });
 
   it('displays a high-priority congestion alert card when a hotspot exceeds 70% density', async () => {
@@ -156,10 +157,10 @@ describe('AnalyticsHeatmap Component (US 05.1)', () => {
     });
 
     const alert = screen.getByTestId('heatmap-congestion-alert');
-    expect(alert).toHaveTextContent('Congestion Alert:');
+    expect(alert).toHaveTextContent(ADMIN_TRANSLATIONS.congestionAlertTitle);
     expect(alert).toHaveTextContent('Commanding Bunker');
-    expect(alert).toHaveTextContent('500 triggers');
-    expect(alert).toHaveTextContent('100% relative density');
+    expect(alert).toHaveTextContent('500 lượt kích hoạt');
+    expect(alert).toHaveTextContent('100% mật độ tương đối');
   });
 
   it('renders POI titles as text in Leaflet popups instead of interpreting HTML', async () => {
@@ -215,7 +216,7 @@ describe('AnalyticsHeatmap Component (US 05.1)', () => {
     });
 
     expect(
-      screen.getByText(/No POI triggers recorded for this period/i)
+      screen.getByText(ADMIN_TRANSLATIONS.heatmapEmptyState)
     ).toBeInTheDocument();
   });
 
@@ -245,11 +246,11 @@ describe('AnalyticsHeatmap Component (US 05.1)', () => {
     });
 
     expect(
-      screen.getByText(/Unable to load heatmap telemetry/i)
+      screen.getByText(ADMIN_TRANSLATIONS.loadHeatmapError)
     ).toBeInTheDocument();
 
     getHeatmapData.mockResolvedValueOnce(MOCK_HEATMAP_CONGESTED);
-    const retryBtn = screen.getByRole('button', { name: /retry/i });
+    const retryBtn = screen.getByRole('button', { name: ADMIN_TRANSLATIONS.btnRetry });
     fireEvent.click(retryBtn);
 
     await waitFor(() => {
