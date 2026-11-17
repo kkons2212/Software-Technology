@@ -15,6 +15,7 @@ vi.mock('../../../contexts/AuthContext.jsx', () => ({
 import AdminLoginView from '../AdminLoginView.jsx';
 import { ApiError } from '../../../api/apiClient.js';
 import { LOCKOUT_STORAGE_KEY } from '../../../components/admin/AccountLockoutModal.jsx';
+import { ADMIN_TRANSLATIONS } from '../../../locales/adminTranslations.js';
 
 function renderLoginView({ state } = {}) {
   const initialEntry = state ? { pathname: '/admin/login', state } : '/admin/login';
@@ -43,19 +44,19 @@ describe('AdminLoginView', () => {
   it('renders the credential fields and the submit button', () => {
     renderLoginView();
 
-    expect(screen.getByLabelText('Username or Email')).toBeInTheDocument();
-    expect(screen.getByLabelText('Password')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Sign In' })).toBeInTheDocument();
+    expect(screen.getByLabelText(ADMIN_TRANSLATIONS.usernameOrEmail)).toBeInTheDocument();
+    expect(screen.getByLabelText(ADMIN_TRANSLATIONS.password)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: ADMIN_TRANSLATIONS.signIn })).toBeInTheDocument();
   });
 
   it('blocks submission and shows field errors when both fields are empty', async () => {
     const user = userEvent.setup();
     renderLoginView();
 
-    await user.click(screen.getByRole('button', { name: 'Sign In' }));
+    await user.click(screen.getByRole('button', { name: ADMIN_TRANSLATIONS.signIn }));
 
-    expect(await screen.findByText('Username or email is required.')).toBeInTheDocument();
-    expect(screen.getByText('Password is required.')).toBeInTheDocument();
+    expect(await screen.findByText(ADMIN_TRANSLATIONS.usernameRequired)).toBeInTheDocument();
+    expect(screen.getByText(ADMIN_TRANSLATIONS.passwordRequired)).toBeInTheDocument();
     expect(mockAuthState.login).not.toHaveBeenCalled();
   });
 
@@ -64,9 +65,9 @@ describe('AdminLoginView', () => {
     mockAuthState.login.mockResolvedValue({ id: 1 });
     renderLoginView();
 
-    await user.type(screen.getByLabelText('Username or Email'), '  admin@cuchi.vn  ');
-    await user.type(screen.getByLabelText('Password'), 'secret-pass');
-    await user.click(screen.getByRole('button', { name: 'Sign In' }));
+    await user.type(screen.getByLabelText(ADMIN_TRANSLATIONS.usernameOrEmail), '  admin@cuchi.vn  ');
+    await user.type(screen.getByLabelText(ADMIN_TRANSLATIONS.password), 'secret-pass');
+    await user.click(screen.getByRole('button', { name: ADMIN_TRANSLATIONS.signIn }));
 
     expect(mockAuthState.login).toHaveBeenCalledWith({
       username: 'admin@cuchi.vn',
@@ -77,18 +78,18 @@ describe('AdminLoginView', () => {
   it('shows the generic error, keeps the username and clears the password on HTTP 401', async () => {
     const user = userEvent.setup();
     mockAuthState.login.mockRejectedValue(
-      new ApiError({ status: 401, code: 'UNAUTHORIZED', message: 'Invalid username or password' }),
+      new ApiError({ status: 401, code: 'UNAUTHORIZED', message: ADMIN_TRANSLATIONS.invalidCredentials }),
     );
     renderLoginView();
 
-    const usernameInput = screen.getByLabelText('Username or Email');
-    const passwordInput = screen.getByLabelText('Password');
+    const usernameInput = screen.getByLabelText(ADMIN_TRANSLATIONS.usernameOrEmail);
+    const passwordInput = screen.getByLabelText(ADMIN_TRANSLATIONS.password);
 
     await user.type(usernameInput, 'admin');
     await user.type(passwordInput, 'wrong-pass');
-    await user.click(screen.getByRole('button', { name: 'Sign In' }));
+    await user.click(screen.getByRole('button', { name: ADMIN_TRANSLATIONS.signIn }));
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('Invalid username or password');
+    expect(await screen.findByRole('alert')).toHaveTextContent(ADMIN_TRANSLATIONS.invalidCredentials);
     expect(usernameInput).toHaveValue('admin');
     expect(passwordInput).toHaveValue('');
     expect(passwordInput).toHaveFocus();
@@ -101,11 +102,11 @@ describe('AdminLoginView', () => {
     );
     renderLoginView();
 
-    await user.type(screen.getByLabelText('Username or Email'), 'admin');
-    await user.type(screen.getByLabelText('Password'), 'pw');
-    await user.click(screen.getByRole('button', { name: 'Sign In' }));
+    await user.type(screen.getByLabelText(ADMIN_TRANSLATIONS.usernameOrEmail), 'admin');
+    await user.type(screen.getByLabelText(ADMIN_TRANSLATIONS.password), 'pw');
+    await user.click(screen.getByRole('button', { name: ADMIN_TRANSLATIONS.signIn }));
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('Unable to sign in right now');
+    expect(await screen.findByRole('alert')).toHaveTextContent(ADMIN_TRANSLATIONS.genericSignInError);
   });
 
   it('clears the previous error while the administrator retypes credentials', async () => {
@@ -113,12 +114,12 @@ describe('AdminLoginView', () => {
     mockAuthState.login.mockRejectedValue(new ApiError({ status: 401 }));
     renderLoginView();
 
-    await user.type(screen.getByLabelText('Username or Email'), 'admin');
-    await user.type(screen.getByLabelText('Password'), 'pw');
-    await user.click(screen.getByRole('button', { name: 'Sign In' }));
+    await user.type(screen.getByLabelText(ADMIN_TRANSLATIONS.usernameOrEmail), 'admin');
+    await user.type(screen.getByLabelText(ADMIN_TRANSLATIONS.password), 'pw');
+    await user.click(screen.getByRole('button', { name: ADMIN_TRANSLATIONS.signIn }));
     expect(await screen.findByRole('alert')).toBeInTheDocument();
 
-    await user.type(screen.getByLabelText('Password'), 'a');
+    await user.type(screen.getByLabelText(ADMIN_TRANSLATIONS.password), 'a');
 
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
@@ -144,22 +145,22 @@ describe('AdminLoginView', () => {
 
     renderLoginView();
 
-    await user.type(screen.getByLabelText('Username or Email'), 'admin');
-    await user.type(screen.getByLabelText('Password'), 'wrong-pass');
-    await user.click(screen.getByRole('button', { name: 'Sign In' }));
+    await user.type(screen.getByLabelText(ADMIN_TRANSLATIONS.usernameOrEmail), 'admin');
+    await user.type(screen.getByLabelText(ADMIN_TRANSLATIONS.password), 'wrong-pass');
+    await user.click(screen.getByRole('button', { name: ADMIN_TRANSLATIONS.signIn }));
 
     expect(
-      await screen.findByRole('heading', { level: 2, name: /account temporarily locked/i }),
+      await screen.findByRole('heading', { level: 2, name: new RegExp(ADMIN_TRANSLATIONS.lockoutTitle, 'i') }),
     ).toBeInTheDocument();
     expect(screen.getByTestId('lockout-countdown')).toHaveTextContent('15:00');
-    expect(screen.getByRole('button', { name: /account locked/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: new RegExp(ADMIN_TRANSLATIONS.accountLocked, 'i') })).toBeDisabled();
   });
 
   it('explains the redirect when the session expired from inactivity', () => {
     renderLoginView({ state: { from: '/admin/pois', reason: 'IDLE_TIMEOUT' } });
 
     expect(screen.getByTestId('idle-timeout-notice')).toHaveTextContent(
-      'session expired after 30 minutes of inactivity',
+      '30 phút không hoạt động',
     );
   });
 
@@ -176,8 +177,8 @@ describe('AdminLoginView', () => {
     renderLoginView();
 
     expect(
-      screen.getByRole('heading', { level: 2, name: /account temporarily locked/i }),
+      screen.getByRole('heading', { level: 2, name: new RegExp(ADMIN_TRANSLATIONS.lockoutTitle, 'i') }),
     ).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /account locked/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: new RegExp(ADMIN_TRANSLATIONS.accountLocked, 'i') })).toBeDisabled();
   });
 });

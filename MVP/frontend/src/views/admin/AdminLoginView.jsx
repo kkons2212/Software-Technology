@@ -11,14 +11,14 @@ import { ApiError } from '../../api/apiClient.js';
 import AccountLockoutModal, {
   LOCKOUT_STORAGE_KEY,
 } from '../../components/admin/AccountLockoutModal.jsx';
+import { ADMIN_TRANSLATIONS } from '../../locales/adminTranslations.js';
 
 const ADMIN_WORKSPACE_PATH = '/admin';
 // AC-02.3.2: explains the unsolicited bounce back to the login screen.
-const IDLE_TIMEOUT_MESSAGE =
-  'Your session expired after 30 minutes of inactivity. Please sign in again.';
+const IDLE_TIMEOUT_MESSAGE = ADMIN_TRANSLATIONS.idleTimeoutNotice;
 // Generic message prevents user enumeration (AC-02.1.4).
-const INVALID_CREDENTIALS_MESSAGE = 'Invalid username or password';
-const GENERIC_SIGN_IN_ERROR_MESSAGE = 'Unable to sign in right now. Please try again later.';
+const INVALID_CREDENTIALS_MESSAGE = ADMIN_TRANSLATIONS.invalidCredentials;
+const GENERIC_SIGN_IN_ERROR_MESSAGE = ADMIN_TRANSLATIONS.genericSignInError;
 const HTTP_UNAUTHORIZED = 401;
 const HTTP_LOCKED = 423;
 
@@ -83,10 +83,10 @@ export default function AdminLoginView() {
   function validateForm() {
     const validationErrors = {};
     if (!formValues.username.trim()) {
-      validationErrors.username = 'Username or email is required.';
+      validationErrors.username = ADMIN_TRANSLATIONS.usernameRequired;
     }
     if (!formValues.password) {
-      validationErrors.password = 'Password is required.';
+      validationErrors.password = ADMIN_TRANSLATIONS.passwordRequired;
     }
     return validationErrors;
   }
@@ -133,9 +133,9 @@ export default function AdminLoginView() {
     <main className="flex min-h-screen items-center justify-center bg-slate-50 px-4 py-10">
       <section className="w-full max-w-md rounded-lg border border-slate-200 bg-white p-8">
         <header className="mb-6">
-          <h1 className="text-xl font-semibold text-slate-900">Administrator Sign In</h1>
+          <h1 className="text-xl font-semibold text-slate-900">{ADMIN_TRANSLATIONS.loginTitle}</h1>
           <p className="mt-1 text-sm text-slate-600">
-            Manage exhibits, multilingual guides, and site telemetry.
+            {ADMIN_TRANSLATIONS.loginSubtitle}
           </p>
         </header>
 
@@ -163,7 +163,7 @@ export default function AdminLoginView() {
 
           <div>
             <label htmlFor="admin-username" className="block text-sm font-medium text-slate-900">
-              Username or Email
+              {ADMIN_TRANSLATIONS.usernameOrEmail}
             </label>
             <input
               id="admin-username"
@@ -185,7 +185,7 @@ export default function AdminLoginView() {
 
           <div>
             <label htmlFor="admin-password" className="block text-sm font-medium text-slate-900">
-              Password
+              {ADMIN_TRANSLATIONS.password}
             </label>
             <input
               id="admin-password"
@@ -211,7 +211,7 @@ export default function AdminLoginView() {
             disabled={isSubmitting || isLocked}
             className="h-11 w-full rounded-md bg-slate-800 text-sm font-semibold text-white transition-all duration-200 hover:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-40"
           >
-            {isSubmitting ? 'Signing in...' : isLocked ? 'Account Locked' : 'Sign In'}
+            {isSubmitting ? ADMIN_TRANSLATIONS.signingIn : isLocked ? ADMIN_TRANSLATIONS.accountLocked : ADMIN_TRANSLATIONS.signIn}
           </button>
         </form>
       </section>
