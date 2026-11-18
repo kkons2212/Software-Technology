@@ -550,7 +550,9 @@ async def test_should_skip_openrouter_when_model_is_not_configured(mocker):
 
     result = await client.translate_text("Địa đạo Củ Chi", target_lang="en")
     assert result == "Fallback without model"
-    assert mock_http.post.call_count == 0  # HTTP request skipped because model was empty
+    assert (
+        mock_http.post.call_count == 0
+    )  # HTTP request skipped because model was empty
 
 
 @pytest.mark.asyncio
@@ -573,7 +575,9 @@ async def test_should_skip_gemini_when_model_is_not_configured(mocker):
 
     result = await client.translate_text("Địa đạo Củ Chi", target_lang="en")
     assert result == "Fallback without gemini model"
-    assert mock_http.post.call_count == 0  # HTTP request skipped because model was empty
+    assert (
+        mock_http.post.call_count == 0
+    )  # HTTP request skipped because model was empty
 
 
 @pytest.mark.asyncio

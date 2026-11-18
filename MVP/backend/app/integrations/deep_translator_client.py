@@ -196,7 +196,9 @@ class DeepTranslatorClient:
         if not self.gemini_pool.has_keys():
             return None
         if not self.gemini_model or not self.gemini_model.strip():
-            logger.info("Gemini translation skipped: GEMINI_MODEL is not configured in environment.")
+            logger.info(
+                "Gemini translation skipped: GEMINI_MODEL is not configured in environment."
+            )
             return None
 
         client = await self._get_http_client()
@@ -272,7 +274,9 @@ class DeepTranslatorClient:
         if not self.gemini_pool.has_keys():
             return None
         if not self.gemini_model or not self.gemini_model.strip():
-            logger.info("Gemini narrative translation skipped: GEMINI_MODEL is not configured in environment.")
+            logger.info(
+                "Gemini narrative translation skipped: GEMINI_MODEL is not configured in environment."
+            )
             return None
 
         client = await self._get_http_client()
@@ -614,7 +618,9 @@ class DeepTranslatorClient:
         if not self.openrouter_key or not self.openrouter_key.strip():
             return None
         if not self.openrouter_model or not self.openrouter_model.strip():
-            logger.info("OpenRouter translation skipped: OPENROUTER_MODEL is not configured in environment.")
+            logger.info(
+                "OpenRouter translation skipped: OPENROUTER_MODEL is not configured in environment."
+            )
             return None
 
         client = await self._get_http_client()
@@ -698,7 +704,9 @@ class DeepTranslatorClient:
         if not self.openrouter_key or not self.openrouter_key.strip():
             return None
         if not self.openrouter_model or not self.openrouter_model.strip():
-            logger.info("OpenRouter narrative translation skipped: OPENROUTER_MODEL is not configured in environment.")
+            logger.info(
+                "OpenRouter narrative translation skipped: OPENROUTER_MODEL is not configured in environment."
+            )
             return None
 
         client = await self._get_http_client()
