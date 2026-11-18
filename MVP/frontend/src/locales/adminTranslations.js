@@ -65,8 +65,6 @@ export const ADMIN_TRANSLATIONS = {
   btnEdit: 'Chỉnh sửa',
   btnHide: 'Ẩn',
   btnShow: 'Hiện',
-  noneValue: 'Chưa có',
-  exhibitsTableAriaLabel: 'Bảng danh mục hiện vật',
 
   // POI Form Modal (Create & Edit)
   createExhibitTitle: 'Tạo hồ sơ điểm tham quan số hóa',
@@ -127,8 +125,6 @@ export const ADMIN_TRANSLATIONS = {
   invalidCharCoordError: 'Tọa độ không hợp lệ: Vui lòng chỉ nhập số thực (ví dụ: 11.1432), không được nhập chữ cái hoặc ký tự đặc biệt.',
   invalidRadiusError: 'Bán kính kích hoạt không hợp lệ (vui lòng chỉ nhập số nguyên từ 10m đến 50m, không nhập số thập phân).',
   outOfBoundsError: 'Cảnh báo: Tọa độ không hợp lệ (Vĩ độ: [-90, 90], Kinh độ: [-180, 180]).',
-  geofenceMapSectionAriaLabel: 'Bản đồ hiệu chuẩn geofence',
-  interactiveMapAriaLabel: 'Bản đồ geofence tương tác với điểm đánh dấu có thể kéo',
 
   // --- Phase 3: Multilingual Translation Audit & Audio Publishing ---
   translationAuditTitle: 'Kiểm duyệt Dịch thuật & Hiệu chỉnh Thuật ngữ Lịch sử',
@@ -233,14 +229,14 @@ export const ADMIN_TRANSLATIONS = {
   // --- Phase 5: System Health & Storage Monitoring ---
   healthTitle: 'Tình trạng Hệ thống & Giám sát Bộ nhớ',
   healthSubtitle:
-    'Viễn trắc máy chủ thời gian thực, cảnh báo ngưỡng dung lượng cache audio (85%/95%) và dọn dẹp file âm thanh mồ côi.',
+    'Viễn trắc máy chủ thời gian thực, cảnh báo ngưỡng dung lượng cache audio (85%/95%) và dọn dẹp file âm thanh dư.',
   btnRefreshTelemetry: 'Làm mới viễn trắc',
   btnRefreshingTelemetry: 'Đang làm mới...',
   btnCleanOrphanedAudio: 'Dọn dẹp âm thanh rác',
   btnDismiss: 'Bỏ qua',
   loadHealthError: 'Không thể tải dữ liệu viễn trắc hệ thống.',
   cleanSuccessToast:
-    'Dọn dẹp thành công {count} file âm thanh mồ côi (giải phóng {mb} MB).',
+    'Dọn dẹp thành công {count} file âm thanh dư (giải phóng {mb} MB).',
   dbConnectivityHeading: 'Kết nối Cơ sở dữ liệu Quan hệ',
   mySqlDatabase: 'Cơ sở dữ liệu MySQL',
   pingRoundtripLatency: 'Độ trễ Ping Khứ hồi:',
@@ -255,9 +251,9 @@ export const ADMIN_TRANSLATIONS = {
   alertWarningTitle: 'Cảnh báo:',
   alertCriticalTitle: 'Cảnh báo nguy cấp:',
   storageWarningMsg:
-    'Dung lượng bộ nhớ đệm âm thanh đã vượt quá 85%. Vui lòng dọn dẹp các file âm thanh mồ côi.',
+    'Dung lượng bộ nhớ đệm âm thanh đã vượt quá 85%. Vui lòng dọn dẹp các file âm thanh dư.',
   storageCriticalMsg:
-    'Dung lượng bộ nhớ đệm âm thanh đã vượt quá 95%. Vui lòng dọn dẹp các file mồ côi trước khi tạo audio mới hoặc tải ảnh lên.',
+    'Dung lượng bộ nhớ đệm âm thanh đã vượt quá 95%. Vui lòng dọn dẹp các file dư trước khi tạo audio mới hoặc tải ảnh lên.',
   audioCacheDiskUsage: 'Dung lượng Ổ đĩa Cache Âm thanh',
   audioCacheProgressAriaLabel: 'Dung lượng sử dụng ổ đĩa cache âm thanh',
   labelUsed: 'Đã dùng: {used}',
@@ -277,5 +273,5 @@ export const ADMIN_TRANSLATIONS = {
     'Thao tác này quét dung lượng ổ đĩa tại thư mục {path}, xác định toàn bộ các file MP3 không còn liên kết với bất kỳ bản dịch điểm tham quan nào và xóa vĩnh viễn để giải phóng bộ nhớ.',
   btnConfirmPrune: 'Xác nhận & Dọn dẹp',
   btnCleaningPrune: 'Đang dọn dẹp...',
-  cleanOrphansError: 'Không thể dọn dẹp các file âm thanh mồ côi.',
+  cleanOrphansError: 'Không thể dọn dẹp các file âm thanh dư.',
 };

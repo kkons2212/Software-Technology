@@ -36,9 +36,6 @@ const RADIUS_STEP = 1;
 // rounded to that precision before they are shown or persisted.
 const COORDINATE_PRECISION = 1e7;
 
-const OUT_OF_BOUNDS_MESSAGE =
-  'Coordinates must be valid latitude (-90 to 90) and longitude (-180 to 180).';
-
 function roundCoordinate(value) {
   return Math.round(value * COORDINATE_PRECISION) / COORDINATE_PRECISION;
 }
