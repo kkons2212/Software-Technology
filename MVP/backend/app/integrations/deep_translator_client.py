@@ -127,16 +127,20 @@ class DeepTranslatorClient:
             self.offline_url = getattr(
                 settings, "OFFLINE_TRANSLATOR_URL", "http://localhost:8001"
             )
-        self.gemini_model = gemini_model or getattr(
-            settings, "GEMINI_MODEL", "gemini-1.5-flash"
+        self.gemini_model = (
+            gemini_model
+            if gemini_model is not None
+            else getattr(settings, "GEMINI_MODEL", "")
         )
         self.openrouter_key = (
             openrouter_key
             if openrouter_key is not None
             else getattr(settings, "OPENROUTER_API_KEY", "")
         )
-        self.openrouter_model = openrouter_model or getattr(
-            settings, "OPENROUTER_MODEL", "stealth/crouton-alpha"
+        self.openrouter_model = (
+            openrouter_model
+            if openrouter_model is not None
+            else getattr(settings, "OPENROUTER_MODEL", "")
         )
         self.openrouter_base_url = openrouter_base_url or getattr(
             settings, "OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1"
@@ -190,6 +194,9 @@ class DeepTranslatorClient:
     ) -> str | None:
         """Translate text using Gemini AI with historical/cultural museum persona."""
         if not self.gemini_pool.has_keys():
+            return None
+        if not self.gemini_model or not self.gemini_model.strip():
+            logger.info("Gemini translation skipped: GEMINI_MODEL is not configured in environment.")
             return None
 
         client = await self._get_http_client()
@@ -263,6 +270,9 @@ class DeepTranslatorClient:
     ) -> dict[str, str | None] | None:
         """Translate exhibit narrative fields in a single batched Gemini AI call (Direction 1)."""
         if not self.gemini_pool.has_keys():
+            return None
+        if not self.gemini_model or not self.gemini_model.strip():
+            logger.info("Gemini narrative translation skipped: GEMINI_MODEL is not configured in environment.")
             return None
 
         client = await self._get_http_client()
@@ -603,6 +613,9 @@ class DeepTranslatorClient:
         """Translate text using OpenRouter AI model (Crouton Alpha)."""
         if not self.openrouter_key or not self.openrouter_key.strip():
             return None
+        if not self.openrouter_model or not self.openrouter_model.strip():
+            logger.info("OpenRouter translation skipped: OPENROUTER_MODEL is not configured in environment.")
+            return None
 
         client = await self._get_http_client()
         url = f"{self.openrouter_base_url.rstrip('/')}/chat/completions"
@@ -683,6 +696,9 @@ class DeepTranslatorClient:
     ) -> dict[str, str | None] | None:
         """Translate exhibit narrative fields in a single batched OpenRouter call."""
         if not self.openrouter_key or not self.openrouter_key.strip():
+            return None
+        if not self.openrouter_model or not self.openrouter_model.strip():
+            logger.info("OpenRouter narrative translation skipped: OPENROUTER_MODEL is not configured in environment.")
             return None
 
         client = await self._get_http_client()

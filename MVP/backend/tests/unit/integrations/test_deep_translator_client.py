@@ -512,6 +512,7 @@ async def test_should_fallback_when_openrouter_fails_or_rate_limits(mocker):
 
     client = DeepTranslatorClient(
         openrouter_key="sk-or-test-key",
+        openrouter_model="stealth/crouton-alpha",
         offline_url=None,
         http_client=mock_http,
         max_retries=1,
@@ -527,6 +528,52 @@ async def test_should_fallback_when_openrouter_fails_or_rate_limits(mocker):
     result = await client.translate_text("Xin chào", target_lang="en")
     assert result == "DeepTranslator free fallback"
     client._translate_sync.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_should_skip_openrouter_when_model_is_not_configured(mocker):
+    """When OPENROUTER_MODEL is empty in env, OpenRouter should be cleanly skipped."""
+    mock_http = MagicMock(spec=httpx.AsyncClient)
+    client = DeepTranslatorClient(
+        openrouter_key="sk-or-test-key",
+        openrouter_model="",  # empty / unconfigured in env
+        offline_url=None,
+        http_client=mock_http,
+        providers_order=["openrouter", "deep_translator"],
+    )
+
+    mocker.patch.object(
+        client,
+        "_translate_sync",
+        return_value="Fallback without model",
+    )
+
+    result = await client.translate_text("Địa đạo Củ Chi", target_lang="en")
+    assert result == "Fallback without model"
+    assert mock_http.post.call_count == 0  # HTTP request skipped because model was empty
+
+
+@pytest.mark.asyncio
+async def test_should_skip_gemini_when_model_is_not_configured(mocker):
+    """When GEMINI_MODEL is empty in env, Gemini should be cleanly skipped."""
+    mock_http = MagicMock(spec=httpx.AsyncClient)
+    client = DeepTranslatorClient(
+        gemini_keys=["test-gemini-key"],
+        gemini_model="",  # empty / unconfigured in env
+        offline_url=None,
+        http_client=mock_http,
+        providers_order=["gemini", "deep_translator"],
+    )
+
+    mocker.patch.object(
+        client,
+        "_translate_sync",
+        return_value="Fallback without gemini model",
+    )
+
+    result = await client.translate_text("Địa đạo Củ Chi", target_lang="en")
+    assert result == "Fallback without gemini model"
+    assert mock_http.post.call_count == 0  # HTTP request skipped because model was empty
 
 
 @pytest.mark.asyncio
