@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { ADMIN_TRANSLATIONS } from '../../locales/adminTranslations.js';
 
 /**
  * DeactivateConfirmModal (US 03.3)
@@ -82,19 +83,19 @@ export default function DeactivateConfirmModal({
 
           <div className="flex-1">
             <h3 id="deactivate-modal-title" className="text-base font-bold text-slate-900">
-              {isDeactivating ? 'Hide Exhibit from Visitor Map' : 'Reactivate Exhibit'}
+              {isDeactivating ? ADMIN_TRANSLATIONS.hideExhibitModalTitle : ADMIN_TRANSLATIONS.reactivateExhibitModalTitle}
             </h3>
             <p id="deactivate-modal-desc" className="mt-2 text-xs leading-relaxed text-slate-600">
               {isDeactivating ? (
                 <>
-                  Are you sure you want to hide <span className="font-semibold text-slate-800">"{exhibitTitle}"</span>?
-                  This will immediately exclude it from visitor interactive maps, automated GPS geofence triggers, and tour routes.
-                  All translations, audio files, and telemetry logs will remain safely preserved in the database.
+                  Bạn có chắc chắn muốn ẩn <span className="font-semibold text-slate-800">"{exhibitTitle}"</span>?
+                  Điểm này sẽ ngay lập tức bị ẩn khỏi bản đồ du khách, không kích hoạt âm thanh tự động và không xuất hiện trên lộ trình tham quan.
+                  Toàn bộ bản dịch, file âm thanh và nhật ký viễn trắc vẫn được lưu giữ an toàn trong cơ sở dữ liệu.
                 </>
               ) : (
                 <>
-                  Reactivate <span className="font-semibold text-slate-800">"{exhibitTitle}"</span>?
-                  It will immediately reappear on visitor maps and resume automated proximity narrations for visitors.
+                  Kích hoạt lại <span className="font-semibold text-slate-800">"{exhibitTitle}"</span>?
+                  Điểm tham quan sẽ lập tức xuất hiện trở lại trên bản đồ du khách và tiếp tục phát thuyết minh tự động khi du khách đến gần.
                 </>
               )}
             </p>
@@ -108,7 +109,7 @@ export default function DeactivateConfirmModal({
             disabled={isLoading}
             className="min-h-[44px] rounded-md border border-slate-300 bg-slate-100 px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-200 focus:outline-none disabled:opacity-50"
           >
-            Cancel
+            {ADMIN_TRANSLATIONS.btnCancel}
           </button>
           <button
             type="button"
@@ -126,12 +127,12 @@ export default function DeactivateConfirmModal({
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
                 </svg>
-                <span>Processing...</span>
+                <span>{ADMIN_TRANSLATIONS.btnProcessing}</span>
               </span>
             ) : isDeactivating ? (
-              'Hide Exhibit'
+              ADMIN_TRANSLATIONS.btnConfirmHide
             ) : (
-              'Reactivate Exhibit'
+              ADMIN_TRANSLATIONS.btnConfirmReactivate
             )}
           </button>
         </div>

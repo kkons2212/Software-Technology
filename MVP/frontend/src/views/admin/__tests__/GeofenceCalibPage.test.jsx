@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { ADMIN_TRANSLATIONS } from '../../../locales/adminTranslations.js';
 
 const { getMapPois, updatePoi } = vi.hoisted(() => ({
   getMapPois: vi.fn(),
@@ -69,9 +70,9 @@ describe('GeofenceCalibPage', () => {
   it('loads the exhibit catalog into the selector', async () => {
     renderPage();
 
-    expect(screen.getByRole('status')).toHaveTextContent('Loading exhibits');
+    expect(screen.getByRole('status')).toHaveTextContent(new RegExp(ADMIN_TRANSLATIONS.loadingExhibits, 'i'));
 
-    const selector = await screen.findByLabelText('Exhibit');
+    const selector = await screen.findByLabelText(ADMIN_TRANSLATIONS.labelExhibitSelect);
     expect(selector).toHaveValue('');
     expect(screen.getByRole('option', { name: 'Tunnel entrance' })).toBeInTheDocument();
     expect(screen.getByRole('option', { name: 'Kitchen bunker' })).toBeInTheDocument();
@@ -87,7 +88,7 @@ describe('GeofenceCalibPage', () => {
 
   it('mounts the picker once the administrator selects an exhibit', async () => {
     renderPage();
-    const selector = await screen.findByLabelText('Exhibit');
+    const selector = await screen.findByLabelText(ADMIN_TRANSLATIONS.labelExhibitSelect);
 
     fireEvent.change(selector, { target: { value: 'poi-1' } });
 
@@ -108,7 +109,7 @@ describe('GeofenceCalibPage', () => {
       longitude: 106.4645,
       radius: 30,
     });
-    expect(await screen.findByText('Geofence calibration saved.')).toBeInTheDocument();
+    expect(await screen.findByText(ADMIN_TRANSLATIONS.geofenceSavedSuccess)).toBeInTheDocument();
   });
 
   it('surfaces an error when the calibration cannot be saved', async () => {
@@ -119,7 +120,7 @@ describe('GeofenceCalibPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Unable to save changes right now.',
+      ADMIN_TRANSLATIONS.geofenceSaveError,
     );
   });
 
@@ -129,7 +130,7 @@ describe('GeofenceCalibPage', () => {
     renderPage();
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Unable to load exhibits right now.',
+      ADMIN_TRANSLATIONS.geofenceLoadError,
     );
   });
 });

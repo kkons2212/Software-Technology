@@ -1,12 +1,13 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import AudioAuditPlayer from '../admin/AudioAuditPlayer.jsx';
+import { ADMIN_TRANSLATIONS } from '../../locales/adminTranslations.js';
 
 describe('AudioAuditPlayer (US 04.2)', () => {
   it('displays the missing-audio message when no URL exists', () => {
     render(<AudioAuditPlayer translationId="TR_01" audioUrl={null} />);
 
-    expect(screen.getByText('Audio Guide not generated.')).toBeTruthy();
+    expect(screen.getByText(ADMIN_TRANSLATIONS.audioMissingMessage)).toBeTruthy();
   });
 
   it('plays one row and pauses it when another row starts playback', () => {
@@ -28,7 +29,7 @@ describe('AudioAuditPlayer (US 04.2)', () => {
       </>
     );
 
-    fireEvent.click(screen.getAllByRole('button', { name: 'Play audio preview' })[0]);
+    fireEvent.click(screen.getAllByRole('button', { name: ADMIN_TRANSLATIONS.audioPlayPreview })[0]);
     fireEvent.click(
       screen.getByTestId('audio-player-TR_02').querySelector('button')
     );
@@ -40,7 +41,7 @@ describe('AudioAuditPlayer (US 04.2)', () => {
   it('renders duration and progress controls for an available audio URL', () => {
     render(<AudioAuditPlayer translationId="TR_03" audioUrl="/audio/three.mp3" />);
 
-    expect(screen.getByLabelText('Audio progress')).toBeTruthy();
+    expect(screen.getByLabelText(ADMIN_TRANSLATIONS.audioProgress)).toBeTruthy();
     expect(screen.getByTestId('audio-player-TR_03')).toBeTruthy();
   });
 
@@ -67,7 +68,7 @@ describe('AudioAuditPlayer (US 04.2)', () => {
     );
     render(<AudioAuditPlayer translationId="TR_04" audioUrl="/audio/four.mp3" />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Play audio preview' }));
+    fireEvent.click(screen.getByRole('button', { name: ADMIN_TRANSLATIONS.audioPlayPreview }));
 
     await waitFor(() => {
       expect(screen.getByRole('alert').textContent).toBe('Playback blocked');

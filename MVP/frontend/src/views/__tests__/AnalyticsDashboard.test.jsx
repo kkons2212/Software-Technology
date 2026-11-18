@@ -25,6 +25,7 @@ vi.mock('../../api/analyticsApi.js', () => ({
 
 import { getAnalyticsSummary, getHeatmapData } from '../../api/analyticsApi.js';
 import AnalyticsDashboard from '../admin/AnalyticsDashboard.jsx';
+import { ADMIN_TRANSLATIONS } from '../../locales/adminTranslations.js';
 
 const POPULATED_SUMMARY = {
   time_range: 'LAST_7_DAYS',
@@ -86,7 +87,9 @@ describe('AnalyticsDashboard', () => {
     expect(screen.getByTestId('analytics-kpi-total-visitors')).toHaveTextContent('1,240');
     expect(screen.getByTestId('analytics-kpi-total-audio-plays')).toHaveTextContent('3,010');
     expect(screen.getByTestId('analytics-kpi-top-exhibit')).toHaveTextContent('Ben Duoc Tunnels');
-    expect(screen.getByTestId('analytics-kpi-average-duration')).toHaveTextContent('12.5 min');
+    expect(screen.getByTestId('analytics-kpi-average-duration')).toHaveTextContent(
+      `12.5 ${ADMIN_TRANSLATIONS.unitMinutes}`,
+    );
 
     const topSection = screen.getByTestId('analytics-top-exhibits');
     expect(within(topSection).getByTestId('analytics-top-poi-row-poi-1')).toHaveTextContent(
@@ -169,7 +172,9 @@ describe('AnalyticsDashboard', () => {
     expect(screen.getByTestId('analytics-kpi-total-visitors')).toHaveTextContent('0');
     expect(screen.getByTestId('analytics-kpi-total-audio-plays')).toHaveTextContent('0');
     expect(screen.getByTestId('analytics-kpi-top-exhibit')).toHaveTextContent('—');
-    expect(screen.getByTestId('analytics-kpi-average-duration')).toHaveTextContent('0.0 min');
+    expect(screen.getByTestId('analytics-kpi-average-duration')).toHaveTextContent(
+      `0.0 ${ADMIN_TRANSLATIONS.unitMinutes}`,
+    );
 
     expect(screen.getByTestId('analytics-top-exhibits-empty-state')).toBeInTheDocument();
     expect(screen.getByTestId('analytics-language-empty-state')).toBeInTheDocument();

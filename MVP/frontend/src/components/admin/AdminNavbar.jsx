@@ -4,6 +4,7 @@ import { useAuth } from '../../contexts/AuthContext.jsx';
 import StorageHealthBanner from './StorageHealthBanner.jsx';
 import CleanOrphansModal from './CleanOrphansModal.jsx';
 import { getSystemHealth } from '../../api/systemApi.js';
+import { ADMIN_TRANSLATIONS } from '../../locales/adminTranslations.js';
 
 export default function AdminNavbar() {
   const location = useLocation();
@@ -33,10 +34,10 @@ export default function AdminNavbar() {
   }, [location.pathname]);
 
   const navLinks = [
-    { path: '/admin/pois', label: 'POI & Geofence' },
-    { path: '/admin/translations', label: 'Translations & Audio' },
-    { path: '/admin/analytics', label: 'Analytics & Heatmap' },
-    { path: '/admin/health', label: 'System Health' },
+    { path: '/admin/pois', label: ADMIN_TRANSLATIONS.navPois },
+    { path: '/admin/translations', label: ADMIN_TRANSLATIONS.navTranslations },
+    { path: '/admin/analytics', label: ADMIN_TRANSLATIONS.navAnalytics },
+    { path: '/admin/health', label: ADMIN_TRANSLATIONS.navHealth },
   ];
 
   const isHealthPage =
@@ -50,9 +51,9 @@ export default function AdminNavbar() {
         <header className="flex h-14 w-full items-center justify-between border-b border-slate-200 px-6">
           <div className="flex items-center space-x-6">
             <Link to="/admin" className="text-sm font-bold tracking-tight text-slate-900">
-              Cu Chi Tunnels <span className="font-normal text-slate-500">Admin</span>
+              {ADMIN_TRANSLATIONS.brandTitle} <span className="font-normal text-slate-500">{ADMIN_TRANSLATIONS.brandSubtitle}</span>
             </Link>
-            <nav className="flex space-x-1" aria-label="Admin Navigation">
+            <nav className="flex space-x-1" aria-label={ADMIN_TRANSLATIONS.navAriaLabel}>
               {navLinks.map(({ path, label }) => {
                 const isActive = location.pathname.startsWith(path);
                 return (
@@ -75,14 +76,14 @@ export default function AdminNavbar() {
           <div className="flex items-center space-x-3">
             <span className="text-xs text-slate-600">
               {/* The profile contract exposes `user_name` (AdminProfileResponse). */}
-              {user?.user_name || user?.full_name || 'Administrator'}
+              {user?.user_name || user?.full_name || ADMIN_TRANSLATIONS.defaultAdminName}
             </span>
             <button
               type="button"
               onClick={() => logout()}
               className="rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100"
             >
-              Sign Out
+              {ADMIN_TRANSLATIONS.signOut}
             </button>
           </div>
         </header>

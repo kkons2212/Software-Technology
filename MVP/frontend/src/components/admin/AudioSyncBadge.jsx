@@ -1,4 +1,6 @@
 
+import { ADMIN_TRANSLATIONS } from '../../locales/adminTranslations.js';
+
 /**
  * AudioSyncBadge (TSK-04.1.3 & AC-04.1.3)
  * Renders real-time audio synchronization badge and publish lock indicator.
@@ -14,36 +16,36 @@ export default function AudioSyncBadge({
   const effectiveStatus = isEdited ? 'NEEDS_UPDATE' : normalizedStatus;
 
   let badgeStyles = 'bg-slate-100 text-slate-700 border-slate-200';
-  let badgeLabel = 'Draft';
+  let badgeLabel = ADMIN_TRANSLATIONS.statusDraft;
   let isPublishLocked = audioStatus !== 'READY';
 
   switch (effectiveStatus) {
     case 'NEEDS_UPDATE':
       badgeStyles = 'bg-amber-50 text-amber-800 border-amber-300';
-      badgeLabel = 'Audio Needs Update';
+      badgeLabel = ADMIN_TRANSLATIONS.statusNeedsUpdate;
       isPublishLocked = true;
       break;
     case 'PUBLISHED':
     case 'READY':
     case 'IN_SYNC':
       badgeStyles = 'bg-green-50 text-green-700 border-green-200';
-      badgeLabel = 'Audio In Sync';
+      badgeLabel = ADMIN_TRANSLATIONS.statusAudioInSync;
       isPublishLocked = false;
       break;
     case 'PENDING':
       badgeStyles = 'bg-amber-50 text-amber-700 border-amber-200 animate-pulse';
-      badgeLabel = 'Pending';
+      badgeLabel = ADMIN_TRANSLATIONS.statusPending;
       isPublishLocked = true;
       break;
     case 'FAILED':
       badgeStyles = 'bg-red-50 text-red-700 border-red-200';
-      badgeLabel = 'Audio Failed';
+      badgeLabel = ADMIN_TRANSLATIONS.statusAudioFailed;
       isPublishLocked = true;
       break;
     default:
       if (audioStatus === 'READY') {
         badgeStyles = 'bg-green-50 text-green-700 border-green-200';
-        badgeLabel = 'Audio In Sync';
+        badgeLabel = ADMIN_TRANSLATIONS.statusAudioInSync;
         isPublishLocked = false;
       }
       break;
@@ -84,10 +86,10 @@ export default function AudioSyncBadge({
         <span
           data-testid="publish-lock-indicator"
           className="inline-flex items-center rounded-md border border-slate-300 bg-slate-50 px-2 py-0.5 text-xs font-normal text-slate-600"
-          title="Publishing locked until audio is regenerated"
+          title={ADMIN_TRANSLATIONS.publishLockIndicatorTooltip}
         >
           <span className="mr-1" aria-hidden="true">🔒</span>
-          Publish Locked
+          {ADMIN_TRANSLATIONS.publishLockIndicator}
         </span>
       )}
     </div>

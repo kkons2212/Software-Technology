@@ -6,6 +6,7 @@
 // =============================================================================
 
 import { useEffect, useState } from 'react';
+import { ADMIN_TRANSLATIONS } from '../../locales/adminTranslations.js';
 
 export const LOCKOUT_STORAGE_KEY = 'admin_lockout_until';
 
@@ -122,19 +123,17 @@ export default function AccountLockoutModal({
           id="lockout-modal-title"
           className="text-lg font-bold text-slate-900"
         >
-          Account Temporarily Locked
+          {ADMIN_TRANSLATIONS.lockoutTitle}
         </h2>
 
         <p className="mt-2 text-xs text-slate-600 leading-relaxed">
-          Too many consecutive failed login attempts detected (5 attempts limit).
-          To protect administrative access from brute-force attacks, this account
-          has been temporarily locked for 15 minutes.
+          {ADMIN_TRANSLATIONS.lockoutDescription}
         </p>
 
         {/* Live Countdown Display */}
         <div className="my-5 rounded-lg border border-red-100 bg-red-50/70 p-4">
           <span className="block text-[11px] font-semibold uppercase tracking-wider text-red-700">
-            Time Remaining Until Unlock
+            {ADMIN_TRANSLATIONS.lockoutCountdownLabel}
           </span>
           <span
             data-testid="lockout-countdown"
@@ -147,7 +146,7 @@ export default function AccountLockoutModal({
         </div>
 
         <p className="text-[11px] text-slate-500">
-          The sign-in form is locked. Please wait for the timer to expire before retrying.
+          {ADMIN_TRANSLATIONS.lockoutFooterNote}
         </p>
 
         {onClose && (
@@ -157,7 +156,7 @@ export default function AccountLockoutModal({
               onClick={onClose}
               className="w-full rounded-md border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
             >
-              Dismiss Notice
+              {ADMIN_TRANSLATIONS.dismissNotice}
             </button>
           </div>
         )}

@@ -4,7 +4,8 @@ import { getPois } from '../../api/poiApi.js';
 import { getSupportedLanguages } from '../../api/languageApi.js';
 import AudioSyncBadge from '../../components/admin/AudioSyncBadge.jsx';
 import AudioAuditPlayer from '../../components/admin/AudioAuditPlayer.jsx';
-import RegenerateAudioButton from '../../components/admin/RegenerateAudioButton.jsx';
+import RegenerateAudioButton from '../../components/admin/RegenerateAudioButton.jsx';
+import { ADMIN_TRANSLATIONS } from '../../locales/adminTranslations.js';
 
 const DEFAULT_LANGUAGES = [
   { id: 'en', name: 'English (en)' },
@@ -14,11 +15,11 @@ const DEFAULT_LANGUAGES = [
 ];
 
 const STATUS_OPTIONS = [
-  { value: '', label: 'All Review Statuses' },
-  { value: 'DRAFT', label: 'Draft' },
-  { value: 'NEEDS_UPDATE', label: 'Needs Audio Update' },
-  { value: 'PUBLISHED', label: 'Published' },
-  { value: 'PENDING', label: 'Pending' },
+  { value: '', label: ADMIN_TRANSLATIONS.statusAllReview },
+  { value: 'DRAFT', label: ADMIN_TRANSLATIONS.statusDraft },
+  { value: 'NEEDS_UPDATE', label: ADMIN_TRANSLATIONS.statusNeedsUpdate },
+  { value: 'PUBLISHED', label: ADMIN_TRANSLATIONS.statusPublished },
+  { value: 'PENDING', label: ADMIN_TRANSLATIONS.statusPending },
 ];
 
 export default function TranslationAuditView() {
@@ -97,7 +98,7 @@ export default function TranslationAuditView() {
       setTranslations(items);
       setEditDrafts({});
     } catch (err) {
-      setError(err?.message || 'Failed to load translations for audit.');
+      setError(err?.message || ADMIN_TRANSLATIONS.failedLoadTranslations);
     } finally {
       setIsLoading(false);
     }
@@ -161,12 +162,12 @@ export default function TranslationAuditView() {
 
       setNotification({
         type: 'success',
-        message: `Saved '${draft.title}'. Status updated to 'Audio Needs Update'.`,
+        message: ADMIN_TRANSLATIONS.notificationSavedDraft.replace('{title}', draft.title),
       });
     } catch (err) {
       setNotification({
         type: 'error',
-        message: err?.message || 'Failed to save translation.',
+        message: err?.message || ADMIN_TRANSLATIONS.notificationSaveError,
       });
     } finally {
       setSavingRows((prev) => ({ ...prev, [item.stran_id]: false }));
@@ -190,7 +191,7 @@ export default function TranslationAuditView() {
     );
     setNotification({
       type: 'success',
-      message: 'Audio Guide regenerated successfully. Translation is ready for review.',
+      message: ADMIN_TRANSLATIONS.notificationRegeneratedSuccess,
     });
   };
 
@@ -224,12 +225,12 @@ export default function TranslationAuditView() {
 
       setNotification({
         type: 'success',
-        message: `Published '${item.title}' successfully. Now live for visitors.`,
+        message: ADMIN_TRANSLATIONS.notificationPublishedSuccess.replace('{title}', item.title),
       });
     } catch (err) {
       setNotification({
         type: 'error',
-        message: err?.message || 'Failed to publish translation.',
+        message: err?.message || ADMIN_TRANSLATIONS.notificationPublishError,
       });
     } finally {
       setPublishingRows((prev) => ({ ...prev, [item.stran_id]: false }));
@@ -241,11 +242,11 @@ export default function TranslationAuditView() {
       {/* Header */}
       <div className="border-b border-slate-200 pb-4">
         <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-          Multilingual Translation Audit & Historical Terminology Refinement
+          {ADMIN_TRANSLATIONS.translationAuditTitle}
         </h1>
         <p className="mt-1 text-sm text-slate-600">
-          Review and refine translations against source Vietnamese, preview narrations,
-          and regenerate audio to maintain strict audio-text synchronization.
+          {ADMIN_TRANSLATIONS.translationAuditSubtitle}
+
         </p>
       </div>
 
@@ -273,7 +274,7 @@ export default function TranslationAuditView() {
         {/* Tier 1: Exhibit / POI Filter */}
         <div>
           <label htmlFor="filter-poi" className="block text-xs font-semibold uppercase tracking-wider text-slate-700">
-            1. Exhibit (POI)
+            {ADMIN_TRANSLATIONS.filterPoiLabel}
           </label>
           <select
             id="filter-poi"
@@ -282,7 +283,7 @@ export default function TranslationAuditView() {
             onChange={(e) => setSelectedPoiId(e.target.value)}
             className="mt-1 block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-slate-800 focus:outline-none"
           >
-            <option value="">All Exhibits (POIs)</option>
+            <option value="">{ADMIN_TRANSLATIONS.filterPoiAll}</option>
             {pois.map((poi) => (
               <option key={poi.poi_id} value={poi.poi_id}>
                 {poi.title} ({poi.poi_id})
@@ -294,7 +295,7 @@ export default function TranslationAuditView() {
         {/* Tier 2: Target Language Filter */}
         <div>
           <label htmlFor="filter-language" className="block text-xs font-semibold uppercase tracking-wider text-slate-700">
-            2. Target Language
+            {ADMIN_TRANSLATIONS.filterLanguageLabel}
           </label>
           <select
             id="filter-language"
@@ -303,7 +304,7 @@ export default function TranslationAuditView() {
             onChange={(e) => setSelectedLanguageId(e.target.value)}
             className="mt-1 block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-slate-800 focus:outline-none"
           >
-            <option value="">All Target Languages</option>
+            <option value="">{ADMIN_TRANSLATIONS.filterLanguageAll}</option>
             {targetLanguages.map((lang) => (
               <option key={lang.id} value={lang.id}>
                 {lang.name}
@@ -315,7 +316,7 @@ export default function TranslationAuditView() {
         {/* Tier 3: Review Status Filter */}
         <div>
           <label htmlFor="filter-status" className="block text-xs font-semibold uppercase tracking-wider text-slate-700">
-            3. Review Status
+            {ADMIN_TRANSLATIONS.filterStatusLabel}
           </label>
           <select
             id="filter-status"
@@ -336,7 +337,7 @@ export default function TranslationAuditView() {
       {/* Loading & Error States */}
       {isLoading && (
         <div data-testid="loading-state" className="mt-8 text-center py-12 text-sm text-slate-500">
-          Loading translations for audit...
+          {ADMIN_TRANSLATIONS.loadingTranslations}
         </div>
       )}
 
@@ -349,7 +350,7 @@ export default function TranslationAuditView() {
       {/* Empty State */}
       {!isLoading && !error && translations.length === 0 && (
         <div data-testid="empty-state" className="mt-8 rounded-lg border border-dashed border-slate-300 p-12 text-center text-sm text-slate-500">
-          No translations match the selected criteria.
+          {ADMIN_TRANSLATIONS.noTranslationsFound}
         </div>
       )}
 
@@ -405,14 +406,14 @@ export default function TranslationAuditView() {
                   <div className="bg-slate-50 p-4 sm:p-6" data-testid="source-column">
                     <div className="mb-2 flex items-center justify-between">
                       <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                        Source (Vietnamese)
+                        {ADMIN_TRANSLATIONS.colSourceVietnamese}
                       </span>
-                      <span className="text-xs text-slate-400">Read-Only</span>
+                      <span className="text-xs text-slate-400">{ADMIN_TRANSLATIONS.colReadOnly}</span>
                     </div>
 
                     <div className="space-y-4">
                       <div>
-                        <label className="block text-xs font-medium text-slate-600">Title</label>
+                        <label className="block text-xs font-medium text-slate-600">{ADMIN_TRANSLATIONS.fieldSourceTitle}</label>
                         <div
                           data-testid="source-title"
                           className="mt-1 rounded-md border border-slate-200 bg-white p-2.5 text-sm font-semibold text-slate-800"
@@ -422,7 +423,7 @@ export default function TranslationAuditView() {
                       </div>
 
                       <div>
-                        <label className="block text-xs font-medium text-slate-600">Summary (Short Description)</label>
+                        <label className="block text-xs font-medium text-slate-600">{ADMIN_TRANSLATIONS.fieldSummaryShortDesc}</label>
                         <div
                           data-testid="source-short-desc"
                           className="mt-1 rounded-md border border-slate-200 bg-white p-2.5 text-xs text-slate-700 whitespace-pre-wrap"
@@ -432,7 +433,7 @@ export default function TranslationAuditView() {
                       </div>
 
                       <div>
-                        <label className="block text-xs font-medium text-slate-600">Detailed Narration</label>
+                        <label className="block text-xs font-medium text-slate-600">{ADMIN_TRANSLATIONS.fieldSourceDetailedNarration}</label>
                         <div
                           data-testid="source-desc"
                           className="mt-1 rounded-md border border-slate-200 bg-white p-2.5 text-xs text-slate-700 max-h-48 overflow-y-auto whitespace-pre-wrap leading-relaxed"
@@ -447,16 +448,16 @@ export default function TranslationAuditView() {
                   <div className="bg-white p-4 sm:p-6" data-testid="target-column">
                     <div className="mb-2 flex items-center justify-between">
                       <span className="text-xs font-bold uppercase tracking-wider text-slate-700">
-                        Target Translation ({item.language_id.toUpperCase()})
+                        {ADMIN_TRANSLATIONS.colTargetLanguage.replace('{lang}', item.language_id.toUpperCase())}
                       </span>
                       {isModified && (
-                        <span className="text-xs font-medium text-amber-700">Unsaved Edits</span>
+                        <span className="text-xs font-medium text-amber-700">{ADMIN_TRANSLATIONS.colUnsavedEdits}</span>
                       )}
                     </div>
 
                     <div className="space-y-4">
                       <div>
-                        <label className="block text-xs font-medium text-slate-600">Translated Title</label>
+                        <label className="block text-xs font-medium text-slate-600">{ADMIN_TRANSLATIONS.fieldTranslatedTitle}</label>
                         <input
                           type="text"
                           data-testid={`target-title-input-${item.stran_id}`}
@@ -469,7 +470,7 @@ export default function TranslationAuditView() {
                       </div>
 
                       <div>
-                        <label className="block text-xs font-medium text-slate-600">Summary (Short Description)</label>
+                        <label className="block text-xs font-medium text-slate-600">{ADMIN_TRANSLATIONS.fieldSummaryShortDesc}</label>
                         <textarea
                           rows={2}
                           data-testid={`target-short-desc-input-${item.stran_id}`}
@@ -482,7 +483,7 @@ export default function TranslationAuditView() {
                       </div>
 
                       <div>
-                        <label className="block text-xs font-medium text-slate-600">Detailed Historical Narration</label>
+                        <label className="block text-xs font-medium text-slate-600">{ADMIN_TRANSLATIONS.fieldDetailedNarration}</label>
                         <textarea
                           rows={4}
                           data-testid={`target-desc-input-${item.stran_id}`}
@@ -505,7 +506,7 @@ export default function TranslationAuditView() {
                 {/* Row Action Footer */}
                 <div className="flex flex-wrap items-center justify-between border-t border-slate-200 bg-slate-50 px-4 py-3 sm:px-6">
                   <div className="text-xs text-slate-500">
-                    StranID: <span className="font-mono text-slate-700">{item.stran_id}</span>
+                    Mã bản dịch: <span className="font-mono text-slate-700">{item.stran_id}</span>
                   </div>
 
                   <div className="flex items-center gap-3">
@@ -530,7 +531,7 @@ export default function TranslationAuditView() {
                           : 'cursor-not-allowed bg-slate-200 text-slate-400'
                       }`}
                     >
-                      {isSaving ? 'Saving...' : 'Save Draft'}
+                      {isSaving ? ADMIN_TRANSLATIONS.btnSavingDraft : ADMIN_TRANSLATIONS.btnSaveDraft}
                     </button>
 
                     {/* Publishing remains locked until the translation and audio are in sync (US 04.3). */}
@@ -546,15 +547,15 @@ export default function TranslationAuditView() {
                       }`}
                       title={
                         isPublishLocked
-                          ? 'Publishing locked: Narration audio must be regenerated after text edits.'
-                          : 'Approve and publish translation to visitors'
+                          ? ADMIN_TRANSLATIONS.tooltipPublishLocked
+                          : ADMIN_TRANSLATIONS.tooltipPublishLive
                       }
                     >
                       {isPublishing
-                        ? 'Publishing...'
+                        ? ADMIN_TRANSLATIONS.btnPublishing
                         : isPublishLocked
-                        ? '🔒 Publish Locked'
-                        : 'Approve & Publish'}
+                        ? ADMIN_TRANSLATIONS.btnPublishLocked
+                        : ADMIN_TRANSLATIONS.btnApproveAndPublish}
                     </button>
                   </div>
                 </div>

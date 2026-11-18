@@ -9,6 +9,7 @@ import { useEffect, useMemo, useState } from 'react';
 import AdminMapPicker from './AdminMapPicker.jsx';
 import { updatePoi, uploadPoiImage } from '../../api/poiApi.js';
 import { isWithinMuseumBounds } from '../../utils/museumBounds.js';
+import { ADMIN_TRANSLATIONS } from '../../locales/adminTranslations.js';
 
 const MAX_IMAGE_FILE_SIZE_BYTES = 5 * 1024 * 1024; // 5MB
 
@@ -98,7 +99,7 @@ export default function POIFormModal({
     const file = event.target.files?.[0];
     if (file) {
       if (file.size > MAX_IMAGE_FILE_SIZE_BYTES) {
-        setFormError('Image size exceeds maximum limit of 5MB.');
+        setFormError(ADMIN_TRANSLATIONS.errorImageTooLarge);
         return;
       }
       setSelectedFile(file);
@@ -126,12 +127,12 @@ export default function POIFormModal({
 
     const trimmedTitle = title.trim();
     if (!trimmedTitle) {
-      setFormError('Exhibit title is required.');
+      setFormError(ADMIN_TRANSLATIONS.errorTitleRequired);
       return;
     }
 
     if (isOutOfBounds) {
-      setFormError('Tọa độ không hợp lệ (Vĩ độ: [-90, 90], Kinh độ: [-180, 180]).');
+      setFormError(ADMIN_TRANSLATIONS.errorInvalidCoordinates);
       return;
     }
 
@@ -160,7 +161,7 @@ export default function POIFormModal({
         await updatePoi(poiId, payload);
       }
 
-      setSuccessToast('Exhibit updated successfully!');
+      setSuccessToast(ADMIN_TRANSLATIONS.successUpdatePoi);
       if (onSuccess) {
         onSuccess(payload);
       }
@@ -171,7 +172,7 @@ export default function POIFormModal({
         }
       }, 800);
     } catch (error) {
-      setFormError(error?.message || 'Failed to update exhibit profile.');
+      setFormError(error?.message || ADMIN_TRANSLATIONS.errorUpdatePoiFailed);
     } finally {
       setIsSubmitting(false);
     }
@@ -188,12 +189,12 @@ export default function POIFormModal({
         {/* Header */}
         <div className="flex items-center justify-between border-b border-slate-200 pb-3">
           <h2 id="edit-poi-headline" className="text-base font-bold text-slate-900">
-            Edit Exhibit Details & Geofence
+            {ADMIN_TRANSLATIONS.editExhibitTitle}
           </h2>
           <button
             type="button"
             onClick={onClose}
-            aria-label="Close modal"
+            aria-label={ADMIN_TRANSLATIONS.closeModal || 'Đóng cửa sổ'}
             className="rounded p-1 text-slate-400 hover:text-slate-600 focus:outline-none"
           >
             ✕
@@ -227,7 +228,7 @@ export default function POIFormModal({
               htmlFor="edit-poi-title"
               className="block text-xs font-medium text-slate-700"
             >
-              Exhibit Title (Vietnamese) *
+              {ADMIN_TRANSLATIONS.fieldTitle}
             </label>
             <input
               id="edit-poi-title"
@@ -235,7 +236,7 @@ export default function POIFormModal({
               required
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="e.g., Bếp Hoàng Cầm, Địa đạo Bến Dược"
+              placeholder={ADMIN_TRANSLATIONS.fieldTitlePlaceholder}
               className="mt-1 w-full rounded-md border border-slate-300 px-3 py-1.5 text-xs text-slate-900 focus:border-slate-800 focus:outline-none"
             />
           </div>
@@ -245,14 +246,14 @@ export default function POIFormModal({
               htmlFor="edit-poi-short-desc"
               className="block text-xs font-medium text-slate-700"
             >
-              Free Teaser Summary (Displayed on visitor preview cards)
+              {ADMIN_TRANSLATIONS.fieldShortDesc}
             </label>
             <textarea
               id="edit-poi-short-desc"
               rows={2}
               value={shortDescription}
               onChange={(e) => setShortDescription(e.target.value)}
-              placeholder="Brief summary shown on map bottom sheet..."
+              placeholder={ADMIN_TRANSLATIONS.fieldShortDescPlaceholder}
               className="mt-1 w-full rounded-md border border-slate-300 px-3 py-1.5 text-xs text-slate-900 focus:border-slate-800 focus:outline-none"
             />
           </div>
@@ -262,25 +263,25 @@ export default function POIFormModal({
               htmlFor="edit-poi-full-desc"
               className="block text-xs font-medium text-slate-700"
             >
-              Detailed Historical Narration Content (Unlocked audio/text narration)
+              {ADMIN_TRANSLATIONS.fieldFullDesc}
             </label>
             <textarea
               id="edit-poi-full-desc"
               rows={3}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Full historical narration..."
+              placeholder={ADMIN_TRANSLATIONS.fieldFullDescPlaceholder}
               className="mt-1 w-full rounded-md border border-slate-300 px-3 py-1.5 text-xs text-slate-900 focus:border-slate-800 focus:outline-none"
             />
             <p className="mt-1 text-[11px] text-amber-700">
-              Notice: Editing narrative content automatically flags linked foreign translations as &quot;Needs Update&quot;.
+              {ADMIN_TRANSLATIONS.editNarrativeNotice}
             </p>
           </div>
 
           {/* Interactive Geofence Calibration Map */}
           <div>
             <span className="block text-xs font-medium text-slate-700 mb-1">
-              Geofence Calibration (Pin & Radius: 10m–50m)
+              {ADMIN_TRANSLATIONS.interactiveGeofenceTitle}
             </span>
             <AdminMapPicker
               key={poi.poi_id || poi.id}
@@ -288,6 +289,10 @@ export default function POIFormModal({
               initialLatitude={latitude}
               initialLongitude={longitude}
               initialRadius={radius}
+              latitudeLabel={ADMIN_TRANSLATIONS.latitude}
+              longitudeLabel={ADMIN_TRANSLATIONS.longitude}
+              radiusLabel={ADMIN_TRANSLATIONS.triggerRadius}
+              outOfBoundsMessage={ADMIN_TRANSLATIONS.outOfBoundsError}
               onChange={handleMapPickerChange}
             />
           </div>
@@ -298,7 +303,7 @@ export default function POIFormModal({
               htmlFor="edit-poi-image"
               className="block text-xs font-medium text-slate-700"
             >
-              Cover Photo (JPG, PNG, WebP &lt; 5MB)
+              {ADMIN_TRANSLATIONS.fieldCoverPhoto}
             </label>
             <input
               id="edit-poi-image"
@@ -315,7 +320,7 @@ export default function POIFormModal({
                   data-testid="cover-image-preview"
                   className="h-20 w-32 rounded object-cover border border-slate-200"
                 />
-                <span className="text-[11px] text-slate-500">Current Cover Photo</span>
+                <span className="text-[11px] text-slate-500">{ADMIN_TRANSLATIONS.currentCoverPhoto}</span>
               </div>
             )}
           </div>
@@ -328,14 +333,14 @@ export default function POIFormModal({
               disabled={isSubmitting}
               className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
             >
-              Cancel
+              {ADMIN_TRANSLATIONS.btnCancel}
             </button>
             <button
               type="submit"
               disabled={isSubmitting || isOutOfBounds}
               className="rounded-md bg-slate-800 px-4 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-slate-700 disabled:opacity-50"
             >
-              {isSubmitting ? 'Saving...' : 'Save Changes'}
+              {isSubmitting ? ADMIN_TRANSLATIONS.btnSaving : ADMIN_TRANSLATIONS.btnSaveChanges}
             </button>
           </div>
         </form>

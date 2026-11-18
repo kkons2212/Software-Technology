@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import RegenerateAudioButton from '../admin/RegenerateAudioButton.jsx';
 import { regenerateTranslationAudio } from '../../api/translationApi.js';
+import { ADMIN_TRANSLATIONS } from '../../locales/adminTranslations.js';
 
 vi.mock('../../api/translationApi.js', () => ({
   regenerateTranslationAudio: vi.fn(),
@@ -30,7 +31,7 @@ describe('RegenerateAudioButton (US 04.2)', () => {
 
     fireEvent.click(screen.getByTestId('regenerate-audio-TR_01'));
 
-    expect(screen.getByText('Generating audio...')).toBeTruthy();
+    expect(screen.getByText(ADMIN_TRANSLATIONS.btnGeneratingAudio)).toBeTruthy();
     expect(screen.getByTestId('regenerate-audio-TR_01').disabled).toBe(true);
 
     const result = {
@@ -42,7 +43,7 @@ describe('RegenerateAudioButton (US 04.2)', () => {
     resolveRequest(result);
 
     await waitFor(() => expect(onRegenerated).toHaveBeenCalledWith(result));
-    expect(screen.getByText('Regenerate Audio Guide')).toBeTruthy();
+    expect(screen.getByText(ADMIN_TRANSLATIONS.btnRegenerateAudio)).toBeTruthy();
   });
 
   it('remains available when an audio file is missing', () => {

@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import SystemHealthPage from '../SystemHealthPage.jsx';
 import * as systemApi from '../../../api/systemApi.js';
+import { ADMIN_TRANSLATIONS } from '../../../locales/adminTranslations.js';
 
 vi.mock('../../../contexts/AuthContext.jsx', () => ({
   useAuth: () => ({
@@ -52,15 +53,15 @@ describe('SystemHealthPage', () => {
       </MemoryRouter>
     );
 
-    expect(screen.getByText(/refreshing\.\.\./i)).toBeInTheDocument();
+    expect(screen.getByText(ADMIN_TRANSLATIONS.btnRefreshingTelemetry)).toBeInTheDocument();
 
     await waitFor(() => {
       expect(screen.getByText('78.5%')).toBeInTheDocument();
     });
 
-    expect(screen.getByText(/system health & storage monitoring/i)).toBeInTheDocument();
+    expect(screen.getByText(ADMIN_TRANSLATIONS.healthTitle)).toBeInTheDocument();
     expect(screen.getByText(/2.15 ms/i)).toBeInTheDocument();
-    expect(screen.getByText(/operational/i)).toBeInTheDocument();
+    expect(screen.getByText(ADMIN_TRANSLATIONS.statusOperational)).toBeInTheDocument();
   });
 
   it('opens clean orphans modal and triggers pruning upon confirmation', async () => {
@@ -68,7 +69,7 @@ describe('SystemHealthPage', () => {
     systemApi.cleanOrphanedAudio.mockResolvedValue({
       deleted_count: 4,
       reclaimed_mb: 8.5,
-      message: 'Successfully cleaned 4 orphaned audio files, freeing 8.5 MB.',
+      message: 'Đã dọn dẹp thành công 4 file audio mồ côi (8.5 MB).',
     });
 
     render(
@@ -82,15 +83,15 @@ describe('SystemHealthPage', () => {
     });
 
     // Click "Clean Orphaned Audio"
-    const cleanButtons = screen.getAllByRole('button', { name: /clean orphaned audio/i });
+    const cleanButtons = screen.getAllByRole('button', { name: ADMIN_TRANSLATIONS.btnCleanOrphanedAudio });
     fireEvent.click(cleanButtons[0]);
 
     // Modal dialog is opened
     expect(screen.getByRole('dialog')).toBeInTheDocument();
-    expect(screen.getByText(/confirm & prune/i)).toBeInTheDocument();
+    expect(screen.getByText(ADMIN_TRANSLATIONS.btnConfirmPrune)).toBeInTheDocument();
 
     // Confirm pruning
-    fireEvent.click(screen.getByRole('button', { name: /confirm & prune/i }));
+    fireEvent.click(screen.getByRole('button', { name: ADMIN_TRANSLATIONS.btnConfirmPrune }));
 
     await waitFor(() => {
       expect(systemApi.cleanOrphanedAudio).toHaveBeenCalledTimes(1);
@@ -98,7 +99,7 @@ describe('SystemHealthPage', () => {
 
     // Toast message is displayed
     await waitFor(() => {
-      expect(screen.getByRole('status')).toHaveTextContent(/successfully cleaned 4 orphaned audio files/i);
+      expect(screen.getByRole('status')).toHaveTextContent(/dọn dẹp thành công 4 file/i);
     });
   });
 

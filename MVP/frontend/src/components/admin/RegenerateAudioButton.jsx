@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { regenerateTranslationAudio } from '../../api/translationApi.js';
+import { ADMIN_TRANSLATIONS } from '../../locales/adminTranslations.js';
 
 export default function RegenerateAudioButton({
   translationId,
@@ -20,7 +21,7 @@ export default function RegenerateAudioButton({
       const result = await regenerateTranslationAudio(translationId);
       onRegenerated(result);
     } catch (error) {
-      onError(error?.message || 'Unable to generate Audio Guide, please try again later.');
+      onError(error?.message || ADMIN_TRANSLATIONS.audioRegenerateError);
     } finally {
       setIsLoading(false);
     }
@@ -61,7 +62,7 @@ export default function RegenerateAudioButton({
           />
         </svg>
       )}
-      {isLoading ? 'Generating audio...' : 'Regenerate Audio Guide'}
+      {isLoading ? ADMIN_TRANSLATIONS.btnGeneratingAudio : ADMIN_TRANSLATIONS.btnRegenerateAudio}
     </button>
   );
 }

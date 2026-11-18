@@ -21,6 +21,7 @@ import {
   getHeatmapData,
 } from '../../api/analyticsApi.js';
 import { MAIN_ENTRANCE } from '../../utils/museumBounds.js';
+import { ADMIN_TRANSLATIONS } from '../../locales/adminTranslations.js';
 
 const TILE_LAYER_URL = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
 const TILE_ATTRIBUTION = '&copy; OpenStreetMap contributors';
@@ -44,9 +45,9 @@ export const DEFAULT_HEAT_RADIUS = 28;
 export const DEFAULT_HEAT_BLUR = 18;
 
 const RANGE_OPTIONS = [
-  { value: ANALYTICS_TIME_RANGES.TODAY, label: 'Today' },
-  { value: ANALYTICS_TIME_RANGES.LAST_7_DAYS, label: 'Last 7 days' },
-  { value: ANALYTICS_TIME_RANGES.LAST_30_DAYS, label: 'Last 30 days' },
+  { value: ANALYTICS_TIME_RANGES.TODAY, label: ADMIN_TRANSLATIONS.rangeToday },
+  { value: ANALYTICS_TIME_RANGES.LAST_7_DAYS, label: ADMIN_TRANSLATIONS.rangeLast7Days },
+  { value: ANALYTICS_TIME_RANGES.LAST_30_DAYS, label: ADMIN_TRANSLATIONS.rangeLast30Days },
 ];
 
 function createHeatmapPopup(point, count, intensity, tierColor, congestionStatus) {
@@ -139,7 +140,7 @@ export default function AnalyticsHeatmap({
       })
       .catch((err) => {
         if (err.name !== 'AbortError') {
-          setErrorMessage('Unable to load heatmap telemetry. Please check connection and retry.');
+          setErrorMessage(ADMIN_TRANSLATIONS.loadHeatmapError);
         }
       })
       .finally(() => {
@@ -334,13 +335,13 @@ export default function AnalyticsHeatmap({
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-slate-100 pb-4">
         <div>
           <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-            <span>Real-Time Visitor Density Heatmap</span>
+            <span>{ADMIN_TRANSLATIONS.heatmapTitle}</span>
             <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700 ring-1 ring-inset ring-emerald-600/20">
-              Live Telemetry
+              {ADMIN_TRANSLATIONS.liveTelemetryBadge}
             </span>
           </h2>
           <p className="mt-1 text-xs text-slate-500">
-            Spatial congestion monitoring across Cu Chi Tunnels complex.
+            {ADMIN_TRANSLATIONS.heatmapSubtitle}
           </p>
         </div>
 
@@ -348,7 +349,7 @@ export default function AnalyticsHeatmap({
         {!externalRange && (
           <div
             role="group"
-            aria-label="Heatmap reporting window"
+            aria-label={ADMIN_TRANSLATIONS.heatmapReportingWindowAriaLabel}
             data-testid="heatmap-range-controls"
             className="inline-flex flex-wrap gap-1 rounded-md border border-slate-200 bg-slate-50 p-1"
           >
@@ -380,10 +381,12 @@ export default function AnalyticsHeatmap({
         >
           <div className="mt-0.5 h-2 w-2 rounded-full bg-red-600 animate-ping" />
           <div className="text-xs">
-            <span className="font-bold">Congestion Alert: </span>
+            <span className="font-bold">{ADMIN_TRANSLATIONS.congestionAlertTitle} </span>
             <span>
-              High visitor density detected at <strong>{congestionHotspot.poi_title}</strong> (
-              {congestionHotspot.trigger_count} triggers, {(congestionHotspot.intensity * 100).toFixed(0)}% relative density). Consider dispatching staff to regulate tunnel throughput.
+              {ADMIN_TRANSLATIONS.congestionAlertDescription
+                .replace('{poi}', congestionHotspot.poi_title)
+                .replace('{count}', congestionHotspot.trigger_count)
+                .replace('{density}', (congestionHotspot.intensity * 100).toFixed(0))}
             </span>
           </div>
         </div>
@@ -395,7 +398,7 @@ export default function AnalyticsHeatmap({
           ref={mapContainerRef}
           data-testid="heatmap-leaflet-map"
           className="h-[420px] w-full bg-slate-100"
-          aria-label="Visitor density heatmap leaflet canvas"
+          aria-label={ADMIN_TRANSLATIONS.heatmapCanvasAriaLabel}
         />
 
         {/* Loading Overlay */}
@@ -404,7 +407,7 @@ export default function AnalyticsHeatmap({
             data-testid="heatmap-loading-overlay"
             className="absolute inset-0 flex items-center justify-center bg-white/70 backdrop-blur-[1px] text-xs font-medium text-slate-700"
           >
-            Aggregating visitor GPS telemetry...
+            {ADMIN_TRANSLATIONS.loadingHeatmapTelemetry}
           </div>
         )}
 
@@ -420,7 +423,7 @@ export default function AnalyticsHeatmap({
               onClick={() => setReloadToken((t) => t + 1)}
               className="mt-2 rounded bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800"
             >
-              Retry
+              {ADMIN_TRANSLATIONS.btnRetry}
             </button>
           </div>
         )}
@@ -430,7 +433,7 @@ export default function AnalyticsHeatmap({
             data-testid="heatmap-empty-state"
             className="absolute inset-x-4 top-4 rounded bg-white/90 px-3 py-2 text-center text-xs text-slate-600 shadow-sm"
           >
-            No POI triggers recorded for this period. Heatmap will render once visitors arrive.
+            {ADMIN_TRANSLATIONS.heatmapEmptyState}
           </div>
         )}
 
@@ -439,26 +442,26 @@ export default function AnalyticsHeatmap({
           data-testid="heatmap-legend"
           className="absolute bottom-3 left-3 z-[1000] rounded-md bg-white/95 px-3 py-2 shadow-md border border-slate-200 text-xs backdrop-blur-sm"
         >
-          <div className="font-semibold text-slate-800 mb-1">Density Scale</div>
+          <div className="font-semibold text-slate-800 mb-1">{ADMIN_TRANSLATIONS.densityScale}</div>
           <div className="flex flex-wrap items-center gap-2">
             <div className="flex items-center gap-1">
               <span className="h-2.5 w-2.5 rounded-full bg-[#22C55E]" />
-              <span className="text-[11px] text-slate-600">Low (0 - 40%)</span>
+              <span className="text-[11px] text-slate-600">{ADMIN_TRANSLATIONS.densityLow}</span>
             </div>
 
             <div className="flex items-center gap-1">
               <span className="h-2.5 w-2.5 rounded-full bg-[#EAB308]" />
-              <span className="text-[11px] text-slate-600">Moderate (40 - 70%)</span>
+              <span className="text-[11px] text-slate-600">{ADMIN_TRANSLATIONS.densityModerate}</span>
             </div>
 
             <div className="flex items-center gap-1">
               <span className="h-2.5 w-2.5 rounded-full bg-[#EF4444]" />
-              <span className="text-[11px] text-slate-600 font-semibold">Congestion (&gt; 70%)</span>
+              <span className="text-[11px] text-slate-600 font-semibold">{ADMIN_TRANSLATIONS.densityCongestion}</span>
             </div>
 
             <div className="flex items-center gap-1 border-l border-slate-200 pl-2">
               <span className="h-2.5 w-2.5 rounded-full bg-[#94A3B8]" />
-              <span className="text-[11px] text-slate-500">Chưa có khách (0)</span>
+              <span className="text-[11px] text-slate-500">{ADMIN_TRANSLATIONS.densityZero}</span>
             </div>
           </div>
         </div>
@@ -468,7 +471,7 @@ export default function AnalyticsHeatmap({
       <div className="mt-4 flex flex-wrap items-center justify-between gap-4 border-t border-slate-100 pt-3 text-xs text-slate-600">
         <div className="flex items-center gap-3">
           <label htmlFor="heatmap-radius-slider" className="font-medium text-slate-700">
-            Heat Radius: <span className="font-mono">{radius}px</span>
+            {ADMIN_TRANSLATIONS.heatRadiusLabel} <span className="font-mono">{radius}px</span>
           </label>
           <input
             id="heatmap-radius-slider"
@@ -485,7 +488,7 @@ export default function AnalyticsHeatmap({
 
         <div className="flex items-center gap-3">
           <label htmlFor="heatmap-blur-slider" className="font-medium text-slate-700">
-            Blur Opacity: <span className="font-mono">{blur}px</span>
+            {ADMIN_TRANSLATIONS.blurOpacityLabel} <span className="font-mono">{blur}px</span>
           </label>
           <input
             id="heatmap-blur-slider"
@@ -501,7 +504,7 @@ export default function AnalyticsHeatmap({
         </div>
 
         <div className="text-[11px] text-slate-400">
-          Total Exhibits Monitored: <strong className="text-slate-700">{heatmapData?.total_points || 0}</strong>
+          {ADMIN_TRANSLATIONS.totalExhibitsMonitored} <strong className="text-slate-700">{heatmapData?.total_points || 0}</strong>
         </div>
       </div>
     </div>

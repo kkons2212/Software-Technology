@@ -12,6 +12,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import L from 'leaflet';
 import { isWithinMuseumBounds } from '../../utils/museumBounds.js';
+import { ADMIN_TRANSLATIONS } from '../../locales/adminTranslations.js';
 
 // Design tokens from ui_rules Section 3.2: accent blue for a valid geofence and
 // warning red for the out-of-bounds error state.
@@ -34,9 +35,6 @@ const RADIUS_STEP = 1;
 // `Numeric(10, 7)` in MySQL stores 7 decimal places, so coordinates are
 // rounded to that precision before they are shown or persisted.
 const COORDINATE_PRECISION = 1e7;
-
-const OUT_OF_BOUNDS_MESSAGE =
-  'Coordinates must be valid latitude (-90 to 90) and longitude (-180 to 180).';
 
 function roundCoordinate(value) {
   return Math.round(value * COORDINATE_PRECISION) / COORDINATE_PRECISION;
@@ -61,10 +59,10 @@ export default function AdminMapPicker({
   isSaving = false,
   onSave,
   onChange,
-  latitudeLabel = 'Latitude',
-  longitudeLabel = 'Longitude',
-  radiusLabel = 'Trigger Radius',
-  outOfBoundsMessage = OUT_OF_BOUNDS_MESSAGE,
+  latitudeLabel = ADMIN_TRANSLATIONS.latitude,
+  longitudeLabel = ADMIN_TRANSLATIONS.longitude,
+  radiusLabel = ADMIN_TRANSLATIONS.triggerRadius,
+  outOfBoundsMessage = ADMIN_TRANSLATIONS.outOfBoundsError,
   mapHeight = DEFAULT_MAP_HEIGHT_PX,
 }) {
   const [latitude, setLatitude] = useState(initialLatitude);
@@ -380,11 +378,11 @@ export default function AdminMapPicker({
     }`;
 
   return (
-    <section className="flex flex-col gap-4" aria-label="Geofence calibration map">
+    <section className="flex flex-col gap-4" aria-label={ADMIN_TRANSLATIONS.geofenceMapSectionAriaLabel}>
       <div
         ref={mapElementRef}
         role="application"
-        aria-label="Interactive geofence map with draggable pin"
+        aria-label={ADMIN_TRANSLATIONS.interactiveMapAriaLabel}
         data-testid="admin-map-picker-canvas"
         className="w-full rounded-md border bg-slate-100 touch-none relative z-0 cursor-crosshair"
         style={{
@@ -462,17 +460,17 @@ export default function AdminMapPicker({
           </span>
         </div>
         <span className="text-xs text-slate-500">
-          Bán kính kích hoạt (10m – 50m)
+          {ADMIN_TRANSLATIONS.radiusRangeHint}
         </span>
       </div>
 
       {hasAnyError && (
         <p role="alert" className="text-sm font-medium text-[#B91C1C]">
           {hasInvalidCharError
-            ? 'Tọa độ không hợp lệ: Vui lòng chỉ nhập số thực (ví dụ: 11.1432), không được nhập chữ cái hoặc ký tự đặc biệt.'
+            ? ADMIN_TRANSLATIONS.invalidCharCoordError
             : isCoordOutOfBounds
             ? outOfBoundsMessage
-            : 'Bán kính kích hoạt không hợp lệ (vui lòng chỉ nhập số nguyên từ 10m đến 50m, không nhập số thập phân).'}
+            : ADMIN_TRANSLATIONS.invalidRadiusError}
         </p>
       )}
 
@@ -484,7 +482,7 @@ export default function AdminMapPicker({
             disabled={hasAnyError || isSaving}
             className="rounded-md bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:opacity-50"
           >
-            {isSaving ? 'Saving...' : 'Save Changes'}
+            {isSaving ? ADMIN_TRANSLATIONS.btnSaving : ADMIN_TRANSLATIONS.btnSaveChanges}
           </button>
         </div>
       )}
