@@ -97,10 +97,10 @@ class Settings(BaseSettings):
     # AI & Cloud Translation Settings (US 04.4)
     GEMINI_API_KEYS: str = ""
     GOOGLE_TRANSLATE_API_KEYS: str = ""
-    GEMINI_MODEL: str = "gemini-1.5-flash"
+    GEMINI_MODEL: str = ""
     OFFLINE_TRANSLATOR_URL: str = "http://localhost:8001"
     OPENROUTER_API_KEY: str = ""
-    OPENROUTER_MODEL: str = "stealth/crouton-alpha"
+    OPENROUTER_MODEL: str = ""
     OPENROUTER_BASE_URL: str = "https://openrouter.ai/api/v1"
     TRANSLATION_PROVIDERS_ORDER: str = (
         "openrouter,offline,google_cloud,gemini,deep_translator"
