@@ -166,6 +166,7 @@ async def test_should_batch_translate_narrative_via_gemini_json():
 
     client = DeepTranslatorClient(
         gemini_keys=["gemini_key_1"],
+        gemini_model="gemini-1.5-flash",
         openrouter_key="",
         offline_url=None,
         http_client=mock_http,
@@ -360,6 +361,7 @@ async def test_should_translate_via_gemini_and_rotate_keys_on_rate_limit():
 
     client = DeepTranslatorClient(
         gemini_keys=["gemini_key_1", "gemini_key_2"],
+        gemini_model="gemini-1.5-flash",
         openrouter_key="",
         offline_url=None,
         http_client=mock_http,
