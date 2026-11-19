@@ -303,4 +303,3 @@ def test_should_prune_both_orphaned_audio_and_orphaned_images(
     assert active_audio.exists()
     assert active_image.exists()
     assert dot_image.exists()
-

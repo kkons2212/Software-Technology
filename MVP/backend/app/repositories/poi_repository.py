@@ -188,9 +188,5 @@ class POIRepository:
 
     def get_all_image_urls(self) -> set[str]:
         """Return the set of all active cover image URLs referenced in the database."""
-        rows = (
-            self.db.query(POI.image_url)
-            .filter(POI.image_url.is_not(None))
-            .all()
-        )
+        rows = self.db.query(POI.image_url).filter(POI.image_url.is_not(None)).all()
         return {r[0] for r in rows if r[0]}

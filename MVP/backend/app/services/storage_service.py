@@ -196,7 +196,9 @@ class StorageService:
 
         # 1. Prune orphaned audio files (*.mp3)
         referenced_audio_urls = self.audio_repository.get_all_audio_urls()
-        referenced_audio_names = {os.path.basename(url) for url in referenced_audio_urls if url}
+        referenced_audio_names = {
+            os.path.basename(url) for url in referenced_audio_urls if url
+        }
         audio_candidates, remaining_audio = self._collect_orphan_candidates(
             directory=self.audio_dir,
             allowed_extensions={".mp3"},
@@ -212,14 +214,16 @@ class StorageService:
         remaining_images = 0
         if self.poi_repository is not None:
             referenced_image_urls = self.poi_repository.get_all_image_urls()
-            referenced_image_names = {os.path.basename(url) for url in referenced_image_urls if url}
+            referenced_image_names = {
+                os.path.basename(url) for url in referenced_image_urls if url
+            }
             image_candidates, remaining_images = self._collect_orphan_candidates(
                 directory=self.image_dir,
                 allowed_extensions={".jpg", ".jpeg", ".png", ".webp"},
                 referenced_filenames=referenced_image_names,
             )
-            deleted_images_count, reclaimed_image_bytes = self._unlink_orphan_candidates(
-                image_candidates
+            deleted_images_count, reclaimed_image_bytes = (
+                self._unlink_orphan_candidates(image_candidates)
             )
 
         # Aggregated telemetry
