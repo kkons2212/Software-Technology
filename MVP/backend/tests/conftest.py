@@ -15,6 +15,7 @@ if BACKEND_ROOT not in sys.path:
 
 # Unit tests use a fixed, non-production key before importing application settings.
 os.environ.setdefault("JWT_SECRET_KEY", "a" * 64)
+os.environ.setdefault("RATE_LIMIT_ENABLED", "false")
 
 from app.core.config import Settings, settings  # noqa: E402
 from app.core.database import Base, create_database_engine, get_db  # noqa: E402
@@ -70,6 +71,7 @@ def use_low_cost_bcrypt(mocker):
         return_value=Settings(BCRYPT_ROUNDS=LOW_COST_BCRYPT_ROUNDS),
     )
     mocker.patch.object(settings, "ENVIRONMENT", "development")
+    mocker.patch.object(settings, "RATE_LIMIT_ENABLED", False)
 
 
 @pytest.fixture()

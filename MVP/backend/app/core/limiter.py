@@ -24,9 +24,20 @@ def get_real_client_ip(request: Request) -> str:
     return get_remote_address(request)
 
 
-limiter = Limiter(
+class DynamicLimiter(Limiter):
+    """SlowAPI Limiter that dynamically evaluates settings.RATE_LIMIT_ENABLED."""
+
+    @property
+    def enabled(self) -> bool:
+        return bool(settings.RATE_LIMIT_ENABLED)
+
+    @enabled.setter
+    def enabled(self, value: bool) -> None:
+        pass
+
+
+limiter = DynamicLimiter(
     key_func=get_real_client_ip,
-    enabled=settings.RATE_LIMIT_ENABLED,
 )
 
 
