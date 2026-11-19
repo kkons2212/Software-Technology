@@ -9,6 +9,7 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from slowapi.errors import RateLimitExceeded
 
 from app.controllers.admin_poi_controller import router as admin_poi_router
 from app.controllers.analytics_controller import router as analytics_router
@@ -30,6 +31,7 @@ from app.controllers.tour_controller import router as tour_router
 from app.controllers.translation_controller import router as translation_router
 from app.core.config import settings
 from app.core.exceptions import register_error_handlers
+from app.core.limiter import custom_rate_limit_exceeded_handler, limiter
 
 API_TITLE = "Smart Multilingual Automated Audio Guide & Interactive Map API"
 API_VERSION = "1.0.0"
@@ -80,6 +82,10 @@ def create_app() -> FastAPI:
     )
 
     register_error_handlers(application)
+    application.state.limiter = limiter
+    application.add_exception_handler(
+        RateLimitExceeded, custom_rate_limit_exceeded_handler
+    )
 
     application.include_router(auth_router)
     application.include_router(language_router)

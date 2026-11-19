@@ -16,6 +16,7 @@ from fastapi import APIRouter, Depends, Request
 
 from app.core.config import settings
 from app.core.dependencies import get_current_admin_profile, get_storage_service
+from app.core.limiter import rate_limit
 from app.schemas.auth_schema import AdminProfileResponse
 from app.schemas.system_schema import (
     CleanOrphansResponse,
@@ -52,6 +53,7 @@ def get_system_health(
 
 
 @router.post("/storage/clean-orphans", response_model=CleanOrphansResponse)
+@rate_limit("RATE_LIMIT_CLEAN_ORPHANS")
 def clean_orphaned_audio(
     request: Request,
     admin: AdminProfileResponse = Depends(get_current_admin_profile),

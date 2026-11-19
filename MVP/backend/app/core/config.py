@@ -67,6 +67,21 @@ class Settings(BaseSettings):
     DB_MAX_OVERFLOW: int = 20
     DB_POOL_RECYCLE_SECONDS: int = 1800
 
+    # Rate Limiting Controls
+    RATE_LIMIT_ENABLED: bool = True
+    RATE_LIMIT_DEFAULT: str = "120/minute"
+    RATE_LIMIT_LOGIN: str = "5/minute"
+    RATE_LIMIT_CHECKOUT: str = "5/minute"
+    RATE_LIMIT_ORDER_STATUS: str = "30/minute"
+    RATE_LIMIT_ORDER_SESSION: str = "10/minute"
+    RATE_LIMIT_AUDIO_STREAM: str = "20/minute"
+    RATE_LIMIT_WALKING_ROUTE: str = "10/minute"
+    RATE_LIMIT_TELEMETRY: str = "20/minute"
+    RATE_LIMIT_POI_CATALOG: str = "60/minute"
+    RATE_LIMIT_AI_TTS: str = "3/minute"
+    RATE_LIMIT_UPLOAD_IMAGE: str = "10/minute"
+    RATE_LIMIT_CLEAN_ORPHANS: str = "1/5minute"
+
     # Media Storage Settings
     STATIC_DIR: str = DEFAULT_STATIC_DIR
     IMAGE_UPLOAD_DIR: str = DEFAULT_IMAGE_UPLOAD_DIR

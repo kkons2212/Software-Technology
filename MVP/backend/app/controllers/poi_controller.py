@@ -13,6 +13,7 @@ from fastapi import (
 )
 
 from app.core.dependencies import get_current_admin, get_poi_service
+from app.core.limiter import rate_limit
 from app.schemas.poi_schema import (
     APIResponse,
     POICreateRequest,
@@ -48,7 +49,9 @@ def _extract_session_token(
     tags=["visitor"],
     summary="Get active POIs for visitor map with content gating",
 )
+@rate_limit("RATE_LIMIT_POI_CATALOG")
 def get_map_pois(
+    request: Request,
     service: Annotated[POIService, Depends(get_poi_service)],
     language: Annotated[str | None, Query(min_length=1, max_length=20)] = None,
     token: Annotated[str | None, Query(description="Session token")] = None,

@@ -7,11 +7,12 @@ and cryptographic webhook processing.
 from html import escape
 from urllib.parse import quote
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 
 from app.core.config import settings
 from app.core.dependencies import get_payment_service
+from app.core.limiter import rate_limit
 from app.schemas.payment_schema import (
     CheckoutCreateRequest,
     CheckoutCreateResponse,
@@ -34,7 +35,9 @@ ORDER_ID_PATTERN = r"^TXN_[0-9A-F]{12}$"
     response_model=CheckoutCreateResponse,
     status_code=status.HTTP_201_CREATED,
 )
+@rate_limit("RATE_LIMIT_CHECKOUT")
 async def create_checkout_order(
+    request: Request,
     payload: CheckoutCreateRequest,
     payment_service: PaymentService = Depends(get_payment_service),
 ) -> CheckoutCreateResponse:
@@ -47,7 +50,9 @@ async def create_checkout_order(
     response_model=OrderStatusResponse,
     status_code=status.HTTP_200_OK,
 )
+@rate_limit("RATE_LIMIT_ORDER_STATUS")
 def get_order_status(
+    request: Request,
     order_id: str,
     payment_service: PaymentService = Depends(get_payment_service),
 ) -> OrderStatusResponse:
@@ -185,7 +190,9 @@ def confirm_paypal_mock_payment(
 
 
 @router.post("/order/{order_id}/session", response_model=OrderSessionResponse)
+@rate_limit("RATE_LIMIT_ORDER_SESSION")
 def exchange_order_session(
+    request: Request,
     order_id: str,
     payload: OrderSessionRequest,
     payment_service: PaymentService = Depends(get_payment_service),

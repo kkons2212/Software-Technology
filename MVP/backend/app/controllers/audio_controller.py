@@ -5,10 +5,11 @@ Enforces 24-hour visiting session authorization before streaming POI audio narra
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Header, Query, Response
+from fastapi import APIRouter, Depends, Header, Query, Request, Response
 from fastapi.responses import FileResponse, RedirectResponse
 
 from app.core.dependencies import get_audio_service
+from app.core.limiter import rate_limit
 from app.services.audio_service import AudioService
 
 router = APIRouter(prefix="/api/v1/audio", tags=["Audio Streaming & Paywall"])
@@ -31,19 +32,14 @@ def _extract_token(
     return None
 
 
-@router.get(
-    "/{poi_id}",
-    summary="Stream POI audio narration (Requires active 24h session)",
-)
-def stream_poi_audio(
+def _serve_audio_response(
     poi_id: str,
-    language: Annotated[str, Query(description="Target language code")] = "vi",
-    token: Annotated[str | None, Query(description="Session token")] = None,
-    x_session_token: Annotated[str | None, Header(alias="X-Session-Token")] = None,
-    authorization: Annotated[str | None, Header()] = None,
-    audio_service: AudioService = Depends(get_audio_service),
+    language: str,
+    token: str | None,
+    x_session_token: str | None,
+    authorization: str | None,
+    audio_service: AudioService,
 ) -> Response:
-    """Stream protected audio file for an exhibit. Rejects unpaid/expired with HTTP 403 (TSK-06.4.1)."""
     session_token = _extract_token(token, x_session_token, authorization)
     file_path, cdn_url = audio_service.get_audio_source_for_poi(
         poi_id=poi_id,
@@ -60,11 +56,38 @@ def stream_poi_audio(
 
 
 @router.get(
+    "/{poi_id}",
+    summary="Stream POI audio narration (Requires active 24h session)",
+)
+@rate_limit("RATE_LIMIT_AUDIO_STREAM")
+def stream_poi_audio(
+    request: Request,
+    poi_id: str,
+    language: Annotated[str, Query(description="Target language code")] = "vi",
+    token: Annotated[str | None, Query(description="Session token")] = None,
+    x_session_token: Annotated[str | None, Header(alias="X-Session-Token")] = None,
+    authorization: Annotated[str | None, Header()] = None,
+    audio_service: AudioService = Depends(get_audio_service),
+) -> Response:
+    """Stream protected audio file for an exhibit. Rejects unpaid/expired with HTTP 403 (TSK-06.4.1)."""
+    return _serve_audio_response(
+        poi_id=poi_id,
+        language=language,
+        token=token,
+        x_session_token=x_session_token,
+        authorization=authorization,
+        audio_service=audio_service,
+    )
+
+
+@router.get(
     "/stream/{poi_id}",
     summary="Stream POI audio narration alias",
     include_in_schema=False,
 )
+@rate_limit("RATE_LIMIT_AUDIO_STREAM")
 def stream_poi_audio_alias(
+    request: Request,
     poi_id: str,
     language: Annotated[str, Query()] = "vi",
     token: Annotated[str | None, Query()] = None,
@@ -72,7 +95,7 @@ def stream_poi_audio_alias(
     authorization: Annotated[str | None, Header()] = None,
     audio_service: AudioService = Depends(get_audio_service),
 ) -> Response:
-    return stream_poi_audio(
+    return _serve_audio_response(
         poi_id=poi_id,
         language=language,
         token=token,

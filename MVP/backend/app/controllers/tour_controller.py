@@ -2,9 +2,10 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Query, Request, status
 
 from app.core.dependencies import get_wayfinding_service
+from app.core.limiter import rate_limit
 from app.schemas.tour_schema import RouteResponse
 from app.services.wayfinding_service import WayfindingService
 
@@ -17,7 +18,9 @@ router = APIRouter(prefix="/api/v1/tour", tags=["Tour Wayfinding"])
     status_code=status.HTTP_200_OK,
     summary="Calculate intelligent walking route connecting visitor GPS to destination POI",
 )
+@rate_limit("RATE_LIMIT_WALKING_ROUTE")
 def get_walking_route(
+    request: Request,
     origin_lat: Annotated[float, Query(..., description="Visitor current latitude")],
     origin_lng: Annotated[float, Query(..., description="Visitor current longitude")],
     destination_poi_id: Annotated[str, Query(..., description="Target POI identifier")],
