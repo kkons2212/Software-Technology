@@ -183,16 +183,20 @@ def get_payment_service(
 
 
 def get_storage_service(db: Session = Depends(get_db)):
-    """Dependency provider injecting AudioRepository and AuditRepository into StorageService."""
+    """Dependency provider injecting AudioRepository, POIRepository, and AuditRepository into StorageService."""
     from app.repositories.audio_repository import AudioRepository
+    from app.repositories.poi_repository import POIRepository
     from app.services.storage_service import StorageService
 
     settings = get_settings()
     audio_dir = Path(settings.STATIC_DIR) / "audio"
+    image_dir = Path(settings.STATIC_DIR) / "images"
     return StorageService(
         audio_repository=AudioRepository(db),
         audit_repository=AuditRepository(db),
+        poi_repository=POIRepository(db),
         audio_dir=audio_dir,
+        image_dir=image_dir,
         settings=settings,
     )
 

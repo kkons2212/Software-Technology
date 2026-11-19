@@ -197,6 +197,8 @@ def test_should_prune_unreferenced_audio_files_and_preserve_active_files(
     assert response.remaining_files == 2
     assert set(response.model_dump()) == {
         "deleted_count",
+        "deleted_audio_count",
+        "deleted_images_count",
         "reclaimed_bytes",
         "reclaimed_mb",
         "remaining_files",
@@ -245,3 +247,60 @@ def test_should_continue_pruning_when_an_orphan_file_cannot_be_deleted(
     assert response.remaining_files == 0
     assert failed_orphan.exists()
     assert not deleted_orphan.exists()
+
+
+def test_should_prune_both_orphaned_audio_and_orphaned_images(
+    mock_audio_repository: MagicMock,
+    mock_audit_repository: MagicMock,
+    tmp_path: Path,
+):
+    temp_audio_dir = tmp_path / "audio"
+    temp_audio_dir.mkdir(parents=True, exist_ok=True)
+    temp_image_dir = tmp_path / "images"
+    temp_image_dir.mkdir(parents=True, exist_ok=True)
+
+    # Active audio and active image
+    active_audio = temp_audio_dir / "active_exhibit_1.mp3"
+    active_audio.write_bytes(b"A" * 1024)
+    active_image = temp_image_dir / "poi_active.jpg"
+    active_image.write_bytes(b"I" * 2048)
+
+    # Orphaned audio and orphaned image
+    orphan_audio = temp_audio_dir / "orphan.mp3"
+    orphan_audio.write_bytes(b"O" * 1024 * 1024)  # 1 MB
+    orphan_image = temp_image_dir / "poi_orphan.webp"
+    orphan_image.write_bytes(b"I" * 1024 * 1024 * 2)  # 2 MB
+
+    # Dotfile in images (must NOT be pruned)
+    dot_image = temp_image_dir / ".gitkeep"
+    dot_image.write_bytes(b"")
+
+    mock_poi_repository = MagicMock()
+    mock_poi_repository.get_all_image_urls.return_value = {
+        "/static/images/poi_active.jpg"
+    }
+
+    service = StorageService(
+        audio_repository=mock_audio_repository,
+        audit_repository=mock_audit_repository,
+        poi_repository=mock_poi_repository,
+        audio_dir=temp_audio_dir,
+        image_dir=temp_image_dir,
+        settings=Settings(STATIC_DIR=str(tmp_path)),
+    )
+
+    result = service.prune_orphaned_audio_files(
+        admin_username="superadmin",
+        client_ip="127.0.0.1",
+    )
+
+    assert result.deleted_count == 2
+    assert result.deleted_audio_count == 1
+    assert result.deleted_images_count == 1
+    assert result.reclaimed_mb == 3.0
+    assert not orphan_audio.exists()
+    assert not orphan_image.exists()
+    assert active_audio.exists()
+    assert active_image.exists()
+    assert dot_image.exists()
+

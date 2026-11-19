@@ -44,11 +44,13 @@ class SystemHealthResponse(BaseModel):
 
 
 class CleanOrphansData(BaseModel):
-    """Metrics produced after pruning unreferenced orphaned audio cache files."""
+    """Metrics produced after pruning unreferenced orphaned media files (audio & images)."""
 
     model_config = ConfigDict(extra="ignore")
 
     deleted_count: int
+    deleted_audio_count: int = 0
+    deleted_images_count: int = 0
     reclaimed_bytes: int
     reclaimed_mb: float
     remaining_files: int
