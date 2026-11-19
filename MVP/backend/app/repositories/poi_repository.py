@@ -127,7 +127,7 @@ class POIRepository:
         if description is not None:
             poi.description = description
         if image_url is not None:
-            poi.image_url = image_url
+            poi.image_url = image_url.strip() if image_url.strip() else None
         if latitude is not None:
             poi.latitude = Decimal(str(latitude))
         if longitude is not None:

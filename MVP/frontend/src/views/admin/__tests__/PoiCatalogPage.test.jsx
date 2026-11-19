@@ -197,6 +197,43 @@ describe('PoiCatalogPage', () => {
     });
   });
 
+  it('clears selected image when "Không dùng ảnh này" button is clicked in Add POI form', async () => {
+    const user = userEvent.setup();
+    getPois.mockResolvedValue(mockPoisData);
+    createPoi.mockResolvedValue({ poi_id: 3, title: 'Hầm Giải Phẫu' });
+    renderPoiCatalog();
+
+    await user.click(screen.getByRole('button', { name: ADMIN_TRANSLATIONS.newExhibitButton }));
+
+    const titleInput = screen.getByLabelText(/tên điểm tham quan/i);
+    await user.type(titleInput, 'Hầm Giải Phẫu');
+
+    const fileInput = screen.getByLabelText(/ảnh bìa/i);
+    const validImage = new File(['fake-image-bytes'], 'ham_giai_phau.jpg', { type: 'image/jpeg' });
+    await user.upload(fileInput, validImage);
+
+    // Remove button should be present
+    const removeBtn = screen.getByTestId('btn-remove-selected-image');
+    expect(removeBtn).toBeInTheDocument();
+    expect(screen.getByTestId('add-poi-image-preview')).toBeInTheDocument();
+
+    // Click remove button
+    await user.click(removeBtn);
+
+    expect(screen.queryByTestId('add-poi-image-preview')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('btn-remove-selected-image')).not.toBeInTheDocument();
+
+    const saveBtn = screen.getByRole('button', { name: new RegExp(ADMIN_TRANSLATIONS.btnSaveAndDigitize, 'i') });
+    await user.click(saveBtn);
+
+    await waitFor(() => {
+      expect(createPoi).toHaveBeenCalledWith(
+        expect.objectContaining({ title: 'Hầm Giải Phẫu' }),
+        null
+      );
+    });
+  });
+
   it('renders Active status badge and opens deactivation modal when clicking Hide', async () => {
     const user = userEvent.setup();
     getPois.mockResolvedValue(mockPoisData);

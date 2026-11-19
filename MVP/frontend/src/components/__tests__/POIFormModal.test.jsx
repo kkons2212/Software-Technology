@@ -243,4 +243,34 @@ describe('POIFormModal', () => {
       'Backend error updating exhibit',
     );
   });
+
+  it('clears existing cover photo when "Không dùng ảnh này" is clicked and sends empty image_url', async () => {
+    const user = userEvent.setup();
+    updatePoi.mockResolvedValue({ success: true });
+
+    render(<POIFormModal isOpen={true} poi={mockPoi} onClose={vi.fn()} />);
+
+    // Initially cover-image-preview and btn-remove-cover-photo exist
+    expect(screen.getByTestId('cover-image-preview')).toBeInTheDocument();
+    const removeBtn = screen.getByTestId('btn-remove-cover-photo');
+    expect(removeBtn).toBeInTheDocument();
+
+    await user.click(removeBtn);
+
+    // Image preview and remove button should be gone
+    expect(screen.queryByTestId('cover-image-preview')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('btn-remove-cover-photo')).not.toBeInTheDocument();
+
+    const saveButton = screen.getByRole('button', { name: ADMIN_TRANSLATIONS.btnSaveChanges });
+    await user.click(saveButton);
+
+    await waitFor(() => {
+      expect(updatePoi).toHaveBeenCalledWith(
+        'poi-test-01',
+        expect.objectContaining({
+          image_url: '',
+        }),
+      );
+    });
+  });
 });

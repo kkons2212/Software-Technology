@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { getPois, createPoi, togglePoiVisibility } from '../../api/poiApi.js';
 import DeactivateConfirmModal from '../../components/admin/DeactivateConfirmModal.jsx';
 import AdminMapPicker from '../../components/admin/AdminMapPicker.jsx';
@@ -39,6 +39,7 @@ export default function PoiCatalogPage() {
   const [radius, setRadius] = useState(30);
   const [selectedImage, setSelectedImage] = useState(null);
   const [imagePreview, setImagePreview] = useState('');
+  const fileInputRef = useRef(null);
   const [formError, setFormError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isMapValid, setIsMapValid] = useState(true);
@@ -107,6 +108,14 @@ export default function PoiCatalogPage() {
       setSelectedImage(file);
       setImagePreview(URL.createObjectURL(file));
       setFormError('');
+    }
+  };
+
+  const handleRemoveImage = () => {
+    setSelectedImage(null);
+    setImagePreview('');
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
     }
   };
 
@@ -435,18 +444,28 @@ export default function PoiCatalogPage() {
                 </label>
                 <input
                   id="poi-image"
+                  ref={fileInputRef}
                   type="file"
                   accept="image/jpeg,image/png,image/webp"
                   onChange={handleImageChange}
                   className="mt-1 block w-full text-xs text-slate-600 file:mr-3 file:rounded-md file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-slate-700 hover:file:bg-slate-200"
                 />
                 {imagePreview && (
-                  <div className="mt-2">
+                  <div className="mt-2 flex items-center gap-3">
                     <img
                       src={imagePreview}
                       alt="Preview"
+                      data-testid="add-poi-image-preview"
                       className="h-20 w-32 rounded object-cover border border-slate-200"
                     />
+                    <button
+                      type="button"
+                      onClick={handleRemoveImage}
+                      data-testid="btn-remove-selected-image"
+                      className="rounded-md border border-red-200 bg-red-50 px-2.5 py-1 text-xs font-medium text-red-700 hover:bg-red-100 flex items-center gap-1"
+                    >
+                      <span>✕</span> {ADMIN_TRANSLATIONS.btnRemovePhoto}
+                    </button>
                   </div>
                 )}
               </div>
