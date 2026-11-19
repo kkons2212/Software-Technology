@@ -27,6 +27,8 @@ python-jose[cryptography]==3.3.0
 # Multipart parser for file/image uploads (< 5MB)
 python-multipart==0.0.9
 Pillow==12.3.0
+# Rate limiting framework for FastAPI
+slowapi>=0.1.9
 
 # --- 4. AI TRANSLATION & NEURAL VOICE TTS SYNTHESIS ---
 # Text translation pipeline for en, ja, ko, zh

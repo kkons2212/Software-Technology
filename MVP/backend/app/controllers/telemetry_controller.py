@@ -1,8 +1,9 @@
 """TelemetryController: Ingestion endpoint for visitor POI proximity triggers (TSK-01.3.5)."""
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 
 from app.core.dependencies import get_telemetry_service
+from app.core.limiter import rate_limit
 from app.schemas.telemetry_schema import (
     TelemetryTriggerCreate,
     TelemetryTriggerResponse,
@@ -19,7 +20,9 @@ router = APIRouter(prefix="/api/v1/telemetry", tags=["Telemetry"])
     summary="Record POI proximity trigger telemetry event",
     description="Logs visitor geofence proximity trigger with dwell time into POITrigger for heatmap analytics.",
 )
+@rate_limit("RATE_LIMIT_TELEMETRY")
 def record_telemetry_trigger(
+    request: Request,
     payload: TelemetryTriggerCreate,
     telemetry_service: TelemetryService = Depends(get_telemetry_service),
 ) -> TelemetryTriggerResponse:

@@ -10,6 +10,7 @@ from app.core.dependencies import (
     get_translation_service,
     get_tts_service,
 )
+from app.core.limiter import rate_limit
 from app.schemas.audio_schema import AudioRegenerationResponse
 from app.schemas.translation_schema import (
     TranslationListResponse,
@@ -80,7 +81,9 @@ def update_translation(
     response_model=AudioRegenerationResponse,
     status_code=status.HTTP_200_OK,
 )
+@rate_limit("RATE_LIMIT_AI_TTS")
 async def regenerate_translation_audio(
+    request: Request,
     id: str,
     tts_service: TTSService = Depends(get_tts_service),
     current_admin: str = Depends(get_current_admin),

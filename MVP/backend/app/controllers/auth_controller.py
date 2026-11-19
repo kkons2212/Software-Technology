@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, Request, Response, status
 
 from app.core.config import get_settings
 from app.core.dependencies import get_auth_service, get_current_admin_profile
+from app.core.limiter import rate_limit
 from app.core.security import get_access_token_max_age_seconds
 from app.schemas.auth_schema import (
     AdminLoginRequest,
@@ -38,6 +39,7 @@ def resolve_client_ip(request: Request) -> str | None:
 
 
 @router.post("/login", response_model=AdminSessionResponse)
+@rate_limit("RATE_LIMIT_LOGIN")
 def login_admin(
     payload: AdminLoginRequest,
     request: Request,

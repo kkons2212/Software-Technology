@@ -9,6 +9,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, File, Request, UploadFi
 
 from app.controllers.auth_controller import resolve_client_ip
 from app.core.dependencies import get_current_admin_profile
+from app.core.limiter import rate_limit
 from app.schemas.auth_schema import AdminProfileResponse
 from app.schemas.poi_schema import (
     POIResponse,
@@ -51,7 +52,9 @@ def update_poi(
 
 
 @router.post("/upload-image")
+@rate_limit("RATE_LIMIT_UPLOAD_IMAGE")
 async def upload_poi_image(
+    request: Request,
     file: UploadFile = File(...),
     service: POIService = Depends(get_poi_service),
     current_admin: AdminProfileResponse = Depends(get_current_admin_profile),

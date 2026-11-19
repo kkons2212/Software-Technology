@@ -5,10 +5,11 @@ Enforces 24-hour visiting session authorization before streaming POI audio narra
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Header, Query, Response
+from fastapi import APIRouter, Depends, Header, Query, Request, Response
 from fastapi.responses import FileResponse, RedirectResponse
 
 from app.core.dependencies import get_audio_service
+from app.core.limiter import rate_limit
 from app.services.audio_service import AudioService
 
 router = APIRouter(prefix="/api/v1/audio", tags=["Audio Streaming & Paywall"])
@@ -35,7 +36,9 @@ def _extract_token(
     "/{poi_id}",
     summary="Stream POI audio narration (Requires active 24h session)",
 )
+@rate_limit("RATE_LIMIT_AUDIO_STREAM")
 def stream_poi_audio(
+    request: Request,
     poi_id: str,
     language: Annotated[str, Query(description="Target language code")] = "vi",
     token: Annotated[str | None, Query(description="Session token")] = None,
