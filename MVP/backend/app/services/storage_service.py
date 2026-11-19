@@ -13,6 +13,7 @@ from pathlib import Path
 from app.core.config import Settings, get_settings
 from app.repositories.audio_repository import AudioRepository
 from app.repositories.audit_repository import AuditRepository
+from app.repositories.poi_repository import POIRepository
 from app.schemas.system_schema import (
     CleanOrphansData,
     StorageHealthData,
@@ -33,16 +34,24 @@ class StorageService:
         self,
         audio_repository: AudioRepository,
         audit_repository: AuditRepository,
+        poi_repository: POIRepository | None = None,
         audio_dir: Path | None = None,
+        image_dir: Path | None = None,
         settings: Settings | None = None,
     ):
         self.audio_repository = audio_repository
         self.audit_repository = audit_repository
+        self.poi_repository = poi_repository
         self.settings = settings or get_settings()
         self.audio_dir = (
             audio_dir
             if audio_dir is not None
             else Path(self.settings.STATIC_DIR) / "audio"
+        )
+        self.image_dir = (
+            image_dir
+            if image_dir is not None
+            else Path(self.settings.STATIC_DIR) / "images"
         )
 
     def get_system_health(self) -> SystemHealthData:
@@ -136,16 +145,25 @@ class StorageService:
         return db_status, db_latency_ms
 
     def _collect_orphan_candidates(
-        self, referenced_filenames: set[str]
+        self,
+        directory: Path,
+        allowed_extensions: set[str],
+        referenced_filenames: set[str],
     ) -> tuple[list[Path], int]:
-        """Scan physical directory and collect unreferenced mp3 files."""
+        """Scan physical directory and collect unreferenced files matching allowed extensions."""
         orphan_candidates: list[Path] = []
         remaining_files = 0
-        for entry in os.scandir(self.audio_dir):
+        if not directory.is_dir():
+            return orphan_candidates, remaining_files
+
+        for entry in os.scandir(directory):
             if not entry.is_file():
                 continue
             name = entry.name
-            if not name.lower().endswith(".mp3") or name.startswith("."):
+            if name.startswith("."):
+                continue
+            ext = os.path.splitext(name)[1].lower()
+            if ext not in allowed_extensions:
                 continue
             if name in referenced_filenames:
                 remaining_files += 1
@@ -172,19 +190,46 @@ class StorageService:
         admin_username: str,
         client_ip: str | None = None,
     ) -> CleanOrphansData:
-        """Scan physical audio cache, unlink unreferenced MP3s, and record audit log."""
-        referenced_urls = self.audio_repository.get_all_audio_urls()
-        referenced_filenames = {os.path.basename(url) for url in referenced_urls if url}
-
+        """Scan physical audio & image caches, unlink unreferenced files, and record audit log."""
         self.audio_dir.mkdir(parents=True, exist_ok=True)
+        self.image_dir.mkdir(parents=True, exist_ok=True)
 
-        orphan_candidates, remaining_files = self._collect_orphan_candidates(
-            referenced_filenames
+        # 1. Prune orphaned audio files (*.mp3)
+        referenced_audio_urls = self.audio_repository.get_all_audio_urls()
+        referenced_audio_names = {
+            os.path.basename(url) for url in referenced_audio_urls if url
+        }
+        audio_candidates, remaining_audio = self._collect_orphan_candidates(
+            directory=self.audio_dir,
+            allowed_extensions={".mp3"},
+            referenced_filenames=referenced_audio_names,
         )
-        deleted_count, reclaimed_bytes = self._unlink_orphan_candidates(
-            orphan_candidates
+        deleted_audio_count, reclaimed_audio_bytes = self._unlink_orphan_candidates(
+            audio_candidates
         )
 
+        # 2. Prune orphaned cover images (*.jpg, *.jpeg, *.png, *.webp)
+        deleted_images_count = 0
+        reclaimed_image_bytes = 0
+        remaining_images = 0
+        if self.poi_repository is not None:
+            referenced_image_urls = self.poi_repository.get_all_image_urls()
+            referenced_image_names = {
+                os.path.basename(url) for url in referenced_image_urls if url
+            }
+            image_candidates, remaining_images = self._collect_orphan_candidates(
+                directory=self.image_dir,
+                allowed_extensions={".jpg", ".jpeg", ".png", ".webp"},
+                referenced_filenames=referenced_image_names,
+            )
+            deleted_images_count, reclaimed_image_bytes = (
+                self._unlink_orphan_candidates(image_candidates)
+            )
+
+        # Aggregated telemetry
+        deleted_count = deleted_audio_count + deleted_images_count
+        reclaimed_bytes = reclaimed_audio_bytes + reclaimed_image_bytes
+        remaining_files = remaining_audio + remaining_images
         reclaimed_mb = round(reclaimed_bytes / (1024 * 1024), 2)
 
         # Log administrative audit event
@@ -200,11 +245,17 @@ class StorageService:
 
         return CleanOrphansData(
             deleted_count=deleted_count,
+            deleted_audio_count=deleted_audio_count,
+            deleted_images_count=deleted_images_count,
             reclaimed_bytes=reclaimed_bytes,
             reclaimed_mb=reclaimed_mb,
             remaining_files=remaining_files,
             message=(
-                f"Successfully cleaned {deleted_count} orphaned audio files, "
+                f"Successfully cleaned {deleted_count} orphaned media files "
+                f"({deleted_audio_count} audio, {deleted_images_count} images), "
                 f"freeing {reclaimed_mb} MB."
             ),
         )
+
+    # Alias for semantic clarity across media pruning
+    prune_all_orphaned_media = prune_orphaned_audio_files

@@ -53,8 +53,8 @@ export default function CleanOrphansModal({ isOpen, onClose, onSuccess }) {
         </div>
 
         <p className="mt-3 text-sm leading-relaxed text-slate-600">
-          Thao tác này quét bộ nhớ vật lý trong <code className="rounded bg-slate-100 px-1 py-0.5 text-xs text-slate-800">/static/audio</code>,
-          phát hiện toàn bộ file MP3 đã lưu cache không còn liên kết với bất kỳ bản dịch hiện vật nào, và xóa vĩnh viễn chúng.
+          Thao tác này quét bộ nhớ vật lý trong <code className="rounded bg-slate-100 px-1 py-0.5 text-xs text-slate-800">/static/audio</code> và <code className="rounded bg-slate-100 px-1 py-0.5 text-xs text-slate-800">/static/images</code>,
+          phát hiện toàn bộ file MP3 và hình ảnh không còn liên kết với bất kỳ điểm tham quan hoặc bản dịch nào, và xóa vĩnh viễn chúng.
         </p>
 
         {error && (
