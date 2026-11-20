@@ -82,9 +82,9 @@ describe('useGeolocation', () => {
     });
 
     const { result } = renderHook(() => useGeolocation());
-    act(() => onPosition({ coords: { latitude: 10.8231, longitude: 106.6297, accuracy: 25 } }));
+    act(() => onPosition({ coords: { latitude: 95.0, longitude: 106.6297, accuracy: 25 } }));
 
-    expect(result.current.location).toEqual({ lat: 10.8231, lng: 106.6297 });
+    expect(result.current.location).toEqual({ lat: 95.0, lng: 106.6297 });
     expect(result.current.accuracy).toBe(25);
     expect(result.current.hasLiveLocation).toBe(true);
     expect(result.current.errorMessage).toBe('');

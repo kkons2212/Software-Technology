@@ -1,9 +1,16 @@
 """Pydantic schemas for Visitor Session recovery and management (US 06.3)."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Annotated
 
-from pydantic import BaseModel, ConfigDict, Field, StringConstraints, field_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    StringConstraints,
+    field_serializer,
+    field_validator,
+)
 
 SESSION_CODE_MIN_LENGTH = 3
 SESSION_CODE_MAX_LENGTH = 36
@@ -57,6 +64,15 @@ class SessionRestoreData(BaseModel):
         default="vi", description="Language preference saved with the session."
     )
 
+    # TIMEZONE-INVARIANT: Guarantee UTC ISO-8601 formatting with trailing 'Z' (US 06.1)
+    @field_serializer("expires_at", when_used="json", check_fields=False)
+    def serialize_utc_datetime(self, dt: datetime | None) -> str | None:
+        if dt is None:
+            return None
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt.isoformat().replace("+00:00", "Z")
+
 
 class SessionRestoreResponse(BaseModel):
     """Response returned upon successful session recovery."""
@@ -78,6 +94,16 @@ class SessionRestoreResponse(BaseModel):
     preferred_language: str = Field(
         default="vi", description="Language preference saved with the session."
     )
+
+    # TIMEZONE-INVARIANT: Guarantee UTC ISO-8601 formatting with trailing 'Z' (US 06.1)
+    @field_serializer("expires_at", when_used="json", check_fields=False)
+    def serialize_utc_datetime(self, dt: datetime | None) -> str | None:
+        if dt is None:
+            return None
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt.isoformat().replace("+00:00", "Z")
+
     success: bool = Field(default=True, description="Indicates operation success.")
     data: SessionRestoreData | None = Field(
         default=None, description="Enveloped data payload."

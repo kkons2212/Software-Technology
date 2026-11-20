@@ -63,4 +63,50 @@ describe('VisitorHeader', () => {
     fireEvent.click(restoreBtn);
     expect(onRestoreSession).toHaveBeenCalledTimes(1);
   });
+
+  it('compacts long 36-char session codes cleanly in visible badge while preserving full title and label', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-10-24T10:00:00.000Z'));
+    const fullCode = 'CCT-ECF55A56BC52A31BC00ECDABA41752C9';
+    render(
+      <VisitorHeader
+        languages={[{ code: 'vi', name: 'Tiếng Việt' }]}
+        selectedLanguage="vi"
+        sessionCode={fullCode}
+        expiresAt="2026-10-25T10:00:00.000Z"
+      />
+    );
+
+    // Visible badge is compacted to CCT-…752C9
+    expect(screen.getByText('CCT-…752C9')).toBeInTheDocument();
+    // Full code preserved in aria-label and title
+    expect(screen.getByLabelText(new RegExp(`session ${fullCode}, 24h 00m remaining`, 'i'))).toBeInTheDocument();
+    const badge = screen.getByRole('button', { name: new RegExp(`session ${fullCode}`, 'i') });
+    expect(badge).toHaveAttribute('title', expect.stringContaining(fullCode));
+  });
+
+  it('copies full session code to clipboard on click', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-10-24T10:00:00.000Z'));
+    const fullCode = 'CCT-ECF55A56BC52A31BC00ECDABA41752C9';
+    const writeTextMock = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, {
+      clipboard: { writeText: writeTextMock },
+    });
+
+    render(
+      <VisitorHeader
+        languages={[{ code: 'vi', name: 'Tiếng Việt' }]}
+        selectedLanguage="vi"
+        sessionCode={fullCode}
+        expiresAt="2026-10-25T10:00:00.000Z"
+      />
+    );
+
+    const badge = screen.getByRole('button', { name: new RegExp(`session ${fullCode}`, 'i') });
+    await act(async () => {
+      fireEvent.click(badge);
+    });
+    expect(writeTextMock).toHaveBeenCalledWith(fullCode);
+  });
 });

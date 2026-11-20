@@ -6,6 +6,8 @@ import {
   useMemo,
   useState,
 } from 'react';
+import { ensureUtcIso } from '../utils/dateUtils.js';
+import { clearAllCooldowns } from '../services/cooldownService.js';
 
 export const VISITOR_STORAGE_KEYS = {
   SESSION_CODE: 'museum_visitor_session_code',
@@ -104,7 +106,8 @@ export function VisitorSessionProvider({ children }) {
       VISITOR_STORAGE_KEYS.LEGACY_EXPIRES
     );
     if (!raw) return null;
-    const parsed = new Date(raw);
+    const normalized = ensureUtcIso(raw);
+    const parsed = new Date(normalized);
     return isNaN(parsed.getTime()) ? null : parsed.toISOString();
   });
 
@@ -140,6 +143,7 @@ export function VisitorSessionProvider({ children }) {
       window.localStorage.removeItem(VISITOR_STORAGE_KEYS.LEGACY_CODE);
       window.localStorage.removeItem(VISITOR_STORAGE_KEYS.LEGACY_TOKEN);
       window.localStorage.removeItem(VISITOR_STORAGE_KEYS.LEGACY_EXPIRES);
+      clearAllCooldowns();
     }
   }, [sessionCode]);
 
@@ -147,8 +151,9 @@ export function VisitorSessionProvider({ children }) {
     ({ sessionCode: code, sessionToken: token, expiresAt: rawExpiry }) => {
       const codeVal = code || '';
       const tokenVal = token || '';
-      const expiryDate = rawExpiry
-        ? new Date(rawExpiry)
+      const normalizedExpiry = ensureUtcIso(rawExpiry);
+      const expiryDate = normalizedExpiry
+        ? new Date(normalizedExpiry)
         : new Date(Date.now() + 24 * 60 * 60 * 1000);
       const expiryIso = isNaN(expiryDate.getTime())
         ? new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
