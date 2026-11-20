@@ -58,13 +58,16 @@ def storage_service(
 
 def test_should_classify_storage_as_normal_when_under_85_percent(
     storage_service: StorageService,
-    temp_audio_dir: Path,
     monkeypatch: pytest.MonkeyPatch,
 ):
-    # 70% disk usage: 700GB used out of 1000GB
+    # 70% media quota usage: 70% of STORAGE_QUOTA_BYTES (Supabase 1GB)
+    total_quota = storage_service.settings.STORAGE_QUOTA_BYTES
+    used = int(total_quota * 0.70)
     monkeypatch.setattr(
-        "shutil.disk_usage",
-        lambda _: (1000 * 1024**3, 700 * 1024**3, 300 * 1024**3),
+        storage_service, "_measure_audio_cache", lambda: (int(used * 0.6), 15)
+    )
+    monkeypatch.setattr(
+        storage_service, "_measure_images", lambda: (int(used * 0.4), 10)
     )
 
     result = storage_service.get_system_health()
@@ -72,6 +75,10 @@ def test_should_classify_storage_as_normal_when_under_85_percent(
     assert result.disk_used_percent == 70.0
     assert result.threshold_status == "NORMAL"
     assert result.storage.threshold_status == "NORMAL"
+    assert result.audio_cache_bytes == int(used * 0.6)
+    assert result.audio_cache_files == 15
+    assert result.image_bytes == int(used * 0.4)
+    assert result.image_files == 10
     assert result.status == "ok"
     assert result.db_status == "connected"
     assert result.db_latency_ms == 1.45
@@ -80,14 +87,13 @@ def test_should_classify_storage_as_normal_when_under_85_percent(
 
 def test_should_classify_storage_as_warning_when_between_85_and_95_percent(
     storage_service: StorageService,
-    temp_audio_dir: Path,
     monkeypatch: pytest.MonkeyPatch,
 ):
-    # 88% disk usage
-    monkeypatch.setattr(
-        "shutil.disk_usage",
-        lambda _: (1000 * 1024**3, 880 * 1024**3, 120 * 1024**3),
-    )
+    # 88% quota usage
+    total_quota = storage_service.settings.STORAGE_QUOTA_BYTES
+    used = int(total_quota * 0.88)
+    monkeypatch.setattr(storage_service, "_measure_audio_cache", lambda: (used, 20))
+    monkeypatch.setattr(storage_service, "_measure_images", lambda: (0, 0))
 
     result = storage_service.get_system_health()
 
@@ -98,14 +104,13 @@ def test_should_classify_storage_as_warning_when_between_85_and_95_percent(
 
 def test_should_classify_storage_as_critical_when_at_or_above_95_percent(
     storage_service: StorageService,
-    temp_audio_dir: Path,
     monkeypatch: pytest.MonkeyPatch,
 ):
-    # 96.5% disk usage
-    monkeypatch.setattr(
-        "shutil.disk_usage",
-        lambda _: (1000 * 1024**3, 965 * 1024**3, 35 * 1024**3),
-    )
+    # 96.5% quota usage
+    total_quota = storage_service.settings.STORAGE_QUOTA_BYTES
+    used = int(total_quota * 0.965)
+    monkeypatch.setattr(storage_service, "_measure_audio_cache", lambda: (used, 25))
+    monkeypatch.setattr(storage_service, "_measure_images", lambda: (0, 0))
 
     result = storage_service.get_system_health()
 
@@ -114,16 +119,10 @@ def test_should_classify_storage_as_critical_when_at_or_above_95_percent(
     assert result.storage.threshold_status == "CRITICAL"
 
 
-def test_should_calculate_audio_cache_bytes_and_file_count(
+def test_should_calculate_audio_and_image_bytes_and_file_count(
     storage_service: StorageService,
     temp_audio_dir: Path,
-    monkeypatch: pytest.MonkeyPatch,
 ):
-    monkeypatch.setattr(
-        "shutil.disk_usage",
-        lambda _: (1000 * 1024**3, 500 * 1024**3, 500 * 1024**3),
-    )
-
     # Populate cache directory with audio files and non-audio files
     f1 = temp_audio_dir / "sample1.mp3"
     f1.write_bytes(b"A" * 1024)  # 1 KB
@@ -134,21 +133,32 @@ def test_should_calculate_audio_cache_bytes_and_file_count(
     txt = temp_audio_dir / "ignore.txt"
     txt.write_bytes(b"ignored")
 
+    # Populate images directory
+    img_dir = temp_audio_dir.parent / "images"
+    img_dir.mkdir(parents=True, exist_ok=True)
+    img1 = img_dir / "cover1.jpg"
+    img1.write_bytes(b"I" * 4096)  # 4 KB
+
+    img2 = img_dir / "photo.png"
+    img2.write_bytes(b"P" * 1024)  # 1 KB
+
+    img_ignore = img_dir / "notes.doc"
+    img_ignore.write_bytes(b"doc")
+
     result = storage_service.get_system_health()
 
     assert result.audio_cache_files == 2
     assert result.audio_cache_bytes == 3072
+    assert result.image_files == 2
+    assert result.image_bytes == 5120
+    assert result.used_bytes == 3072 + 5120
+    assert result.total_bytes == storage_service.settings.STORAGE_QUOTA_BYTES
 
 
 def test_should_handle_db_ping_failure_gracefully(
     storage_service: StorageService,
     mock_audio_repository: MagicMock,
-    monkeypatch: pytest.MonkeyPatch,
 ):
-    monkeypatch.setattr(
-        "shutil.disk_usage",
-        lambda _: (1000 * 1024**3, 500 * 1024**3, 500 * 1024**3),
-    )
     mock_audio_repository.ping_database.side_effect = RuntimeError("Connection timeout")
 
     result = storage_service.get_system_health()

@@ -4,7 +4,7 @@ from pydantic import BaseModel, ConfigDict
 
 
 class StorageHealthData(BaseModel):
-    """Disk capacity metrics for the audio storage cache partition."""
+    """Disk capacity metrics for media storage and cache (audio and images)."""
 
     model_config = ConfigDict(extra="ignore")
 
@@ -15,6 +15,8 @@ class StorageHealthData(BaseModel):
     free_bytes: int
     audio_cache_bytes: int
     audio_cache_files: int
+    image_bytes: int = 0
+    image_files: int = 0
 
 
 class SystemHealthData(BaseModel):
@@ -30,6 +32,8 @@ class SystemHealthData(BaseModel):
     free_bytes: int
     audio_cache_bytes: int
     audio_cache_files: int
+    image_bytes: int = 0
+    image_files: int = 0
     db_status: str
     db_latency_ms: float
     external_services_ok: bool

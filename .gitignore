@@ -47,6 +47,7 @@ Software-Technology.wiki/
 *.wiki/
 
 # E2E Playwright local testing & artifacts
+playwright_rate_limit_tests/
 MVP/e2e_playwright/
 **/test-results/
 **/playwright-report/

@@ -7,7 +7,6 @@ unreferenced MP3 files from physical cache while logging audit events.
 
 import logging
 import os
-import shutil
 from pathlib import Path
 
 from app.core.config import Settings, get_settings
@@ -55,13 +54,18 @@ class StorageService:
         )
 
     def get_system_health(self) -> SystemHealthData:
-        """Inspect server disk capacity, audio cache usage, and database status."""
+        """Inspect media storage capacity against 1GB quota, audio cache usage, images, and database status."""
         self.audio_dir.mkdir(parents=True, exist_ok=True)
+        self.image_dir.mkdir(parents=True, exist_ok=True)
 
-        total_bytes, used_bytes, free_bytes = self._sample_disk_usage()
+        audio_cache_bytes, audio_cache_files = self._measure_audio_cache()
+        image_bytes, image_files = self._measure_images()
+
+        total_bytes, used_bytes, free_bytes = self._sample_disk_usage(
+            audio_bytes=audio_cache_bytes, image_bytes=image_bytes
+        )
         disk_used_percent = self._calculate_disk_used_percent(total_bytes, used_bytes)
         threshold_status = self._resolve_threshold_status(disk_used_percent)
-        audio_cache_bytes, audio_cache_files = self._measure_audio_cache()
         db_status, db_latency_ms = self._sample_database_health()
 
         storage_data = StorageHealthData(
@@ -72,6 +76,8 @@ class StorageService:
             free_bytes=free_bytes,
             audio_cache_bytes=audio_cache_bytes,
             audio_cache_files=audio_cache_files,
+            image_bytes=image_bytes,
+            image_files=image_files,
         )
 
         resolved_health = SystemHealthData(
@@ -83,6 +89,8 @@ class StorageService:
             free_bytes=free_bytes,
             audio_cache_bytes=audio_cache_bytes,
             audio_cache_files=audio_cache_files,
+            image_bytes=image_bytes,
+            image_files=image_files,
             db_status=db_status,
             db_latency_ms=db_latency_ms,
             external_services_ok=True,
@@ -90,12 +98,12 @@ class StorageService:
         )
         return resolved_health
 
-    def _sample_disk_usage(self) -> tuple[int, int, int]:
-        try:
-            total_bytes, used_bytes, free_bytes = shutil.disk_usage(self.audio_dir)
-        except OSError as exc:
-            logger.warning("Could not read disk usage for %s: %s", self.audio_dir, exc)
-            total_bytes, used_bytes, free_bytes = 1, 0, 1
+    def _sample_disk_usage(
+        self, audio_bytes: int = 0, image_bytes: int = 0
+    ) -> tuple[int, int, int]:
+        total_bytes = getattr(self.settings, "STORAGE_QUOTA_BYTES", 1024 * 1024 * 1024)
+        used_bytes = audio_bytes + image_bytes
+        free_bytes = max(0, total_bytes - used_bytes)
         return total_bytes, used_bytes, free_bytes
 
     @staticmethod
@@ -133,6 +141,29 @@ class StorageService:
                         exc,
                     )
         return audio_cache_bytes, audio_cache_files
+
+    def _measure_images(self) -> tuple[int, int]:
+        if not self.image_dir.exists():
+            return 0, 0
+
+        image_bytes = 0
+        image_files = 0
+        allowed_extensions = {".jpg", ".jpeg", ".png", ".webp"}
+        for entry in os.scandir(self.image_dir):
+            if (
+                entry.is_file()
+                and Path(entry.name).suffix.lower() in allowed_extensions
+            ):
+                image_files += 1
+                try:
+                    image_bytes += entry.stat().st_size
+                except OSError as exc:
+                    logger.warning(
+                        "Could not read image file size for %s: %s",
+                        entry.path,
+                        exc,
+                    )
+        return image_bytes, image_files
 
     def _sample_database_health(self) -> tuple[str, float]:
         try:

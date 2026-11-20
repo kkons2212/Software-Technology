@@ -27,11 +27,15 @@ describe('StorageHealthBanner', () => {
         freeBytes={34.6 * 1024**3}
         audioCacheBytes={500 * 1024**2}
         audioCacheFiles={42}
+        imageBytes={250 * 1024**2}
+        imageFiles={18}
       />
     );
 
     expect(screen.getByTestId('storage-progress-meter')).toBeInTheDocument();
     expect(screen.getByText('65.4%')).toBeInTheDocument();
+    expect(screen.getByText('250.0 MB')).toBeInTheDocument();
+    expect(screen.getByText('18 file')).toBeInTheDocument();
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 

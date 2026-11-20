@@ -262,6 +262,8 @@ export const ADMIN_TRANSLATIONS = {
   labelFreeSpace: 'Còn trống',
   labelAudioCacheSize: 'Dung lượng Cache Audio',
   labelAudioCacheFiles: 'Số file Cache Audio',
+  labelImageSize: 'Dung lượng Hình ảnh',
+  labelImageFiles: 'Số file Hình ảnh',
   filesUnit: 'file',
   labelThresholdAlert: 'Mức cảnh báo ngưỡng',
   thresholdCritical: 'Nguy cấp (≥95%)',

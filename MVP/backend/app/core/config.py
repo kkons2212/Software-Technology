@@ -46,9 +46,7 @@ class Settings(BaseSettings):
     API_V1_STR: str = "/api/v1"
     ENVIRONMENT: str = "production"
 
-    DATABASE_URL: str = (
-        "mysql+pymysql://museum_app_user:app_password_456@localhost:3306/smart_museum?charset=utf8mb4"
-    )
+    DATABASE_URL: str = "mysql+pymysql://museum_app_user:app_password_456@localhost:3306/smart_museum?charset=utf8mb4"
     JWT_SECRET_KEY: str = Field(
         ...,
         min_length=64,
@@ -87,6 +85,9 @@ class Settings(BaseSettings):
     IMAGE_UPLOAD_DIR: str = DEFAULT_IMAGE_UPLOAD_DIR
     MAX_IMAGE_SIZE_BYTES: int = 5 * 1024 * 1024  # 5 MB
     ALLOWED_IMAGE_TYPES: list[str] = ["image/jpeg", "image/png", "image/webp"]
+    STORAGE_QUOTA_BYTES: int = (
+        1 * 1024 * 1024 * 1024
+    )  # 1 GB (Supabase free plan storage limit)
 
     # Cloud Object Storage (Supabase Storage)
     SUPABASE_URL: str = ""
