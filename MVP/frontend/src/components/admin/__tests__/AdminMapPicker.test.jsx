@@ -42,6 +42,7 @@ const leafletMocks = vi.hoisted(() => {
     marker: vi.fn(() => markerInstance),
     circle: vi.fn(() => circleInstance),
     latLngBounds: vi.fn(() => ({ bounds: true })),
+    icon: vi.fn(() => ({ iconMock: true })),
     Icon: {
       Default: iconDefaultMock,
     },
@@ -55,6 +56,7 @@ vi.mock('leaflet', () => ({
     marker: leafletMocks.marker,
     circle: leafletMocks.circle,
     latLngBounds: leafletMocks.latLngBounds,
+    icon: leafletMocks.icon,
     Icon: leafletMocks.Icon,
   },
 }));
