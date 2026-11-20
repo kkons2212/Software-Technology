@@ -145,6 +145,24 @@ def test_should_update_poi_record_in_repository(db_session):
     assert updated.Radius == 35
 
 
+def test_should_clear_image_url_when_empty_string_provided(db_session):
+    repo = POIRepository(db_session)
+    poi = repo.create(
+        POI(
+            PoiID="POI_REPO_CLEAR_IMG",
+            Title="Bếp Hoàng Cầm",
+            Image_Url="/static/images/stove.jpg",
+            Latitude=11.1440,
+            Longitude=106.4640,
+            Radius=20,
+        )
+    )
+    assert poi.Image_Url == "/static/images/stove.jpg"
+
+    updated = repo.update(poi, image_url="")
+    assert updated.Image_Url is None
+
+
 def test_should_sync_vi_and_invalidate_foreign_translations_in_repo(db_session):
     repo = POIRepository(db_session)
     poi = repo.create(

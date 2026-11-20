@@ -80,6 +80,7 @@ export const ADMIN_TRANSLATIONS = {
   interactiveGeofenceTitle: 'Hiệu chỉnh Geofence tương tác (Kéo ghim & Bán kính: 10m–50m)',
   fieldCoverPhoto: 'Ảnh bìa (JPG, PNG, WebP < 5MB)',
   currentCoverPhoto: 'Ảnh bìa hiện tại',
+  btnRemovePhoto: 'Không dùng ảnh này',
   closeModal: 'Đóng cửa sổ',
   btnCancel: 'Hủy',
   btnSaveAndDigitize: 'Lưu & Số hóa',

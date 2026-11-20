@@ -5,7 +5,7 @@
 // geofence coordinates, radius, and cover image.
 // =============================================================================
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import AdminMapPicker from './AdminMapPicker.jsx';
 import { updatePoi, uploadPoiImage } from '../../api/poiApi.js';
 import { isWithinMuseumBounds } from '../../utils/museumBounds.js';
@@ -53,6 +53,8 @@ export default function POIFormModal({
   );
   const [imagePreview, setImagePreview] = useState(poi?.image_url || '');
   const [selectedFile, setSelectedFile] = useState(null);
+  const [isPhotoRemoved, setIsPhotoRemoved] = useState(false);
+  const fileInputRef = useRef(null);
   const [formError, setFormError] = useState('');
   const [successToast, setSuccessToast] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -81,6 +83,10 @@ export default function POIFormModal({
       );
       setImagePreview(poi.image_url || '');
       setSelectedFile(null);
+      setIsPhotoRemoved(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
       setFormError('');
       setSuccessToast('');
     }
@@ -104,7 +110,17 @@ export default function POIFormModal({
       }
       setSelectedFile(file);
       setImagePreview(URL.createObjectURL(file));
+      setIsPhotoRemoved(false);
       setFormError('');
+    }
+  };
+
+  const handleRemovePhoto = () => {
+    setSelectedFile(null);
+    setImagePreview('');
+    setIsPhotoRemoved(true);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
     }
   };
 
@@ -145,11 +161,18 @@ export default function POIFormModal({
         finalImageUrl = await uploadPoiImage(selectedFile);
       }
 
+      let targetImageUrl = undefined;
+      if (isPhotoRemoved) {
+        targetImageUrl = '';
+      } else if (finalImageUrl) {
+        targetImageUrl = finalImageUrl;
+      }
+
       const payload = {
         title: trimmedTitle,
         short_description: shortDescription.trim() || undefined,
         description: description.trim() || undefined,
-        image_url: finalImageUrl || undefined,
+        image_url: targetImageUrl,
         latitude,
         longitude,
         radius,
@@ -307,6 +330,7 @@ export default function POIFormModal({
             </label>
             <input
               id="edit-poi-image"
+              ref={fileInputRef}
               type="file"
               accept="image/jpeg,image/png,image/webp"
               onChange={handleImageFileChange}
@@ -320,7 +344,19 @@ export default function POIFormModal({
                   data-testid="cover-image-preview"
                   className="h-20 w-32 rounded object-cover border border-slate-200"
                 />
-                <span className="text-[11px] text-slate-500">{ADMIN_TRANSLATIONS.currentCoverPhoto}</span>
+                <div className="flex flex-col gap-1.5">
+                  <span className="text-[11px] text-slate-500">
+                    {ADMIN_TRANSLATIONS.currentCoverPhoto}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleRemovePhoto}
+                    data-testid="btn-remove-cover-photo"
+                    className="w-fit rounded border border-red-200 bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700 hover:bg-red-100 flex items-center gap-1"
+                  >
+                    <span>✕</span> {ADMIN_TRANSLATIONS.btnRemovePhoto}
+                  </button>
+                </div>
               </div>
             )}
           </div>
