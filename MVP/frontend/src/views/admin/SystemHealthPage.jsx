@@ -106,6 +106,8 @@ export default function SystemHealthPage() {
               freeBytes={healthData.free_bytes}
               audioCacheBytes={healthData.audio_cache_bytes}
               audioCacheFiles={healthData.audio_cache_files}
+              imageBytes={healthData.image_bytes}
+              imageFiles={healthData.image_files}
             />
 
             {/* Service & Database Health Cards */}

@@ -21,6 +21,8 @@ export default function StorageHealthBanner({
   freeBytes,
   audioCacheBytes,
   audioCacheFiles,
+  imageBytes,
+  imageFiles,
   onCleanClick,
   stickyOnly = false,
   showMeter = true,
@@ -133,7 +135,7 @@ export default function StorageHealthBanner({
           </div>
 
           {/* Stats summary breakdown */}
-          <div className="mt-6 grid grid-cols-2 gap-4 border-t border-slate-100 pt-4 sm:grid-cols-4">
+          <div className="mt-6 grid grid-cols-2 gap-4 border-t border-slate-100 pt-4 sm:grid-cols-3 lg:grid-cols-6">
             <div>
               <p className="text-xs text-slate-600">{ADMIN_TRANSLATIONS.labelFreeSpace}</p>
               <p className="mt-0.5 text-sm font-semibold text-slate-800">{formatBytes(freeBytes)}</p>
@@ -146,6 +148,16 @@ export default function StorageHealthBanner({
               <p className="text-xs text-slate-600">{ADMIN_TRANSLATIONS.labelAudioCacheFiles}</p>
               <p className="mt-0.5 text-sm font-semibold text-slate-800">
                 {audioCacheFiles !== undefined && audioCacheFiles !== null ? `${audioCacheFiles} ${ADMIN_TRANSLATIONS.filesUnit}` : '—'}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-slate-600">{ADMIN_TRANSLATIONS.labelImageSize}</p>
+              <p className="mt-0.5 text-sm font-semibold text-slate-800">{formatBytes(imageBytes)}</p>
+            </div>
+            <div>
+              <p className="text-xs text-slate-600">{ADMIN_TRANSLATIONS.labelImageFiles}</p>
+              <p className="mt-0.5 text-sm font-semibold text-slate-800">
+                {imageFiles !== undefined && imageFiles !== null ? `${imageFiles} ${ADMIN_TRANSLATIONS.filesUnit}` : '—'}
               </p>
             </div>
             <div>
@@ -169,6 +181,8 @@ StorageHealthBanner.propTypes = {
   freeBytes: PropTypes.number,
   audioCacheBytes: PropTypes.number,
   audioCacheFiles: PropTypes.number,
+  imageBytes: PropTypes.number,
+  imageFiles: PropTypes.number,
   onCleanClick: PropTypes.func,
   stickyOnly: PropTypes.bool,
   showMeter: PropTypes.bool,
