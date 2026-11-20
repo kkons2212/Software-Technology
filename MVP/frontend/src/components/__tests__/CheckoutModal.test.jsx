@@ -204,4 +204,17 @@ describe('CheckoutModal', () => {
     expect(screen.getByText(/有効化済み/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '音声ガイドを聞き始める' })).toBeInTheDocument();
   });
+
+  it('renders simulation button when VITE_ENABLE_SIMULATE_PAYMENT is enabled in production mode', async () => {
+    vi.stubEnv('DEV', false);
+    vi.stubEnv('VITE_ENABLE_SIMULATE_PAYMENT', 'true');
+
+    render(<CheckoutModal isOpen={true} />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('simulate-payment-btn')).toBeInTheDocument();
+    });
+
+    vi.unstubAllEnvs();
+  });
 });

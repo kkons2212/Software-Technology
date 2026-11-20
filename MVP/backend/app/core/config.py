@@ -108,6 +108,7 @@ class Settings(BaseSettings):
     SERVICE_FEE_CURRENCY: str = "VND"
     CLOUDFLARE_TUNNEL_URL: str = ""
     TRANSLATION_PACING_DELAY: float = 1.5
+    ENABLE_PAYMENT_SIMULATION: bool = False
 
     # AI & Cloud Translation Settings (US 04.4)
     GEMINI_API_KEYS: str = ""
@@ -125,6 +126,13 @@ class Settings(BaseSettings):
     def is_development(self) -> bool:
         """Return whether development-only features may be enabled."""
         return self.ENVIRONMENT.strip().lower() == "development"
+
+    @property
+    def is_payment_simulation_allowed(self) -> bool:
+        """Allow payment simulation if in development mode OR explicitly enabled via env."""
+        # SECURITY-INVARIANT: Simulation must remain disabled in production unless explicitly toggled (US 06.1)
+        is_allowed = bool(self.is_development or self.ENABLE_PAYMENT_SIMULATION)
+        return is_allowed
 
     # Geographic Perimeter Bounds
     ALLOW_GLOBAL_COORDINATES: bool = False

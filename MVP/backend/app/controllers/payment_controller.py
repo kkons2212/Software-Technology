@@ -71,7 +71,8 @@ def simulate_payment_success(
     payment_service: PaymentService = Depends(get_payment_service),
 ) -> OrderSessionResponse:
     """Simulate payment success for developer testing and interactive demo."""
-    if not settings.is_development:
+    # SECURITY-INVARIANT: Simulation must remain disabled in production unless explicitly toggled (US 06.1)
+    if not settings.is_payment_simulation_allowed:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Payment simulation is available only in development.",
@@ -107,7 +108,8 @@ def paypal_sandbox_checkout_page(
     ),
 ) -> HTMLResponse:
     """Interactive PayPal Sandbox Mock Checkout Page for testing without live keys."""
-    if not settings.is_development:
+    # SECURITY-INVARIANT: Simulation must remain disabled in production unless explicitly toggled (US 06.1)
+    if not settings.is_payment_simulation_allowed:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Payment simulation is available only in development.",
@@ -176,7 +178,8 @@ def confirm_paypal_mock_payment(
     payment_service: PaymentService = Depends(get_payment_service),
 ) -> RedirectResponse:
     """Process mock confirmation and redirect back to visitor tour."""
-    if not settings.is_development:
+    # SECURITY-INVARIANT: Simulation must remain disabled in production unless explicitly toggled (US 06.1)
+    if not settings.is_payment_simulation_allowed:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Payment simulation is available only in development.",

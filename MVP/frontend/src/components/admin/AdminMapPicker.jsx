@@ -11,8 +11,21 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import L from 'leaflet';
+import iconRetina from 'leaflet/dist/images/marker-icon-2x.png';
+import iconMarker from 'leaflet/dist/images/marker-icon.png';
+import iconShadow from 'leaflet/dist/images/marker-shadow.png';
 import { isWithinMuseumBounds } from '../../utils/museumBounds.js';
 import { ADMIN_TRANSLATIONS } from '../../locales/adminTranslations.js';
+
+// FALLBACK-LOGIC: Leaflet coordinate marker icons bundled with Vite require explicit imagePath merging to prevent 404 broken icons in production (US 03.2)
+if (L.Icon?.Default) {
+  delete L.Icon.Default.prototype._getIconUrl;
+  L.Icon.Default.mergeOptions({
+    iconRetinaUrl: iconRetina,
+    iconUrl: iconMarker,
+    shadowUrl: iconShadow,
+  });
+}
 
 // Design tokens from ui_rules Section 3.2: accent blue for a valid geofence and
 // warning red for the out-of-bounds error state.

@@ -26,7 +26,10 @@ import {
 import { usePaymentPolling } from '../../hooks/usePaymentPolling.js';
 import { getVisitorText } from '../../locales/visitorTranslations.js';
 
-
+// Module-level simulation helper declared immediately below imports (dev_rules 1.4.5)
+const isSimulationEnabled = () => Boolean(
+  import.meta.env.DEV || import.meta.env.VITE_ENABLE_SIMULATE_PAYMENT === 'true'
+);
 
 const DEFAULT_FEE_VND = 50000;
 
@@ -37,6 +40,9 @@ export default function CheckoutModal({
   preferredLanguage = 'vi',
   onOpenRestore,
 }) {
+  // Top-of-Scope Rule (dev_rules 1.4.5): preliminary computed flags at top of component
+  const isSimulationAllowed = isSimulationEnabled();
+
   const [paymentMethod, setPaymentMethod] = useState('VIETQR');
   const [order, setOrder] = useState(null);
   const [isLoadingOrder, setIsLoadingOrder] = useState(false);
@@ -142,6 +148,34 @@ export default function CheckoutModal({
   }
 
   const formattedAmount = (order?.amount ?? DEFAULT_FEE_VND).toLocaleString('vi-VN');
+
+  // Compute card action element cleanly (refactor_rule 6.2: 0 nested ternaries in JSX)
+  let cardActionElement = (
+    <p className="mt-5 text-xs text-red-600">
+      PayPal checkout is currently unavailable.
+    </p>
+  );
+
+  if (order?.checkout_url) {
+    cardActionElement = (
+      <a
+        href={order.checkout_url}
+        className="mt-5 inline-flex w-full items-center justify-center rounded-xl bg-[#0070ba] py-3 px-4 text-xs font-semibold text-white shadow-md hover:bg-[#005ea6] transition"
+      >
+        {getVisitorText('continueWithPayPal', preferredLanguage, { amount: formattedAmount })}
+      </a>
+    );
+  } else if (isSimulationAllowed) {
+    cardActionElement = (
+      <button
+        type="button"
+        onClick={handleSimulate}
+        className="mt-5 w-full rounded-xl bg-[#0070ba] py-3 px-4 text-xs font-semibold text-white shadow-md hover:bg-[#005ea6] transition"
+      >
+        {getVisitorText('simulatePayPalPayment', preferredLanguage, { amount: formattedAmount })}
+      </button>
+    );
+  }
 
   const modalContent = (
     <div
@@ -393,26 +427,7 @@ export default function CheckoutModal({
                   {getVisitorText('cardGatewayDesc', preferredLanguage)}
                 </p>
 
-                {order?.checkout_url ? (
-                  <a
-                    href={order.checkout_url}
-                    className="mt-5 inline-flex w-full items-center justify-center rounded-xl bg-[#0070ba] py-3 px-4 text-xs font-semibold text-white shadow-md hover:bg-[#005ea6] transition"
-                  >
-                    {getVisitorText('continueWithPayPal', preferredLanguage, { amount: formattedAmount })}
-                  </a>
-                ) : import.meta.env.DEV ? (
-                  <button
-                    type="button"
-                    onClick={handleSimulate}
-                    className="mt-5 w-full rounded-xl bg-[#0070ba] py-3 px-4 text-xs font-semibold text-white shadow-md hover:bg-[#005ea6] transition"
-                  >
-                    {getVisitorText('simulatePayPalPayment', preferredLanguage, { amount: formattedAmount })}
-                  </button>
-                ) : (
-                  <p className="mt-5 text-xs text-red-600">
-                    PayPal checkout is currently unavailable.
-                  </p>
-                )}
+                {cardActionElement}
               </div>
             )}
 
@@ -431,7 +446,7 @@ export default function CheckoutModal({
             </div>
 
             {/* Sandbox Simulation Bar (Dev & Test Convenience) */}
-            {import.meta.env.DEV && order && (
+            {isSimulationAllowed && order && (
               <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between">
                 <span className="text-[10px] text-slate-400">Sandbox Test Mode:</span>
                 <button
