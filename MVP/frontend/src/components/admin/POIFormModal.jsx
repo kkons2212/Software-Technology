@@ -161,11 +161,18 @@ export default function POIFormModal({
         finalImageUrl = await uploadPoiImage(selectedFile);
       }
 
+      let targetImageUrl = undefined;
+      if (isPhotoRemoved) {
+        targetImageUrl = '';
+      } else if (finalImageUrl) {
+        targetImageUrl = finalImageUrl;
+      }
+
       const payload = {
         title: trimmedTitle,
         short_description: shortDescription.trim() || undefined,
         description: description.trim() || undefined,
-        image_url: isPhotoRemoved ? '' : (finalImageUrl || undefined),
+        image_url: targetImageUrl,
         latitude,
         longitude,
         radius,
