@@ -381,3 +381,44 @@ def test_mock_paypal_redirect_does_not_expose_session_token(monkeypatch):
 
     assert response.status_code == 302
     assert "sensitive-session-token" not in response.headers["location"]
+
+
+def test_mock_routes_can_be_enabled_in_production_via_flag(monkeypatch):
+    from datetime import datetime, timedelta
+
+    from fastapi.testclient import TestClient
+
+    from app.schemas.payment_schema import OrderSessionResponse
+
+    order_id = "TXN_0123456789AB"
+    monkeypatch.setattr(settings, "ENVIRONMENT", "production")
+    monkeypatch.setattr(settings, "ENABLE_PAYMENT_SIMULATION", True)
+    payment_service = MagicMock()
+    now = datetime.utcnow()
+    payment_service.simulate_payment_success.return_value = OrderSessionResponse(
+        order_id=order_id,
+        status="PAID",
+        pay_amount=50000,
+        currency="VND",
+        session_code="CCT-01234567890123456789012345678901",
+        session_token="mock_session_token_xyz_12345678901234567890",
+        session_expires_at=now + timedelta(hours=24),
+        expires_at=now + timedelta(hours=24),
+    )
+    monkeypatch.setitem(
+        app.dependency_overrides,
+        get_payment_service,
+        lambda: payment_service,
+    )
+
+    with TestClient(app) as test_client:
+        simulation_res = test_client.post(
+            f"/api/v1/payments/order/{order_id}/simulate-success"
+        )
+        checkout_res = test_client.get(
+            f"/api/v1/payments/paypal-checkout?order_id={order_id}"
+        )
+
+    assert simulation_res.status_code == 200
+    assert checkout_res.status_code == 200
+    payment_service.simulate_payment_success.assert_called_once()

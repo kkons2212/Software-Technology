@@ -26,6 +26,13 @@ const leafletMocks = vi.hoisted(() => {
   circleInstance.addTo.mockReturnValue(circleInstance);
   tileLayerInstance.addTo.mockReturnValue(tileLayerInstance);
 
+  const iconDefaultMock = {
+    mergeOptions: vi.fn(),
+    prototype: {
+      _getIconUrl: vi.fn(),
+    },
+  };
+
   return {
     mapInstance,
     markerInstance,
@@ -35,6 +42,9 @@ const leafletMocks = vi.hoisted(() => {
     marker: vi.fn(() => markerInstance),
     circle: vi.fn(() => circleInstance),
     latLngBounds: vi.fn(() => ({ bounds: true })),
+    Icon: {
+      Default: iconDefaultMock,
+    },
   };
 });
 
@@ -45,6 +55,7 @@ vi.mock('leaflet', () => ({
     marker: leafletMocks.marker,
     circle: leafletMocks.circle,
     latLngBounds: leafletMocks.latLngBounds,
+    Icon: leafletMocks.Icon,
   },
 }));
 

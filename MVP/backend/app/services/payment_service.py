@@ -159,7 +159,7 @@ class PaymentService:
         if (
             payment_method != "VIETQR"
             and not paypal_client.is_configured()
-            and not settings.is_development
+            and not settings.is_payment_simulation_allowed
         ):
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -240,7 +240,7 @@ class PaymentService:
                     self.transaction_repo.update_gateway_info(txn, gateway_id)
 
             if not checkout_url:
-                if not settings.is_development:
+                if not settings.is_payment_simulation_allowed:
                     raise HTTPException(
                         status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                         detail="PayPal checkout is not configured.",
@@ -337,8 +337,8 @@ class PaymentService:
         preferred_language: str = "vi",
     ) -> OrderSessionResponse:
         """Simulate payment success for developer testing and demonstration adhering to SISE."""
-        # Phase 1: Precondition Gate
-        if not settings.is_development:
+        # SECURITY-INVARIANT: Precondition Gate (Phase 1)
+        if not settings.is_payment_simulation_allowed:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Payment simulation is available only in development.",
