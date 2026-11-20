@@ -130,6 +130,7 @@ class TransactionRepository:
             session = txn.session
             session.Status = "ACTIVE"
             session.Expire_at = expire_at
+            session.PreferredLanguage = preferred_language
 
         txn.status = "PAID"
         txn.paid_at = now

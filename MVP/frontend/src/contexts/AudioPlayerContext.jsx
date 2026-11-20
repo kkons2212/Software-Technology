@@ -6,6 +6,7 @@
  */
 
 import { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
+import { buildRequestUrl } from '../api/apiClient.js';
 
 // Top-of-file module constants per dev_rules.md
 export const STREAM_TIMEOUT_MS = 3500;
@@ -31,9 +32,33 @@ export function AudioPlayerProvider({ children }) {
   const audioRef = useRef(null);
   const streamTimeoutRef = useRef(null);
   const isStreamingStartedRef = useRef(false);
+  const isAudioPrimedRef = useRef(false);
   const currentPoiRef = useRef(null);
   const speechUtteranceRef = useRef(null);
   currentPoiRef.current = currentPoi;
+
+  // AUTOPLAY-PRIMING: Prime audio element on user gesture so subsequent GPS auto-plays succeed seamlessly
+  const primeAudio = useCallback(() => {
+    if (isAudioPrimedRef.current || !audioRef.current) return;
+    const audio = audioRef.current;
+    try {
+      audio.muted = true;
+      const primePromise = audio.play();
+      if (primePromise !== undefined) {
+        primePromise
+          .then(() => {
+            audio.pause();
+            audio.muted = false;
+            isAudioPrimedRef.current = true;
+          })
+          .catch(() => {
+            audio.muted = false;
+          });
+      }
+    } catch {
+      audio.muted = false;
+    }
+  }, []);
 
   const markPoiCompleted = useCallback((poi) => {
     if (poi?.id === undefined || poi?.id === null) {
@@ -212,7 +237,9 @@ export function AudioPlayerProvider({ children }) {
     setIsOfflineFallback(false);
     isStreamingStartedRef.current = false;
 
-    const audioUrl = poi.audio_url || poi.audioUrl;
+    // STREAMING-ENDPOINT: Always resolve full backend origin URL (US 06.4)
+    const rawAudioUrl = poi.audio_url || poi.audioUrl;
+    const audioUrl = rawAudioUrl ? buildRequestUrl(rawAudioUrl) : null;
 
     if (!audioUrl || !audioRef.current) {
       // No audio URL available -> direct fallback to Web Speech API
@@ -373,6 +400,7 @@ export function AudioPlayerProvider({ children }) {
     skip,
     setPlaybackRate,
     stop,
+    primeAudio,
     isPoiPreviewOpen,
     setIsPoiPreviewOpen,
   };

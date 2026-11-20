@@ -38,7 +38,7 @@ DEFAULT_ACCOUNT_NUMBER = "0909123456"
 DEFAULT_ACCOUNT_NAME = "CU CHI TUNNELS SMART GUIDE"
 PAYOS_API_ENDPOINT = "https://api-merchant.payos.vn/v2/payment-requests"
 QR_EXPIRATION_MINUTES = 15
-SUPPORTED_LANGUAGES = {"vi", "en", "ja", "ko", "zh"}
+SUPPORTED_LANGUAGES = {"vi", "en", "ja", "ko", "zh", "fr"}
 
 
 class PaymentService:
@@ -166,7 +166,9 @@ class PaymentService:
                 detail="PayPal checkout is not configured.",
             )
 
-        target_lang = (payload.preferred_language or "vi").strip().lower()
+        target_lang = (
+            (payload.preferred_language or "vi").strip().lower().split("-")[0].split("_")[0]
+        )
         pref_lang = target_lang if target_lang in SUPPORTED_LANGUAGES else "vi"
 
         creator_token = secrets.token_urlsafe(32)
@@ -328,6 +330,7 @@ class PaymentService:
             session_token=session.SessionToken,
             session_expires_at=session.Expire_at,
             expires_at=session.Expire_at,
+            preferred_language=session.PreferredLanguage or "vi",
         )
         return response
 
@@ -360,7 +363,7 @@ class PaymentService:
             if preferred_language and preferred_language != "vi"
             else (saved_lang or "vi")
         )
-        resolved_lang = resolved_lang.strip().lower()
+        resolved_lang = resolved_lang.strip().lower().split("-")[0].split("_")[0]
         if resolved_lang not in SUPPORTED_LANGUAGES:
             resolved_lang = "vi"
 
@@ -381,6 +384,7 @@ class PaymentService:
             session_token=session.SessionToken,
             session_expires_at=session.Expire_at,
             expires_at=session.Expire_at,
+            preferred_language=session.PreferredLanguage or "vi",
         )
         return response
 
@@ -434,6 +438,7 @@ class PaymentService:
                 session_token=session.SessionToken,
                 session_expires_at=session.Expire_at,
                 expires_at=session.Expire_at,
+                preferred_language=session.PreferredLanguage or "vi",
             )
         else:
             if txn.status != "PENDING":
@@ -472,7 +477,7 @@ class PaymentService:
                 if preferred_language and preferred_language != "vi"
                 else (saved_lang or "vi")
             )
-            resolved_lang = resolved_lang.strip().lower()
+            resolved_lang = resolved_lang.strip().lower().split("-")[0].split("_")[0]
             if resolved_lang not in SUPPORTED_LANGUAGES:
                 resolved_lang = "vi"
 
@@ -491,6 +496,7 @@ class PaymentService:
                 session_token=session.SessionToken,
                 session_expires_at=session.Expire_at,
                 expires_at=session.Expire_at,
+                preferred_language=session.PreferredLanguage or "vi",
             )
 
         # Phase 3: Unified Exit
@@ -634,7 +640,9 @@ class PaymentService:
             webhook_language = (
                 saved_lang or getattr(txn, "preferred_language", None) or "vi"
             )
-            webhook_language = webhook_language.strip().lower()
+            webhook_language = (
+                webhook_language.strip().lower().split("-")[0].split("_")[0]
+            )
             if webhook_language not in SUPPORTED_LANGUAGES:
                 webhook_language = "vi"
 

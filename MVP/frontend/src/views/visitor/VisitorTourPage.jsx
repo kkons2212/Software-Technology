@@ -21,6 +21,8 @@ import { reportPoiTrigger } from '../../api/telemetryApi.js';
 import useGeolocation from '../../hooks/useGeolocation.js';
 import { calculateHaversineDistance } from '../../utils/haversine.js';
 import { MAIN_ENTRANCE } from '../../utils/museumBounds.js';
+import { buildRequestUrl } from '../../api/apiClient.js';
+import { ensureUtcIso } from '../../utils/dateUtils.js';
 
 const PREFERRED_LANGUAGE_KEY = 'museum_preferred_lang';
 const DEFAULT_LANGUAGE = 'vi';
@@ -33,7 +35,12 @@ export default function VisitorTourPage({
 }) {
   const { location, accuracy, errorMessage, hasLiveLocation } = useGeolocation();
   const [languages, setLanguages] = useState([]);
-  const [selectedLanguage, setSelectedLanguage] = useState('');
+  const [selectedLanguage, setSelectedLanguage] = useState(() => {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      return window.localStorage.getItem(PREFERRED_LANGUAGE_KEY) || DEFAULT_LANGUAGE;
+    }
+    return DEFAULT_LANGUAGE;
+  });
   const [languageError, setLanguageError] = useState('');
   const [retryCount, setRetryCount] = useState(0);
   const [pois, setPois] = useState([]);
@@ -99,7 +106,7 @@ export default function VisitorTourPage({
               activateSession({
                 sessionCode: orderData.session_code,
                 sessionToken: orderData.session_token,
-                expiresAt: orderData.session_expires_at || orderData.expires_at,
+                expiresAt: ensureUtcIso(orderData.session_expires_at || orderData.expires_at),
               });
             }
           })
@@ -114,7 +121,23 @@ export default function VisitorTourPage({
       }
     }
   }, [activateSession]);
-  const { currentPoi, isPlaying, completedPoiIds, play } = useAudioPlayer();
+  const { currentPoi, isPlaying, completedPoiIds, play, primeAudio } = useAudioPlayer();
+
+  // AUTOPLAY-PRIMING: Prime audio element on first user touch/click on page
+  useEffect(() => {
+    const handleUserGesture = () => {
+      primeAudio?.();
+      window.removeEventListener('pointerdown', handleUserGesture);
+      window.removeEventListener('keydown', handleUserGesture);
+    };
+    window.addEventListener('pointerdown', handleUserGesture, { once: true });
+    window.addEventListener('keydown', handleUserGesture, { once: true });
+    return () => {
+      window.removeEventListener('pointerdown', handleUserGesture);
+      window.removeEventListener('keydown', handleUserGesture);
+    };
+  }, [primeAudio]);
+
   // Dwell windows opened by a real geofence trigger, keyed by POI id. The
   // telemetry row is only reported once the visitor leaves the zone, because a
   // duration cannot be measured at the moment of entry.
@@ -126,8 +149,26 @@ export default function VisitorTourPage({
       if (isUnlocked) {
         markPoiActivated(poiId);
       }
-      play(poi);
+
+      // STREAMING-ENDPOINT: Construct full backend audio URL
+      const rawAudioUrl =
+        poi.audio_url ||
+        (contextSessionToken
+          ? `/api/v1/audio/${poiId}?token=${encodeURIComponent(contextSessionToken)}&language=${encodeURIComponent(selectedLanguage || 'vi')}`
+          : null);
+      const fullAudioUrl = rawAudioUrl ? buildRequestUrl(rawAudioUrl) : null;
+
+      // Auto-play narration immediately on arrival without extra taps
+      play({
+        ...poi,
+        audio_url: fullAudioUrl,
+        text: poi.description || poi.short_description || poi.title,
+        lang: selectedLanguage,
+      });
+
+      // Auto-open POI card
       setSelectedPoiId(poiId);
+
       // The language is captured alongside the entry instant: the backend mints
       // the visitor session from this value, so it must be the visitor's choice at
       // the time the exhibit was actually triggered.
@@ -136,7 +177,7 @@ export default function VisitorTourPage({
         language: selectedLanguage,
       };
     },
-    [isUnlocked, markPoiActivated, play, selectedLanguage]
+    [isUnlocked, markPoiActivated, play, selectedLanguage, contextSessionToken]
   );
 
   const { activeGeofencePois } = useGeofenceTrigger({
@@ -144,6 +185,7 @@ export default function VisitorTourPage({
     pois,
     onTrigger: handleProximityTrigger,
     currentPlayingPoiId: currentPoi?.poi_id || currentPoi?.id,
+    isUnlocked: isUnlocked || Boolean(effectiveSessionCode),
   });
 
   useEffect(() => {
@@ -254,7 +296,7 @@ export default function VisitorTourPage({
     return () => controller.abort();
   }, [poiRetryCount, selectedLanguage, contextSessionToken]);
 
-  const selectedPoi = pois.find(({ id }) => String(id) === String(selectedPoiId));
+  const selectedPoi = pois.find((poi) => String(poi.id || poi.poi_id) === String(selectedPoiId));
   const playingPoiId = isPlaying ? currentPoi?.id ?? null : null;
 
   const isRoutingToSelectedPoi =
@@ -322,11 +364,12 @@ export default function VisitorTourPage({
     const hasActivated = isPoiActivated(poiId);
 
     if (isUnlocked && hasActivated) {
-      const fullAudioUrl =
+      const rawAudioUrl =
         selectedPoi.audio_url ||
         (contextSessionToken
           ? `/api/v1/audio/${poiId}?token=${encodeURIComponent(contextSessionToken)}&language=${encodeURIComponent(selectedLanguage || 'vi')}`
           : null);
+      const fullAudioUrl = rawAudioUrl ? buildRequestUrl(rawAudioUrl) : null;
 
       play({
         ...selectedPoi,
@@ -355,7 +398,7 @@ export default function VisitorTourPage({
       paymentData?.session_expires_at ||
       paymentData?.Expire_at;
     const expiry = rawExpiry
-      ? new Date(rawExpiry).toISOString()
+      ? ensureUtcIso(rawExpiry)
       : new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
 
     activateSession({
@@ -363,6 +406,11 @@ export default function VisitorTourPage({
       sessionToken: token,
       expiresAt: expiry,
     });
+
+    const sessionLang = paymentData?.preferred_language || paymentData?.PreferredLanguage;
+    if (sessionLang && sessionLang !== selectedLanguage) {
+      handleLanguageChange(sessionLang);
+    }
   };
 
   const handleRestoreSuccess = (sessionData) => {
@@ -370,7 +418,7 @@ export default function VisitorTourPage({
     const token = sessionData?.session_token || sessionData?.SessionToken || '';
     const rawExpiry = sessionData?.expires_at || sessionData?.Expire_at;
     const expiry = rawExpiry
-      ? new Date(rawExpiry).toISOString()
+      ? ensureUtcIso(rawExpiry)
       : new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
 
     activateSession({
@@ -378,6 +426,11 @@ export default function VisitorTourPage({
       sessionToken: token,
       expiresAt: expiry,
     });
+
+    const sessionLang = sessionData?.preferred_language || sessionData?.PreferredLanguage;
+    if (sessionLang && sessionLang !== selectedLanguage) {
+      handleLanguageChange(sessionLang);
+    }
   };
 
   return (

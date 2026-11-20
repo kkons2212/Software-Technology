@@ -139,10 +139,21 @@ export function useGeofenceTrigger({
   }, []);
 
   const prevLocationKeyRef = useRef('');
+  const prevPoisKeyRef = useRef('');
+
   useEffect(() => {
     const locKey = userLocation ? `${userLocation.lat},${userLocation.lng}` : '';
-    if (locKey !== prevLocationKeyRef.current) {
+    const poisKey = Array.isArray(pois)
+      ? pois.map((poi) => poi?.id ?? poi?.poi_id ?? '').join('|')
+      : '';
+
+    const hasLocationChanged = locKey !== prevLocationKeyRef.current;
+    const hasPoisChanged = poisKey !== prevPoisKeyRef.current;
+
+    if (hasLocationChanged || hasPoisChanged) {
       prevLocationKeyRef.current = locKey;
+      prevPoisKeyRef.current = poisKey;
+
       if (userLocation) {
         checkGeofence(userLocation);
       } else {
@@ -151,7 +162,7 @@ export function useGeofenceTrigger({
         setActiveGeofencePois([]);
       }
     }
-  }, [userLocation, checkGeofence]);
+  }, [userLocation, pois, checkGeofence]);
 
   return {
     nearestPoi,

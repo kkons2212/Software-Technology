@@ -70,10 +70,12 @@ a:focus-visible {
   padding: 0 12px;
   border-bottom: 1px solid #e2e8f0;
   background: #fff;
+  overflow: hidden;
 }
 
 .visitor-brand {
   display: flex;
+  flex-shrink: 0;
   min-width: 0;
   align-items: center;
   gap: 8px;
@@ -118,12 +120,15 @@ a:focus-visible {
 
 .visitor-header-actions {
   display: flex;
-  flex: 0 0 auto;
+  flex: 1 1 auto;
+  justify-content: flex-end;
+  min-width: 0;
   align-items: center;
   gap: 6px;
 }
 
 .visitor-header-actions select {
+  flex-shrink: 0;
   max-width: 98px;
   min-height: 44px;
   padding: 0 22px 0 8px;
@@ -152,18 +157,55 @@ a:focus-visible {
 }
 
 .visitor-session-badge {
-  display: flex;
-  min-height: 44px;
+  display: inline-flex;
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 100%;
+  min-height: 40px;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
   padding: 0 8px;
   border: 1px solid #bbf7d0;
   border-radius: 6px;
   background: #f0fdf4;
   color: #15803d;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
   white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.15s ease;
+}
+
+.visitor-session-badge:hover {
+  background: #dcfce7;
+}
+
+.visitor-session-code {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.visitor-session-timer {
+  flex-shrink: 0;
+}
+
+.visitor-clear-session-btn {
+  flex-shrink: 0;
+  background: rgba(0, 0, 0, 0.08);
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  padding: 2px 6px;
+  line-height: 1;
+  font-size: 11px;
+  font-weight: bold;
+  border-radius: 9999px;
+}
+
+.visitor-clear-session-btn:hover {
+  background: rgba(0, 0, 0, 0.18);
 }
 
 .visitor-map-shell {
@@ -510,22 +552,24 @@ a:focus-visible {
 
 @media (max-width: 380px) {
   .visitor-header {
-    gap: 6px;
-    padding: 0 8px;
+    gap: 4px;
+    padding: 0 6px;
   }
 
   .visitor-brand {
-    gap: 6px;
+    gap: 4px;
   }
 
   .visitor-brand-mark {
-    width: 30px;
-    height: 30px;
-    flex-basis: 30px;
+    width: 28px;
+    height: 28px;
+    flex-basis: 28px;
+    font-size: 14px;
   }
 
   .visitor-brand-copy h1 {
-    font-size: 12px;
+    font-size: 11px;
+    max-width: 80px;
   }
 
   .visitor-brand-copy > span {
@@ -537,11 +581,11 @@ a:focus-visible {
   }
 
   .visitor-header-actions select {
-    width: 76px;
-    max-width: 76px;
-    padding-right: 16px;
-    padding-left: 6px;
-    font-size: 11px;
+    width: 72px;
+    max-width: 72px;
+    padding-right: 14px;
+    padding-left: 4px;
+    font-size: 10px;
   }
 
   .visitor-unlock-button {
@@ -551,9 +595,9 @@ a:focus-visible {
   }
 
   .visitor-session-badge {
-    gap: 2px;
+    gap: 3px;
     padding: 0 5px;
-    font-size: 9px;
+    font-size: 10px;
   }
 }
 
