@@ -167,7 +167,11 @@ class PaymentService:
             )
 
         target_lang = (
-            (payload.preferred_language or "vi").strip().lower().split("-")[0].split("_")[0]
+            (payload.preferred_language or "vi")
+            .strip()
+            .lower()
+            .split("-")[0]
+            .split("_")[0]
         )
         pref_lang = target_lang if target_lang in SUPPORTED_LANGUAGES else "vi"
 

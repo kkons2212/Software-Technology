@@ -103,6 +103,7 @@ class SessionRestoreResponse(BaseModel):
         if dt.tzinfo is None:
             dt = dt.replace(tzinfo=timezone.utc)
         return dt.isoformat().replace("+00:00", "Z")
+
     success: bool = Field(default=True, description="Indicates operation success.")
     data: SessionRestoreData | None = Field(
         default=None, description="Enveloped data payload."

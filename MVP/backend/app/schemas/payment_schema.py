@@ -127,7 +127,11 @@ class OrderSessionResponse(BaseModel):
 
     # TIMEZONE-INVARIANT: Guarantee UTC ISO-8601 formatting with trailing 'Z' (US 06.1)
     @field_serializer(
-        "session_expires_at", "expires_at", "paid_at", when_used="json", check_fields=False
+        "session_expires_at",
+        "expires_at",
+        "paid_at",
+        when_used="json",
+        check_fields=False,
     )
     def serialize_utc_datetime(self, dt: datetime | None) -> str | None:
         if dt is None:
