@@ -47,6 +47,7 @@ export default function CheckoutModal({
   const [order, setOrder] = useState(null);
   const [isLoadingOrder, setIsLoadingOrder] = useState(false);
   const [orderError, setOrderError] = useState(null);
+  const [simulationError, setSimulationError] = useState(null);
   const [copiedField, setCopiedField] = useState(null);
   const [isSimulating, setIsSimulating] = useState(false);
   const [isPaidSuccess, setIsPaidSuccess] = useState(false);
@@ -131,13 +132,19 @@ export default function CheckoutModal({
   const handleSimulate = async () => {
     if (!order?.order_id || isSimulating) return;
     setIsSimulating(true);
+    setSimulationError(null);
     try {
       const res = await simulatePaymentSuccess(order.order_id, { preferredLanguage });
       if (res?.status === 'PAID') {
         handlePaymentSuccess(res);
       }
-    } catch {
-      // Error handled by status polling
+    } catch (err) {
+      const errorMessage =
+        err?.response?.data?.error?.message ||
+        err?.response?.data?.detail ||
+        err?.message ||
+        'Giả lập thanh toán không khả dụng.';
+      setSimulationError(errorMessage);
     } finally {
       setIsSimulating(false);
     }
@@ -428,6 +435,14 @@ export default function CheckoutModal({
                 </p>
 
                 {cardActionElement}
+                {simulationError && (
+                  <p
+                    className="mt-2 text-xs text-red-600 bg-red-50 p-2 rounded-lg border border-red-200"
+                    data-testid="card-simulation-error-msg"
+                  >
+                    {simulationError}
+                  </p>
+                )}
               </div>
             )}
 
@@ -447,21 +462,31 @@ export default function CheckoutModal({
 
             {/* Sandbox Simulation Bar (Dev & Test Convenience) */}
             {isSimulationAllowed && order && (
-              <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between">
-                <span className="text-[10px] text-slate-400">Sandbox Test Mode:</span>
-                <button
-                  type="button"
-                  data-testid="simulate-payment-btn"
-                  onClick={handleSimulate}
-                  disabled={isSimulating}
-                  className="inline-flex items-center gap-1 rounded bg-slate-100 hover:bg-slate-200 px-2 py-1 text-[11px] font-medium text-slate-700 transition disabled:opacity-50"
-                >
-                  {isSimulating ? (
-                    <Loader2 size={12} className="animate-spin" />
-                  ) : (
-                    <span>⚡ {getVisitorText('simulateSuccessBtn', preferredLanguage)}</span>
-                  )}
-                </button>
+              <div className="mt-3 pt-2 border-t border-slate-100">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] text-slate-400">Sandbox Test Mode:</span>
+                  <button
+                    type="button"
+                    data-testid="simulate-payment-btn"
+                    onClick={handleSimulate}
+                    disabled={isSimulating}
+                    className="inline-flex items-center gap-1 rounded bg-slate-100 hover:bg-slate-200 px-2 py-1 text-[11px] font-medium text-slate-700 transition disabled:opacity-50"
+                  >
+                    {isSimulating ? (
+                      <Loader2 size={12} className="animate-spin" />
+                    ) : (
+                      <span>⚡ {getVisitorText('simulateSuccessBtn', preferredLanguage)}</span>
+                    )}
+                  </button>
+                </div>
+                {simulationError && (
+                  <p
+                    className="mt-1.5 text-[11px] text-red-600 bg-red-50 p-1.5 rounded border border-red-200 text-left"
+                    data-testid="simulation-error-msg"
+                  >
+                    {simulationError}
+                  </p>
+                )}
               </div>
             )}
           </div>

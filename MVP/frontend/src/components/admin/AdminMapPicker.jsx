@@ -18,6 +18,17 @@ import { isWithinMuseumBounds } from '../../utils/museumBounds.js';
 import { ADMIN_TRANSLATIONS } from '../../locales/adminTranslations.js';
 
 // FALLBACK-LOGIC: Leaflet coordinate marker icons bundled with Vite require explicit imagePath merging to prevent 404 broken icons in production (US 03.2)
+const defaultPinIcon = typeof L.icon === 'function' ? L.icon({
+  iconRetinaUrl: iconRetina,
+  iconUrl: iconMarker,
+  shadowUrl: iconShadow,
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  tooltipAnchor: [16, -28],
+  shadowSize: [41, 41],
+}) : undefined;
+
 if (L.Icon?.Default) {
   delete L.Icon.Default.prototype._getIconUrl;
   L.Icon.Default.mergeOptions({
@@ -25,6 +36,10 @@ if (L.Icon?.Default) {
     iconUrl: iconMarker,
     shadowUrl: iconShadow,
   });
+}
+
+if (L.Marker?.prototype?.options && defaultPinIcon) {
+  L.Marker.prototype.options.icon = defaultPinIcon;
 }
 
 // Design tokens from ui_rules Section 3.2: accent blue for a valid geofence and
@@ -138,6 +153,7 @@ export default function AdminMapPicker({
       const marker = L.marker([initialLatitude, initialLongitude], {
         draggable: true,
         autoPan: true,
+        ...(defaultPinIcon ? { icon: defaultPinIcon } : {}),
       });
       marker.addTo(map);
 
