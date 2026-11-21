@@ -59,3 +59,7 @@ MVP/e2e_playwright/
 *.exe
 **/cloudflared.exe
 .cloudflared/
+
+# External Live API test scripts
+MVP/backend/scripts/test_live_*.py
+
