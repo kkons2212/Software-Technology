@@ -5,6 +5,7 @@ static directories, and registers all routers.
 """
 
 import os
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -38,6 +39,21 @@ API_VERSION = "1.0.0"
 DEFAULT_CORS_ORIGINS = "http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000,http://127.0.0.1:3000"
 
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application lifespan managing background pipeline queue lifecycle and auto-recovery."""
+    from app.services.pipeline_queue import get_pipeline_queue
+
+    queue = get_pipeline_queue()
+    await queue.start_worker()
+    if getattr(settings, "PIPELINE_AUTO_RECOVERY", True):
+        queue.recover_pending_translations()
+
+    yield
+
+    await queue.stop_worker()
+
+
 def create_app() -> FastAPI:
     """Build the FastAPI application instance with all routers registered."""
     application = FastAPI(
@@ -45,6 +61,7 @@ def create_app() -> FastAPI:
         version=API_VERSION,
         docs_url="/docs",
         redoc_url="/redoc",
+        lifespan=lifespan,
     )
 
     allowed_origins = [

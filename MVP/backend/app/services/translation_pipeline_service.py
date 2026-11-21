@@ -164,10 +164,12 @@ async def execute_poi_pipeline_background_task(
     poi_id: str,
     target_languages: list[str] | None = None,
 ) -> None:
-    """Standalone background task handler callable from FastAPI BackgroundTasks."""
-    service = TranslationPipelineService()
+    """Standalone background task handler regulating execution through centralized queue (US 04.4)."""
+    from app.services.pipeline_queue import get_pipeline_queue
+
+    queue = get_pipeline_queue()
     try:
-        await service.run_pipeline_for_poi(poi_id, target_languages)
+        await queue.enqueue_and_wait(poi_id, target_languages)
     except Exception as exc:
         logger.exception(
             "Unhandled exception in background translation pipeline for POI %s: %s",
