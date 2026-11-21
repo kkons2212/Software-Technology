@@ -96,7 +96,9 @@ async def main():
         cooldown_seconds=0.02 if is_heavy else 0.03,
     )
 
-    print(f"\n[*] Buoc 1: Dang kich hoat va day DONG THOI {total_pois} tac vu vao Hang doi...")
+    print(
+        f"\n[*] Buoc 1: Dang kich hoat va day DONG THOI {total_pois} tac vu vao Hang doi..."
+    )
     start_wall_time = time.time()
 
     tasks = []
@@ -136,12 +138,22 @@ async def main():
     print(f" TONG KET KET QUA KIEM THU TAI LON ({total_pois} TAC VU - {payload_desc}):")
     print("=" * 80)
     print(f" • Tong so tac vu (POI) gui vao cung luc : {total_pois}")
-    print(f" • So tac vu hoan thanh thanh cong        : {len(completed_order)} / {total_pois}")
-    print(f" • Tong so ngon ngu dich & tong hop audio : {len(target_languages)} ngon ngu / POI")
+    print(
+        f" • So tac vu hoan thanh thanh cong        : {len(completed_order)} / {total_pois}"
+    )
+    print(
+        f" • Tong so ngon ngu dich & tong hop audio : {len(target_languages)} ngon ngu / POI"
+    )
     if is_heavy:
-        print(f" • Tong khoi luong ky tu van ban da xu ly : {total_characters_processed:,} ky tu")
-        print(f" • Tong so tep Audio TTS da tao           : {total_audios_generated:,} tep audio")
-    print(f" • Concurrency toi da thuc te (Dinh)      : {concurrency_peak} (Tuyet doi = 1, khong bi spam API)")
+        print(
+            f" • Tong khoi luong ky tu van ban da xu ly : {total_characters_processed:,} ky tu"
+        )
+        print(
+            f" • Tong so tep Audio TTS da tao           : {total_audios_generated:,} tep audio"
+        )
+    print(
+        f" • Concurrency toi da thuc te (Dinh)      : {concurrency_peak} (Tuyet doi = 1, khong bi spam API)"
+    )
     print(f" • Tong thoi gian xu ly toan bo           : {total_duration:.2f} giay")
     print(
         f" • Kiem tra thu tu FIFO                   : {'100% DUNG THU TU' if completed_order == [f'POI_{i:02d}' for i in range(1, total_pois + 1)] else 'SAI THU TU'}"
