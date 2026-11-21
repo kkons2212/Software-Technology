@@ -42,6 +42,14 @@ DEFAULT_CORS_ORIGINS = "http://localhost:5173,http://127.0.0.1:5173,http://local
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan managing background pipeline queue lifecycle and auto-recovery."""
+    # In test environments, skip eager worker startup to prevent loop crosstalk across TestClient instances
+    if (
+        os.getenv("ENV") == "test"
+        or getattr(settings, "ENVIRONMENT", "").lower() == "test"
+    ):
+        yield
+        return
+
     from app.services.pipeline_queue import get_pipeline_queue
 
     queue = get_pipeline_queue()

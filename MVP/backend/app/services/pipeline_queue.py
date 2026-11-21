@@ -261,6 +261,8 @@ class PipelineQueueManager:
             except (asyncio.CancelledError, asyncio.TimeoutError):
                 pass
         self._worker_task = None
+        self._queue = None
+        self._semaphore = None
         logger.info("Pipeline queue worker stopped cleanly.")
 
     def get_status(self) -> dict[str, Any]:
