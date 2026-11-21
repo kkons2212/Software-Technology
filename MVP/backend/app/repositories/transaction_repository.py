@@ -1,6 +1,5 @@
 """TransactionRepository encapsulating SQLAlchemy ORM data access for Transaction (US 06.1, US 06.2)."""
 
-import secrets
 import uuid
 from datetime import datetime, timedelta
 from typing import Any

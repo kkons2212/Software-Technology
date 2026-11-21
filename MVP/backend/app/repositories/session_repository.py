@@ -1,6 +1,5 @@
 """SessionRepository encapsulating SQLAlchemy ORM data access for VisitorSession (US 06.2)."""
 
-import secrets
 import uuid
 from datetime import datetime, timedelta
 
