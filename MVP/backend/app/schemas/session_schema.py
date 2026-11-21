@@ -36,10 +36,16 @@ class SessionRestoreRequest(BaseModel):
     @field_validator("session_code", mode="after")
     @classmethod
     def normalize_code(cls, v: str) -> str:
-        code = v.strip().upper()
-        # Accept the suffix-only form for both legacy and newly issued codes.
-        if not code.startswith("CCT-") and len(code) in {6, 32}:
-            code = f"CCT-{code}"
+        code = v.strip().upper().replace(" ", "")
+        if code.startswith("CCT-"):
+            suffix = code[4:]
+        elif code.startswith("CCT"):
+            suffix = code[3:].lstrip("-")
+            code = f"CCT-{suffix}"
+        else:
+            suffix = code
+            if len(suffix) in {6, 32}:
+                code = f"CCT-{suffix}"
         return code
 
 

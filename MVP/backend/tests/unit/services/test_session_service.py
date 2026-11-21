@@ -156,6 +156,36 @@ def test_restore_session_normalizes_new_code_without_prefix(
     mock_session_repo.get_by_code.assert_called_once_with(session_code)
 
 
+def test_restore_session_normalizes_6_digit_numeric_code(
+    session_service, mock_session_repo
+):
+    session_code = "CCT-894201"
+    now = datetime.utcnow()
+    session = VisitorSession(
+        SessionID="SES_NUMERIC_CODE",
+        SessionCode=session_code,
+        SessionToken="token_num",
+        Status="ACTIVE",
+        Activate_at=now,
+        Expire_at=now + timedelta(hours=24),
+        PreferredLanguage="vi",
+    )
+    mock_session_repo.get_by_code.return_value = session
+    mock_session_repo.ensure_session_token.return_value = session.SessionToken
+
+    # Test raw 6 digits
+    res1 = session_service.restore_session("894201")
+    assert res1.data.session_code == session_code
+
+    # Test lowercase cct-894201 with spaces
+    res2 = session_service.restore_session("  cct-894201  ")
+    assert res2.data.session_code == session_code
+
+    # Test CCT without dash
+    res3 = session_service.restore_session("CCT894201")
+    assert res3.data.session_code == session_code
+
+
 def test_validate_session_active_checks(session_service, mock_session_repo):
     # 1. Empty token
     assert session_service.validate_session_active("") is False

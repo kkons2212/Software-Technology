@@ -8,7 +8,7 @@ from typing import Any
 from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 
-from app.models.session import VisitorSession
+from app.models.session import VisitorSession, generate_session_code
 from app.models.transaction import Transaction
 
 
@@ -110,7 +110,17 @@ class TransactionRepository:
         # Create or reuse active visitor session
         if not txn.session:
             session_id = f"SES_{uuid.uuid4().hex[:12].upper()}"
-            session_code = f"CCT-{secrets.token_hex(16).upper()}"
+            for _ in range(5):
+                candidate = generate_session_code()
+                if (
+                    not self.db.query(VisitorSession.SessionCode)
+                    .filter_by(SessionCode=candidate)
+                    .first()
+                ):
+                    session_code = candidate
+                    break
+            else:
+                session_code = generate_session_code()
             session_token = uuid.uuid4().hex
 
             session = VisitorSession(

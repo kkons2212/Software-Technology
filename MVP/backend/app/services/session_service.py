@@ -21,9 +21,16 @@ class SessionService:
         Phase 3: Unified Exit (DTO construction and single return)
         """
         # Phase 1: Precondition Gate
-        code = session_code.strip().upper()
-        if not code.startswith("CCT-") and len(code) in {6, 32}:
-            code = f"CCT-{code}"
+        code = session_code.strip().upper().replace(" ", "")
+        if code.startswith("CCT-"):
+            suffix = code[4:]
+        elif code.startswith("CCT"):
+            suffix = code[3:].lstrip("-")
+            code = f"CCT-{suffix}"
+        else:
+            suffix = code
+            if len(suffix) in {6, 32}:
+                code = f"CCT-{suffix}"
 
         session = self.session_repo.get_by_code(code)
         if not session:

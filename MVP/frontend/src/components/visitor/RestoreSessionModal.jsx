@@ -1,8 +1,8 @@
 // =============================================================================
 // TIER 1 - VISITOR SESSION RESTORE MODAL (US 06.3)
 // Standardized in dev_rules.md, ui_rules.md & ux_rules.md
-// Allows visitors to enter their session code to regain access
-// across multiple devices or after clearing browser storage.
+// Allows visitors to enter their 6-digit session code (e.g., CCT-894201)
+// to regain access across multiple devices or after clearing browser storage.
 // =============================================================================
 
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -12,37 +12,42 @@ import { restoreSession } from '../../api/sessionApi.js';
 import { useVisitorSession } from '../../contexts/VisitorSessionContext.jsx';
 import { getVisitorText } from '../../locales/visitorTranslations.js';
 
+const PIN_LENGTH = 6;
+
 export default function RestoreSessionModal({
   isOpen = false,
   onClose,
   onSuccess,
   language = 'vi',
 }) {
-  const [sessionCodeInput, setSessionCodeInput] = useState('');
+  const [pin, setPin] = useState(Array(PIN_LENGTH).fill(''));
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState(null);
   const [isSuccess, setIsSuccess] = useState(false);
 
-  const inputRef = useRef(null);
+  const inputRefs = useRef([]);
   const { activateSession } = useVisitorSession();
 
-  // Reset state when modal opens or closes
+  // Reset state and autofocus when modal opens or closes
   useEffect(() => {
     if (isOpen) {
-      setSessionCodeInput('');
+      setPin(Array(PIN_LENGTH).fill(''));
       setErrorMessage(null);
       setIsSuccess(false);
       setIsLoading(false);
-      // Autofocus input after small tick for portal mount
-      setTimeout(() => {
-        inputRef.current?.focus();
+
+      // Autofocus first PIN input
+      const timer = setTimeout(() => {
+        inputRefs.current[0]?.focus();
       }, 50);
-    } else {
-      setSessionCodeInput('');
-      setErrorMessage(null);
-      setIsSuccess(false);
-      setIsLoading(false);
+      return () => clearTimeout(timer);
     }
+
+    setPin(Array(PIN_LENGTH).fill(''));
+    setErrorMessage(null);
+    setIsSuccess(false);
+    setIsLoading(false);
+    return undefined;
   }, [isOpen]);
 
   // Handle Escape key to close modal
@@ -57,20 +62,9 @@ export default function RestoreSessionModal({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, onClose]);
 
-  const handleInputChange = (event) => {
-    const raw = event.target.value;
-    // Strip whitespace and convert to uppercase automatically
-    const cleaned = raw.toUpperCase().replace(/\s+/g, '');
-    setSessionCodeInput(cleaned);
-    if (errorMessage) {
-      setErrorMessage(null);
-    }
-  };
-
-  const handleSubmit = useCallback(
-    async (event) => {
-      event?.preventDefault();
-      const code = sessionCodeInput.trim().toUpperCase();
+  const executeRestore = useCallback(
+    async (rawCode) => {
+      const code = (rawCode || '').trim().toUpperCase().replace(/\s+/g, '');
       if (!code) {
         setErrorMessage('Vui lòng nhập mã phiên của bạn.');
         return;
@@ -121,10 +115,122 @@ export default function RestoreSessionModal({
         setIsLoading(false);
       }
     },
-    [activateSession, onClose, onSuccess, sessionCodeInput]
+    [activateSession, onClose, onSuccess]
   );
 
+  // Handle individual PIN digit changes
+  const handleDigitChange = (index, event) => {
+    const value = event.target.value;
+    if (errorMessage) setErrorMessage(null);
+
+    // Extract only digits
+    const cleaned = value.replace(/[^0-9]/g, '');
+
+    if (!cleaned) {
+      const nextPin = [...pin];
+      nextPin[index] = '';
+      setPin(nextPin);
+      return;
+    }
+
+    // Take the last digit if multiple were entered
+    const digit = cleaned.slice(-1);
+    const nextPin = [...pin];
+    nextPin[index] = digit;
+    setPin(nextPin);
+
+    // Auto-advance to next input
+    if (index < PIN_LENGTH - 1) {
+      inputRefs.current[index + 1]?.focus();
+    }
+
+    // Check if PIN is complete (all 6 digits present)
+    const allFilled = nextPin.every((d) => d.trim() !== '');
+    if (allFilled) {
+      const fullPinCode = nextPin.join('');
+      executeRestore(`CCT-${fullPinCode}`);
+    }
+  };
+
+  // Handle Backspace and arrow navigation
+  const handleKeyDown = (index, event) => {
+    if (event.key === 'Backspace') {
+      if (!pin[index] && index > 0) {
+        const nextPin = [...pin];
+        nextPin[index - 1] = '';
+        setPin(nextPin);
+        inputRefs.current[index - 1]?.focus();
+      } else {
+        const nextPin = [...pin];
+        nextPin[index] = '';
+        setPin(nextPin);
+      }
+    } else if (event.key === 'ArrowLeft' && index > 0) {
+      inputRefs.current[index - 1]?.focus();
+    } else if (event.key === 'ArrowRight' && index < PIN_LENGTH - 1) {
+      inputRefs.current[index + 1]?.focus();
+    }
+  };
+
+  // Handle clipboard paste
+  const handlePaste = (event) => {
+    event.preventDefault();
+    if (errorMessage) setErrorMessage(null);
+
+    const pastedData = event.clipboardData?.getData('text') || '';
+    const cleaned = pastedData.trim().toUpperCase().replace(/\s+/g, '');
+
+    // Extract digits (strip any CCT- prefix if present)
+    const digitsOnly = cleaned.replace(/^CCT-?/, '').replace(/[^0-9]/g, '');
+    if (digitsOnly.length > 0) {
+      const nextPin = Array(PIN_LENGTH).fill('');
+      for (let i = 0; i < Math.min(digitsOnly.length, PIN_LENGTH); i++) {
+        nextPin[i] = digitsOnly[i];
+      }
+      setPin(nextPin);
+
+      const focusIdx = Math.min(digitsOnly.length, PIN_LENGTH - 1);
+      inputRefs.current[focusIdx]?.focus();
+
+      if (digitsOnly.length >= PIN_LENGTH) {
+        executeRestore(`CCT-${digitsOnly.slice(0, PIN_LENGTH)}`);
+      }
+    }
+  };
+
+  // Form submit button handler
+  const handleSubmit = (event) => {
+    event?.preventDefault();
+    const fullPinCode = pin.join('');
+    if (fullPinCode.length < PIN_LENGTH) {
+      setErrorMessage('Vui lòng nhập đủ 6 chữ số mã phiên.');
+      return;
+    }
+    executeRestore(`CCT-${fullPinCode}`);
+  };
+
   if (!isOpen) return null;
+
+  const isFormComplete = pin.every((d) => d.trim() !== '');
+
+  let submitButtonContent = (
+    <span>{getVisitorText('restoreSessionBtn', language)}</span>
+  );
+  if (isLoading) {
+    submitButtonContent = (
+      <>
+        <Loader2 size={16} className="animate-spin" aria-hidden="true" />
+        <span>Đang xác thực...</span>
+      </>
+    );
+  } else if (isSuccess) {
+    submitButtonContent = (
+      <>
+        <CheckCircle2 size={16} aria-hidden="true" />
+        <span>Đã khôi phục</span>
+      </>
+    );
+  }
 
   const modalContent = (
     <div
@@ -172,29 +278,43 @@ export default function RestoreSessionModal({
           <div>
             <label
               htmlFor="session-code-input"
-              className="block text-xs font-semibold text-slate-700 mb-1.5"
+              className="block text-xs font-semibold text-slate-700 mb-2 text-center"
             >
               Mã phiên (Session Code)
             </label>
-            <div className="relative">
-              <input
-                ref={inputRef}
-                id="session-code-input"
-                name="sessionCode"
-                type="text"
-                autoComplete="off"
-                autoCorrect="off"
-                spellCheck="false"
-                maxLength={36}
-                placeholder="CCT-32-CHAR-CODE"
-                value={sessionCodeInput}
-                onChange={handleInputChange}
-                disabled={isLoading || isSuccess}
-                className="w-full h-12 px-4 rounded-xl border border-slate-300 bg-slate-50 text-slate-900 font-mono text-base tracking-widest text-center uppercase placeholder:text-slate-400 placeholder:normal-case placeholder:tracking-normal focus:bg-white focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-100 transition disabled:opacity-60"
-              />
+
+            {/* PIN 6-BOX INTERFACE */}
+            <div
+              className="flex items-center justify-center gap-2"
+              onPaste={handlePaste}
+            >
+              <div className="px-2 py-2 rounded-xl bg-slate-100 border border-slate-200 text-xs font-mono font-bold text-slate-500 select-none">
+                CCT -
+              </div>
+              {pin.map((digit, index) => (
+                <input
+                  key={index}
+                  ref={(el) => {
+                    inputRefs.current[index] = el;
+                  }}
+                  id={index === 0 ? 'session-code-input' : undefined}
+                  name={index === 0 ? 'sessionCode' : undefined}
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  maxLength={1}
+                  value={digit}
+                  onChange={(e) => handleDigitChange(index, e)}
+                  onKeyDown={(e) => handleKeyDown(index, e)}
+                  disabled={isLoading || isSuccess}
+                  aria-label={`Chữ số thứ ${index + 1}`}
+                  data-testid={`pin-input-${index}`}
+                  className="w-10 h-12 sm:w-11 sm:h-13 text-center text-xl font-bold font-mono rounded-xl border border-slate-300 bg-slate-50 text-slate-900 focus:bg-white focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-100 transition disabled:opacity-60"
+                />
+              ))}
             </div>
-            <p className="mt-1.5 text-[11px] text-slate-500">
-              Mã phiên gồm tiền tố CCT- và 32 ký tự hex (có thể nhập cả mã cũ 6 ký tự).
+            <p className="mt-2 text-center text-[11px] text-slate-500">
+              Nhập 6 chữ số mã phiên của bạn (ví dụ: CCT-894201).
             </p>
           </div>
 
@@ -234,22 +354,10 @@ export default function RestoreSessionModal({
             </button>
             <button
               type="submit"
-              disabled={isLoading || !sessionCodeInput.trim() || isSuccess}
+              disabled={isLoading || !isFormComplete || isSuccess}
               className="flex-[2] h-11 px-4 rounded-xl bg-blue-600 text-xs font-semibold text-white shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-1 transition disabled:opacity-50 inline-flex items-center justify-center gap-2"
             >
-              {isLoading ? (
-                <>
-                  <Loader2 size={16} className="animate-spin" aria-hidden="true" />
-                  <span>Đang xác thực...</span>
-                </>
-              ) : isSuccess ? (
-                <>
-                  <CheckCircle2 size={16} aria-hidden="true" />
-                  <span>Đã khôi phục</span>
-                </>
-              ) : (
-                <span>{getVisitorText('restoreSessionBtn', language)}</span>
-              )}
+              {submitButtonContent}
             </button>
           </div>
         </form>

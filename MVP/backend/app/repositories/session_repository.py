@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
-from app.models.session import VisitorSession
+from app.models.session import VisitorSession, generate_session_code
 
 
 class SessionRepository:
@@ -24,7 +24,20 @@ class SessionRepository:
     ) -> VisitorSession:
         """Create and persist a new 24-hour VisitorSession adhering to SISE."""
         s_id = f"SES_{uuid.uuid4().hex[:12].upper()}"
-        s_code = session_code or f"CCT-{secrets.token_hex(16).upper()}"
+        if not session_code:
+            for _ in range(5):
+                candidate = generate_session_code()
+                if (
+                    not self.db.query(VisitorSession.SessionCode)
+                    .filter_by(SessionCode=candidate)
+                    .first()
+                ):
+                    s_code = candidate
+                    break
+            else:
+                s_code = generate_session_code()
+        else:
+            s_code = session_code
         s_token = session_token or uuid.uuid4().hex
         now = datetime.utcnow()
         expiry = expire_at or (now + timedelta(hours=24))

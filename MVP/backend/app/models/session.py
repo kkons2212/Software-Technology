@@ -16,7 +16,8 @@ def get_default_expire_at():
 
 
 def generate_session_code() -> str:
-    return f"CCT-{secrets.token_hex(16).upper()}"
+    # 6 digits between 100000 and 999999 (avoiding leading zero)
+    return f"CCT-{secrets.randbelow(900000) + 100000}"
 
 
 class VisitorSession(Base):
