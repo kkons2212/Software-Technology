@@ -11,12 +11,19 @@ from app.models.session import generate_session_code
 from app.schemas.session_schema import SessionRestoreRequest
 
 
-def test_generated_session_codes_have_128_bits_of_entropy():
+def test_generated_session_codes_have_proper_format_and_range():
     code = generate_session_code()
 
     assert code.startswith("CCT-")
-    assert len(code) == 36
-    assert all(character in "0123456789ABCDEF" for character in code[4:])
+    assert len(code) == 10
+    assert code[4:].isdigit()
+    assert 100000 <= int(code[4:]) <= 999999
+
+
+def test_restore_request_normalizes_6_digit_code_without_prefix():
+    request = SessionRestoreRequest(session_code="894201")
+
+    assert request.session_code == "CCT-894201"
 
 
 def test_restore_request_normalizes_full_entropy_code_without_prefix():
