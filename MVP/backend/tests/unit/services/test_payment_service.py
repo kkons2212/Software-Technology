@@ -556,7 +556,8 @@ async def test_process_payment_webhook_success_activates_session_and_idempotent(
     assert db_txn.status == "PAID"
     assert db_txn.session is not None
     assert db_txn.session.SessionCode.startswith("CCT-")
-    assert len(db_txn.session.SessionCode) == 36
+    assert len(db_txn.session.SessionCode) == 10
+    assert db_txn.session.SessionCode[4:].isdigit()
     # 24h validity check
     diff = db_txn.session.Expire_at - datetime.utcnow()
     assert 23.9 <= diff.total_seconds() / 3600 <= 24.1

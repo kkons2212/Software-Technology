@@ -17,7 +17,7 @@ vi.mock('../../../contexts/VisitorSessionContext.jsx', () => ({
 import { restoreSession } from '../../../api/sessionApi.js';
 import RestoreSessionModal from '../RestoreSessionModal.jsx';
 
-describe('RestoreSessionModal (US 06.3 - TSK-06.3.2 & TSK-06.3.3)', () => {
+describe('RestoreSessionModal (US 06.3 - 6-Digit PIN Restore)', () => {
   const mockSessionData = {
     session_id: 'SES_1234567890',
     session_code: 'CCT-894201',
@@ -43,32 +43,27 @@ describe('RestoreSessionModal (US 06.3 - TSK-06.3.2 & TSK-06.3.3)', () => {
     expect(container.firstChild).toBeNull();
   });
 
-  it('renders modal dialog with input and labels when isOpen is true', () => {
+  it('renders modal dialog with 6 PIN digit boxes and prefix when isOpen is true', () => {
     render(
       <RestoreSessionModal isOpen={true} onClose={vi.fn()} onSuccess={vi.fn()} />
     );
 
     expect(screen.getByRole('dialog')).toHaveAttribute('aria-modal', 'true');
     expect(screen.getByText('Khôi phục quyền truy cập')).toBeInTheDocument();
-    expect(screen.getByLabelText(/mã phiên/i)).toBeInTheDocument();
-    expect(screen.getByPlaceholderText('CCT-32-CHAR-CODE')).toBeInTheDocument();
+    expect(screen.getByText('Mã phiên (Session Code)')).toBeInTheDocument();
+    expect(screen.getByText('CCT -')).toBeInTheDocument();
+
+    // Verify all 6 digit inputs exist
+    for (let i = 0; i < 6; i++) {
+      expect(screen.getByTestId(`pin-input-${i}`)).toBeInTheDocument();
+    }
+
     expect(
       screen.getByRole('button', { name: /khôi phục phiên/i })
     ).toBeInTheDocument();
   });
 
-  it('automatically transforms entered text to uppercase and strips spaces', () => {
-    render(
-      <RestoreSessionModal isOpen={true} onClose={vi.fn()} onSuccess={vi.fn()} />
-    );
-
-    const input = screen.getByPlaceholderText('CCT-32-CHAR-CODE');
-    fireEvent.change(input, { target: { value: ' cct - 894 201 ' } });
-
-    expect(input.value).toBe('CCT-894201');
-  });
-
-  it('submits valid session code, activates session, calls onSuccess and closes', async () => {
+  it('submits valid session code when 6 digits are typed and auto-activates', async () => {
     restoreSession.mockResolvedValueOnce({
       success: true,
       data: mockSessionData,
@@ -85,11 +80,12 @@ describe('RestoreSessionModal (US 06.3 - TSK-06.3.2 & TSK-06.3.3)', () => {
       />
     );
 
-    const input = screen.getByPlaceholderText('CCT-32-CHAR-CODE');
-    fireEvent.change(input, { target: { value: 'cct-894201' } });
-
-    const submitBtn = screen.getByRole('button', { name: /khôi phục phiên/i });
-    fireEvent.click(submitBtn);
+    const digits = ['8', '9', '4', '2', '0', '1'];
+    digits.forEach((d, idx) => {
+      fireEvent.change(screen.getByTestId(`pin-input-${idx}`), {
+        target: { value: d },
+      });
+    });
 
     await waitFor(() => {
       expect(restoreSession).toHaveBeenCalledWith({ sessionCode: 'CCT-894201' });
@@ -112,7 +108,34 @@ describe('RestoreSessionModal (US 06.3 - TSK-06.3.2 & TSK-06.3.3)', () => {
     );
   });
 
-  it('displays user-friendly error message when session is invalid or expired', async () => {
+  it('handles paste of CCT-894201 and fills all 6 digits automatically', async () => {
+    restoreSession.mockResolvedValueOnce({
+      success: true,
+      data: mockSessionData,
+    });
+
+    render(
+      <RestoreSessionModal isOpen={true} onClose={vi.fn()} onSuccess={vi.fn()} />
+    );
+
+    const firstInput = screen.getByTestId('pin-input-0');
+    fireEvent.paste(firstInput, {
+      clipboardData: { getData: () => 'CCT-894201' },
+    });
+
+    expect(screen.getByTestId('pin-input-0').value).toBe('8');
+    expect(screen.getByTestId('pin-input-1').value).toBe('9');
+    expect(screen.getByTestId('pin-input-2').value).toBe('4');
+    expect(screen.getByTestId('pin-input-3').value).toBe('2');
+    expect(screen.getByTestId('pin-input-4').value).toBe('0');
+    expect(screen.getByTestId('pin-input-5').value).toBe('1');
+
+    await waitFor(() => {
+      expect(restoreSession).toHaveBeenCalledWith({ sessionCode: 'CCT-894201' });
+    });
+  });
+
+  it('displays user-friendly error message when session code is invalid or expired', async () => {
     restoreSession.mockRejectedValueOnce({
       status: 404,
       error: { message: 'Session code is invalid or has expired.' },
@@ -122,11 +145,12 @@ describe('RestoreSessionModal (US 06.3 - TSK-06.3.2 & TSK-06.3.3)', () => {
       <RestoreSessionModal isOpen={true} onClose={vi.fn()} onSuccess={vi.fn()} />
     );
 
-    const input = screen.getByPlaceholderText('CCT-32-CHAR-CODE');
-    fireEvent.change(input, { target: { value: 'CCT-BAD000' } });
-
-    const submitBtn = screen.getByRole('button', { name: /khôi phục phiên/i });
-    fireEvent.click(submitBtn);
+    // Type 6 digits that fail
+    ['0', '0', '0', '0', '0', '0'].forEach((d, idx) => {
+      fireEvent.change(screen.getByTestId(`pin-input-${idx}`), {
+        target: { value: d },
+      });
+    });
 
     await waitFor(() => {
       expect(screen.getByRole('alert')).toBeInTheDocument();
@@ -136,6 +160,29 @@ describe('RestoreSessionModal (US 06.3 - TSK-06.3.2 & TSK-06.3.3)', () => {
     });
 
     expect(mockActivateSession).not.toHaveBeenCalled();
+  });
+
+  it('supports backspace navigation across PIN inputs', () => {
+    render(
+      <RestoreSessionModal isOpen={true} onClose={vi.fn()} onSuccess={vi.fn()} />
+    );
+
+    const input0 = screen.getByTestId('pin-input-0');
+    const input1 = screen.getByTestId('pin-input-1');
+
+    fireEvent.change(input0, { target: { value: '8' } });
+    expect(input0.value).toBe('8');
+
+    fireEvent.change(input1, { target: { value: '9' } });
+    expect(input1.value).toBe('9');
+
+    // Press Backspace on input1 to clear it
+    fireEvent.keyDown(input1, { key: 'Backspace' });
+    expect(input1.value).toBe('');
+
+    // Press Backspace again on empty input1 to clear input0 and focus it
+    fireEvent.keyDown(input1, { key: 'Backspace' });
+    expect(input0.value).toBe('');
   });
 
   it('closes when close button is clicked or Escape key is pressed', () => {

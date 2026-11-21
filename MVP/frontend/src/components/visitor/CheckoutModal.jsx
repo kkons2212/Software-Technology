@@ -222,11 +222,28 @@ export default function CheckoutModal({
             </p>
 
             <div className="my-6 rounded-xl border border-emerald-200 bg-emerald-50/60 p-4 text-left">
-              <div className="flex justify-between items-center text-sm py-1 border-b border-emerald-100">
+              <div className="flex justify-between items-center text-sm py-2 border-b border-emerald-100">
                 <span className="text-slate-600 font-medium">{getVisitorText('sessionCodeLabel', preferredLanguage)}</span>
-                <span className="font-bold text-emerald-800 tracking-wider font-mono">
-                  {completedSession?.session_code || 'PASS-ACTIVE'}
-                </span>
+                <div className="flex items-center gap-1.5">
+                  <span className="font-bold text-emerald-800 tracking-wider font-mono text-base">
+                    {completedSession?.session_code || 'PASS-ACTIVE'}
+                  </span>
+                  {completedSession?.session_code && (
+                    <button
+                      type="button"
+                      onClick={() => handleCopy('session_code', completedSession.session_code)}
+                      className="p-1.5 rounded-lg text-emerald-700 hover:bg-emerald-200/60 active:scale-95 transition inline-flex items-center justify-center"
+                      title={copiedField === 'session_code' ? 'Đã sao chép!' : 'Sao chép mã phiên'}
+                      aria-label="Sao chép mã phiên"
+                    >
+                      {copiedField === 'session_code' ? (
+                        <Check size={16} className="text-emerald-700" />
+                      ) : (
+                        <Copy size={16} />
+                      )}
+                    </button>
+                  )}
+                </div>
               </div>
               <div className="flex justify-between items-center text-sm py-1 border-b border-emerald-100">
                 <span className="text-slate-600 font-medium">{getVisitorText('durationLabel', preferredLanguage)}</span>

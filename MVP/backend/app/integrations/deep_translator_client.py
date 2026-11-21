@@ -1113,8 +1113,14 @@ class DeepTranslatorClient:
             "google_cloud": lambda: self._translate_narrative_with_google_cloud(
                 title, short_description, description, resolved_source, resolved_target
             ),
-            "deep_translator": lambda: self._translate_narrative_with_free_deep_translator(
-                title, short_description, description, resolved_source, resolved_target
+            "deep_translator": lambda: (
+                self._translate_narrative_with_free_deep_translator(
+                    title,
+                    short_description,
+                    description,
+                    resolved_source,
+                    resolved_target,
+                )
             ),
         }
 
