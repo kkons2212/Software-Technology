@@ -203,3 +203,44 @@ def test_pipeline_queue_status_reporting():
     assert status["max_concurrency"] == 2
     assert status["cooldown_seconds"] == 3.5
     assert status["is_worker_running"] is False
+
+
+@pytest.mark.asyncio
+async def test_pipeline_queue_stress_60_concurrent_jobs():
+    """Verify that enqueuing 60 POIs simultaneously executes in exact FIFO order with concurrency bounded at 1."""
+    execution_order = []
+    concurrency_peak = 0
+    current_concurrent = 0
+
+    async def mock_run_pipeline(poi_id: str, target_languages=None):
+        nonlocal current_concurrent, concurrency_peak
+        current_concurrent += 1
+        if current_concurrent > concurrency_peak:
+            concurrency_peak = current_concurrent
+        await asyncio.sleep(0.005)
+        execution_order.append(poi_id)
+        current_concurrent -= 1
+        return {poi_id: {"ok": True}}
+
+    mock_service = MagicMock(spec=TranslationPipelineService)
+    mock_service.run_pipeline_for_poi = AsyncMock(side_effect=mock_run_pipeline)
+
+    queue = PipelineQueueManager(
+        pipeline_service_factory=lambda: mock_service,
+        max_concurrency=1,
+        cooldown_seconds=0.002,
+    )
+
+    expected_ids = [f"POI_{i:02d}" for i in range(1, 61)]
+    tasks = [
+        asyncio.create_task(queue.enqueue_and_wait(pid, ["en"])) for pid in expected_ids
+    ]
+
+    results = await asyncio.gather(*tasks)
+
+    assert len(results) == 60
+    assert concurrency_peak == 1
+    assert execution_order == expected_ids
+    assert queue.get_status()["pending_count"] == 0
+
+    await queue.stop_worker()
