@@ -149,6 +149,11 @@ export const ADMIN_TRANSLATIONS = {
   colSourceVietnamese: 'Bản gốc (Tiếng Việt)',
   colTargetLanguage: 'Bản dịch ({lang})',
   colReadOnly: 'Chỉ đọc',
+  badgeSourceVietnamese: 'Tiếng Việt (Thuyết minh gốc)',
+  frameVietnameseAudioTitle: 'Nội dung lịch sử & Thuyết minh Tiếng Việt gốc',
+  frameVietnameseAudioNotice:
+    'Nội dung văn bản tiếng Việt được quản lý tại màn hình "Điểm tham quan & Geofence". Tại đây bạn có thể nghe thử và tạo lại file âm thanh thuyết minh AI.',
+  audioVietnameseHeader: 'Thuyết minh âm thanh Tiếng Việt (Edge-TTS)',
   colUnsavedEdits: 'Thay đổi chưa lưu',
   fieldTranslatedTitle: 'Tiêu đề bản dịch',
   fieldSummaryShortDesc: 'Tóm tắt (Mô tả ngắn)',

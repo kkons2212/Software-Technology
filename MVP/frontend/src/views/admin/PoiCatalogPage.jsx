@@ -322,26 +322,41 @@ export default function PoiCatalogPage() {
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex flex-wrap gap-1.5">
-                        {poi.translations && poi.translations.length > 0 ? (
-                          poi.translations.map((t) => (
-                            <span
-                              key={t.language_id}
-                              className={`rounded px-1.5 py-0.5 text-[10px] font-medium uppercase border ${
-                                t.status === 'PUBLISHED' || t.status === 'READY'
-                                  ? 'border-green-200 bg-green-50 text-green-700'
-                                  : t.status === 'PENDING'
-                                  ? 'border-amber-200 bg-amber-50 text-amber-700'
-                                  : t.status === 'DRAFT'
-                                  ? 'border-blue-200 bg-blue-50 text-blue-700'
-                                  : 'border-red-200 bg-red-50 text-red-700'
-                              }`}
-                            >
-                              {t.language_id}: {t.status}
-                            </span>
-                          ))
-                        ) : (
+                        {(!poi.translations || poi.translations.length === 0) && (
                           <span className="text-slate-400">{ADMIN_TRANSLATIONS.noneValue}</span>
                         )}
+                        {poi.translations && poi.translations.length > 0 &&
+                          poi.translations.map((t) => {
+                            const isVi = Boolean(t.language_id && t.language_id.toLowerCase() === 'vi');
+                            if (isVi) {
+                              return (
+                                <span
+                                  key={t.language_id}
+                                  className="rounded px-1.5 py-0.5 text-[10px] font-medium uppercase border border-indigo-200 bg-indigo-50 text-indigo-700"
+                                >
+                                  vi: gốc
+                                </span>
+                              );
+                            }
+
+                            let badgeStyle = 'border-red-200 bg-red-50 text-red-700';
+                            if (t.status === 'PUBLISHED' || t.status === 'READY') {
+                              badgeStyle = 'border-green-200 bg-green-50 text-green-700';
+                            } else if (t.status === 'PENDING') {
+                              badgeStyle = 'border-amber-200 bg-amber-50 text-amber-700';
+                            } else if (t.status === 'DRAFT') {
+                              badgeStyle = 'border-blue-200 bg-blue-50 text-blue-700';
+                            }
+
+                            return (
+                              <span
+                                key={t.language_id}
+                                className={`rounded px-1.5 py-0.5 text-[10px] font-medium uppercase border ${badgeStyle}`}
+                              >
+                                {t.language_id}: {t.status}
+                              </span>
+                            );
+                          })}
                       </div>
                     </td>
                     <td className="px-4 py-3 text-right">
