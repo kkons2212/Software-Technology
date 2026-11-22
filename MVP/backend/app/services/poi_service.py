@@ -667,9 +667,10 @@ class POIService:
         """Retry translations for a POI (default: failed-only) without requiring exhibit narrative changes."""
         poi = self.repository.get_by_id(poi_id)
         if poi is None:
-            raise HTTPException(
+            raise ApiError(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"POI exhibit with id '{poi_id}' was not found.",
+                code=POI_NOT_FOUND_ERROR_CODE,
+                message=POI_NOT_FOUND_ERROR_MESSAGE,
             )
 
         if failed_only:
@@ -697,24 +698,20 @@ class POIService:
             )
 
         if self.audit_repository:
-            details = {
-                "action": "RETRY_POI_TRANSLATION",
-                "poi_id": poi_id,
-                "queued_languages": target_languages,
-            }
+            details_str = f"RETRY_POI_TRANSLATION: {poi_id} (Languages: {', '.join(target_languages)})"
             if hasattr(self.audit_repository, "create_log_entry"):
                 self.audit_repository.create_log_entry(
                     user_name=admin_username,
                     status=AUDIT_STATUS_SUCCESS,
                     ip_address=client_ip,
-                    details=details,
+                    details=details_str,
                 )
             elif hasattr(self.audit_repository, "log_action"):
                 self.audit_repository.log_action(
                     username=admin_username,
                     status=AUDIT_STATUS_SUCCESS,
                     ip_address=client_ip,
-                    details=details,
+                    details=details_str,
                 )
 
         return {
