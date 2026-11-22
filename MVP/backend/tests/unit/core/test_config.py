@@ -80,6 +80,7 @@ def test_render_translation_settings():
         cfg.RENDER_TRANSLATION_API_URL == "https://translation-temporary.onrender.com"
     )
     assert cfg.RENDER_TRANSLATION_TIMEOUT == 70.0
+    assert cfg.RENDER_COLD_START_RETRY_DELAY == 10.0
 
 
 def test_get_settings_singleton_caching():

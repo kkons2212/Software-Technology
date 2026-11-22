@@ -31,6 +31,7 @@ DEFAULT_SERVICE_FEE_CURRENCY = "VND"
 DEFAULT_TRANSLATION_PACING_DELAY = 1.5
 DEFAULT_RENDER_TRANSLATION_API_URL = "https://translation-temporary.onrender.com"
 DEFAULT_RENDER_TRANSLATION_TIMEOUT = 70.0
+DEFAULT_RENDER_COLD_START_RETRY_DELAY = 10.0
 
 
 class Settings(BaseSettings):
@@ -117,6 +118,7 @@ class Settings(BaseSettings):
     # AI & Cloud Translation Settings (US 04.4 - Auto_Translate & OpenRouter)
     RENDER_TRANSLATION_API_URL: str = "https://translation-temporary.onrender.com"
     RENDER_TRANSLATION_TIMEOUT: float = 70.0
+    RENDER_COLD_START_RETRY_DELAY: float = 10.0
     OPENROUTER_API_KEY: str = ""
     OPENROUTER_MODEL: str = "openrouter/free"
     OPENROUTER_BASE_URL: str = "https://openrouter.ai/api/v1"

@@ -15,7 +15,9 @@ DEFAULT_MAX_RETRIES = 3
 DEFAULT_BASE_DELAY = 1.5
 DEFAULT_CHUNK_SIZE = 4500
 DEFAULT_RENDER_TIMEOUT = 70.0
+DEFAULT_RENDER_COLD_START_DELAY = 10.0
 HEALTH_CHECK_TIMEOUT = 5.0
+SPINUP_HTTP_STATUSES = (502, 503, 504)
 
 
 class TranslationError(Exception):
@@ -29,7 +31,7 @@ class DeepTranslatorClient:
 
     Supported Providers:
     - Primary (#1): Auto_Translate Live API (OPUS-MT INT8 on Render - 0 API key required)
-    - Fallback (#2): OpenRouter AI (Crouton Alpha - stealth/crouton-alpha)
+    - Fallback (#2): OpenRouter AI (Free model router - openrouter/free)
 
     Configured via TRANSLATION_PROVIDERS_ORDER in .env (default: "render_api,openrouter").
     """
@@ -77,6 +79,7 @@ class DeepTranslatorClient:
         self,
         render_api_url: str | None = None,
         render_timeout: float | None = None,
+        cold_start_delay: float | None = None,
         openrouter_key: str | None = None,
         openrouter_model: str | None = None,
         openrouter_base_url: str | None = None,
@@ -96,6 +99,15 @@ class DeepTranslatorClient:
             render_timeout
             if render_timeout is not None
             else getattr(settings, "RENDER_TRANSLATION_TIMEOUT", DEFAULT_RENDER_TIMEOUT)
+        )
+        self.cold_start_delay: float = (
+            cold_start_delay
+            if cold_start_delay is not None
+            else getattr(
+                settings,
+                "RENDER_COLD_START_RETRY_DELAY",
+                DEFAULT_RENDER_COLD_START_DELAY,
+            )
         )
 
         self.openrouter_key: str = (
@@ -129,17 +141,36 @@ class DeepTranslatorClient:
         self.base_delay: float = base_delay
         self.chunk_size: int = chunk_size
         self._http_client: httpx.AsyncClient | None = http_client
+        self._clients_by_timeout: dict[float, httpx.AsyncClient] = {}
 
     async def _get_http_client(
         self, timeout: float = DEFAULT_RENDER_TIMEOUT
     ) -> httpx.AsyncClient:
-        """Return shared or newly created non-blocking HTTP client."""
+        """Return injected test client or timeout-isolated non-blocking HTTP client."""
         if self._http_client is not None:
             is_closed = getattr(self._http_client, "is_closed", False)
             if is_closed is not True:
                 return self._http_client
-        self._http_client = httpx.AsyncClient(timeout=timeout)
-        return self._http_client
+
+        cached = self._clients_by_timeout.get(timeout)
+        if cached is not None and getattr(cached, "is_closed", False) is not True:
+            return cached
+
+        new_client = httpx.AsyncClient(timeout=timeout)
+        self._clients_by_timeout[timeout] = new_client
+        return new_client
+
+    def _resolve_effective_order(self) -> list[str]:
+        """Normalize configured providers list via PROVIDER_ALIASES."""
+        return [self.PROVIDER_ALIASES.get(p, p) for p in self.providers_order]
+
+    def _compute_retry_delay(
+        self, attempt: int, is_spinup_status: bool = False
+    ) -> float:
+        """Compute retry wait duration, extending backoff on Render cold-start 502/503/504."""
+        if is_spinup_status:
+            return self.cold_start_delay * (attempt + 1)
+        return self.base_delay * (2**attempt)
 
     def _resolve_render_target(self, language_id: str) -> str:
         """Resolve database LanguageID or code into Render API target name."""
@@ -186,6 +217,7 @@ class DeepTranslatorClient:
         translated_result: str | None = None
 
         for attempt in range(self.max_retries):
+            attempt_delay = self._compute_retry_delay(attempt)
             try:
                 response = await client.post(url, json=payload)
                 if response.status_code == 200:
@@ -205,6 +237,17 @@ class DeepTranslatorClient:
                         "Render API returned 400 Bad Request: %s", response.text[:200]
                     )
                     break
+                elif response.status_code in SPINUP_HTTP_STATUSES:
+                    attempt_delay = self._compute_retry_delay(
+                        attempt, is_spinup_status=True
+                    )
+                    logger.warning(
+                        "Render API returned %d (container waking from cold sleep) on attempt %d/%d; waiting %.1fs",
+                        response.status_code,
+                        attempt + 1,
+                        self.max_retries,
+                        attempt_delay,
+                    )
                 else:
                     logger.warning(
                         "Render API returned status %d on attempt %d: %s",
@@ -224,7 +267,7 @@ class DeepTranslatorClient:
                 )
 
             if attempt < self.max_retries - 1:
-                await asyncio.sleep(self.base_delay * (2**attempt))
+                await asyncio.sleep(attempt_delay)
 
         # Phase 3 Exit: Unified single return
         return translated_result
@@ -486,6 +529,18 @@ class DeepTranslatorClient:
                                 target_lang,
                             )
                             break
+                elif response.status_code == 429:
+                    logger.warning(
+                        "OpenRouter narrative rate limit (429) on attempt %d",
+                        attempt + 1,
+                    )
+                else:
+                    logger.warning(
+                        "OpenRouter narrative returned status %d on attempt %d: %s",
+                        response.status_code,
+                        attempt + 1,
+                        response.text[:200],
+                    )
             except Exception as exc:
                 logger.warning(
                     "OpenRouter narrative batch failed on attempt %d: %s",
@@ -523,9 +578,13 @@ class DeepTranslatorClient:
             ),
         }
 
-        effective_order = [
-            self.PROVIDER_ALIASES.get(p, p) for p in self.providers_order
-        ]
+        effective_order = self._resolve_effective_order()
+        logger.info(
+            "Executing text translation cascade (%s -> %s) in order: %s",
+            source_lang,
+            target_lang,
+            effective_order,
+        )
 
         last_error: Exception | None = None
         translated_output: str | None = None
@@ -534,6 +593,12 @@ class DeepTranslatorClient:
             handler = provider_map.get(provider_name)
             if handler is None:
                 continue
+            logger.info(
+                "Trying text translation provider '%s' (%s -> %s)",
+                provider_name,
+                source_lang,
+                target_lang,
+            )
             try:
                 res = await handler()
                 if res:
@@ -602,9 +667,13 @@ class DeepTranslatorClient:
             ),
         }
 
-        effective_order = [
-            self.PROVIDER_ALIASES.get(p, p) for p in self.providers_order
-        ]
+        effective_order = self._resolve_effective_order()
+        logger.info(
+            "Executing narrative translation cascade (%s -> %s) in order: %s",
+            source_lang,
+            target_lang,
+            effective_order,
+        )
 
         resolved_narrative: dict[str, str | None] | None = None
 
@@ -612,6 +681,12 @@ class DeepTranslatorClient:
             handler = narrative_map.get(provider_name)
             if handler is None:
                 continue
+            logger.info(
+                "Trying narrative translation provider '%s' (%s -> %s)",
+                provider_name,
+                source_lang,
+                target_lang,
+            )
             try:
                 result = await handler()
                 if result is not None:

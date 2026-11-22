@@ -24,8 +24,9 @@ def client(mock_http):
     return DeepTranslatorClient(
         render_api_url="https://test-render-api.example.com",
         render_timeout=70.0,
+        cold_start_delay=0.001,
         openrouter_key="test-openrouter-key",
-        openrouter_model="stealth/crouton-alpha",
+        openrouter_model="openrouter/free",
         max_retries=2,
         base_delay=0.001,
         http_client=mock_http,
@@ -37,6 +38,7 @@ def test_client_initialization_defaults():
     client = DeepTranslatorClient()
     assert "translation-temporary.onrender.com" in client.render_api_url
     assert client.render_timeout == 70.0
+    assert client.cold_start_delay == 10.0
     assert "render_api" in client.providers_order
     assert "openrouter" in client.providers_order
 
@@ -270,3 +272,84 @@ async def test_should_raise_translation_error_when_all_providers_exhausted(
 
     with pytest.raises(TranslationError, match="All translation providers exhausted"):
         await client.translate_text("Xin chào", target_lang="en")
+
+
+@pytest.mark.asyncio
+async def test_get_http_client_isolates_timeouts_across_endpoints():
+    """Verify health-check (5s) and OpenRouter (30s) clients do not overwrite Render (70s) timeout."""
+    uninjected_client = DeepTranslatorClient(render_timeout=70.0)
+    health_client = await uninjected_client._get_http_client(timeout=5.0)
+    openrouter_client = await uninjected_client._get_http_client(timeout=30.0)
+    render_client = await uninjected_client._get_http_client(timeout=70.0)
+
+    try:
+        assert health_client is not render_client
+        assert openrouter_client is not render_client
+        assert health_client.timeout.read == 5.0
+        assert openrouter_client.timeout.read == 30.0
+        assert render_client.timeout.read == 70.0
+    finally:
+        await health_client.aclose()
+        await openrouter_client.aclose()
+        await render_client.aclose()
+
+
+@pytest.mark.asyncio
+async def test_render_api_502_spinup_uses_cold_start_delay_and_recovers(
+    mocker, mock_http
+):
+    """Verify 502 spin-up waits cold_start_delay and succeeds on Render API without falling back."""
+    sleep_spy = mocker.patch(
+        "app.integrations.deep_translator_client.asyncio.sleep",
+        new=AsyncMock(),
+    )
+    responses = [
+        MagicMock(status_code=502, text="<html><title>502</title></html>"),
+        MagicMock(
+            status_code=200,
+            json=lambda: {
+                "translated_text": "Cu Chi Tunnels",
+                "latency_ms": 180.0,
+            },
+        ),
+    ]
+    mock_http.post = AsyncMock(side_effect=responses)
+
+    client = DeepTranslatorClient(
+        render_api_url="https://test-render-api.example.com",
+        cold_start_delay=12.0,
+        openrouter_key="test-openrouter-key",
+        providers_order=["render_api", "openrouter"],
+        max_retries=3,
+        base_delay=1.5,
+        http_client=mock_http,
+    )
+
+    result = await client.translate_text("Địa đạo Củ Chi", target_lang="en")
+
+    assert result == "Cu Chi Tunnels"
+    sleep_spy.assert_awaited_once_with(12.0)
+    assert mock_http.post.call_count == 2
+    assert "test-render-api.example.com" in mock_http.post.call_args_list[-1].args[0]
+
+
+@pytest.mark.asyncio
+async def test_openrouter_narrative_logs_warning_on_non_200_status(
+    caplog, client, mock_http
+):
+    """Verify OpenRouter narrative logs explicit warning when HTTP status is not 200."""
+    mock_http.post = AsyncMock(
+        return_value=MagicMock(status_code=404, text='{"error":"model not found"}')
+    )
+
+    with caplog.at_level("WARNING"):
+        res = await client._translate_narrative_with_openrouter(
+            title="Bếp Hoàng Cầm",
+            short_description=None,
+            description=None,
+            source_lang="vi",
+            target_lang="en",
+        )
+
+    assert res is None
+    assert "OpenRouter narrative returned status 404" in caplog.text
