@@ -234,7 +234,7 @@ export default function RestoreSessionModal({
 
   const modalContent = (
     <div
-      className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm overflow-y-auto animate-fade-in"
+      className="fixed inset-0 z-[9999] overflow-y-auto bg-slate-900/60 p-3 sm:p-4 backdrop-blur-sm animate-fade-in"
       role="dialog"
       aria-modal="true"
       aria-labelledby="restore-modal-title"
@@ -244,16 +244,24 @@ export default function RestoreSessionModal({
         }
       }}
     >
-      <div className="relative w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl border border-slate-100 transition-all p-6">
-        {/* Close Button */}
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="Đóng"
-          className="absolute top-4 right-4 inline-flex items-center justify-center w-11 h-11 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
-        >
-          <X size={20} aria-hidden="true" />
-        </button>
+      <div
+        className="flex min-h-full items-start sm:items-center justify-center py-4 sm:py-8 pointer-events-none"
+        onClick={(e) => {
+          if (e.target === e.currentTarget) {
+            onClose?.();
+          }
+        }}
+      >
+        <div className="relative w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl border border-slate-100 transition-all p-4 sm:p-6 my-auto pointer-events-auto">
+          {/* Close Button */}
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Đóng"
+            className="absolute top-3 right-3 sm:top-4 sm:right-4 inline-flex items-center justify-center w-10 h-10 sm:w-11 sm:h-11 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+          >
+            <X size={20} aria-hidden="true" />
+          </button>
 
         {/* Modal Header */}
         <div className="flex items-center gap-3 mb-4">
@@ -285,10 +293,10 @@ export default function RestoreSessionModal({
 
             {/* PIN 6-BOX INTERFACE */}
             <div
-              className="flex items-center justify-center gap-2"
+              className="flex items-center justify-center gap-1.5 sm:gap-2"
               onPaste={handlePaste}
             >
-              <div className="px-2 py-2 rounded-xl bg-slate-100 border border-slate-200 text-xs font-mono font-bold text-slate-500 select-none">
+              <div className="px-1.5 sm:px-2 py-2 rounded-xl bg-slate-100 border border-slate-200 text-[11px] sm:text-xs font-mono font-bold text-slate-500 select-none">
                 CCT -
               </div>
               {pin.map((digit, index) => (
@@ -309,7 +317,7 @@ export default function RestoreSessionModal({
                   disabled={isLoading || isSuccess}
                   aria-label={`Chữ số thứ ${index + 1}`}
                   data-testid={`pin-input-${index}`}
-                  className="w-10 h-12 sm:w-11 sm:h-13 text-center text-xl font-bold font-mono rounded-xl border border-slate-300 bg-slate-50 text-slate-900 focus:bg-white focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-100 transition disabled:opacity-60"
+                  className="w-9 h-11 sm:w-11 sm:h-13 text-center text-lg sm:text-xl font-bold font-mono rounded-xl border border-slate-300 bg-slate-50 text-slate-900 focus:bg-white focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-100 transition disabled:opacity-60"
                 />
               ))}
             </div>
@@ -361,6 +369,7 @@ export default function RestoreSessionModal({
             </button>
           </div>
         </form>
+        </div>
       </div>
     </div>
   );

@@ -184,28 +184,185 @@ export default function CheckoutModal({
     );
   }
 
+  // Close button 44px touch target (Rule 2.6)
+  const closeButtonElement = (
+    <button
+      type="button"
+      onClick={onClose}
+      aria-label={getVisitorText('closeCheckout', preferredLanguage)}
+      className="absolute right-3 top-3 sm:right-4 sm:top-4 inline-flex items-center justify-center w-11 h-11 rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition"
+    >
+      <X size={20} aria-hidden="true" />
+    </button>
+  );
+
+  // Compute main content area view into explicit variable (refactor_rule.md Rule 6.2)
+  let mainContentArea = null;
+  if (isLoadingOrder) {
+    mainContentArea = (
+      <div className="py-12 text-center text-slate-500">
+        <Loader2 size={32} className="mx-auto animate-spin text-emerald-600" />
+        <p className="mt-2 text-xs">Đang khởi tạo mã thanh toán an toàn...</p>
+      </div>
+    );
+  } else if (orderError) {
+    mainContentArea = (
+      <div className="my-6 rounded-xl border border-red-200 bg-red-50 p-4 text-center">
+        <p className="text-xs text-red-700">{orderError}</p>
+        <button
+          type="button"
+          onClick={() => fetchOrder(paymentMethod)}
+          className="mt-3 inline-block rounded-lg bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700"
+        >
+          Thử lại
+        </button>
+      </div>
+    );
+  } else if (paymentMethod === 'VIETQR') {
+    mainContentArea = (
+      <div className="mt-3 sm:mt-4">
+        {/* QR Code Container */}
+        <div className="mx-auto flex flex-col items-center justify-center rounded-xl border border-slate-200 bg-white p-2.5 sm:p-3 shadow-inner max-w-[180px] sm:max-w-[220px]">
+          {order?.qr_code_url ? (
+            <img
+              src={order.qr_code_url}
+              alt="VietQR thanh toán dịch vụ thuyết minh âm thanh"
+              className="w-full h-auto aspect-square rounded-lg object-contain"
+            />
+          ) : (
+            <div className="flex h-36 w-36 sm:h-44 sm:w-44 items-center justify-center bg-slate-100 text-slate-400">
+              <QrCode size={44} />
+            </div>
+          )}
+          <span className="mt-1 text-[10px] sm:text-[11px] text-slate-500 text-center font-medium">
+            Quét qua ứng dụng Ngân hàng
+          </span>
+        </div>
+
+        {/* Transfer Details Card */}
+        <div className="mt-2.5 sm:mt-3 space-y-1.5 sm:space-y-2 rounded-xl bg-slate-50 p-2.5 sm:p-3 text-xs border border-slate-100">
+          <div className="flex justify-between items-center">
+            <span className="text-slate-500">{getVisitorText('bank', preferredLanguage)}:</span>
+            <span className="font-semibold text-slate-800">
+              {order?.bank_name || 'MBBank'}
+            </span>
+          </div>
+
+          <div className="flex justify-between items-center">
+            <span className="text-slate-500">{getVisitorText('accountNumber', preferredLanguage)}:</span>
+            <div className="flex items-center gap-1.5">
+              <span className="font-mono font-bold text-slate-900">
+                {order?.account_no || '0911223344'}
+              </span>
+              <button
+                type="button"
+                onClick={() => handleCopy('account', order?.account_no || '0911223344')}
+                aria-label="Sao chép số tài khoản"
+                className="rounded p-1 text-slate-500 hover:bg-slate-200 hover:text-slate-800 transition"
+              >
+                {copiedField === 'account' ? (
+                  <Check size={14} className="text-emerald-600" />
+                ) : (
+                  <Copy size={14} />
+                )}
+              </button>
+            </div>
+          </div>
+
+          <div className="flex justify-between items-center">
+            <span className="text-slate-500">{getVisitorText('accountHolder', preferredLanguage)}:</span>
+            <span className="font-semibold text-slate-800 text-right truncate max-w-[180px]">
+              {order?.account_name || 'DIA DAO CU CHI'}
+            </span>
+          </div>
+
+          <div className="flex justify-between items-center">
+            <span className="text-slate-500">{getVisitorText('transferContent', preferredLanguage)}:</span>
+            <div className="flex items-center gap-1.5">
+              <span className="font-mono font-bold text-emerald-800">
+                {order?.payment_reference || order?.order_id || 'CCT PASS'}
+              </span>
+              <button
+                type="button"
+                onClick={() =>
+                  handleCopy('reference', order?.payment_reference || order?.order_id)
+                }
+                aria-label="Sao chép nội dung chuyển khoản"
+                className="rounded p-1 text-slate-500 hover:bg-slate-200 hover:text-slate-800 transition"
+              >
+                {copiedField === 'reference' ? (
+                  <Check size={14} className="text-emerald-600" />
+                ) : (
+                  <Copy size={14} />
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Polling Indicator */}
+        <div className="mt-3 flex items-center justify-center gap-2 rounded-lg bg-emerald-50/70 py-2 px-3 text-[11px] text-emerald-800">
+          <span className="relative flex h-2 w-2">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-600" />
+          </span>
+          <span>
+            {isPolling || orderStatus === 'PENDING'
+              ? getVisitorText('waitingPaymentConfirm', preferredLanguage)
+              : getVisitorText('checkingPaymentStatus', preferredLanguage)}
+          </span>
+        </div>
+      </div>
+    );
+  } else {
+    mainContentArea = (
+      <div className="mt-6 py-4 text-center">
+        <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-blue-50 text-blue-600">
+          <CreditCard size={28} />
+        </div>
+        <h3 className="text-sm font-semibold text-slate-900">
+          {getVisitorText('cardGatewayTitle', preferredLanguage)}
+        </h3>
+        <p className="mt-1 text-xs text-slate-500 max-w-xs mx-auto">
+          {getVisitorText('cardGatewayDesc', preferredLanguage)}
+        </p>
+
+        {cardActionElement}
+        {simulationError && (
+          <p
+            className="mt-2 text-xs text-red-600 bg-red-50 p-2 rounded-lg border border-red-200"
+            data-testid="card-simulation-error-msg"
+          >
+            {simulationError}
+          </p>
+        )}
+      </div>
+    );
+  }
+
   const modalContent = (
     <div
       role="dialog"
       aria-modal="true"
       aria-labelledby="checkout-modal-title"
-      className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm overflow-y-auto"
+      className="fixed inset-0 z-[9999] overflow-y-auto bg-slate-900/60 p-3 sm:p-4 backdrop-blur-sm"
       onClick={(e) => {
         if (e.target === e.currentTarget) {
           onClose?.();
         }
       }}
     >
-      <div className="relative w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl transition-all my-8">
-        {/* Close Button */}
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label={getVisitorText('closeCheckout', preferredLanguage)}
-          className="absolute right-4 top-4 rounded-full p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition"
-        >
-          <X size={20} aria-hidden="true" />
-        </button>
+      <div
+        className="flex min-h-full items-start sm:items-center justify-center py-4 sm:py-8 pointer-events-none"
+        onClick={(e) => {
+          if (e.target === e.currentTarget) {
+            onClose?.();
+          }
+        }}
+      >
+        <div className="relative w-full max-w-md rounded-2xl border border-slate-200 bg-white p-4 sm:p-6 shadow-2xl transition-all my-auto pointer-events-auto">
+          {/* Close Button with 44px Touch Target (Rule 2.6) */}
+          {closeButtonElement}
 
         {isPaidSuccess ? (
           /* SUCCESS STATE */
@@ -326,142 +483,8 @@ export default function CheckoutModal({
               </button>
             </div>
 
-            {/* Main Content Area */}
-            {isLoadingOrder ? (
-              <div className="py-12 text-center text-slate-500">
-                <Loader2 size={32} className="mx-auto animate-spin text-emerald-600" />
-                <p className="mt-2 text-xs">Đang khởi tạo mã thanh toán an toàn...</p>
-              </div>
-            ) : orderError ? (
-              <div className="my-6 rounded-xl border border-red-200 bg-red-50 p-4 text-center">
-                <p className="text-xs text-red-700">{orderError}</p>
-                <button
-                  type="button"
-                  onClick={() => fetchOrder(paymentMethod)}
-                  className="mt-3 inline-block rounded-lg bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700"
-                >
-                  Thử lại
-                </button>
-              </div>
-            ) : paymentMethod === 'VIETQR' ? (
-              /* VIETQR VIEW */
-              <div className="mt-4">
-                {/* QR Code Container */}
-                <div className="mx-auto flex flex-col items-center justify-center rounded-xl border border-slate-200 bg-white p-3 shadow-inner max-w-[220px]">
-                  {order?.qr_code_url ? (
-                    <img
-                      src={order.qr_code_url}
-                      alt="VietQR thanh toán dịch vụ thuyết minh âm thanh"
-                      className="w-full h-auto aspect-square rounded-lg object-contain"
-                    />
-                  ) : (
-                    <div className="flex h-44 w-44 items-center justify-center bg-slate-100 text-slate-400">
-                      <QrCode size={48} />
-                    </div>
-                  )}
-                  <span className="mt-1 text-[11px] text-slate-500 text-center font-medium">
-                    Quét qua ứng dụng Ngân hàng
-                  </span>
-                </div>
-
-                {/* Transfer Details Card */}
-                <div className="mt-3 space-y-2 rounded-xl bg-slate-50 p-3 text-xs border border-slate-100">
-                  <div className="flex justify-between items-center">
-                    <span className="text-slate-500">{getVisitorText('bank', preferredLanguage)}:</span>
-                    <span className="font-semibold text-slate-800">
-                      {order?.bank_name || 'MBBank'}
-                    </span>
-                  </div>
-
-                  <div className="flex justify-between items-center">
-                    <span className="text-slate-500">{getVisitorText('accountNumber', preferredLanguage)}:</span>
-                    <div className="flex items-center gap-1.5">
-                      <span className="font-mono font-bold text-slate-900">
-                        {order?.account_no || '0911223344'}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => handleCopy('account', order?.account_no || '0911223344')}
-                        aria-label="Sao chép số tài khoản"
-                        className="rounded p-1 text-slate-500 hover:bg-slate-200 hover:text-slate-800 transition"
-                      >
-                        {copiedField === 'account' ? (
-                          <Check size={14} className="text-emerald-600" />
-                        ) : (
-                          <Copy size={14} />
-                        )}
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="flex justify-between items-center">
-                    <span className="text-slate-500">{getVisitorText('accountHolder', preferredLanguage)}:</span>
-                    <span className="font-semibold text-slate-800 text-right truncate max-w-[180px]">
-                      {order?.account_name || 'DIA DAO CU CHI'}
-                    </span>
-                  </div>
-
-                  <div className="flex justify-between items-center">
-                    <span className="text-slate-500">{getVisitorText('transferContent', preferredLanguage)}:</span>
-                    <div className="flex items-center gap-1.5">
-                      <span className="font-mono font-bold text-emerald-800">
-                        {order?.payment_reference || order?.order_id || 'CCT PASS'}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          handleCopy('reference', order?.payment_reference || order?.order_id)
-                        }
-                        aria-label="Sao chép nội dung chuyển khoản"
-                        className="rounded p-1 text-slate-500 hover:bg-slate-200 hover:text-slate-800 transition"
-                      >
-                        {copiedField === 'reference' ? (
-                          <Check size={14} className="text-emerald-600" />
-                        ) : (
-                          <Copy size={14} />
-                        )}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Polling Indicator */}
-                <div className="mt-3 flex items-center justify-center gap-2 rounded-lg bg-emerald-50/70 py-2 px-3 text-[11px] text-emerald-800">
-                  <span className="relative flex h-2 w-2">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-600" />
-                  </span>
-                  <span>
-                    {isPolling || orderStatus === 'PENDING'
-                      ? getVisitorText('waitingPaymentConfirm', preferredLanguage)
-                      : getVisitorText('checkingPaymentStatus', preferredLanguage)}
-                  </span>
-                </div>
-              </div>
-            ) : (
-              /* CARD VIEW */
-              <div className="mt-6 py-4 text-center">
-                <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-blue-50 text-blue-600">
-                  <CreditCard size={28} />
-                </div>
-                <h3 className="text-sm font-semibold text-slate-900">
-                  {getVisitorText('cardGatewayTitle', preferredLanguage)}
-                </h3>
-                <p className="mt-1 text-xs text-slate-500 max-w-xs mx-auto">
-                  {getVisitorText('cardGatewayDesc', preferredLanguage)}
-                </p>
-
-                {cardActionElement}
-                {simulationError && (
-                  <p
-                    className="mt-2 text-xs text-red-600 bg-red-50 p-2 rounded-lg border border-red-200"
-                    data-testid="card-simulation-error-msg"
-                  >
-                    {simulationError}
-                  </p>
-                )}
-              </div>
-            )}
+            {/* Main Content Area (Computed cleanly above adhering to refactor_rule.md SISE Rule 6.2) */}
+            {mainContentArea}
 
             {/* Restore Session Prompt Link */}
             <div className="mt-4 pt-3 border-t border-slate-100 text-center">
@@ -508,6 +531,7 @@ export default function CheckoutModal({
             )}
           </div>
         )}
+        </div>
       </div>
     </div>
   );
