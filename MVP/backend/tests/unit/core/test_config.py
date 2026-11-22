@@ -58,30 +58,28 @@ def test_settings_accepts_256_bit_hex_jwt_secret():
     assert cfg.JWT_SECRET_KEY == secret
 
 
-def test_gemini_keys_list_parsing():
-    """Verify gemini_keys_list cleanly parses comma-separated keys and handles empty states."""
-    # Empty keys gate
-    cfg_empty = Settings(GEMINI_API_KEYS="")
-    assert cfg_empty.gemini_keys_list == []
+def test_translation_providers_list_parsing():
+    """Verify translation_providers_list cleanly parses comma-separated providers and handles defaults."""
+    # Empty providers gate
+    cfg_empty = Settings(TRANSLATION_PROVIDERS_ORDER="")
+    assert cfg_empty.translation_providers_list == ["render_api", "openrouter"]
 
     # Whitespace only
-    cfg_spaces = Settings(GEMINI_API_KEYS="   ,  ")
-    assert cfg_spaces.gemini_keys_list == []
+    cfg_spaces = Settings(TRANSLATION_PROVIDERS_ORDER="   ,  ")
+    assert cfg_spaces.translation_providers_list == ["render_api", "openrouter"]
 
     # Valid comma-separated tokens
-    cfg_valid = Settings(GEMINI_API_KEYS="key_alpha, key_beta ,key_gamma")
-    assert cfg_valid.gemini_keys_list == ["key_alpha", "key_beta", "key_gamma"]
+    cfg_valid = Settings(TRANSLATION_PROVIDERS_ORDER="render_api, openrouter")
+    assert cfg_valid.translation_providers_list == ["render_api", "openrouter"]
 
 
-def test_google_translate_keys_list_parsing():
-    """Verify google_translate_keys_list cleanly parses tokens and handles empty states."""
-    # Empty keys gate
-    cfg_empty = Settings(GOOGLE_TRANSLATE_API_KEYS="")
-    assert cfg_empty.google_translate_keys_list == []
-
-    # Valid comma-separated tokens
-    cfg_valid = Settings(GOOGLE_TRANSLATE_API_KEYS="token_1, token_2")
-    assert cfg_valid.google_translate_keys_list == ["token_1", "token_2"]
+def test_render_translation_settings():
+    """Verify render translation API settings initialize with expected defaults."""
+    cfg = Settings()
+    assert (
+        cfg.RENDER_TRANSLATION_API_URL == "https://translation-temporary.onrender.com"
+    )
+    assert cfg.RENDER_TRANSLATION_TIMEOUT == 70.0
 
 
 def test_get_settings_singleton_caching():
