@@ -124,6 +124,9 @@ class Settings(BaseSettings):
     TRANSLATION_PROVIDERS_ORDER: str = (
         "openrouter,offline,google_cloud,gemini,deep_translator"
     )
+    PIPELINE_MAX_CONCURRENCY: int = 1
+    PIPELINE_JOB_COOLDOWN_SECONDS: float = 1.5
+    PIPELINE_AUTO_RECOVERY: bool = True
 
     @property
     def is_development(self) -> bool:

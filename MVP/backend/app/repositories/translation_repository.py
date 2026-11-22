@@ -137,3 +137,18 @@ class TranslationRepository:
         self.db.commit()
         self.db.refresh(translation)
         return translation
+
+    def get_pending_poi_translations(self) -> dict[str, list[str]]:
+        """Find non-Vietnamese translations in PENDING status grouped by POI (US 04.4)."""
+        pending = (
+            self.db.query(POITranslation.poi_id, POITranslation.language_id)
+            .filter(
+                POITranslation.status.in_(["PENDING", "NEEDS_UPDATE"]),
+                POITranslation.language_id != "vi",
+            )
+            .all()
+        )
+        grouped: dict[str, list[str]] = {}
+        for poi_id, lang_id in pending:
+            grouped.setdefault(poi_id, []).append(lang_id)
+        return grouped

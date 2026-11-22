@@ -16,6 +16,7 @@ if BACKEND_ROOT not in sys.path:
 # Unit tests use a fixed, non-production key before importing application settings.
 os.environ.setdefault("JWT_SECRET_KEY", "a" * 64)
 os.environ.setdefault("RATE_LIMIT_ENABLED", "false")
+os.environ.setdefault("ENV", "test")
 
 from app.core.config import Settings, settings  # noqa: E402
 from app.core.database import Base, create_database_engine, get_db  # noqa: E402
