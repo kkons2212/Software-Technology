@@ -136,6 +136,72 @@ describe('CheckoutModal', () => {
     ).toBeInTheDocument();
   });
 
+  it('prioritizes VietQR as first tab and default method when preferredLanguage is Vietnamese', async () => {
+    render(<CheckoutModal isOpen={true} preferredLanguage="vi" />);
+
+    await waitFor(() => {
+      expect(createCheckoutOrder).toHaveBeenCalledWith(
+        expect.objectContaining({
+          paymentMethod: 'VIETQR',
+          preferredLanguage: 'vi',
+        })
+      );
+    });
+
+    const tabs = screen.getAllByRole('tab');
+    expect(tabs[0]).toHaveTextContent(/VietQR/i);
+    expect(tabs[0]).toHaveAttribute('aria-selected', 'true');
+    expect(tabs[1]).toHaveTextContent(/thẻ quốc tế/i);
+    expect(tabs[1]).toHaveAttribute('aria-selected', 'false');
+    expect(screen.getByText(/Sandbox Test Mode \(VietQR\):/i)).toBeInTheDocument();
+  });
+
+  it('prioritizes PayPal (CARD) as first tab and default method when preferredLanguage is international', async () => {
+    render(<CheckoutModal isOpen={true} preferredLanguage="en" />);
+
+    await waitFor(() => {
+      expect(createCheckoutOrder).toHaveBeenCalledWith(
+        expect.objectContaining({
+          paymentMethod: 'CARD',
+          preferredLanguage: 'en',
+        })
+      );
+    });
+
+    const tabs = screen.getAllByRole('tab');
+    expect(tabs[0]).toHaveTextContent(/Card/i);
+    expect(tabs[0]).toHaveAttribute('aria-selected', 'true');
+    expect(tabs[1]).toHaveTextContent(/VietQR/i);
+    expect(tabs[1]).toHaveAttribute('aria-selected', 'false');
+    expect(screen.getByText(/Sandbox Test Mode \(PayPal\):/i)).toBeInTheDocument();
+  });
+
+  it('allows switching from prioritized PayPal to VietQR for international visitors', async () => {
+    render(<CheckoutModal isOpen={true} preferredLanguage="en" />);
+
+    await waitFor(() => {
+      expect(createCheckoutOrder).toHaveBeenCalledWith(
+        expect.objectContaining({
+          paymentMethod: 'CARD',
+          preferredLanguage: 'en',
+        })
+      );
+    });
+
+    const vietQrTab = screen.getByRole('tab', { name: /vietqr/i });
+    await act(async () => {
+      fireEvent.click(vietQrTab);
+    });
+
+    expect(vietQrTab).toHaveAttribute('aria-selected', 'true');
+    expect(createCheckoutOrder).toHaveBeenCalledWith(
+      expect.objectContaining({
+        paymentMethod: 'VIETQR',
+        preferredLanguage: 'en',
+      })
+    );
+  });
+
   it('simulates payment success and transitions to activation success view', async () => {
     const onSuccess = vi.fn();
     simulatePaymentSuccess.mockResolvedValueOnce({
