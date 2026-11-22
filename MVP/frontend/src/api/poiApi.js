@@ -133,3 +133,21 @@ export async function uploadPoiImage(file, { signal } = {}) {
   return payload?.image_url;
 }
 
+/**
+ * Retry automated translation pipeline for failed translations of a POI (Admin).
+ * @param {string} poiId
+ * @param {boolean} [failedOnly=true]
+ * @param {object} [options]
+ * @param {AbortSignal} [options.signal]
+ * @returns {Promise<object>}
+ */
+export async function retryPoiTranslations(poiId, failedOnly = true, { signal } = {}) {
+  const query = failedOnly ? '?failed_only=true' : '?failed_only=false';
+  return apiClient.post(
+    `${POI_ADMIN_BASE_PATH}/${encodeURIComponent(poiId)}/retry-translations${query}`,
+    {},
+    { signal }
+  );
+}
+
+

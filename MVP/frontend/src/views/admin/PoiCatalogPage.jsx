@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { getPois, createPoi, togglePoiVisibility } from '../../api/poiApi.js';
+import { getPois, createPoi, togglePoiVisibility, retryPoiTranslations } from '../../api/poiApi.js';
 import DeactivateConfirmModal from '../../components/admin/DeactivateConfirmModal.jsx';
 import AdminMapPicker from '../../components/admin/AdminMapPicker.jsx';
 import POIFormModal from '../../components/admin/POIFormModal.jsx';
@@ -29,6 +29,7 @@ export default function PoiCatalogPage() {
   const [isDeactivateModalOpen, setIsDeactivateModalOpen] = useState(false);
   const [isTogglingVisibility, setIsTogglingVisibility] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
+  const [retryingPoiIds, setRetryingPoiIds] = useState({});
 
   // Form State
   const [title, setTitle] = useState('');
@@ -95,6 +96,33 @@ export default function PoiCatalogPage() {
       setError(err?.message || ADMIN_TRANSLATIONS.errorUpdatePoiFailed);
     } finally {
       setIsTogglingVisibility(false);
+    }
+  };
+
+  const handleRetryTranslations = async (poi) => {
+    setRetryingPoiIds((prev) => ({ ...prev, [poi.poi_id]: true }));
+    setError('');
+    try {
+      const res = await retryPoiTranslations(poi.poi_id, true);
+      const queuedCount = res?.queued_languages?.length || 0;
+      setSuccessMessage(
+        queuedCount > 0
+          ? `Đã đưa ${queuedCount} bản dịch lỗi của "${poi.title}" vào hàng đợi dịch lại!`
+          : `Không có bản dịch nào bị lỗi cần dịch lại.`
+      );
+      setPois((prev) =>
+        prev.map((item) => {
+          if (item.poi_id !== poi.poi_id) return item;
+          const updatedTranslations = (item.translations || []).map((t) =>
+            t.status === 'FAILED' ? { ...t, status: 'PENDING' } : t
+          );
+          return { ...item, translations: updatedTranslations };
+        })
+      );
+    } catch (err) {
+      setError(err?.message || 'Không thể thử lại dịch thuật lúc này.');
+    } finally {
+      setRetryingPoiIds((prev) => ({ ...prev, [poi.poi_id]: false }));
     }
   };
 
@@ -318,6 +346,31 @@ export default function PoiCatalogPage() {
                     </td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex items-center justify-end space-x-2">
+                        {poi.translations && poi.translations.some((t) => t.status === 'FAILED') && (
+                          <button
+                            type="button"
+                            onClick={() => handleRetryTranslations(poi)}
+                            disabled={retryingPoiIds[poi.poi_id]}
+                            title="Thử lại dịch các ngôn ngữ bị lỗi"
+                            className="inline-flex items-center gap-1 rounded px-2.5 py-1 text-xs font-medium text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-300 disabled:opacity-50"
+                          >
+                            <svg
+                              className={`h-3 w-3 ${retryingPoiIds[poi.poi_id] ? 'animate-spin' : ''}`}
+                              xmlns="http://www.w3.org/2000/svg"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                              />
+                            </svg>
+                            <span>{retryingPoiIds[poi.poi_id] ? 'Đang gửi...' : 'Thử lại dịch'}</span>
+                          </button>
+                        )}
                         <button
                           type="button"
                           onClick={() => setEditingPoi(poi)}

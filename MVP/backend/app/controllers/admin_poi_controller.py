@@ -13,6 +13,7 @@ from app.core.limiter import rate_limit
 from app.schemas.auth_schema import AdminProfileResponse
 from app.schemas.poi_schema import (
     POIResponse,
+    POIRetryTranslationResponse,
     POIUpdateRequest,
     POIUpdateResponse,
     POIVisibilityUpdateRequest,
@@ -81,3 +82,23 @@ def set_poi_visibility(
         admin_user_name=current_admin.user_name,
         client_ip=resolve_client_ip(request),
     )
+
+
+@router.post("/{poi_id}/retry-translations", response_model=POIRetryTranslationResponse)
+def retry_poi_translations(
+    poi_id: str,
+    request: Request,
+    background_tasks: BackgroundTasks,
+    failed_only: bool = True,
+    service: POIService = Depends(get_poi_service),
+    current_admin: AdminProfileResponse = Depends(get_current_admin_profile),
+) -> POIRetryTranslationResponse:
+    """Retry automated translation pipeline for a POI's failed or foreign languages."""
+    result = service.retry_poi_translations(
+        poi_id=poi_id,
+        failed_only=failed_only,
+        background_tasks=background_tasks,
+        admin_username=current_admin.user_name,
+        client_ip=resolve_client_ip(request),
+    )
+    return POIRetryTranslationResponse(**result)

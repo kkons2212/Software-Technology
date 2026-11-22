@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { getTranslations, updateTranslation, publishTranslation } from '../../api/translationApi.js';
+import { getTranslations, updateTranslation, publishTranslation, retryTranslation } from '../../api/translationApi.js';
 import { getPois } from '../../api/poiApi.js';
 import { getSupportedLanguages } from '../../api/languageApi.js';
 import AudioSyncBadge from '../../components/admin/AudioSyncBadge.jsx';
@@ -38,7 +38,8 @@ export default function TranslationAuditView() {
   // Row-level edit drafts: { [stranId]: { title, short_description, description } }
   const [editDrafts, setEditDrafts] = useState({});
   const [savingRows, setSavingRows] = useState({});
-  const [publishingRows, setPublishingRows] = useState({});
+  const [publishingRows, setPublishingRows] = useState({});
+  const [retryingRows, setRetryingRows] = useState({});
 
   // 1. Fetch POIs for the 3-tier filter header
   useEffect(() => {
@@ -199,6 +200,29 @@ export default function TranslationAuditView() {
     setNotification({ type: 'error', message: errorMessage });
   };
 
+  
+  const handleRetryTranslation = async (item) => {
+    setRetryingRows((prev) => ({ ...prev, [item.stran_id]: true }));
+    setNotification(null);
+    try {
+      await retryTranslation(item.stran_id);
+      setTranslations((prev) =>
+        prev.map((t) => (t.stran_id === item.stran_id ? { ...t, status: 'PENDING' } : t))
+      );
+      setNotification({
+        type: 'success',
+        message: `Đã đưa bản dịch ${item.language_id?.toUpperCase()} của "${item.poi_title || item.poi_id}" vào hàng đợi dịch lại!`,
+      });
+    } catch (err) {
+      setNotification({
+        type: 'error',
+        message: err?.message || 'Không thể thử lại dịch thuật lúc này.',
+      });
+    } finally {
+      setRetryingRows((prev) => ({ ...prev, [item.stran_id]: false }));
+    }
+  };
+
   const handlePublishTranslation = async (item) => {
     setPublishingRows((prev) => ({ ...prev, [item.stran_id]: true }));
     setNotification(null);
@@ -510,6 +534,30 @@ export default function TranslationAuditView() {
                   </div>
 
                   <div className="flex items-center gap-3">
+                                        <button
+                      type="button"
+                      data-testid={`retry-btn-${item.stran_id}`}
+                      onClick={() => handleRetryTranslation(item)}
+                      disabled={retryingRows[item.stran_id]}
+                      className="inline-flex items-center gap-1.5 rounded-md border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-800 shadow-sm hover:bg-amber-100 disabled:opacity-50"
+                      title="Gửi lại bản dịch này vào hàng đợi tự động dịch"
+                    >
+                      <svg
+                        className={`h-3.5 w-3.5 ${retryingRows[item.stran_id] ? 'animate-spin' : ''}`}
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                        />
+                      </svg>
+                      {retryingRows[item.stran_id] ? 'Đang gửi...' : 'Thử lại dịch'}
+                    </button>
                     <RegenerateAudioButton
                       translationId={item.stran_id}
                       status={effectiveStatus}

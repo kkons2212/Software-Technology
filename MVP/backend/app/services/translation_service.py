@@ -198,3 +198,44 @@ class TranslationService:
             )
 
         return self._build_response(published)
+
+    def retry_translation(
+        self,
+        stran_id: str,
+        background_tasks=None,
+        admin_username: str | None = None,
+        ip_address: str | None = None,
+    ) -> TranslationResponse:
+        """Retry automated translation and audio synthesis for a specific translation record."""
+        existing = self.translation_repo.get_by_id(stran_id)
+        if not existing:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Translation '{stran_id}' not found.",
+            )
+
+        updated = self.translation_repo.mark_translation_pending_by_id(stran_id)
+
+        if background_tasks is not None:
+            from app.services.translation_pipeline_service import (
+                execute_poi_pipeline_background_task,
+            )
+
+            background_tasks.add_task(
+                execute_poi_pipeline_background_task,
+                existing.poi_id,
+                [existing.language_id],
+            )
+
+        if self.audit_repo and admin_username:
+            self.audit_repo.log_action(
+                username=admin_username,
+                status="SUCCESS",
+                ip_address=ip_address,
+                details=(
+                    f"RETRY_TRANSLATION: {stran_id} (Status: PENDING, "
+                    f"POI: {existing.poi_id}, Lang: {existing.language_id})"
+                ),
+            )
+
+        return self._build_response(updated)

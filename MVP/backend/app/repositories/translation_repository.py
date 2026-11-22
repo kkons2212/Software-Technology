@@ -152,3 +152,49 @@ class TranslationRepository:
         for poi_id, lang_id in pending:
             grouped.setdefault(poi_id, []).append(lang_id)
         return grouped
+
+    def get_failed_languages_for_poi(self, poi_id: str) -> list[str]:
+        """Find foreign languages for a POI that currently have FAILED status."""
+        failed = (
+            self.db.query(POITranslation.language_id)
+            .filter(
+                POITranslation.poi_id == poi_id,
+                POITranslation.language_id != "vi",
+                POITranslation.status == "FAILED",
+            )
+            .all()
+        )
+        return [row[0] for row in failed]
+
+    def mark_translation_pending(
+        self, poi_id: str, language_id: str
+    ) -> POITranslation | None:
+        """Transition a specific POI translation back to PENDING status for retry."""
+        translation = (
+            self.db.query(POITranslation)
+            .filter(
+                POITranslation.poi_id == poi_id,
+                POITranslation.language_id == language_id,
+            )
+            .first()
+        )
+        if translation is None:
+            return None
+
+        translation.status = "PENDING"
+        translation.update_at = func.now()
+        self.db.commit()
+        self.db.refresh(translation)
+        return translation
+
+    def mark_translation_pending_by_id(self, stran_id: str) -> POITranslation | None:
+        """Transition a translation record back to PENDING status by primary key."""
+        translation = self.get_by_id(stran_id)
+        if translation is None:
+            return None
+
+        translation.status = "PENDING"
+        translation.update_at = func.now()
+        self.db.commit()
+        self.db.refresh(translation)
+        return translation

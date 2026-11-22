@@ -243,3 +243,12 @@ class POIListResponse(BaseModel):
     page: int = 1
 
     size: int = 50
+
+
+class POIRetryTranslationResponse(BaseModel):
+    """Payload returned when triggering retry for failed POI translations."""
+
+    success: bool = True
+    message: str
+    poi_id: str
+    queued_languages: list[str] = []

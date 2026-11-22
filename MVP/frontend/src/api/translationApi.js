@@ -95,3 +95,18 @@ export async function publishTranslation(translationId, { signal } = {}) {
     { signal }
   );
 }
+
+/**
+ * Retry automated translation and TTS pipeline for a single translation record.
+ * @param {string} translationId
+ * @param {Object} [options]
+ * @param {AbortSignal} [options.signal]
+ */
+export async function retryTranslation(translationId, { signal } = {}) {
+  return apiClient.post(
+    `${TRANSLATION_ADMIN_BASE_PATH}/${translationId}/retry`,
+    {},
+    { signal }
+  );
+}
+

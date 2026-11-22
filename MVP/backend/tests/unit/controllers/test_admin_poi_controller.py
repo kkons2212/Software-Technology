@@ -323,3 +323,53 @@ def test_should_reject_visibility_toggle_without_admin_session(client, seeded_po
 
     assert response.status_code == 401
     assert response.json()["error"]["code"] == "UNAUTHENTICATED"
+
+
+def test_should_retry_poi_translations_for_failed_languages(
+    authenticated_client, seeded_poi, db_session
+):
+    """POST /retry-translations finds FAILED languages and sets them to PENDING."""
+    from app.models.translation import POITranslation
+
+    failed_trans = POITranslation(
+        stran_id="tr-test-failed",
+        poi_id=seeded_poi.poi_id,
+        language_id="ja",
+        title="Failed Ja Title",
+        status="FAILED",
+    )
+    db_session.add(failed_trans)
+    db_session.commit()
+
+    response = authenticated_client.post(
+        f"/api/v1/admin/pois/{seeded_poi.poi_id}/retry-translations?failed_only=true",
+        headers=X_FORWARDED_FOR_HEADER,
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["success"] is True
+    assert "ja" in body["queued_languages"]
+
+    db_session.refresh(failed_trans)
+    assert failed_trans.status == "PENDING"
+
+
+def test_should_return_404_when_retrying_translations_for_nonexistent_poi(
+    authenticated_client,
+):
+    """POST /retry-translations returns 404 when POI is missing."""
+    response = authenticated_client.post(
+        "/api/v1/admin/pois/nonexistent-poi/retry-translations",
+        headers=X_FORWARDED_FOR_HEADER,
+    )
+    assert response.status_code == 404
+    body = response.json()
+    assert body["success"] is False
+    assert body["error"]["code"] == "POI_NOT_FOUND"
+
+
+def test_should_reject_retry_translations_without_admin_session(client, seeded_poi):
+    """POST /retry-translations rejects unauthenticated calls with 401."""
+    response = client.post(f"/api/v1/admin/pois/{seeded_poi.poi_id}/retry-translations")
+    assert response.status_code == 401
+    assert response.json()["error"]["code"] == "UNAUTHENTICATED"

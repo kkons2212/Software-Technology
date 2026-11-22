@@ -8,7 +8,7 @@ import uuid
 import warnings
 from decimal import Decimal
 from io import BytesIO
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import BackgroundTasks, Depends, HTTPException, UploadFile, status
 from PIL import Image, UnidentifiedImageError
@@ -655,3 +655,68 @@ class POIService:
             translations=translations,
         )
         return response
+
+    def retry_poi_translations(
+        self,
+        poi_id: str,
+        failed_only: bool = True,
+        background_tasks=None,
+        admin_username: str | None = None,
+        client_ip: str | None = None,
+    ) -> dict[str, Any]:
+        """Retry translations for a POI (default: failed-only) without requiring exhibit narrative changes."""
+        poi = self.repository.get_by_id(poi_id)
+        if poi is None:
+            raise ApiError(
+                status_code=status.HTTP_404_NOT_FOUND,
+                code=POI_NOT_FOUND_ERROR_CODE,
+                message=POI_NOT_FOUND_ERROR_MESSAGE,
+            )
+
+        if failed_only:
+            target_languages = self.repository.get_failed_translation_languages(poi_id)
+        else:
+            target_languages = self._get_target_foreign_languages()
+
+        if not target_languages:
+            return {
+                "success": True,
+                "message": "No translations require retry.",
+                "poi_id": poi_id,
+                "queued_languages": [],
+            }
+
+        self.repository.reset_translations_to_pending(poi_id, target_languages)
+
+        if background_tasks is not None:
+            from app.services.translation_pipeline_service import (
+                execute_poi_pipeline_background_task,
+            )
+
+            background_tasks.add_task(
+                execute_poi_pipeline_background_task, poi_id, target_languages
+            )
+
+        if self.audit_repository:
+            details_str = f"RETRY_POI_TRANSLATION: {poi_id} (Languages: {', '.join(target_languages)})"
+            if hasattr(self.audit_repository, "create_log_entry"):
+                self.audit_repository.create_log_entry(
+                    user_name=admin_username,
+                    status=AUDIT_STATUS_SUCCESS,
+                    ip_address=client_ip,
+                    details=details_str,
+                )
+            elif hasattr(self.audit_repository, "log_action"):
+                self.audit_repository.log_action(
+                    username=admin_username,
+                    status=AUDIT_STATUS_SUCCESS,
+                    ip_address=client_ip,
+                    details=details_str,
+                )
+
+        return {
+            "success": True,
+            "message": f"Successfully queued {len(target_languages)} translation(s) for retry.",
+            "poi_id": poi_id,
+            "queued_languages": target_languages,
+        }
