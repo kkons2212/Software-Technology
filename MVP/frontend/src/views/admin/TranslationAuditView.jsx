@@ -449,11 +449,6 @@ export default function TranslationAuditView() {
                     <span className="font-semibold text-slate-900">
                       {item.poi_title || item.poi_id}
                     </span>
-                    {isSourceLanguage && (
-                      <span className="rounded bg-indigo-50 border border-indigo-200 px-2.5 py-0.5 text-xs font-medium text-indigo-700">
-                        {ADMIN_TRANSLATIONS.badgeSourceVietnamese}
-                      </span>
-                    )}
                     {!isSourceLanguage && (
                       <span className="rounded bg-slate-200 px-2 py-0.5 text-xs font-mono font-medium text-slate-700">
                         {item.language_name || item.language_id.toUpperCase()}
@@ -517,16 +512,10 @@ export default function TranslationAuditView() {
                     </div>
 
                     <div className="rounded-lg border border-slate-200 bg-white p-4 sm:p-5 shadow-sm space-y-3">
-                      <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                      <div className="border-b border-slate-100 pb-2">
                         <span className="text-xs font-bold uppercase tracking-wider text-slate-700">
                           {ADMIN_TRANSLATIONS.audioVietnameseHeader}
                         </span>
-                        <AudioSyncBadge
-                          status={item.status}
-                          audioStatus={item.audio_status}
-                          isEdited={false}
-                          showLock={false}
-                        />
                       </div>
                       <AudioAuditPlayer
                         key={`${item.stran_id}-${item.audio_url || 'missing'}`}

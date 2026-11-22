@@ -404,7 +404,8 @@ describe('TranslationAuditView (US 04.1 Multilingual Translation Audit & US 04.3
     });
 
     expect(screen.getByTestId('vietnamese-source-frame')).toBeDefined();
-    expect(screen.getByText(ADMIN_TRANSLATIONS.badgeSourceVietnamese)).toBeDefined();
+    expect(screen.getByTestId('audio-sync-badge')).toBeDefined();
+    expect(screen.queryByText(ADMIN_TRANSLATIONS.badgeSourceVietnamese)).toBeNull();
     expect(screen.getByText(ADMIN_TRANSLATIONS.audioVietnameseHeader)).toBeDefined();
     expect(screen.getByTestId('audio-player-TR_VI_001')).toBeDefined();
     expect(screen.getByTestId('regenerate-audio-TR_VI_001')).toBeDefined();
