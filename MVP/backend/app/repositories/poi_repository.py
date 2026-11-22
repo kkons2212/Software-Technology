@@ -180,6 +180,36 @@ class POIRepository:
         invalidated_count = len(foreign_translations)
         return invalidated_count
 
+    def get_failed_translation_languages(self, poi_id: str) -> list[str]:
+        """Return language IDs for non-Vietnamese translations of this POI that failed."""
+        failed = (
+            self.db.query(POITranslation.language_id)
+            .filter(
+                POITranslation.poi_id == poi_id,
+                POITranslation.language_id != "vi",
+                POITranslation.status == "FAILED",
+            )
+            .all()
+        )
+        return [row[0] for row in failed]
+
+    def reset_translations_to_pending(self, poi_id: str, languages: list[str]) -> int:
+        """Mark translations for specified languages as PENDING."""
+        if not languages:
+            return 0
+        translations = (
+            self.db.query(POITranslation)
+            .filter(
+                POITranslation.poi_id == poi_id,
+                POITranslation.language_id.in_(languages),
+            )
+            .all()
+        )
+        for t in translations:
+            t.status = "PENDING"
+        self.db.commit()
+        return len(translations)
+
     def set_visibility(self, poi: POI, is_active: bool) -> POI:
         """Toggle an exhibit's active visibility state (US 03.3).
 

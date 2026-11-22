@@ -3,7 +3,7 @@
 Enables side-by-side historical audit, terminology refinement, and live publication approval.
 """
 
-from fastapi import APIRouter, Depends, Query, Request, status
+from fastapi import APIRouter, BackgroundTasks, Depends, Query, Request, status
 
 from app.core.dependencies import (
     get_current_admin,
@@ -107,6 +107,28 @@ def publish_translation(
     client_ip = request.client.host if request.client else None
     return translation_service.publish_translation(
         stran_id=id,
+        admin_username=current_admin,
+        ip_address=client_ip,
+    )
+
+
+@router.post(
+    "/{id}/retry",
+    response_model=TranslationResponse,
+    status_code=status.HTTP_200_OK,
+)
+def retry_translation(
+    id: str,
+    request: Request,
+    background_tasks: BackgroundTasks,
+    translation_service: TranslationService = Depends(get_translation_service),
+    current_admin: str = Depends(get_current_admin),
+) -> TranslationResponse:
+    """Retry automated translation and narration generation for a translation record."""
+    client_ip = request.client.host if request.client else None
+    return translation_service.retry_translation(
+        stran_id=id,
+        background_tasks=background_tasks,
         admin_username=current_admin,
         ip_address=client_ip,
     )
