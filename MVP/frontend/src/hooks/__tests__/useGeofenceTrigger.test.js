@@ -213,4 +213,36 @@ describe('useGeofenceTrigger (US 01.3.1 GPS Proximity Detection Engine)', () => 
     expect(result.current.activeGeofencePois.length).toBe(0);
     expect(onTrigger).not.toHaveBeenCalled();
   });
+
+  it('handles POIs with poi_id property correctly for cooldown locking', () => {
+    const onTrigger = vi.fn();
+    const poiWithPoiId = [
+      {
+        poi_id: 'poi_abc',
+        title: 'Ben Duoc Exhibit',
+        latitude: 11.1432,
+        longitude: 106.4631,
+        trigger_radius: 30,
+        is_active: true,
+      },
+    ];
+    const location = { lat: 11.1432, lng: 106.4631 };
+
+    const { rerender } = renderHook(
+      ({ userLoc }) =>
+        useGeofenceTrigger({
+          userLocation: userLoc,
+          pois: poiWithPoiId,
+          onTrigger,
+          isUnlocked: true,
+        }),
+      { initialProps: { userLoc: location } }
+    );
+
+    expect(onTrigger).toHaveBeenCalledTimes(1);
+
+    // Minor movement within same radius
+    rerender({ userLoc: { lat: 11.14321, lng: 106.46311 } });
+    expect(onTrigger).toHaveBeenCalledTimes(1);
+  });
 });
