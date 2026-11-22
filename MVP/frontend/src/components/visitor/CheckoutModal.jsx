@@ -4,7 +4,7 @@
 // Frictionless checkout for 24-hour smart audio guide service via VietQR & Cards.
 // =============================================================================
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
   Check,
@@ -33,6 +33,13 @@ const isSimulationEnabled = () => Boolean(
 
 const DEFAULT_FEE_VND = 50000;
 
+export const getDefaultPaymentMethod = (language) => {
+  const normalized = String(language || '').toLowerCase().trim();
+  return normalized === 'vi' || normalized.startsWith('vi-') || normalized.startsWith('vi_')
+    ? 'VIETQR'
+    : 'CARD';
+};
+
 export default function CheckoutModal({
   isOpen = false,
   onClose,
@@ -43,7 +50,9 @@ export default function CheckoutModal({
   // Top-of-Scope Rule (dev_rules 1.4.5): preliminary computed flags at top of component
   const isSimulationAllowed = isSimulationEnabled();
 
-  const [paymentMethod, setPaymentMethod] = useState('VIETQR');
+  const [paymentMethod, setPaymentMethod] = useState(() =>
+    getDefaultPaymentMethod(preferredLanguage)
+  );
   const [order, setOrder] = useState(null);
   const [isLoadingOrder, setIsLoadingOrder] = useState(false);
   const [orderError, setOrderError] = useState(null);
@@ -52,6 +61,9 @@ export default function CheckoutModal({
   const [isSimulating, setIsSimulating] = useState(false);
   const [isPaidSuccess, setIsPaidSuccess] = useState(false);
   const [completedSession, setCompletedSession] = useState(null);
+
+  const prevIsOpenRef = useRef(false);
+  const prevLangRef = useRef(preferredLanguage);
 
   const handlePaymentSuccess = useCallback(
     (paidData) => {
@@ -94,15 +106,31 @@ export default function CheckoutModal({
 
   useEffect(() => {
     if (isOpen) {
-      setIsPaidSuccess(false);
-      setCompletedSession(null);
-      fetchOrder(paymentMethod);
+      const wasOpen = prevIsOpenRef.current;
+      const prevLang = prevLangRef.current;
+      prevIsOpenRef.current = true;
+      prevLangRef.current = preferredLanguage;
+
+      if (!wasOpen || prevLang !== preferredLanguage) {
+        const initialMethod = getDefaultPaymentMethod(preferredLanguage);
+        setPaymentMethod(initialMethod);
+        setIsPaidSuccess(false);
+        setCompletedSession(null);
+        fetchOrder(initialMethod);
+      }
     } else {
+      prevIsOpenRef.current = false;
       setOrder(null);
       setOrderError(null);
       setIsPaidSuccess(false);
     }
-  }, [fetchOrder, isOpen, paymentMethod]);
+  }, [fetchOrder, isOpen, preferredLanguage]);
+
+  const handleSelectPaymentMethod = (method) => {
+    if (method === paymentMethod && order) return;
+    setPaymentMethod(method);
+    fetchOrder(method);
+  };
 
   // Close on Escape key press
   useEffect(() => {
@@ -155,6 +183,19 @@ export default function CheckoutModal({
   }
 
   const formattedAmount = (order?.amount ?? DEFAULT_FEE_VND).toLocaleString('vi-VN');
+
+  const isVietnamese =
+    String(preferredLanguage || '').toLowerCase().startsWith('vi');
+
+  const tabConfigs = isVietnamese
+    ? [
+        { id: 'VIETQR', icon: QrCode, label: getVisitorText('tabVietQR', preferredLanguage) },
+        { id: 'CARD', icon: CreditCard, label: getVisitorText('tabCard', preferredLanguage) },
+      ]
+    : [
+        { id: 'CARD', icon: CreditCard, label: getVisitorText('tabCard', preferredLanguage) },
+        { id: 'VIETQR', icon: QrCode, label: getVisitorText('tabVietQR', preferredLanguage) },
+      ];
 
   // Compute card action element cleanly (refactor_rule 6.2: 0 nested ternaries in JSX)
   let cardActionElement = (
@@ -403,6 +444,14 @@ export default function CheckoutModal({
                 </div>
               </div>
               <div className="flex justify-between items-center text-sm py-1 border-b border-emerald-100">
+                <span className="text-slate-600 font-medium">{isVietnamese ? 'Phương thức:' : 'Payment Method:'}</span>
+                <span className="text-emerald-800 font-semibold">
+                  {completedSession?.payment_method === 'CARD' || completedSession?.payment_method === 'PAYPAL' || paymentMethod === 'CARD'
+                    ? 'PayPal / Card'
+                    : 'VietQR'}
+                </span>
+              </div>
+              <div className="flex justify-between items-center text-sm py-1 border-b border-emerald-100">
                 <span className="text-slate-600 font-medium">{getVisitorText('durationLabel', preferredLanguage)}</span>
                 <span className="text-emerald-800 font-semibold">{getVisitorText('duration24Hours', preferredLanguage)}</span>
               </div>
@@ -453,34 +502,27 @@ export default function CheckoutModal({
 
             {/* Payment Method Selector Tabs */}
             <div className="mt-2.5 sm:mt-4 grid grid-cols-2 gap-2 rounded-xl bg-slate-100 p-1" role="tablist">
-              <button
-                type="button"
-                role="tab"
-                aria-selected={paymentMethod === 'VIETQR'}
-                onClick={() => setPaymentMethod('VIETQR')}
-                className={`flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-semibold transition ${
-                  paymentMethod === 'VIETQR'
-                    ? 'bg-white text-emerald-800 shadow-sm'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                <QrCode size={16} aria-hidden="true" />
-                <span>{getVisitorText('tabVietQR', preferredLanguage)}</span>
-              </button>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={paymentMethod === 'CARD'}
-                onClick={() => setPaymentMethod('CARD')}
-                className={`flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-semibold transition ${
-                  paymentMethod === 'CARD'
-                    ? 'bg-white text-emerald-800 shadow-sm'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                <CreditCard size={16} aria-hidden="true" />
-                <span>{getVisitorText('tabCard', preferredLanguage)}</span>
-              </button>
+              {tabConfigs.map((tab) => {
+                const Icon = tab.icon;
+                const isSelected = paymentMethod === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    role="tab"
+                    aria-selected={isSelected}
+                    onClick={() => handleSelectPaymentMethod(tab.id)}
+                    className={`flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-semibold transition ${
+                      isSelected
+                        ? 'bg-white text-emerald-800 shadow-sm'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <Icon size={16} aria-hidden="true" />
+                    <span>{tab.label}</span>
+                  </button>
+                );
+              })}
             </div>
 
             {/* Main Content Area (Computed cleanly above adhering to refactor_rule.md SISE Rule 6.2) */}
@@ -504,7 +546,9 @@ export default function CheckoutModal({
             {isSimulationAllowed && order && (
               <div className="mt-3 pt-2 border-t border-slate-100">
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] text-slate-400">Sandbox Test Mode:</span>
+                  <span className="text-[10px] text-slate-400">
+                    Sandbox Test Mode ({paymentMethod === 'CARD' ? 'PayPal' : 'VietQR'}):
+                  </span>
                   <button
                     type="button"
                     data-testid="simulate-payment-btn"
