@@ -118,7 +118,7 @@ class Settings(BaseSettings):
     RENDER_TRANSLATION_API_URL: str = "https://translation-temporary.onrender.com"
     RENDER_TRANSLATION_TIMEOUT: float = 70.0
     OPENROUTER_API_KEY: str = ""
-    OPENROUTER_MODEL: str = ""
+    OPENROUTER_MODEL: str = "openrouter/free"
     OPENROUTER_BASE_URL: str = "https://openrouter.ai/api/v1"
     TRANSLATION_PROVIDERS_ORDER: str = "render_api,openrouter"
     PIPELINE_MAX_CONCURRENCY: int = 1
