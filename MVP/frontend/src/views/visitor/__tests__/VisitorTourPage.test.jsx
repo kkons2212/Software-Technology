@@ -257,6 +257,105 @@ describe('VisitorTourPage', () => {
     expect(reportPoiTrigger).not.toHaveBeenCalled();
   });
 
+  it('handles GPS jitter gracefully without premature exit reporting using grace period debounce', async () => {
+    let mockTime = 100000;
+    const nowSpy = vi.spyOn(Date, 'now').mockImplementation(() => mockTime);
+
+    const { rerender } = render(<VisitorTourPage exitGracePeriodMs={150} />);
+    await screen.findByRole('combobox', { name: 'Choose language' });
+
+    // 1. Visitor enters the zone
+    act(() => {
+      geofenceMock.onTrigger({ poi_id: 'poi-jitter', id: 'poi-jitter', title: 'Hoang Cam Stove' });
+      geofenceMock.activeGeofencePois = [
+        { poi: { id: 'poi-jitter' }, distance: 5, triggerRadius: 30 },
+      ];
+    });
+    rerender(<VisitorTourPage exitGracePeriodMs={150} />);
+
+    // Stay inside for 10 seconds
+    mockTime += 10000;
+
+    // 2. GPS jitter: visitor coordinates drift outside for 50ms (< 150ms grace period)
+    act(() => {
+      geofenceMock.activeGeofencePois = [];
+    });
+    rerender(<VisitorTourPage exitGracePeriodMs={150} />);
+
+    // Advance 50ms (less than 150ms grace period)
+    await new Promise((r) => setTimeout(r, 50));
+    expect(reportPoiTrigger).not.toHaveBeenCalled();
+
+    // 3. GPS returns inside the zone before 150ms grace period expires
+    act(() => {
+      geofenceMock.activeGeofencePois = [
+        { poi: { id: 'poi-jitter' }, distance: 6, triggerRadius: 30 },
+      ];
+    });
+    rerender(<VisitorTourPage exitGracePeriodMs={150} />);
+
+    // Wait 200ms (past the original 150ms timeout)
+    await new Promise((r) => setTimeout(r, 200));
+    // Still not reported because visitor returned inside
+    expect(reportPoiTrigger).not.toHaveBeenCalled();
+
+    // 4. Visitor finally leaves the zone completely
+    mockTime += 8000; // another 8s inside
+    act(() => {
+      geofenceMock.activeGeofencePois = [];
+    });
+    rerender(<VisitorTourPage exitGracePeriodMs={150} />);
+
+    // Wait past 150ms grace period
+    await waitFor(
+      () => {
+        expect(reportPoiTrigger).toHaveBeenCalledTimes(1);
+      },
+      { timeout: 1000 }
+    );
+
+    expect(reportPoiTrigger).toHaveBeenCalledWith(
+      expect.objectContaining({
+        poiId: 'poi-jitter',
+        dwellTime: 18,
+        triggerType: 'AUTOMATIC_GEOFENCE',
+      })
+    );
+
+    nowSpy.mockRestore();
+  });
+
+  it('flushes active dwell sessions when the tour page unmounts', async () => {
+    let mockNow = 200000;
+    const nowSpy = vi.spyOn(Date, 'now').mockImplementation(() => mockNow);
+
+    const { unmount } = render(<VisitorTourPage />);
+    await screen.findByRole('combobox', { name: 'Choose language' });
+
+    act(() => {
+      geofenceMock.onTrigger({ poi_id: 'poi-flush', id: 'poi-flush', title: 'Command Bunker' });
+      geofenceMock.activeGeofencePois = [
+        { poi: { id: 'poi-flush' }, distance: 10, triggerRadius: 30 },
+      ];
+    });
+
+    mockNow += 25000; // 25 seconds of dwell time
+
+    expect(reportPoiTrigger).not.toHaveBeenCalled();
+
+    // Visitor closes tab / navigates away (component unmounts)
+    unmount();
+
+    expect(reportPoiTrigger).toHaveBeenCalledWith({
+      poiId: 'poi-flush',
+      dwellTime: 25,
+      triggerType: 'AUTOMATIC_GEOFENCE',
+      preferredLanguage: 'vi',
+    });
+
+    nowSpy.mockRestore();
+  });
+
   it('dismisses the open exhibit preview', async () => {
     getMapPois.mockResolvedValue([
       {

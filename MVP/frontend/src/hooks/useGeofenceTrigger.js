@@ -115,19 +115,20 @@ export function useGeofenceTrigger({
     // Overlapping resolution: prioritize the physically closest POI
     inRangeList.sort((firstPoiEntry, secondPoiEntry) => firstPoiEntry.distance - secondPoiEntry.distance);
     const targetMatch = inRangeList[0];
+    const targetPoiId = targetMatch.poi.id ?? targetMatch.poi.poi_id;
 
     // Check 10-minute cooldown debounce lock
-    const isLocked = isCooldownActive(targetMatch.poi.id, cooldownDurationMsRef.current);
+    const isLocked = isCooldownActive(targetPoiId, cooldownDurationMsRef.current);
 
     if (!isLocked && isUnlockedRef.current) {
       // Apply cooldown lockout
-      setCooldown(targetMatch.poi.id);
+      setCooldown(targetPoiId);
 
       if (typeof onTriggerRef.current === 'function') {
         const isAnotherPlaying =
           currentPlayingPoiIdRef.current !== null &&
           currentPlayingPoiIdRef.current !== undefined &&
-          String(currentPlayingPoiIdRef.current) !== String(targetMatch.poi.id);
+          String(currentPlayingPoiIdRef.current) !== String(targetPoiId);
 
         onTriggerRef.current(targetMatch.poi, targetMatch.distance, {
           shouldPromptSwitch: isAnotherPlaying,

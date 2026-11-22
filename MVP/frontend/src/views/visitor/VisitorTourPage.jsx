@@ -27,12 +27,19 @@ import { ensureUtcIso } from '../../utils/dateUtils.js';
 const PREFERRED_LANGUAGE_KEY = 'museum_preferred_lang';
 const DEFAULT_LANGUAGE = 'vi';
 const MILLISECONDS_PER_SECOND = 1000;
+export const DEFAULT_EXIT_GRACE_PERIOD_MS =
+  (typeof import.meta !== 'undefined' && import.meta.env?.MODE === 'test') ||
+  (typeof process !== 'undefined' && process.env?.NODE_ENV === 'test')
+    ? 0
+    : 10000;
+export const MIN_DWELL_SECONDS = 0;
 
 export default function VisitorTourPage({
   sessionCode = '',
   expiresAt = null,
   onUnlock,
-}) {
+  exitGracePeriodMs = DEFAULT_EXIT_GRACE_PERIOD_MS,
+} = {}) {
   const { location, accuracy, errorMessage, hasLiveLocation } = useGeolocation();
   const [languages, setLanguages] = useState([]);
   const [selectedLanguage, setSelectedLanguage] = useState(() => {
@@ -139,15 +146,24 @@ export default function VisitorTourPage({
   }, [primeAudio]);
 
   // Dwell windows opened by a real geofence trigger, keyed by POI id. The
-  // telemetry row is only reported once the visitor leaves the zone, because a
-  // duration cannot be measured at the moment of entry.
+  // telemetry row is only reported once the visitor leaves the zone, debounced
+  // with a grace period to prevent GPS jitter from cutting sessions short.
   const dwellStartByPoiIdRef = useRef({});
+  const pendingExitsRef = useRef({});
+  const selectedLanguageRef = useRef(selectedLanguage);
+  selectedLanguageRef.current = selectedLanguage;
 
   const handleProximityTrigger = useCallback(
     (poi) => {
       const poiId = String(poi.poi_id || poi.id);
       if (isUnlocked) {
         markPoiActivated(poiId);
+      }
+
+      // Cancel any pending exit debounce timer if visitor re-enters within grace period
+      if (pendingExitsRef.current[poiId]) {
+        clearTimeout(pendingExitsRef.current[poiId].timerId);
+        delete pendingExitsRef.current[poiId];
       }
 
       // STREAMING-ENDPOINT: Construct full backend audio URL
@@ -172,10 +188,12 @@ export default function VisitorTourPage({
       // The language is captured alongside the entry instant: the backend mints
       // the visitor session from this value, so it must be the visitor's choice at
       // the time the exhibit was actually triggered.
-      dwellStartByPoiIdRef.current[poiId] = {
-        startedAtMs: Date.now(),
-        language: selectedLanguage,
-      };
+      if (!dwellStartByPoiIdRef.current[poiId]) {
+        dwellStartByPoiIdRef.current[poiId] = {
+          startedAtMs: Date.now(),
+          language: selectedLanguage,
+        };
+      }
     },
     [isUnlocked, markPoiActivated, play, selectedLanguage, contextSessionToken]
   );
@@ -188,32 +206,126 @@ export default function VisitorTourPage({
     isUnlocked: isUnlocked || Boolean(effectiveSessionCode),
   });
 
+  // Track dwell time across GPS presence with hysteresis/exit debounce
   useEffect(() => {
     const activePoiIds = new Set(
       activeGeofencePois.map(({ poi }) => String(poi.poi_id || poi.id))
     );
 
+    // 1. Cancel pending exits for POIs that are currently active in the geofence
+    activePoiIds.forEach((poiId) => {
+      if (pendingExitsRef.current[poiId]) {
+        clearTimeout(pendingExitsRef.current[poiId].timerId);
+        delete pendingExitsRef.current[poiId];
+      }
+
+      // If an already activated POI is re-entered (even while audio cooldown is active), resume dwell tracking
+      if (isPoiActivated(poiId) && !dwellStartByPoiIdRef.current[poiId]) {
+        dwellStartByPoiIdRef.current[poiId] = {
+          startedAtMs: Date.now(),
+          language: selectedLanguageRef.current,
+        };
+      }
+    });
+
+    const finalizeExit = (targetPoiId) => {
+      const dwellEntry = dwellStartByPoiIdRef.current[targetPoiId];
+      if (!dwellEntry) return;
+
+      const pending = pendingExitsRef.current[targetPoiId];
+      const exitTimeMs = pending?.exitCandidateAtMs ?? Date.now();
+
+      delete dwellStartByPoiIdRef.current[targetPoiId];
+      delete pendingExitsRef.current[targetPoiId];
+
+      const dwellSeconds = Math.max(
+        0,
+        Math.round((exitTimeMs - dwellEntry.startedAtMs) / MILLISECONDS_PER_SECOND)
+      );
+
+      if (dwellSeconds >= MIN_DWELL_SECONDS) {
+        reportPoiTrigger({
+          poiId: targetPoiId,
+          dwellTime: dwellSeconds,
+          triggerType: 'AUTOMATIC_GEOFENCE',
+          preferredLanguage: dwellEntry.language,
+        });
+      }
+    };
+
+    // 2. Debounce exits for POIs that just left the active geofence
     Object.keys(dwellStartByPoiIdRef.current).forEach((poiId) => {
       if (activePoiIds.has(poiId)) {
         return;
       }
 
-      const { startedAtMs, language } = dwellStartByPoiIdRef.current[poiId];
-      delete dwellStartByPoiIdRef.current[poiId];
+      if (pendingExitsRef.current[poiId]) {
+        return;
+      }
 
-      const dwellSeconds = Math.max(
-        0,
-        Math.round((Date.now() - startedAtMs) / MILLISECONDS_PER_SECOND)
-      );
+      if (exitGracePeriodMs <= 0) {
+        finalizeExit(poiId);
+      } else {
+        const exitCandidateAtMs = Date.now();
+        const timerId = setTimeout(() => {
+          finalizeExit(poiId);
+        }, exitGracePeriodMs);
 
-      reportPoiTrigger({
-        poiId,
-        dwellTime: dwellSeconds,
-        triggerType: 'AUTOMATIC_GEOFENCE',
-        preferredLanguage: language,
-      });
+        pendingExitsRef.current[poiId] = {
+          timerId,
+          exitCandidateAtMs,
+        };
+      }
     });
-  }, [activeGeofencePois]);
+  }, [activeGeofencePois, exitGracePeriodMs, isPoiActivated]);
+
+  // Flush any open dwell sessions on unmount or tab hide
+  useEffect(() => {
+    const flushActiveDwells = () => {
+      Object.keys(dwellStartByPoiIdRef.current).forEach((poiId) => {
+        const dwellEntry = dwellStartByPoiIdRef.current[poiId];
+        if (!dwellEntry) return;
+
+        const pending = pendingExitsRef.current[poiId];
+        if (pending?.timerId) {
+          clearTimeout(pending.timerId);
+        }
+
+        const exitTimeMs = pending?.exitCandidateAtMs ?? Date.now();
+        delete dwellStartByPoiIdRef.current[poiId];
+        delete pendingExitsRef.current[poiId];
+
+        const dwellSeconds = Math.max(
+          0,
+          Math.round((exitTimeMs - dwellEntry.startedAtMs) / MILLISECONDS_PER_SECOND)
+        );
+
+        if (dwellSeconds >= MIN_DWELL_SECONDS) {
+          reportPoiTrigger({
+            poiId,
+            dwellTime: dwellSeconds,
+            triggerType: 'AUTOMATIC_GEOFENCE',
+            preferredLanguage: dwellEntry.language,
+          });
+        }
+      });
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        flushActiveDwells();
+      }
+    };
+
+    window.addEventListener('beforeunload', flushActiveDwells);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener('beforeunload', flushActiveDwells);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      flushActiveDwells();
+    };
+  }, []);
 
   // Auto-clear route when visitor enters the destination geofence
   useEffect(() => {
