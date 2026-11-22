@@ -622,7 +622,7 @@ export default function VisitorTourPage({
         isOpen={isRestoreOpen}
         onClose={() => setIsRestoreOpen(false)}
         onSuccess={handleRestoreSuccess}
-        language={selectedLanguage}
+        language={selectedLanguage || DEFAULT_LANGUAGE}
       />
     </main>
   );

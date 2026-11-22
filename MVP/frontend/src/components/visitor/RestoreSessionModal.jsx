@@ -66,7 +66,7 @@ export default function RestoreSessionModal({
     async (rawCode) => {
       const code = (rawCode || '').trim().toUpperCase().replace(/\s+/g, '');
       if (!code) {
-        setErrorMessage('Vui lòng nhập mã phiên của bạn.');
+        setErrorMessage(getVisitorText('emptySessionCodeError', language));
         return;
       }
 
@@ -99,7 +99,7 @@ export default function RestoreSessionModal({
         const errorDetail =
           err?.error?.message ||
           err?.message ||
-          'Session code is invalid or has expired.';
+          getVisitorText('invalidSessionCodeError', language);
 
         if (
           err?.status === 404 ||
@@ -107,7 +107,7 @@ export default function RestoreSessionModal({
           errorDetail.toLowerCase().includes('expired') ||
           errorDetail.toLowerCase().includes('invalid')
         ) {
-          setErrorMessage('Mã phiên không hợp lệ hoặc đã hết hạn.');
+          setErrorMessage(getVisitorText('invalidSessionCodeError', language));
         } else {
           setErrorMessage(errorDetail);
         }
@@ -115,7 +115,7 @@ export default function RestoreSessionModal({
         setIsLoading(false);
       }
     },
-    [activateSession, onClose, onSuccess]
+    [activateSession, language, onClose, onSuccess]
   );
 
   // Handle individual PIN digit changes
@@ -203,7 +203,7 @@ export default function RestoreSessionModal({
     event?.preventDefault();
     const fullPinCode = pin.join('');
     if (fullPinCode.length < PIN_LENGTH) {
-      setErrorMessage('Vui lòng nhập đủ 6 chữ số mã phiên.');
+      setErrorMessage(getVisitorText('incompletePinError', language));
       return;
     }
     executeRestore(`CCT-${fullPinCode}`);
@@ -220,14 +220,14 @@ export default function RestoreSessionModal({
     submitButtonContent = (
       <>
         <Loader2 size={16} className="animate-spin" aria-hidden="true" />
-        <span>Đang xác thực...</span>
+        <span>{getVisitorText('checkingStatusBtn', language)}</span>
       </>
     );
   } else if (isSuccess) {
     submitButtonContent = (
       <>
         <CheckCircle2 size={16} aria-hidden="true" />
-        <span>Đã khôi phục</span>
+        <span>{getVisitorText('restoredBtn', language)}</span>
       </>
     );
   }
@@ -257,7 +257,7 @@ export default function RestoreSessionModal({
           <button
             type="button"
             onClick={onClose}
-            aria-label="Đóng"
+            aria-label={getVisitorText('closeBtn', language)}
             className="absolute top-2.5 right-2.5 sm:top-4 sm:right-4 inline-flex items-center justify-center w-10 h-10 sm:w-11 sm:h-11 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
           >
             <X size={20} aria-hidden="true" />
@@ -288,7 +288,7 @@ export default function RestoreSessionModal({
               htmlFor="session-code-input"
               className="block text-xs font-semibold text-slate-700 mb-2 text-center"
             >
-              Mã phiên (Session Code)
+              {getVisitorText('sessionCodeInputLabel', language)}
             </label>
 
             {/* PIN 6-BOX INTERFACE */}
@@ -315,14 +315,14 @@ export default function RestoreSessionModal({
                   onChange={(e) => handleDigitChange(index, e)}
                   onKeyDown={(e) => handleKeyDown(index, e)}
                   disabled={isLoading || isSuccess}
-                  aria-label={`Chữ số thứ ${index + 1}`}
+                  aria-label={getVisitorText('pinDigitAriaLabel', language, { index: index + 1 })}
                   data-testid={`pin-input-${index}`}
                   className="w-9 h-11 sm:w-11 sm:h-13 text-center text-lg sm:text-xl font-bold font-mono rounded-xl border border-slate-300 bg-slate-50 text-slate-900 focus:bg-white focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-100 transition disabled:opacity-60"
                 />
               ))}
             </div>
             <p className="mt-2 text-center text-[11px] text-slate-500">
-              Nhập 6 chữ số mã phiên của bạn (ví dụ: CCT-894201).
+              {getVisitorText('pinHelperText', language)}
             </p>
           </div>
 
@@ -345,7 +345,7 @@ export default function RestoreSessionModal({
             >
               <CheckCircle2 size={16} className="shrink-0" aria-hidden="true" />
               <span className="font-medium">
-                Khôi phục phiên thành công! Đang mở khoá audio guide...
+                {getVisitorText('restoreSuccessInline', language)}
               </span>
             </div>
           )}
@@ -358,7 +358,7 @@ export default function RestoreSessionModal({
               disabled={isLoading || isSuccess}
               className="flex-1 h-11 px-4 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-200 transition disabled:opacity-50"
             >
-              Huỷ bỏ
+              {getVisitorText('cancelBtn', language)}
             </button>
             <button
               type="submit"

@@ -155,7 +155,7 @@ describe('RestoreSessionModal (US 06.3 - 6-Digit PIN Restore)', () => {
     await waitFor(() => {
       expect(screen.getByRole('alert')).toBeInTheDocument();
       expect(
-        screen.getByText('Mã phiên không hợp lệ hoặc đã hết hạn.')
+        screen.getByText('Mã phiên không hợp lệ hoặc đã hết hạn. Vui lòng kiểm tra lại.')
       ).toBeInTheDocument();
     });
 
@@ -197,5 +197,133 @@ describe('RestoreSessionModal (US 06.3 - 6-Digit PIN Restore)', () => {
 
     fireEvent.keyDown(window, { key: 'Escape' });
     expect(onClose).toHaveBeenCalledTimes(2);
+  });
+
+  it('localizes all modal texts, aria labels, and errors according to selected language', async () => {
+    restoreSession.mockRejectedValueOnce({
+      status: 404,
+      error: { message: 'Session code is invalid or has expired.' },
+    });
+
+    const { rerender } = render(
+      <RestoreSessionModal
+        isOpen={true}
+        onClose={vi.fn()}
+        onSuccess={vi.fn()}
+        language="en"
+      />
+    );
+
+    expect(screen.getByText('Restore Access Pass')).toBeInTheDocument();
+    expect(
+      screen.getByText('Enter your session code to continue using the audio guide')
+    ).toBeInTheDocument();
+    expect(screen.getByText('Session Code')).toBeInTheDocument();
+    expect(
+      screen.getByText('Enter your 6-digit session code (e.g., CCT-894201).')
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText('Close')).toBeInTheDocument();
+    expect(screen.getByLabelText('Digit 1')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Restore Session' })).toBeInTheDocument();
+
+    ['1', '2', '3', '4', '5', '6'].forEach((d, idx) => {
+      fireEvent.change(screen.getByTestId(`pin-input-${idx}`), {
+        target: { value: d },
+      });
+    });
+
+    await waitFor(() => {
+      expect(
+        screen.getByText('Invalid or expired session code. Please verify and try again.')
+      ).toBeInTheDocument();
+    });
+
+    rerender(
+      <RestoreSessionModal
+        isOpen={true}
+        onClose={vi.fn()}
+        onSuccess={vi.fn()}
+        language="fr"
+      />
+    );
+
+    expect(screen.getByText('Restaurer l’Accès')).toBeInTheDocument();
+    expect(screen.getByText('Code de session')).toBeInTheDocument();
+    expect(screen.getByLabelText('Fermer')).toBeInTheDocument();
+    expect(screen.getByLabelText('Chiffre 1')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Annuler' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Restaurer la session' })).toBeInTheDocument();
+
+    rerender(
+      <RestoreSessionModal
+        isOpen={true}
+        onClose={vi.fn()}
+        onSuccess={vi.fn()}
+        language="ja"
+      />
+    );
+    expect(screen.getByText('アクセス権の復元')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'キャンセル' })).toBeInTheDocument();
+
+    rerender(
+      <RestoreSessionModal
+        isOpen={true}
+        onClose={vi.fn()}
+        onSuccess={vi.fn()}
+        language="ko"
+      />
+    );
+    expect(screen.getByText('이용 권한 복원')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '취소' })).toBeInTheDocument();
+
+    rerender(
+      <RestoreSessionModal
+        isOpen={true}
+        onClose={vi.fn()}
+        onSuccess={vi.fn()}
+        language="zh"
+      />
+    );
+    expect(screen.getByText('恢复访问通行证')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '取消' })).toBeInTheDocument();
+  });
+
+  it('shows localized incomplete PIN error and success state in non-Vietnamese language', async () => {
+    restoreSession.mockResolvedValueOnce({
+      success: true,
+      data: mockSessionData,
+    });
+
+    render(
+      <RestoreSessionModal
+        isOpen={true}
+        onClose={vi.fn()}
+        onSuccess={vi.fn()}
+        language="en"
+      />
+    );
+
+    // Submit with fewer than 6 digits
+    fireEvent.change(screen.getByTestId('pin-input-0'), { target: { value: '8' } });
+    fireEvent.submit(screen.getByTestId('pin-input-0').closest('form'));
+
+    expect(
+      screen.getByText('Please enter all 6 digits of your session code.')
+    ).toBeInTheDocument();
+
+    // Fill remaining 5 digits -> triggers restore and shows localized success
+    ['9', '4', '2', '0', '1'].forEach((d, offset) => {
+      fireEvent.change(screen.getByTestId(`pin-input-${offset + 1}`), {
+        target: { value: d },
+      });
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('Restored')).toBeInTheDocument();
+      expect(
+        screen.getByText('Session restored successfully! Unlocking audio guide...')
+      ).toBeInTheDocument();
+    });
   });
 });
