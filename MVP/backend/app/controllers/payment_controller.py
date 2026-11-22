@@ -42,6 +42,11 @@ async def create_checkout_order(
     payment_service: PaymentService = Depends(get_payment_service),
 ) -> CheckoutCreateResponse:
     """Create a digital admission checkout order and generate VietQR or Card checkout payload (TSK-06.1.1)."""
+    # Determine payment method based on user language
+    if payload.preferred_language and not payload.preferred_language.startswith('vi'):
+        # For non-Vietnamese languages, use PayPal
+        payload.payment_method = 'paypal'
+    
     return await payment_service.create_checkout_order(payload=payload)
 
 
