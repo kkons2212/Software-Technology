@@ -39,9 +39,13 @@ def test_engine() -> Engine:
     with Session(bind=engine) as session:
         # Standard baseline 5 languages expected by controller and analytics unit test suites
         baseline_codes = {"vi", "en", "ja", "ko", "zh"}
-        session.query(LanguageCode).filter(
-            LanguageCode.language_id.notin_(baseline_codes)
-        ).delete(synchronize_session=False)
+        try:
+            session.query(LanguageCode).filter(
+                LanguageCode.language_id.notin_(baseline_codes)
+            ).delete(synchronize_session=False)
+            session.commit()
+        except Exception:
+            session.rollback()
 
         for code, name in [
             ("vi", "Tiếng Việt"),

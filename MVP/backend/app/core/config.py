@@ -29,7 +29,8 @@ DEFAULT_PAYPAL_EXCHANGE_RATE = 25000.0
 DEFAULT_AUDIO_GUIDE_SERVICE_FEE = 50000
 DEFAULT_SERVICE_FEE_CURRENCY = "VND"
 DEFAULT_TRANSLATION_PACING_DELAY = 1.5
-DEFAULT_OFFLINE_TRANSLATOR_URL = "http://localhost:8001"
+DEFAULT_RENDER_TRANSLATION_API_URL = "https://translation-temporary.onrender.com"
+DEFAULT_RENDER_TRANSLATION_TIMEOUT = 70.0
 
 
 class Settings(BaseSettings):
@@ -113,17 +114,13 @@ class Settings(BaseSettings):
     TRANSLATION_PACING_DELAY: float = 1.5
     ENABLE_PAYMENT_SIMULATION: bool = False
 
-    # AI & Cloud Translation Settings (US 04.4)
-    GEMINI_API_KEYS: str = ""
-    GOOGLE_TRANSLATE_API_KEYS: str = ""
-    GEMINI_MODEL: str = ""
-    OFFLINE_TRANSLATOR_URL: str = "http://localhost:8001"
+    # AI & Cloud Translation Settings (US 04.4 - Auto_Translate & OpenRouter)
+    RENDER_TRANSLATION_API_URL: str = "https://translation-temporary.onrender.com"
+    RENDER_TRANSLATION_TIMEOUT: float = 70.0
     OPENROUTER_API_KEY: str = ""
     OPENROUTER_MODEL: str = ""
     OPENROUTER_BASE_URL: str = "https://openrouter.ai/api/v1"
-    TRANSLATION_PROVIDERS_ORDER: str = (
-        "openrouter,offline,google_cloud,gemini,deep_translator"
-    )
+    TRANSLATION_PROVIDERS_ORDER: str = "render_api,openrouter"
     PIPELINE_MAX_CONCURRENCY: int = 1
     PIPELINE_JOB_COOLDOWN_SECONDS: float = 1.5
     PIPELINE_AUTO_RECOVERY: bool = True
@@ -150,57 +147,26 @@ class Settings(BaseSettings):
     }
 
     @property
-    def gemini_keys_list(self) -> list[str]:
-        """Parse comma-separated Gemini API keys into an explicit list (SISE Compliant)."""
-        # Phase 1 Gate: Guard against missing or empty keys
-        if not self.GEMINI_API_KEYS or not self.GEMINI_API_KEYS.strip():
-            return []
-
-        # Phase 2 Compute: Split and clean individual key tokens
-        resolved_keys = [
-            k.strip() for k in self.GEMINI_API_KEYS.split(",") if k.strip()
-        ]
-
-        # Phase 3 Exit: Single structured return
-        return resolved_keys
-
-    @property
-    def google_translate_keys_list(self) -> list[str]:
-        """Parse comma-separated Google Translate API keys into an explicit list (SISE Compliant)."""
-        # Phase 1 Gate: Guard against missing or empty keys
-        if (
-            not self.GOOGLE_TRANSLATE_API_KEYS
-            or not self.GOOGLE_TRANSLATE_API_KEYS.strip()
-        ):
-            return []
-
-        # Phase 2 Compute: Split and clean individual key tokens
-        resolved_keys = [
-            k.strip() for k in self.GOOGLE_TRANSLATE_API_KEYS.split(",") if k.strip()
-        ]
-
-        # Phase 3 Exit: Single structured return
-        return resolved_keys
-
-    @property
     def translation_providers_list(self) -> list[str]:
         """Parse comma-separated translation providers order (SISE Compliant)."""
+        # Phase 1 Gate: empty string fallback
         if (
             not self.TRANSLATION_PROVIDERS_ORDER
             or not self.TRANSLATION_PROVIDERS_ORDER.strip()
         ):
-            return [
-                "openrouter",
-                "offline",
-                "google_cloud",
-                "gemini",
-                "deep_translator",
-            ]
-        return [
+            return ["render_api", "openrouter"]
+
+        # Phase 2 Compute: parse individual tokens
+        tokens = [
             p.strip().lower()
             for p in self.TRANSLATION_PROVIDERS_ORDER.split(",")
             if p.strip()
         ]
+
+        # Phase 3 Exit: return parsed tokens or default if all tokens were whitespace
+        if not tokens:
+            return ["render_api", "openrouter"]
+        return tokens
 
 
 @lru_cache
