@@ -190,7 +190,7 @@ export default function CheckoutModal({
       type="button"
       onClick={onClose}
       aria-label={getVisitorText('closeCheckout', preferredLanguage)}
-      className="absolute right-3 top-3 sm:right-4 sm:top-4 inline-flex items-center justify-center w-11 h-11 rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition"
+      className="absolute right-2.5 top-2.5 sm:right-4 sm:top-4 inline-flex items-center justify-center w-11 h-11 rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition"
     >
       <X size={20} aria-hidden="true" />
     </button>
@@ -345,7 +345,7 @@ export default function CheckoutModal({
       role="dialog"
       aria-modal="true"
       aria-labelledby="checkout-modal-title"
-      className="fixed inset-0 z-[9999] overflow-y-auto bg-slate-900/60 p-3 sm:p-4 backdrop-blur-sm"
+      className="fixed inset-0 z-[9999] overflow-y-auto bg-slate-900/60 p-2 sm:p-4 backdrop-blur-sm"
       onClick={(e) => {
         if (e.target === e.currentTarget) {
           onClose?.();
@@ -353,14 +353,14 @@ export default function CheckoutModal({
       }}
     >
       <div
-        className="flex min-h-full items-start sm:items-center justify-center py-4 sm:py-8 pointer-events-none"
+        className="flex min-h-full items-start sm:items-center justify-center py-2 sm:py-8 pointer-events-none"
         onClick={(e) => {
           if (e.target === e.currentTarget) {
             onClose?.();
           }
         }}
       >
-        <div className="relative w-full max-w-md rounded-2xl border border-slate-200 bg-white p-4 sm:p-6 shadow-2xl transition-all my-auto pointer-events-auto">
+        <div className="relative w-full max-w-md rounded-2xl border border-slate-200 bg-white p-3.5 sm:p-6 shadow-2xl transition-all my-1 sm:my-8 pointer-events-auto">
           {/* Close Button with 44px Touch Target (Rule 2.6) */}
           {closeButtonElement}
 
@@ -426,33 +426,33 @@ export default function CheckoutModal({
           /* CHECKOUT VIEW */
           <div>
             {/* Header */}
-            <div className="pr-6">
+            <div className="pr-12 sm:pr-14">
               <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 mb-2">
                 <Sparkles size={13} aria-hidden="true" />
                 <span>24h Tour Pass</span>
               </div>
               <h2
                 id="checkout-modal-title"
-                className="text-lg font-bold text-slate-900 leading-snug"
+                className="text-base sm:text-lg font-bold text-slate-900 leading-snug"
               >
                 {getVisitorText('serviceTitle', preferredLanguage)}
               </h2>
-              <p className="text-xs text-slate-500 mt-0.5">{getVisitorText('serviceSubtitle', preferredLanguage)}</p>
+              <p className="text-[11px] sm:text-xs text-slate-500 mt-0.5">{getVisitorText('serviceSubtitle', preferredLanguage)}</p>
             </div>
 
             {/* Fee badge */}
-            <div className="mt-4 flex items-baseline justify-between rounded-xl bg-slate-50 px-4 py-3 border border-slate-100">
+            <div className="mt-2.5 sm:mt-4 flex items-baseline justify-between rounded-xl bg-slate-50 px-3.5 py-2.5 sm:px-4 sm:py-3 border border-slate-100">
               <span className="text-xs font-medium text-slate-600">{getVisitorText('serviceFee24h', preferredLanguage)}</span>
               <div className="text-right">
-                <span className="text-xl font-extrabold text-emerald-700">
+                <span className="text-lg sm:text-xl font-extrabold text-emerald-700">
                   {formattedAmount} đ
                 </span>
-                <span className="text-[11px] text-slate-400 block">{getVisitorText('perDevice', preferredLanguage)}</span>
+                <span className="text-[10px] sm:text-[11px] text-slate-400 block">{getVisitorText('perDevice', preferredLanguage)}</span>
               </div>
             </div>
 
             {/* Payment Method Selector Tabs */}
-            <div className="mt-4 grid grid-cols-2 gap-2 rounded-xl bg-slate-100 p-1" role="tablist">
+            <div className="mt-2.5 sm:mt-4 grid grid-cols-2 gap-2 rounded-xl bg-slate-100 p-1" role="tablist">
               <button
                 type="button"
                 role="tab"
