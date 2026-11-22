@@ -105,9 +105,9 @@ class DeepTranslatorClient:
         )
         self.openrouter_model: str = (
             openrouter_model
-            if openrouter_model is not None
-            else getattr(settings, "OPENROUTER_MODEL", "")
-        )
+            if openrouter_model is not None and openrouter_model.strip()
+            else getattr(settings, "OPENROUTER_MODEL", "openrouter/free")
+        ) or "openrouter/free"
         self.openrouter_base_url: str = openrouter_base_url or getattr(
             settings, "OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1"
         )
