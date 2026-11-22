@@ -291,4 +291,26 @@ describe('PoiCatalogPage', () => {
     expect(await screen.findByText(ADMIN_TRANSLATIONS.statusActive)).toBeInTheDocument();
     expect(await screen.findByText(/kích hoạt lại và hiển thị trên bản đồ/i)).toBeInTheDocument();
   });
+
+  it('renders "vi: gốc" badge for Vietnamese source translation in POI catalog table', async () => {
+    const poiWithVi = {
+      items: [
+        {
+          ...mockPoisData.items[0],
+          translations: [
+            { language_id: 'vi', status: 'PUBLISHED' },
+            { language_id: 'en', status: 'READY' },
+          ],
+        },
+      ],
+      total: 1,
+      page: 1,
+      size: 50,
+    };
+    getPois.mockResolvedValue(poiWithVi);
+    renderPoiCatalog();
+
+    expect(await screen.findByText('vi: gốc')).toBeInTheDocument();
+    expect(screen.getByText('en: READY')).toBeInTheDocument();
+  });
 });

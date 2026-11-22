@@ -371,4 +371,47 @@ describe('TranslationAuditView (US 04.1 Multilingual Translation Audit & US 04.3
       expect(screen.queryByTestId('translation-row-TR_003')).toBeNull();
     });
   });
-});
+
+  it('renders dedicated single-column audio and narrative frame for Vietnamese source language', async () => {
+    const mockViTranslations = [
+      {
+        stran_id: 'TR_VI_001',
+        poi_id: 'POI_001',
+        poi_title: 'Địa đạo Bến Dược',
+        language_id: 'vi',
+        language_name: 'Tiếng Việt',
+        title: 'Địa đạo Bến Dược',
+        short_description: 'Khu di tích cách mạng',
+        description: 'Hệ thống hầm ngầm thời chiến.',
+        status: 'NEEDS_UPDATE',
+        source_title: 'Địa đạo Bến Dược',
+        source_short_description: 'Khu di tích cách mạng',
+        source_description: 'Hệ thống hầm ngầm thời chiến.',
+        audio_url: 'https://example.com/audio_vi.mp3',
+        audio_status: 'READY',
+      },
+    ];
+
+    vi.spyOn(translationApi, 'getTranslations').mockResolvedValueOnce({
+      items: mockViTranslations,
+      total: 1,
+    });
+
+    render(<TranslationAuditView />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('translation-row-TR_VI_001')).toBeDefined();
+    });
+
+    expect(screen.getByTestId('vietnamese-source-frame')).toBeDefined();
+    expect(screen.getByText(ADMIN_TRANSLATIONS.badgeSourceVietnamese)).toBeDefined();
+    expect(screen.getByText(ADMIN_TRANSLATIONS.frameVietnameseAudioTitle)).toBeDefined();
+    expect(screen.getByTestId('audio-player-TR_VI_001')).toBeDefined();
+    expect(screen.getByTestId('regenerate-audio-TR_VI_001')).toBeDefined();
+
+    expect(screen.queryByTestId('target-column')).toBeNull();
+    expect(screen.queryByTestId('retry-btn-TR_VI_001')).toBeNull();
+    expect(screen.queryByTestId('save-btn-TR_VI_001')).toBeNull();
+    expect(screen.queryByTestId('publish-btn-TR_VI_001')).toBeNull();
+  });
+});
