@@ -234,7 +234,7 @@ export default function RestoreSessionModal({
 
   const modalContent = (
     <div
-      className="fixed inset-0 z-[9999] overflow-y-auto bg-slate-900/60 p-3 sm:p-4 backdrop-blur-sm animate-fade-in"
+      className="fixed inset-0 z-[9999] overflow-y-auto bg-slate-900/60 p-2 sm:p-4 backdrop-blur-sm animate-fade-in"
       role="dialog"
       aria-modal="true"
       aria-labelledby="restore-modal-title"
@@ -245,20 +245,20 @@ export default function RestoreSessionModal({
       }}
     >
       <div
-        className="flex min-h-full items-start sm:items-center justify-center py-4 sm:py-8 pointer-events-none"
+        className="flex min-h-full items-start sm:items-center justify-center py-2 sm:py-8 pointer-events-none"
         onClick={(e) => {
           if (e.target === e.currentTarget) {
             onClose?.();
           }
         }}
       >
-        <div className="relative w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl border border-slate-100 transition-all p-4 sm:p-6 my-auto pointer-events-auto">
+        <div className="relative w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl border border-slate-100 transition-all p-4 sm:p-6 my-1 sm:my-8 pointer-events-auto">
           {/* Close Button */}
           <button
             type="button"
             onClick={onClose}
             aria-label="Đóng"
-            className="absolute top-3 right-3 sm:top-4 sm:right-4 inline-flex items-center justify-center w-10 h-10 sm:w-11 sm:h-11 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+            className="absolute top-2.5 right-2.5 sm:top-4 sm:right-4 inline-flex items-center justify-center w-10 h-10 sm:w-11 sm:h-11 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
           >
             <X size={20} aria-hidden="true" />
           </button>
