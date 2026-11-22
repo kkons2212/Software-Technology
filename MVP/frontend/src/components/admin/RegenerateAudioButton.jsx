@@ -8,10 +8,11 @@ export default function RegenerateAudioButton({
   hasAudio,
   onRegenerated,
   onError,
+  alwaysAvailable = false,
 }) {
   const [isLoading, setIsLoading] = useState(false);
   const isHighlighted = status === 'NEEDS_UPDATE';
-  const isAvailable = isHighlighted || !hasAudio;
+  const isAvailable = alwaysAvailable || isHighlighted || !hasAudio;
 
   if (!isAvailable) return null;
 
@@ -27,6 +28,16 @@ export default function RegenerateAudioButton({
     }
   };
 
+  let btnClass = 'border border-amber-300 bg-white text-amber-800 hover:bg-amber-50';
+  if (isHighlighted) {
+    btnClass = 'bg-amber-600 text-white hover:bg-amber-700';
+  }
+
+  let btnText = ADMIN_TRANSLATIONS.btnRegenerateAudio;
+  if (isLoading) {
+    btnText = ADMIN_TRANSLATIONS.btnGeneratingAudio;
+  }
+
   return (
     <button
       type="button"
@@ -34,11 +45,7 @@ export default function RegenerateAudioButton({
       onClick={handleRegenerate}
       disabled={isLoading}
       aria-busy={isLoading}
-      className={`inline-flex items-center gap-2 rounded-md px-3.5 py-1.5 text-xs font-semibold shadow-sm disabled:cursor-wait disabled:opacity-70 ${
-        isHighlighted
-          ? 'bg-amber-600 text-white hover:bg-amber-700'
-          : 'border border-amber-300 bg-white text-amber-800 hover:bg-amber-50'
-      }`}
+      className={`inline-flex items-center gap-2 rounded-md px-3.5 py-1.5 text-xs font-semibold shadow-sm disabled:cursor-wait disabled:opacity-70 ${btnClass}`}
     >
       {isLoading && (
         <svg
@@ -62,7 +69,7 @@ export default function RegenerateAudioButton({
           />
         </svg>
       )}
-      {isLoading ? ADMIN_TRANSLATIONS.btnGeneratingAudio : ADMIN_TRANSLATIONS.btnRegenerateAudio}
+      {btnText}
     </button>
   );
 }

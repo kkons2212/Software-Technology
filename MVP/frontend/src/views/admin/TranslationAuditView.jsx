@@ -478,20 +478,6 @@ export default function TranslationAuditView() {
                     data-testid="vietnamese-source-frame"
                     className="p-4 sm:p-6 bg-slate-50 space-y-6"
                   >
-                    <div className="rounded-md border border-indigo-100 bg-indigo-50/50 p-4">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-xs font-bold uppercase tracking-wider text-indigo-900">
-                          {ADMIN_TRANSLATIONS.frameVietnameseAudioTitle}
-                        </span>
-                        <span className="text-xs text-indigo-600 font-medium">
-                          {ADMIN_TRANSLATIONS.colReadOnly}
-                        </span>
-                      </div>
-                      <p className="text-xs text-indigo-700 leading-relaxed">
-                        {ADMIN_TRANSLATIONS.frameVietnameseAudioNotice}
-                      </p>
-                    </div>
-
                     <div className="rounded-lg border border-slate-200 bg-white p-4 sm:p-5 space-y-4 shadow-sm">
                       <div>
                         <label className="block text-xs font-medium text-slate-600">
@@ -693,6 +679,7 @@ export default function TranslationAuditView() {
                       translationId={item.stran_id}
                       status={effectiveStatus}
                       hasAudio={Boolean(item.audio_url)}
+                      alwaysAvailable={isSourceLanguage}
                       onRegenerated={(result) =>
                         handleAudioRegenerated(item.stran_id, result)
                       }
