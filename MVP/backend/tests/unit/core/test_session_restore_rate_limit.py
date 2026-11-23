@@ -64,4 +64,6 @@ def test_restore_endpoint_returns_429_after_repeated_code_attempts(monkeypatch):
     assert all(response.status_code == 404 for response in responses)
     assert limited_response.status_code == 429
     assert limited_response.headers["Retry-After"]
-    assert limited_response.json()["error"]["code"] == "SESSION_RESTORE_RATE_LIMITED"
+    error_payload = limited_response.json()["error"]
+    assert error_payload["code"] == "SESSION_RESTORE_RATE_LIMITED"
+    assert error_payload["details"]["retry_after_seconds"] > 0

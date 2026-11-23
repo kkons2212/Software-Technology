@@ -25,17 +25,24 @@ def restore_session(
     session_service: SessionService = Depends(get_session_service),
 ) -> SessionRestoreResponse:
     """Validate and restore an unexpired 24-hour visiting session (TSK-06.3.1)."""
+    # Phase 1: Precondition Gate (Rate Limit Check)
     client_ip = request.client.host if request.client else "unknown"
     retry_after = session_restore_rate_limiter.check(client_ip, payload.session_code)
-    if retry_after:
+    if retry_after > 0:
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail={
                 "code": "SESSION_RESTORE_RATE_LIMITED",
                 "message": "Too many restore attempts. Please try again later.",
-                "details": None,
+                "details": {"retry_after_seconds": retry_after},
             },
             headers={"Retry-After": str(retry_after)},
         )
 
-    return session_service.restore_session(session_code=payload.session_code)
+    # Phase 2: Linear Compute & Transformation
+    restored_session = session_service.restore_session(
+        session_code=payload.session_code
+    )
+
+    # Phase 3: Unified Exit Return
+    return restored_session

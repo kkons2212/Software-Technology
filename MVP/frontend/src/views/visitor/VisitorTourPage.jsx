@@ -23,16 +23,49 @@ import { calculateHaversineDistance } from '../../utils/haversine.js';
 import { MAIN_ENTRANCE } from '../../utils/museumBounds.js';
 import { buildRequestUrl } from '../../api/apiClient.js';
 import { ensureUtcIso } from '../../utils/dateUtils.js';
+import { getVisitorText } from '../../locales/visitorTranslations.js';
 
 const PREFERRED_LANGUAGE_KEY = 'museum_preferred_lang';
 const DEFAULT_LANGUAGE = 'vi';
 const MILLISECONDS_PER_SECOND = 1000;
-export const DEFAULT_EXIT_GRACE_PERIOD_MS =
+
+let defaultExitGracePeriodMs = 10000;
+if (
   (typeof import.meta !== 'undefined' && import.meta.env?.MODE === 'test') ||
   (typeof process !== 'undefined' && process.env?.NODE_ENV === 'test')
-    ? 0
-    : 10000;
+) {
+  defaultExitGracePeriodMs = 0;
+}
+export const DEFAULT_EXIT_GRACE_PERIOD_MS = defaultExitGracePeriodMs;
 export const MIN_DWELL_SECONDS = 0;
+
+/**
+ * Resolves localized catalog / POI loading error message following 3-Phase SISE.
+ * Metrics: K = 2, M <= 3, Nesting <= 2, 0 ternaries.
+ */
+export function resolveCatalogError(err, language = 'vi', fallbackMessage = '') {
+  // Phase 1: Precondition Gate
+  if (!err || err.name === 'AbortError') {
+    return '';
+  }
+
+  // Phase 2: Linear Compute & Accumulate
+  const isRateLimited = Boolean(err.status === 429 || err.code === 'RATE_LIMIT_EXCEEDED');
+  let resolvedMessage = '';
+
+  if (isRateLimited) {
+    let retrySeconds = 60;
+    if (err.details && typeof err.details.retry_after_seconds === 'number') {
+      retrySeconds = err.details.retry_after_seconds;
+    }
+    resolvedMessage = getVisitorText('rateLimitExceeded', language, { seconds: retrySeconds });
+  } else {
+    resolvedMessage = fallbackMessage;
+  }
+
+  // Phase 3: Unified Exit Return
+  return resolvedMessage;
+}
 
 export default function VisitorTourPage({
   sessionCode = '',
@@ -70,7 +103,12 @@ export default function VisitorTourPage({
   } = useVisitorSession();
 
   const isPoiActivated = useCallback(
-    (poiId) => (typeof rawIsPoiActivated === 'function' ? rawIsPoiActivated(poiId) : false),
+    (poiId) => {
+      if (typeof rawIsPoiActivated === 'function') {
+        return rawIsPoiActivated(poiId);
+      }
+      return false;
+    },
     [rawIsPoiActivated]
   );
   const markPoiActivated = useCallback(
@@ -167,12 +205,14 @@ export default function VisitorTourPage({
       }
 
       // STREAMING-ENDPOINT: Construct full backend audio URL
-      const rawAudioUrl =
-        poi.audio_url ||
-        (contextSessionToken
-          ? `/api/v1/audio/${poiId}?token=${encodeURIComponent(contextSessionToken)}&language=${encodeURIComponent(selectedLanguage || 'vi')}`
-          : null);
-      const fullAudioUrl = rawAudioUrl ? buildRequestUrl(rawAudioUrl) : null;
+      let rawAudioUrl = poi.audio_url || null;
+      if (!rawAudioUrl && contextSessionToken) {
+        rawAudioUrl = `/api/v1/audio/${poiId}?token=${encodeURIComponent(contextSessionToken)}&language=${encodeURIComponent(selectedLanguage || 'vi')}`;
+      }
+      let fullAudioUrl = null;
+      if (rawAudioUrl) {
+        fullAudioUrl = buildRequestUrl(rawAudioUrl);
+      }
 
       // Auto-play narration immediately on arrival without extra taps
       play({
@@ -367,10 +407,13 @@ export default function VisitorTourPage({
         });
       })
       .catch((error) => {
-        if (error.name !== 'AbortError') {
-          setLanguageError(
-            'Unable to load available languages. Check your connection and try again.'
-          );
+        const resolved = resolveCatalogError(
+          error,
+          selectedLanguage,
+          'Unable to load available languages. Check your connection and try again.'
+        );
+        if (resolved) {
+          setLanguageError(resolved);
         }
       });
 
@@ -398,10 +441,13 @@ export default function VisitorTourPage({
         setPoiError('');
       })
       .catch((error) => {
-        if (error.name !== 'AbortError') {
-          setPoiError(
-            'Unable to load map locations. Check your connection and try again.'
-          );
+        const resolved = resolveCatalogError(
+          error,
+          selectedLanguage,
+          'Unable to load map locations. Check your connection and try again.'
+        );
+        if (resolved) {
+          setPoiError(resolved);
         }
       });
 
@@ -409,7 +455,10 @@ export default function VisitorTourPage({
   }, [poiRetryCount, selectedLanguage, contextSessionToken]);
 
   const selectedPoi = pois.find((poi) => String(poi.id || poi.poi_id) === String(selectedPoiId));
-  const playingPoiId = isPlaying ? currentPoi?.id ?? null : null;
+  let playingPoiId = null;
+  if (isPlaying && currentPoi?.id) {
+    playingPoiId = currentPoi.id;
+  }
 
   const isRoutingToSelectedPoi =
     activeRoute &&
@@ -476,12 +525,14 @@ export default function VisitorTourPage({
     const hasActivated = isPoiActivated(poiId);
 
     if (isUnlocked && hasActivated) {
-      const rawAudioUrl =
-        selectedPoi.audio_url ||
-        (contextSessionToken
-          ? `/api/v1/audio/${poiId}?token=${encodeURIComponent(contextSessionToken)}&language=${encodeURIComponent(selectedLanguage || 'vi')}`
-          : null);
-      const fullAudioUrl = rawAudioUrl ? buildRequestUrl(rawAudioUrl) : null;
+      let rawAudioUrl = selectedPoi.audio_url || null;
+      if (!rawAudioUrl && contextSessionToken) {
+        rawAudioUrl = `/api/v1/audio/${poiId}?token=${encodeURIComponent(contextSessionToken)}&language=${encodeURIComponent(selectedLanguage || 'vi')}`;
+      }
+      let fullAudioUrl = null;
+      if (rawAudioUrl) {
+        fullAudioUrl = buildRequestUrl(rawAudioUrl);
+      }
 
       play({
         ...selectedPoi,
@@ -545,6 +596,11 @@ export default function VisitorTourPage({
     }
   };
 
+  let activeLocation = null;
+  if (hasLiveLocation) {
+    activeLocation = location;
+  }
+
   return (
     <main className="visitor-tour-page">
       <VisitorHeader
@@ -598,7 +654,7 @@ export default function VisitorTourPage({
       {selectedPoi && (
         <PoiPreviewCard
           poi={selectedPoi}
-          location={hasLiveLocation ? location : null}
+          location={activeLocation}
           onPlayAudio={handlePlayAudio}
           onDismiss={handleDismissPOIPreview}
           onUnlock={handleUnlockClick}
