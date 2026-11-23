@@ -283,4 +283,41 @@ describe('CheckoutModal', () => {
 
     vi.unstubAllEnvs();
   });
+  it('renders multilingual QR loading message matching preferredLanguage', () => {
+    // Keep createCheckoutOrder pending so modal remains in loading state
+    createCheckoutOrder.mockImplementation(() => new Promise(() => {}));
+
+    // 1. English
+    const { unmount: unmountEn } = render(
+      <CheckoutModal isOpen={true} preferredLanguage="en" />
+    );
+    expect(screen.getByText('Initializing secure payment code...')).toBeInTheDocument();
+    unmountEn();
+
+    // 2. Japanese
+    const { unmount: unmountJa } = render(
+      <CheckoutModal isOpen={true} preferredLanguage="ja" />
+    );
+    expect(screen.getByText('安全な支払いコードを生成中...')).toBeInTheDocument();
+    unmountJa();
+
+    // 3. Vietnamese
+    const { unmount: unmountVi } = render(
+      <CheckoutModal isOpen={true} preferredLanguage="vi" />
+    );
+    expect(screen.getByText('Đang khởi tạo mã thanh toán an toàn...')).toBeInTheDocument();
+    unmountVi();
+  });
+
+  it('renders localized QR scan hint and payment method label for international visitors', async () => {
+    render(<CheckoutModal isOpen={true} preferredLanguage="en" />);
+
+    // Switch to VietQR tab to inspect QR scan hint
+    const vietQrTab = await screen.findByRole('tab', { name: /vietqr/i });
+    await act(async () => {
+      fireEvent.click(vietQrTab);
+    });
+
+    expect(await screen.findByText('Scan with your banking or payment app')).toBeInTheDocument();
+  });
 });
