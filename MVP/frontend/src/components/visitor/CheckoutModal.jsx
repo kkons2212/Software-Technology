@@ -200,7 +200,7 @@ export default function CheckoutModal({
   // Compute card action element cleanly (refactor_rule 6.2: 0 nested ternaries in JSX)
   let cardActionElement = (
     <p className="mt-5 text-xs text-red-600">
-      PayPal checkout is currently unavailable.
+      {getVisitorText('paypalUnavailable', preferredLanguage)}
     </p>
   );
 
@@ -243,7 +243,7 @@ export default function CheckoutModal({
     mainContentArea = (
       <div className="py-12 text-center text-slate-500">
         <Loader2 size={32} className="mx-auto animate-spin text-emerald-600" />
-        <p className="mt-2 text-xs">Đang khởi tạo mã thanh toán an toàn...</p>
+        <p className="mt-2 text-xs">{getVisitorText('initializingPaymentCode', preferredLanguage)}</p>
       </div>
     );
   } else if (orderError) {
@@ -255,7 +255,7 @@ export default function CheckoutModal({
           onClick={() => fetchOrder(paymentMethod)}
           className="mt-3 inline-block rounded-lg bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700"
         >
-          Thử lại
+          {getVisitorText('retryOrder', preferredLanguage)}
         </button>
       </div>
     );
@@ -276,7 +276,7 @@ export default function CheckoutModal({
             </div>
           )}
           <span className="mt-1 text-[10px] sm:text-[11px] text-slate-500 text-center font-medium">
-            Quét qua ứng dụng Ngân hàng
+            {getVisitorText('scanWithBankingApp', preferredLanguage)}
           </span>
         </div>
 
@@ -444,7 +444,7 @@ export default function CheckoutModal({
                 </div>
               </div>
               <div className="flex justify-between items-center text-sm py-1 border-b border-emerald-100">
-                <span className="text-slate-600 font-medium">{isVietnamese ? 'Phương thức:' : 'Payment Method:'}</span>
+                <span className="text-slate-600 font-medium">{getVisitorText('paymentMethodLabel', preferredLanguage)}</span>
                 <span className="text-emerald-800 font-semibold">
                   {completedSession?.payment_method === 'CARD' || completedSession?.payment_method === 'PAYPAL' || paymentMethod === 'CARD'
                     ? 'PayPal / Card'
