@@ -35,10 +35,39 @@ const DEFAULT_FEE_VND = 50000;
 
 export const getDefaultPaymentMethod = (language) => {
   const normalized = String(language || '').toLowerCase().trim();
-  return normalized === 'vi' || normalized.startsWith('vi-') || normalized.startsWith('vi_')
-    ? 'VIETQR'
-    : 'CARD';
+  if (normalized === 'vi' || normalized.startsWith('vi-') || normalized.startsWith('vi_')) {
+    return 'VIETQR';
+  }
+  return 'CARD';
 };
+
+/**
+ * Resolves localized checkout order creation error message following 3-Phase SISE.
+ * Metrics: K = 2, M <= 3, Nesting <= 2, 0 ternaries.
+ */
+export function resolveCheckoutOrderError(err, preferredLanguage = 'vi') {
+  // Phase 1: Precondition Gate
+  if (!err) {
+    return getVisitorText('checkoutOrderFailed', preferredLanguage);
+  }
+
+  // Phase 2: Linear Compute & Accumulate
+  const isRateLimited = Boolean(err.status === 429 || err.code === 'RATE_LIMIT_EXCEEDED');
+  let resolvedMessage = '';
+
+  if (isRateLimited) {
+    let retrySeconds = 60;
+    if (err.details && typeof err.details.retry_after_seconds === 'number') {
+      retrySeconds = err.details.retry_after_seconds;
+    }
+    resolvedMessage = getVisitorText('rateLimitExceeded', preferredLanguage, { seconds: retrySeconds });
+  } else {
+    resolvedMessage = getVisitorText('checkoutOrderFailed', preferredLanguage);
+  }
+
+  // Phase 3: Unified Exit Return
+  return resolvedMessage;
+}
 
 export default function CheckoutModal({
   isOpen = false,
@@ -94,9 +123,8 @@ export default function CheckoutModal({
         storeOrderCreatorToken(orderData.order_id, orderData.creator_token);
         setOrder(orderData);
       } catch (err) {
-        setOrderError(
-          err.message || 'Không thể tạo đơn thanh toán. Vui lòng thử lại.'
-        );
+        const resolvedError = resolveCheckoutOrderError(err, preferredLanguage);
+        setOrderError(resolvedError);
       } finally {
         setIsLoadingOrder(false);
       }
@@ -381,6 +409,25 @@ export default function CheckoutModal({
     );
   }
 
+  let copySessionCodeTitle = 'Sao chép mã phiên';
+  if (copiedField === 'session_code') {
+    copySessionCodeTitle = 'Đã sao chép!';
+  }
+
+  let completedPaymentMethodLabel = 'VietQR';
+  if (
+    completedSession?.payment_method === 'CARD' ||
+    completedSession?.payment_method === 'PAYPAL' ||
+    paymentMethod === 'CARD'
+  ) {
+    completedPaymentMethodLabel = 'PayPal / Card';
+  }
+
+  let sandboxPaymentMethodLabel = 'VietQR';
+  if (paymentMethod === 'CARD') {
+    sandboxPaymentMethodLabel = 'PayPal';
+  }
+
   const modalContent = (
     <div
       role="dialog"
@@ -431,12 +478,13 @@ export default function CheckoutModal({
                       type="button"
                       onClick={() => handleCopy('session_code', completedSession.session_code)}
                       className="p-1.5 rounded-lg text-emerald-700 hover:bg-emerald-200/60 active:scale-95 transition inline-flex items-center justify-center"
-                      title={copiedField === 'session_code' ? 'Đã sao chép!' : 'Sao chép mã phiên'}
+                      title={copySessionCodeTitle}
                       aria-label="Sao chép mã phiên"
                     >
-                      {copiedField === 'session_code' ? (
+                      {copiedField === 'session_code' && (
                         <Check size={16} className="text-emerald-700" />
-                      ) : (
+                      )}
+                      {copiedField !== 'session_code' && (
                         <Copy size={16} />
                       )}
                     </button>
@@ -446,9 +494,7 @@ export default function CheckoutModal({
               <div className="flex justify-between items-center text-sm py-1 border-b border-emerald-100">
                 <span className="text-slate-600 font-medium">{getVisitorText('paymentMethodLabel', preferredLanguage)}</span>
                 <span className="text-emerald-800 font-semibold">
-                  {completedSession?.payment_method === 'CARD' || completedSession?.payment_method === 'PAYPAL' || paymentMethod === 'CARD'
-                    ? 'PayPal / Card'
-                    : 'VietQR'}
+                  {completedPaymentMethodLabel}
                 </span>
               </div>
               <div className="flex justify-between items-center text-sm py-1 border-b border-emerald-100">
@@ -547,7 +593,7 @@ export default function CheckoutModal({
               <div className="mt-3 pt-2 border-t border-slate-100">
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] text-slate-400">
-                    Sandbox Test Mode ({paymentMethod === 'CARD' ? 'PayPal' : 'VietQR'}):
+                    Sandbox Test Mode ({sandboxPaymentMethodLabel}):
                   </span>
                   <button
                     type="button"
@@ -556,9 +602,10 @@ export default function CheckoutModal({
                     disabled={isSimulating}
                     className="inline-flex items-center gap-1 rounded bg-slate-100 hover:bg-slate-200 px-2 py-1 text-[11px] font-medium text-slate-700 transition disabled:opacity-50"
                   >
-                    {isSimulating ? (
+                    {isSimulating && (
                       <Loader2 size={12} className="animate-spin" />
-                    ) : (
+                    )}
+                    {!isSimulating && (
                       <span>⚡ {getVisitorText('simulateSuccessBtn', preferredLanguage)}</span>
                     )}
                   </button>

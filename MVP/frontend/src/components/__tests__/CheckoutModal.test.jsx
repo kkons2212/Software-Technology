@@ -16,7 +16,7 @@ import {
   simulatePaymentSuccess,
   storeOrderCreatorToken,
 } from '../../api/paymentApi.js';
-import CheckoutModal from '../visitor/CheckoutModal.jsx';
+import CheckoutModal, { resolveCheckoutOrderError } from '../visitor/CheckoutModal.jsx';
 
 describe('CheckoutModal', () => {
   const mockOrder = {
@@ -319,5 +319,69 @@ describe('CheckoutModal', () => {
     });
 
     expect(await screen.findByText('Scan with your banking or payment app')).toBeInTheDocument();
+  });
+
+  describe('resolveCheckoutOrderError & Multilingual HTTP 429 Handling', () => {
+    it('returns checkoutOrderFailed fallback for null error', () => {
+      expect(resolveCheckoutOrderError(null, 'vi')).toBe(
+        'Không thể tạo đơn thanh toán. Vui lòng thử lại.'
+      );
+      expect(resolveCheckoutOrderError(undefined, 'en')).toBe(
+        'Unable to create payment order. Please try again.'
+      );
+    });
+
+    it('returns localized rate limit message with dynamic seconds for 429 errors', () => {
+      const errEn = {
+        status: 429,
+        code: 'RATE_LIMIT_EXCEEDED',
+        details: { retry_after_seconds: 50 },
+      };
+      expect(resolveCheckoutOrderError(errEn, 'en')).toBe(
+        'Too many requests. Please try again in 50 seconds.'
+      );
+
+      const errVi = {
+        status: 429,
+        code: 'RATE_LIMIT_EXCEEDED',
+      };
+      expect(resolveCheckoutOrderError(errVi, 'vi')).toBe(
+        'Bạn đã gửi quá nhiều yêu cầu. Vui lòng thử lại sau 60 giây.'
+      );
+    });
+
+    it('returns localized checkoutOrderFailed for generic errors in French and Japanese', () => {
+      const err = new Error('Network timeout');
+      expect(resolveCheckoutOrderError(err, 'fr')).toBe(
+        'Impossible de créer la commande de paiement. Veuillez réessayer.'
+      );
+      expect(resolveCheckoutOrderError(err, 'ja')).toBe(
+        '決済注文を作成できませんでした。もう一度お試しください。'
+      );
+    });
+
+    it('displays localized rate limit error when order creation is rate limited', async () => {
+      createCheckoutOrder.mockRejectedValueOnce({
+        status: 429,
+        code: 'RATE_LIMIT_EXCEEDED',
+        details: { retry_after_seconds: 50 },
+      });
+
+      render(<CheckoutModal isOpen={true} preferredLanguage="en" />);
+
+      expect(
+        await screen.findByText('Too many requests. Please try again in 50 seconds.')
+      ).toBeInTheDocument();
+    });
+
+    it('displays localized generic error when order creation fails in French', async () => {
+      createCheckoutOrder.mockRejectedValueOnce(new Error('Connection failure'));
+
+      render(<CheckoutModal isOpen={true} preferredLanguage="fr" />);
+
+      expect(
+        await screen.findByText('Impossible de créer la commande de paiement. Veuillez réessayer.')
+      ).toBeInTheDocument();
+    });
   });
 });

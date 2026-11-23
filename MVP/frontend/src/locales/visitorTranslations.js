@@ -61,6 +61,7 @@ export const VISITOR_TRANSLATIONS = {
     retryOrder: 'Thử lại',
     scanWithBankingApp: 'Quét qua ứng dụng Ngân hàng',
     paypalUnavailable: 'Cổng thanh toán PayPal hiện chưa khả dụng.',
+    checkoutOrderFailed: 'Không thể tạo đơn thanh toán. Vui lòng thử lại.',
 
     // Checkout Success Screen
     activationSuccessTitle: 'Kích hoạt thành công!',
@@ -87,6 +88,7 @@ export const VISITOR_TRANSLATIONS = {
     emptySessionCodeError: 'Vui lòng nhập mã phiên của bạn.',
     incompletePinError: 'Vui lòng nhập đủ 6 chữ số mã phiên.',
     invalidSessionCodeError: 'Mã phiên không hợp lệ hoặc đã hết hạn. Vui lòng kiểm tra lại.',
+    sessionRestoreRateLimited: 'Đã nhập sai quá nhiều lần liên tiếp. Vui lòng chờ {seconds} giây trước khi thử lại.',
     restoreSuccessTitle: 'Khôi phục thành công!',
     restoreSuccessSubtitle: 'Chào mừng bạn quay lại! Phiên đã được khôi phục trên thiết bị này.',
     restoreSuccessInline: 'Khôi phục phiên thành công! Đang mở khoá audio guide...',
@@ -109,6 +111,7 @@ export const VISITOR_TRANSLATIONS = {
     // Error banners
     errorLanguages: 'Không thể tải danh sách ngôn ngữ.',
     errorPois: 'Không thể tải dữ liệu điểm tham quan. Kiểm tra kết nối và thử lại.',
+    rateLimitExceeded: 'Bạn đã gửi quá nhiều yêu cầu. Vui lòng thử lại sau {seconds} giây.',
     retry: 'Thử lại',
   },
   en: {
@@ -167,6 +170,7 @@ export const VISITOR_TRANSLATIONS = {
     retryOrder: 'Try again',
     scanWithBankingApp: 'Scan with your banking or payment app',
     paypalUnavailable: 'PayPal checkout is currently unavailable.',
+    checkoutOrderFailed: 'Unable to create payment order. Please try again.',
 
     // Checkout Success Screen
     activationSuccessTitle: 'Activation Successful!',
@@ -193,6 +197,7 @@ export const VISITOR_TRANSLATIONS = {
     emptySessionCodeError: 'Please enter your session code.',
     incompletePinError: 'Please enter all 6 digits of your session code.',
     invalidSessionCodeError: 'Invalid or expired session code. Please verify and try again.',
+    sessionRestoreRateLimited: 'Too many failed restore attempts. Please wait {seconds} seconds before trying again.',
     restoreSuccessTitle: 'Session Restored!',
     restoreSuccessSubtitle: 'Welcome back! Your 24-hour pass has been restored on this device.',
     restoreSuccessInline: 'Session restored successfully! Unlocking audio guide...',
@@ -215,6 +220,7 @@ export const VISITOR_TRANSLATIONS = {
     // Error banners
     errorLanguages: 'Unable to load available languages.',
     errorPois: 'Unable to load map locations. Check your connection and try again.',
+    rateLimitExceeded: 'Too many requests. Please try again in {seconds} seconds.',
     retry: 'Retry',
   },
   ja: {
@@ -273,6 +279,7 @@ export const VISITOR_TRANSLATIONS = {
     retryOrder: '再試行',
     scanWithBankingApp: '銀行アプリでスキャン',
     paypalUnavailable: '現在PayPal決済をご利用いただけません。',
+    checkoutOrderFailed: '決済注文を作成できませんでした。もう一度お試しください。',
 
     // Checkout Success Screen
     activationSuccessTitle: '有効化が完了しました！',
@@ -299,6 +306,7 @@ export const VISITOR_TRANSLATIONS = {
     emptySessionCodeError: 'セッションコードを入力してください。',
     incompletePinError: 'セッションコードの6桁をすべて入力してください。',
     invalidSessionCodeError: 'セッションコードが無効または期限切れです。',
+    sessionRestoreRateLimited: '試行回数が上限を超えました。{seconds}秒待ってから再試行してください。',
     restoreSuccessTitle: '復元が完了しました！',
     restoreSuccessSubtitle: 'おかえりなさい！ この端末でパスが復元されました。',
     restoreSuccessInline: 'セッションを復元しました！音声ガイドを解除しています...',
@@ -321,6 +329,7 @@ export const VISITOR_TRANSLATIONS = {
     // Error banners
     errorLanguages: '言語リストを読み込めませんでした。',
     errorPois: '地点データを読み込めませんでした。接続を確認して再試行してください。',
+    rateLimitExceeded: 'リクエストが多すぎます。{seconds}秒後にもう一度お試しください。',
     retry: '再試行',
   },
   ko: {
@@ -379,6 +388,7 @@ export const VISITOR_TRANSLATIONS = {
     retryOrder: '다시 시도',
     scanWithBankingApp: '은행 앱으로 스캔',
     paypalUnavailable: '현재 PayPal 결제를 이용할 수 없습니다.',
+    checkoutOrderFailed: '결제 주문을 생성할 수 없습니다. 다시 시도해 주세요.',
 
     // Checkout Success Screen
     activationSuccessTitle: '활성화 성공!',
@@ -405,6 +415,7 @@ export const VISITOR_TRANSLATIONS = {
     emptySessionCodeError: '세션 코드를 입력해 주세요.',
     incompletePinError: '세션 코드 6자리를 모두 입력해 주세요.',
     invalidSessionCodeError: '유효하지 않거나 만료된 세션 코드입니다.',
+    sessionRestoreRateLimited: '복원 시도 횟수를 초과했습니다. {seconds}초 후 다시 시도해 주세요.',
     restoreSuccessTitle: '복원 완료!',
     restoreSuccessSubtitle: '다시 오신 것을 환영합니다! 이 기기에서 패스가 복원되었습니다.',
     restoreSuccessInline: '세션이 복원되었습니다! 오디오 가이드를 잠금 해제하는 중...',
@@ -427,6 +438,7 @@ export const VISITOR_TRANSLATIONS = {
     // Error banners
     errorLanguages: '언어 목록을 불러올 수 없습니다.',
     errorPois: '지점 정보를 불러올 수 없습니다. 연결 상태를 확인하고 다시 시도하세요.',
+    rateLimitExceeded: '요청이 너무 많습니다. {seconds}초 후에 다시 시도해 주세요.',
     retry: '다시 시도',
   },
   fr: {
@@ -485,6 +497,7 @@ export const VISITOR_TRANSLATIONS = {
     retryOrder: 'Réessayer',
     scanWithBankingApp: 'Scanner avec votre application bancaire',
     paypalUnavailable: 'Le paiement PayPal est actuellement indisponible.',
+    checkoutOrderFailed: 'Impossible de créer la commande de paiement. Veuillez réessayer.',
 
     // Checkout Success Screen
     activationSuccessTitle: 'Activation Réussie !',
@@ -511,6 +524,7 @@ export const VISITOR_TRANSLATIONS = {
     emptySessionCodeError: 'Veuillez entrer votre code de session.',
     incompletePinError: 'Veuillez saisir les 6 chiffres de votre code de session.',
     invalidSessionCodeError: 'Code de session invalide ou expiré.',
+    sessionRestoreRateLimited: 'Trop de tentatives de restauration. Veuillez attendre {seconds} secondes avant de réessayer.',
     restoreSuccessTitle: 'Session Restaurée !',
     restoreSuccessSubtitle: 'Bienvenue à nouveau ! Votre pass est restauré sur cet appareil.',
     restoreSuccessInline: 'Session restaurée avec succès ! Déverrouillage de l’audioguide...',
@@ -533,6 +547,7 @@ export const VISITOR_TRANSLATIONS = {
     // Error banners
     errorLanguages: 'Impossible de charger les langues disponibles.',
     errorPois: 'Impossible de charger les points d’intérêt. Vérifiez votre connexion.',
+    rateLimitExceeded: 'Trop de requêtes. Veuillez réessayer dans {seconds} secondes.',
     retry: 'Réessayer',
   },
   zh: {
@@ -591,6 +606,7 @@ export const VISITOR_TRANSLATIONS = {
     retryOrder: '重试',
     scanWithBankingApp: '使用银行应用扫码',
     paypalUnavailable: 'PayPal 结算暂不可用。',
+    checkoutOrderFailed: '無法建立付款訂單，請稍後重試。',
 
     // Checkout Success Screen
     activationSuccessTitle: '激活成功！',
@@ -617,6 +633,7 @@ export const VISITOR_TRANSLATIONS = {
     emptySessionCodeError: '请输入您的会话代码。',
     incompletePinError: '请输入完整的6位会话代码。',
     invalidSessionCodeError: '会话代码无效或已过期，请核对后重试。',
+    sessionRestoreRateLimited: '恢復嘗試次數過多，請等待 {seconds} 秒後再試。',
     restoreSuccessTitle: '恢复成功！',
     restoreSuccessSubtitle: '欢迎回来！您的24小时通行证已在当前设备激活。',
     restoreSuccessInline: '会话恢复成功！正在解锁语音导览...',
@@ -639,6 +656,7 @@ export const VISITOR_TRANSLATIONS = {
     // Error banners
     errorLanguages: '无法加载语言列表。',
     errorPois: '无法加载景点数据，请检查网络连接后重试。',
+    rateLimitExceeded: '請求過於頻繁，請在 {seconds} 秒後再試。',
     retry: '重试',
   },
 };

@@ -14,6 +14,57 @@ import { getVisitorText } from '../../locales/visitorTranslations.js';
 
 const PIN_LENGTH = 6;
 
+/**
+ * Resolves localized session restore error message following 3-Phase SISE.
+ * Metrics: K = 2, M <= 4, Nesting <= 2, 0 ternaries.
+ */
+export function resolveSessionRestoreError(err, language = 'vi') {
+  // Phase 1: Precondition Gate
+  if (!err) {
+    return getVisitorText('invalidSessionCodeError', language);
+  }
+
+  // Phase 2: Linear Compute & Accumulate
+  const isRateLimited = Boolean(
+    err.status === 429 ||
+    err.code === 'SESSION_RESTORE_RATE_LIMITED' ||
+    err.code === 'RATE_LIMIT_EXCEEDED'
+  );
+
+  let resolvedMessage = '';
+
+  if (isRateLimited) {
+    let retrySeconds = 60;
+    if (err.details && typeof err.details.retry_after_seconds === 'number') {
+      retrySeconds = err.details.retry_after_seconds;
+    }
+
+    let translationKey = 'rateLimitExceeded';
+    if (err.code === 'SESSION_RESTORE_RATE_LIMITED') {
+      translationKey = 'sessionRestoreRateLimited';
+    }
+
+    resolvedMessage = getVisitorText(translationKey, language, { seconds: retrySeconds });
+  } else {
+    const rawDetail = err?.error?.message || err?.message || '';
+    const isCodeInvalid = Boolean(
+      err.status === 404 ||
+      err.status === 410 ||
+      rawDetail.toLowerCase().includes('expired') ||
+      rawDetail.toLowerCase().includes('invalid')
+    );
+
+    if (isCodeInvalid || !rawDetail) {
+      resolvedMessage = getVisitorText('invalidSessionCodeError', language);
+    } else {
+      resolvedMessage = rawDetail;
+    }
+  }
+
+  // Phase 3: Unified Exit Return
+  return resolvedMessage;
+}
+
 export default function RestoreSessionModal({
   isOpen = false,
   onClose,
@@ -96,21 +147,8 @@ export default function RestoreSessionModal({
           onClose?.();
         }, 750);
       } catch (err) {
-        const errorDetail =
-          err?.error?.message ||
-          err?.message ||
-          getVisitorText('invalidSessionCodeError', language);
-
-        if (
-          err?.status === 404 ||
-          err?.status === 410 ||
-          errorDetail.toLowerCase().includes('expired') ||
-          errorDetail.toLowerCase().includes('invalid')
-        ) {
-          setErrorMessage(getVisitorText('invalidSessionCodeError', language));
-        } else {
-          setErrorMessage(errorDetail);
-        }
+        const resolvedError = resolveSessionRestoreError(err, language);
+        setErrorMessage(resolvedError);
       } finally {
         setIsLoading(false);
       }
@@ -299,27 +337,35 @@ export default function RestoreSessionModal({
               <div className="px-1.5 sm:px-2 py-2 rounded-xl bg-slate-100 border border-slate-200 text-[11px] sm:text-xs font-mono font-bold text-slate-500 select-none">
                 CCT -
               </div>
-              {pin.map((digit, index) => (
-                <input
-                  key={index}
-                  ref={(el) => {
-                    inputRefs.current[index] = el;
-                  }}
-                  id={index === 0 ? 'session-code-input' : undefined}
-                  name={index === 0 ? 'sessionCode' : undefined}
-                  type="text"
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  maxLength={1}
-                  value={digit}
-                  onChange={(e) => handleDigitChange(index, e)}
-                  onKeyDown={(e) => handleKeyDown(index, e)}
-                  disabled={isLoading || isSuccess}
-                  aria-label={getVisitorText('pinDigitAriaLabel', language, { index: index + 1 })}
-                  data-testid={`pin-input-${index}`}
-                  className="w-9 h-11 sm:w-11 sm:h-13 text-center text-lg sm:text-xl font-bold font-mono rounded-xl border border-slate-300 bg-slate-50 text-slate-900 focus:bg-white focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-100 transition disabled:opacity-60"
-                />
-              ))}
+              {pin.map((digit, index) => {
+                let inputId;
+                let inputName;
+                if (index === 0) {
+                  inputId = 'session-code-input';
+                  inputName = 'sessionCode';
+                }
+                return (
+                  <input
+                    key={index}
+                    ref={(el) => {
+                      inputRefs.current[index] = el;
+                    }}
+                    id={inputId}
+                    name={inputName}
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    maxLength={1}
+                    value={digit}
+                    onChange={(e) => handleDigitChange(index, e)}
+                    onKeyDown={(e) => handleKeyDown(index, e)}
+                    disabled={isLoading || isSuccess}
+                    aria-label={getVisitorText('pinDigitAriaLabel', language, { index: index + 1 })}
+                    data-testid={`pin-input-${index}`}
+                    className="w-9 h-11 sm:w-11 sm:h-13 text-center text-lg sm:text-xl font-bold font-mono rounded-xl border border-slate-300 bg-slate-50 text-slate-900 focus:bg-white focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-100 transition disabled:opacity-60"
+                  />
+                );
+              })}
             </div>
             <p className="mt-2 text-center text-[11px] text-slate-500">
               {getVisitorText('pinHelperText', language)}

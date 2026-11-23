@@ -93,7 +93,7 @@ import {
   getOrderCreatorToken,
   getOrderStatus,
 } from '../../../api/paymentApi.js';
-import VisitorTourPage from '../VisitorTourPage.jsx';
+import VisitorTourPage, { resolveCatalogError } from '../VisitorTourPage.jsx';
 
 const FROZEN_EPOCH_MS = 1_700_000_000_000;
 const MEASURED_DWELL_SECONDS = 42;
@@ -496,5 +496,57 @@ describe('VisitorTourPage', () => {
     expect(audioPlayerMock.play).toHaveBeenCalledTimes(1);
     expect(await screen.findByRole('dialog')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Bunker Exhibit' })).toBeInTheDocument();
+  });
+
+  describe('resolveCatalogError & Multilingual HTTP 429 Handling', () => {
+    it('returns empty string for null error or AbortError', () => {
+      expect(resolveCatalogError(null)).toBe('');
+      const abortError = new Error('aborted');
+      abortError.name = 'AbortError';
+      expect(resolveCatalogError(abortError)).toBe('');
+    });
+
+    it('returns localized rateLimitExceeded with dynamic seconds when 429 occurs', () => {
+      const err = {
+        status: 429,
+        code: 'RATE_LIMIT_EXCEEDED',
+        details: { retry_after_seconds: 30 },
+      };
+      expect(resolveCatalogError(err, 'en')).toBe(
+        'Too many requests. Please try again in 30 seconds.'
+      );
+      expect(resolveCatalogError(err, 'vi')).toBe(
+        'Bạn đã gửi quá nhiều yêu cầu. Vui lòng thử lại sau 30 giây.'
+      );
+      expect(resolveCatalogError(err, 'ja')).toBe(
+        'リクエストが多すぎます。30秒後にもう一度お試しください。'
+      );
+    });
+
+    it('returns localized fallback error banner for non-429 failures', () => {
+      const err = new Error('Network error');
+      expect(
+        resolveCatalogError(err, 'en', 'Unable to load available languages.')
+      ).toBe('Unable to load available languages.');
+      expect(
+        resolveCatalogError(err, 'en', 'Unable to load map locations.')
+      ).toBe('Unable to load map locations.');
+    });
+
+    it('displays localized rate limit banner when language fetching is rate limited', async () => {
+      getPublishedLanguages.mockRejectedValueOnce({
+        status: 429,
+        code: 'RATE_LIMIT_EXCEEDED',
+        details: { retry_after_seconds: 40 },
+      });
+
+      await act(async () => {
+        render(<VisitorTourPage />);
+      });
+
+      expect(
+        await screen.findByText('Bạn đã gửi quá nhiều yêu cầu. Vui lòng thử lại sau 40 giây.')
+      ).toBeInTheDocument();
+    });
   });
 });

@@ -15,7 +15,7 @@ vi.mock('../../../contexts/VisitorSessionContext.jsx', () => ({
 }));
 
 import { restoreSession } from '../../../api/sessionApi.js';
-import RestoreSessionModal from '../RestoreSessionModal.jsx';
+import RestoreSessionModal, { resolveSessionRestoreError } from '../RestoreSessionModal.jsx';
 
 describe('RestoreSessionModal (US 06.3 - 6-Digit PIN Restore)', () => {
   const mockSessionData = {
@@ -324,6 +324,85 @@ describe('RestoreSessionModal (US 06.3 - 6-Digit PIN Restore)', () => {
       expect(
         screen.getByText('Session restored successfully! Unlocking audio guide...')
       ).toBeInTheDocument();
+    });
+  });
+
+  describe('resolveSessionRestoreError & Multilingual HTTP 429 Handling', () => {
+    it('returns invalidSessionCodeError for null or undefined error', () => {
+      expect(resolveSessionRestoreError(null, 'vi')).toBe(
+        'Mã phiên không hợp lệ hoặc đã hết hạn. Vui lòng kiểm tra lại.'
+      );
+      expect(resolveSessionRestoreError(undefined, 'en')).toBe(
+        'Invalid or expired session code. Please verify and try again.'
+      );
+    });
+
+    it('formats SESSION_RESTORE_RATE_LIMITED with dynamic seconds across languages', () => {
+      const errorEn = {
+        status: 429,
+        code: 'SESSION_RESTORE_RATE_LIMITED',
+        details: { retry_after_seconds: 45 },
+      };
+      expect(resolveSessionRestoreError(errorEn, 'en')).toBe(
+        'Too many failed restore attempts. Please wait 45 seconds before trying again.'
+      );
+
+      const errorJa = {
+        status: 429,
+        code: 'SESSION_RESTORE_RATE_LIMITED',
+        details: { retry_after_seconds: 30 },
+      };
+      expect(resolveSessionRestoreError(errorJa, 'ja')).toBe(
+        '試行回数が上限を超えました。30秒待ってから再試行してください。'
+      );
+
+      const errorVi = {
+        status: 429,
+        code: 'SESSION_RESTORE_RATE_LIMITED',
+      };
+      expect(resolveSessionRestoreError(errorVi, 'vi')).toBe(
+        'Đã nhập sai quá nhiều lần liên tiếp. Vui lòng chờ 60 giây trước khi thử lại.'
+      );
+    });
+
+    it('formats RATE_LIMIT_EXCEEDED with dynamic seconds', () => {
+      const errorKo = {
+        status: 429,
+        code: 'RATE_LIMIT_EXCEEDED',
+        details: { retry_after_seconds: 25 },
+      };
+      expect(resolveSessionRestoreError(errorKo, 'ko')).toBe(
+        '요청이 너무 많습니다. 25초 후에 다시 시도해 주세요.'
+      );
+    });
+
+    it('displays localized rate limit message in modal when 429 is encountered', async () => {
+      restoreSession.mockRejectedValueOnce({
+        status: 429,
+        code: 'SESSION_RESTORE_RATE_LIMITED',
+        details: { retry_after_seconds: 45 },
+      });
+
+      render(
+        <RestoreSessionModal
+          isOpen={true}
+          onClose={vi.fn()}
+          onSuccess={vi.fn()}
+          language="en"
+        />
+      );
+
+      ['1', '2', '3', '4', '5', '6'].forEach((d, idx) => {
+        fireEvent.change(screen.getByTestId(`pin-input-${idx}`), {
+          target: { value: d },
+        });
+      });
+
+      await waitFor(() => {
+        expect(
+          screen.getByText('Too many failed restore attempts. Please wait 45 seconds before trying again.')
+        ).toBeInTheDocument();
+      });
     });
   });
 });
