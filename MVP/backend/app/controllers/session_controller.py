@@ -40,7 +40,9 @@ def restore_session(
         )
 
     # Phase 2: Linear Compute & Transformation
-    restored_session = session_service.restore_session(session_code=payload.session_code)
+    restored_session = session_service.restore_session(
+        session_code=payload.session_code
+    )
 
     # Phase 3: Unified Exit Return
     return restored_session
