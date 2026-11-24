@@ -156,6 +156,20 @@ describe('TranslationAuditView (US 04.1 Multilingual Translation Audit & US 04.3
     expect(screen.getByTestId('save-btn-TR_001').disabled).toBe(false);
   });
 
+  it('enforces maxLength on translation title (255) and short_description (1000)', async () => {
+    render(<TranslationAuditView />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('target-title-input-TR_001')).toBeDefined();
+    });
+
+    const titleInput = screen.getByTestId('target-title-input-TR_001');
+    const shortDescInput = screen.getByTestId('target-short-desc-input-TR_001');
+
+    expect(titleInput).toHaveAttribute('maxLength', '255');
+    expect(shortDescInput).toHaveAttribute('maxLength', '1000');
+  });
+
   it('triggers updateTranslation API call and updates status on Save Draft (AC-04.1.3)', async () => {
     render(<TranslationAuditView />);
 
