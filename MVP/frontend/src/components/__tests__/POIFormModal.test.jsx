@@ -273,4 +273,14 @@ describe('POIFormModal', () => {
       );
     });
   });
+
+  it('enforces maxLength=255 on title and short_description inputs', () => {
+    render(<POIFormModal isOpen={true} poi={mockPoi} onClose={vi.fn()} />);
+
+    const titleInput = screen.getByLabelText(ADMIN_TRANSLATIONS.fieldTitle);
+    const shortDescInput = screen.getByLabelText(ADMIN_TRANSLATIONS.fieldShortDesc);
+
+    expect(titleInput).toHaveAttribute('maxLength', '255');
+    expect(shortDescInput).toHaveAttribute('maxLength', '255');
+  });
 });

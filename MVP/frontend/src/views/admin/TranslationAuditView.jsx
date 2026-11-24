@@ -141,6 +141,22 @@ export default function TranslationAuditView() {
     const draft = editDrafts[item.stran_id];
     if (!draft) return;
 
+    if (draft.title && draft.title.length > 255) {
+      setNotification({
+        type: 'error',
+        message: 'Tiêu đề bản dịch không được vượt quá 255 ký tự.',
+      });
+      return;
+    }
+
+    if (draft.short_description && draft.short_description.length > 1000) {
+      setNotification({
+        type: 'error',
+        message: 'Tóm tắt bản dịch không được vượt quá 1000 ký tự.',
+      });
+      return;
+    }
+
     setSavingRows((prev) => ({ ...prev, [item.stran_id]: true }));
     setNotification(null);
 
@@ -584,9 +600,13 @@ export default function TranslationAuditView() {
 
                       <div className="space-y-4">
                         <div>
-                          <label className="block text-xs font-medium text-slate-600">{ADMIN_TRANSLATIONS.fieldTranslatedTitle}</label>
+                          <div className="flex justify-between items-center">
+                            <label className="block text-xs font-medium text-slate-600">{ADMIN_TRANSLATIONS.fieldTranslatedTitle}</label>
+                            <span className="text-[10px] text-slate-400">{(draft.title || '').length}/255</span>
+                          </div>
                           <input
                             type="text"
+                            maxLength={255}
                             data-testid={`target-title-input-${item.stran_id}`}
                             value={draft.title}
                             onChange={(e) =>
@@ -597,9 +617,13 @@ export default function TranslationAuditView() {
                         </div>
 
                         <div>
-                          <label className="block text-xs font-medium text-slate-600">{ADMIN_TRANSLATIONS.fieldSummaryShortDesc}</label>
+                          <div className="flex justify-between items-center">
+                            <label className="block text-xs font-medium text-slate-600">{ADMIN_TRANSLATIONS.fieldSummaryShortDesc}</label>
+                            <span className="text-[10px] text-slate-400">{(draft.short_description || '').length}/1000</span>
+                          </div>
                           <textarea
                             rows={2}
+                            maxLength={1000}
                             data-testid={`target-short-desc-input-${item.stran_id}`}
                             value={draft.short_description}
                             onChange={(e) =>

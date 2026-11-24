@@ -147,6 +147,16 @@ export default function POIFormModal({
       return;
     }
 
+    if (trimmedTitle.length > 255) {
+      setFormError('Tiêu đề không được vượt quá 255 ký tự.');
+      return;
+    }
+
+    if (shortDescription.length > 255) {
+      setFormError('Mô tả ngắn không được vượt quá 255 ký tự.');
+      return;
+    }
+
     if (isOutOfBounds) {
       setFormError(ADMIN_TRANSLATIONS.errorInvalidCoordinates);
       return;
@@ -247,16 +257,20 @@ export default function POIFormModal({
         {/* Edit Form */}
         <form noValidate onSubmit={handleSubmit} className="mt-4 space-y-4">
           <div>
-            <label
-              htmlFor="edit-poi-title"
-              className="block text-xs font-medium text-slate-700"
-            >
-              {ADMIN_TRANSLATIONS.fieldTitle}
-            </label>
+            <div className="flex justify-between items-center">
+              <label
+                htmlFor="edit-poi-title"
+                className="block text-xs font-medium text-slate-700"
+              >
+                {ADMIN_TRANSLATIONS.fieldTitle}
+              </label>
+              <span className="text-[10px] text-slate-400">{title.length}/255</span>
+            </div>
             <input
               id="edit-poi-title"
               type="text"
               required
+              maxLength={255}
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder={ADMIN_TRANSLATIONS.fieldTitlePlaceholder}
@@ -265,15 +279,19 @@ export default function POIFormModal({
           </div>
 
           <div>
-            <label
-              htmlFor="edit-poi-short-desc"
-              className="block text-xs font-medium text-slate-700"
-            >
-              {ADMIN_TRANSLATIONS.fieldShortDesc}
-            </label>
+            <div className="flex justify-between items-center">
+              <label
+                htmlFor="edit-poi-short-desc"
+                className="block text-xs font-medium text-slate-700"
+              >
+                {ADMIN_TRANSLATIONS.fieldShortDesc}
+              </label>
+              <span className="text-[10px] text-slate-400">{shortDescription.length}/255</span>
+            </div>
             <textarea
               id="edit-poi-short-desc"
               rows={2}
+              maxLength={255}
               value={shortDescription}
               onChange={(e) => setShortDescription(e.target.value)}
               placeholder={ADMIN_TRANSLATIONS.fieldShortDescPlaceholder}
