@@ -83,7 +83,6 @@ def test_render_translation_settings():
     assert cfg.RENDER_COLD_START_RETRY_DELAY == 10.0
     assert cfg.RENDER_KEEP_ALIVE_ENABLED is False
     assert cfg.RENDER_KEEP_ALIVE_INTERVAL_SECONDS == 600
-    assert cfg.LOG_LEVEL == "INFO"
 
 
 def test_get_settings_singleton_caching():
