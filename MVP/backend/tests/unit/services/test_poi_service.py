@@ -354,7 +354,9 @@ async def test_should_create_poi_and_seed_foreign_translations_with_pending_stat
     assert lang_statuses.get("zh") == "PENDING"
 
     # Verify foreign language translations in DB do not contain language prefix
-    translations = poi_catalog_service.poi_repo.get_translations_by_poi_id(result.poi_id)
+    translations = poi_catalog_service.poi_repo.get_translations_by_poi_id(
+        result.poi_id
+    )
     for t in translations:
         assert not t.title.startswith("[EN]")
         assert not t.title.startswith("[JA]")
@@ -708,7 +710,9 @@ def test_should_raise_404_when_toggling_nonexistent_poi(poi_service, seeded_admi
 def test_strip_language_prefix():
     """_strip_language_prefix removes bracketed language prefixes like [EN], [JA], [KO], [ZH]."""
     assert POIService._strip_language_prefix("[EN] Điểm thử 1") == "Điểm thử 1"
-    assert POIService._strip_language_prefix("[JA] Địa đạo Bến Dược") == "Địa đạo Bến Dược"
+    assert (
+        POIService._strip_language_prefix("[JA] Địa đạo Bến Dược") == "Địa đạo Bến Dược"
+    )
     assert POIService._strip_language_prefix("[KO] Hầm Quân Y") == "Hầm Quân Y"
     assert POIService._strip_language_prefix("[ZH] Bếp Hoàng Cầm") == "Bếp Hoàng Cầm"
     assert POIService._strip_language_prefix("Địa đạo Củ Chi") == "Địa đạo Củ Chi"
@@ -741,6 +745,3 @@ def test_to_map_item_cleans_legacy_prefixed_translation():
 
     map_item = POIService._to_map_item(poi, legacy_trans)
     assert map_item.title == "Điểm thử 1"
-
-
-
