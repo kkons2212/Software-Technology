@@ -118,6 +118,7 @@ class Settings(BaseSettings):
     # AI & Cloud Translation Settings (US 04.4 - Auto_Translate & OpenRouter)
     RENDER_TRANSLATION_API_URL: str = "https://translation-temporary.onrender.com"
     RENDER_TRANSLATION_TIMEOUT: float = 70.0
+    RENDER_WAKEUP_TIMEOUT: float = 110.0
     RENDER_COLD_START_RETRY_DELAY: float = 10.0
     RENDER_KEEP_ALIVE_ENABLED: bool = False
     RENDER_KEEP_ALIVE_INTERVAL_SECONDS: int = 600

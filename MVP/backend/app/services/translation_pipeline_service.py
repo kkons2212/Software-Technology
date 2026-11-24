@@ -1,6 +1,7 @@
 """Pipeline orchestrator for automated multilingual translation and audio synthesis (US 04.4)."""
 
 import asyncio
+import inspect
 import logging
 from collections.abc import Callable
 from pathlib import Path
@@ -95,6 +96,20 @@ class TranslationPipelineService:
         audio_ok = await self.audio_worker.process_audio_synthesis(source_stran_id)
         return audio_ok
 
+    async def _ensure_translator_awake(self) -> None:
+        """Proactively ping Render translation API so it wakes up before language translations start."""
+        translator_client = getattr(self.translation_worker, "translator_client", None)
+        ensure_fn = getattr(translator_client, "ensure_render_awake", None)
+        if not callable(ensure_fn):
+            return
+
+        try:
+            result = ensure_fn()
+            if inspect.isawaitable(result):
+                await result
+        except Exception as exc:
+            logger.warning("Proactive Render wake-up check failed: %s", exc)
+
     async def run_pipeline_for_poi(
         self,
         poi_id: str,
@@ -103,7 +118,7 @@ class TranslationPipelineService:
         """Run translation and audio synthesis for Vietnamese and all configured foreign languages.
 
         US 04.4 - AC-04.4.1 through AC-04.4.4 & Direction 2:
-        1. Synthesizes Vietnamese source audio so primary exhibit narration is immediately streamable.
+        1. Synthesizes Vietnamese source audio and proactively wakes Render API in parallel.
         2. Dispatches background worker jobs for all target languages dynamically from
            the LanguageCode catalog table (excluding 'vi'). Translates text with
            exponential backoff, applies inter-language pacing delay to prevent rate limits,
@@ -112,12 +127,18 @@ class TranslationPipelineService:
         """
         results: dict[str, dict[str, bool]] = {}
 
-        # STEP 1: Synthesize Primary Vietnamese Source Audio
-        vi_audio_ok = await self._synthesize_source_vietnamese_audio(poi_id)
+        # STEP 1: Load target languages, synthesize Vietnamese audio, and proactively wake Render API
+        languages = self._resolve_target_languages(poi_id, target_languages)
+        if languages:
+            vi_audio_ok, _ = await asyncio.gather(
+                self._synthesize_source_vietnamese_audio(poi_id),
+                self._ensure_translator_awake(),
+            )
+        else:
+            vi_audio_ok = await self._synthesize_source_vietnamese_audio(poi_id)
         results["vi"] = {"translation": True, "audio": vi_audio_ok}
 
-        # STEP 2: Dynamically load target foreign languages from database
-        languages = self._resolve_target_languages(poi_id, target_languages)
+        # STEP 2: Process target foreign languages sequentially with pacing delay
 
         logger.info(
             "Starting automated translation & audio pipeline for POI %s (foreign languages: %s, pacing: %.2fs)",

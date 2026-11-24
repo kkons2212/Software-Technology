@@ -80,6 +80,7 @@ def test_render_translation_settings():
         cfg.RENDER_TRANSLATION_API_URL == "https://translation-temporary.onrender.com"
     )
     assert cfg.RENDER_TRANSLATION_TIMEOUT == 70.0
+    assert cfg.RENDER_WAKEUP_TIMEOUT == 110.0
     assert cfg.RENDER_COLD_START_RETRY_DELAY == 10.0
     assert cfg.RENDER_KEEP_ALIVE_ENABLED is False
     assert cfg.RENDER_KEEP_ALIVE_INTERVAL_SECONDS == 600

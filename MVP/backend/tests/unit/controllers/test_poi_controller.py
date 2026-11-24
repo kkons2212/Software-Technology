@@ -220,7 +220,7 @@ def test_should_update_poi_and_invalidate_foreign_translations(client, db_sessio
     assert vi_trans.title == "Hầm giải phẫu dã chiến nâng cao"
     assert vi_trans.description == "Nội dung lịch sử đã được cập nhật chi tiết."
 
-    # 5. Verify all linked foreign translations are set to NEEDS_UPDATE (AC-03.4.2)
+    # 5. Verify all linked foreign translations are set to PENDING for immediate re-translation
     updated_foreign = (
         db_session.query(POITranslation)
         .filter(POITranslation.poi_id == poi_id, POITranslation.language_id != "vi")
@@ -228,7 +228,7 @@ def test_should_update_poi_and_invalidate_foreign_translations(client, db_sessio
     )
     assert len(updated_foreign) == 4
     for ft in updated_foreign:
-        assert ft.status == "NEEDS_UPDATE"
+        assert ft.status == "PENDING"
 
 
 def test_should_update_coordinates_without_invalidating_foreign_translations(
