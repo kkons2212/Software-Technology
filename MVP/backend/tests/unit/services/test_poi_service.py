@@ -353,6 +353,17 @@ async def test_should_create_poi_and_seed_foreign_translations_with_pending_stat
     assert lang_statuses.get("ko") == "PENDING"
     assert lang_statuses.get("zh") == "PENDING"
 
+    # Verify foreign language translations in DB do not contain language prefix
+    translations = poi_catalog_service.poi_repo.get_translations_by_poi_id(
+        result.poi_id
+    )
+    for t in translations:
+        assert not t.title.startswith("[EN]")
+        assert not t.title.startswith("[JA]")
+        assert not t.title.startswith("[KO]")
+        assert not t.title.startswith("[ZH]")
+        assert t.title == "Bếp Hoàng Cầm"
+
 
 def test_should_raise_400_when_coordinates_outside_cu_chi_bounds():
     # Outside latitude boundary
@@ -694,3 +705,43 @@ def test_should_raise_404_when_toggling_nonexistent_poi(poi_service, seeded_admi
         )
     assert exc_info.value.status_code == 404
     assert exc_info.value.detail["code"] == POI_NOT_FOUND_ERROR_CODE
+
+
+def test_strip_language_prefix():
+    """_strip_language_prefix removes bracketed language prefixes like [EN], [JA], [KO], [ZH]."""
+    assert POIService._strip_language_prefix("[EN] Điểm thử 1") == "Điểm thử 1"
+    assert (
+        POIService._strip_language_prefix("[JA] Địa đạo Bến Dược") == "Địa đạo Bến Dược"
+    )
+    assert POIService._strip_language_prefix("[KO] Hầm Quân Y") == "Hầm Quân Y"
+    assert POIService._strip_language_prefix("[ZH] Bếp Hoàng Cầm") == "Bếp Hoàng Cầm"
+    assert POIService._strip_language_prefix("Địa đạo Củ Chi") == "Địa đạo Củ Chi"
+    assert POIService._strip_language_prefix(None) == ""
+    assert POIService._strip_language_prefix("") == ""
+
+
+def test_to_map_item_cleans_legacy_prefixed_translation():
+    """_to_map_item sanitizes any legacy prefixed translation title for visitors."""
+    from app.models.poi import POI
+    from app.models.translation import POITranslation
+
+    poi = POI(
+        poi_id="POI_TEST_01",
+        title="Điểm thử 1",
+        short_description="Mô tả ngắn",
+        description="Mô tả chi tiết",
+        latitude=11.1440,
+        longitude=106.4635,
+        radius=30,
+        is_active=True,
+    )
+    legacy_trans = POITranslation(
+        stran_id="TR_LEGACY_EN",
+        poi_id=poi.poi_id,
+        language_id="en",
+        title="[EN] Điểm thử 1",
+        status="PUBLISHED",
+    )
+
+    map_item = POIService._to_map_item(poi, legacy_trans)
+    assert map_item.title == "Điểm thử 1"

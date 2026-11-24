@@ -68,7 +68,7 @@ class TranslationWorker:
                 trans_repo.create(
                     POITranslation(
                         stran_id=stran_id,
-                        title=f"[{target_lang.upper()}] {vi_title}",
+                        title=vi_title,
                         short_description=vi_short,
                         description=vi_desc,
                         status=TRANSLATION_STATUS_PENDING,
