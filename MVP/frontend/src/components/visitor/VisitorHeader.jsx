@@ -126,17 +126,18 @@ export default function VisitorHeader({
         ) : (
           <div className="flex items-center gap-1.5">
             <button
-              className="visitor-restore-button inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition"
+              className="visitor-restore-button"
               type="button"
               onClick={onRestoreSession}
+              aria-label={getVisitorText('restorePassTitle', selectedLanguage)}
               title={getVisitorText('restorePassTitle', selectedLanguage)}
             >
-              <KeyRound size={13} aria-hidden="true" />
-              <span className="hidden sm:inline">{getVisitorText('restorePass', selectedLanguage)}</span>
+              <KeyRound size={15} aria-hidden="true" />
+              <span className="visitor-restore-label">{getVisitorText('restorePass', selectedLanguage)}</span>
             </button>
             <button className="visitor-unlock-button" type="button" onClick={onUnlock}>
               <LockKeyhole size={15} aria-hidden="true" />
-              <span>{getVisitorText('unlockAudio', selectedLanguage)}</span>
+              <span className="visitor-unlock-label">{getVisitorText('unlockAudio', selectedLanguage)}</span>
             </button>
           </div>
         )}
