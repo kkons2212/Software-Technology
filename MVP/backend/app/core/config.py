@@ -119,6 +119,9 @@ class Settings(BaseSettings):
     RENDER_TRANSLATION_API_URL: str = "https://translation-temporary.onrender.com"
     RENDER_TRANSLATION_TIMEOUT: float = 70.0
     RENDER_COLD_START_RETRY_DELAY: float = 10.0
+    RENDER_KEEP_ALIVE_ENABLED: bool = False
+    RENDER_KEEP_ALIVE_INTERVAL_SECONDS: int = 600
+    LOG_LEVEL: str = "INFO"
     OPENROUTER_API_KEY: str = ""
     OPENROUTER_MODEL: str = "openrouter/free"
     OPENROUTER_BASE_URL: str = "https://openrouter.ai/api/v1"

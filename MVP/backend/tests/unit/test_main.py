@@ -1,5 +1,6 @@
 """Paired unit tests for `app.main` (US 02.1 application wiring)."""
 
+import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
@@ -75,3 +76,43 @@ def test_should_return_404_envelope_for_unknown_route():
             "details": None,
         },
     }
+
+
+@pytest.mark.asyncio
+async def test_lifespan_respects_render_keep_alive_toggle(monkeypatch):
+    """Verify lifespan starts keep-alive task only when RENDER_KEEP_ALIVE_ENABLED is True."""
+    import asyncio
+    from unittest.mock import AsyncMock, MagicMock
+
+    monkeypatch.setenv("ENV", "production")
+    monkeypatch.setattr(app.main.settings, "ENVIRONMENT", "production")
+    monkeypatch.setattr(app.main.settings, "PIPELINE_AUTO_RECOVERY", False)
+
+    fake_queue = MagicMock()
+    fake_queue.start_worker = AsyncMock()
+    fake_queue.stop_worker = AsyncMock()
+    monkeypatch.setattr(
+        "app.services.pipeline_queue.get_pipeline_queue", lambda: fake_queue
+    )
+
+    started_calls = []
+
+    async def fake_keep_alive(interval_seconds: int, wakeup_timeout: float):
+        started_calls.append((interval_seconds, wakeup_timeout))
+        await asyncio.sleep(3600)
+
+    monkeypatch.setattr(app.main, "_render_keep_alive_loop", fake_keep_alive)
+
+    # Case 1: Default False -> keep-alive does not start
+    monkeypatch.setattr(app.main.settings, "RENDER_KEEP_ALIVE_ENABLED", False)
+    async with app.main.lifespan(app.main.app):
+        await asyncio.sleep(0)
+    assert started_calls == []
+
+    # Case 2: Enabled True -> keep-alive starts and cancels cleanly on exit
+    monkeypatch.setattr(app.main.settings, "RENDER_KEEP_ALIVE_ENABLED", True)
+    monkeypatch.setattr(app.main.settings, "RENDER_KEEP_ALIVE_INTERVAL_SECONDS", 600)
+    monkeypatch.setattr(app.main.settings, "RENDER_TRANSLATION_TIMEOUT", 70.0)
+    async with app.main.lifespan(app.main.app):
+        await asyncio.sleep(0)
+    assert started_calls == [(600, 70.0)]
