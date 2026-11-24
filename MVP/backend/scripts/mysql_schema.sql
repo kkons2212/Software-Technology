@@ -91,7 +91,7 @@ CREATE TABLE IF NOT EXISTS `POI` (
 CREATE TABLE IF NOT EXISTS `POITranslation` (
     `StranID` VARCHAR(20) NOT NULL,
     `Title` NVARCHAR(255) NOT NULL,
-    `Short_Description` NVARCHAR(255) NULL,
+    `Short_Description` NVARCHAR(500) NULL,
     `Description` TEXT NULL,
     `Status` NVARCHAR(255) NOT NULL DEFAULT 'PENDING',
     `Audio_url` TEXT NULL,

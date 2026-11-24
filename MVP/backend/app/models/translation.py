@@ -75,7 +75,7 @@ class POITranslation(Base):
     )
     title: Mapped[str] = mapped_column("Title", String(255), nullable=False)
     short_description: Mapped[str | None] = mapped_column(
-        "Short_Description", String(255), nullable=True
+        "Short_Description", String(500), nullable=True
     )
     description: Mapped[str | None] = mapped_column("Description", Text, nullable=True)
     status: Mapped[str] = mapped_column(
