@@ -9,7 +9,7 @@ class TranslationUpdateRequest(BaseModel):
     """Payload for updating target translation text during historical audit."""
 
     title: str | None = Field(None, min_length=1, max_length=255)
-    short_description: str | None = Field(None, max_length=255)
+    short_description: str | None = Field(None, max_length=1000)
     description: str | None = None
     status: str | None = Field(None, max_length=50)
 
