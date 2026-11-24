@@ -4,8 +4,10 @@ Builds the application, installs the standardized error envelope, mounts
 static directories, and registers all routers.
 """
 
+import asyncio
+import logging
 import os
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -38,10 +40,55 @@ API_TITLE = "Smart Multilingual Automated Audio Guide & Interactive Map API"
 API_VERSION = "1.0.0"
 DEFAULT_CORS_ORIGINS = "http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000,http://127.0.0.1:3000"
 
+logger = logging.getLogger(__name__)
+
+
+def _configure_app_logging() -> None:
+    """Configure 'app' logger level from settings.LOG_LEVEL so INFO logs appear on Render."""
+    level_name = str(getattr(settings, "LOG_LEVEL", "INFO")).strip().upper()
+    resolved_level = getattr(logging, level_name, logging.INFO)
+    app_logger = logging.getLogger("app")
+    app_logger.setLevel(resolved_level)
+    if not logging.getLogger().handlers and not app_logger.handlers:
+        handler = logging.StreamHandler()
+        handler.setFormatter(logging.Formatter("%(levelname)s: %(name)s - %(message)s"))
+        app_logger.addHandler(handler)
+
+
+async def _render_keep_alive_loop(
+    interval_seconds: int,
+    wakeup_timeout: float,
+) -> None:
+    """Periodically ping Render translation API /health to prevent cold sleep when enabled."""
+    from app.integrations.deep_translator_client import DeepTranslatorClient
+
+    client = DeepTranslatorClient(render_timeout=wakeup_timeout)
+    safe_interval = max(60, int(interval_seconds))
+    logger.info(
+        "Render keep-alive heartbeat enabled (interval=%ds, timeout=%.1fs)",
+        safe_interval,
+        wakeup_timeout,
+    )
+
+    try:
+        while True:
+            health = await client.check_health(timeout=wakeup_timeout)
+            if health:
+                logger.info(
+                    "Render keep-alive ping OK (ram=%.1fMB)",
+                    health.get("current_ram_mb", 0.0),
+                )
+            else:
+                logger.warning("Render keep-alive ping did not return healthy status")
+            await asyncio.sleep(safe_interval)
+    except asyncio.CancelledError:
+        logger.info("Render keep-alive heartbeat stopped")
+        raise
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Application lifespan managing background pipeline queue lifecycle and auto-recovery."""
+    """Application lifespan managing background pipeline queue lifecycle and optional keep-alive."""
     # In test environments, skip eager worker startup to prevent loop crosstalk across TestClient instances
     if (
         os.getenv("ENV") == "test"
@@ -57,13 +104,30 @@ async def lifespan(app: FastAPI):
     if getattr(settings, "PIPELINE_AUTO_RECOVERY", True):
         queue.recover_pending_translations()
 
+    keep_alive_task: asyncio.Task | None = None
+    if getattr(settings, "RENDER_KEEP_ALIVE_ENABLED", False):
+        keep_alive_task = asyncio.create_task(
+            _render_keep_alive_loop(
+                interval_seconds=getattr(
+                    settings, "RENDER_KEEP_ALIVE_INTERVAL_SECONDS", 600
+                ),
+                wakeup_timeout=getattr(settings, "RENDER_TRANSLATION_TIMEOUT", 70.0),
+            )
+        )
+
     yield
+
+    if keep_alive_task is not None:
+        keep_alive_task.cancel()
+        with suppress(asyncio.CancelledError):
+            await keep_alive_task
 
     await queue.stop_worker()
 
 
 def create_app() -> FastAPI:
     """Build the FastAPI application instance with all routers registered."""
+    _configure_app_logging()
     application = FastAPI(
         title=API_TITLE,
         version=API_VERSION,

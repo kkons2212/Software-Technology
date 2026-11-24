@@ -295,13 +295,19 @@ async def test_get_http_client_isolates_timeouts_across_endpoints():
 
 
 @pytest.mark.asyncio
-async def test_render_api_502_spinup_uses_cold_start_delay_and_recovers(
+async def test_render_api_502_triggers_health_wakeup_and_retries_immediately(
     mocker, mock_http
 ):
-    """Verify 502 spin-up waits cold_start_delay and succeeds on Render API without falling back."""
+    """Verify 502 triggers GET /health wake-up wait and immediately retries POST /translate."""
     sleep_spy = mocker.patch(
         "app.integrations.deep_translator_client.asyncio.sleep",
         new=AsyncMock(),
+    )
+    mock_http.get = AsyncMock(
+        return_value=MagicMock(
+            status_code=200,
+            json=lambda: {"status": "ok", "current_ram_mb": 66.3},
+        )
     )
     responses = [
         MagicMock(status_code=502, text="<html><title>502</title></html>"),
@@ -317,7 +323,8 @@ async def test_render_api_502_spinup_uses_cold_start_delay_and_recovers(
 
     client = DeepTranslatorClient(
         render_api_url="https://test-render-api.example.com",
-        cold_start_delay=12.0,
+        render_timeout=70.0,
+        cold_start_delay=10.0,
         openrouter_key="test-openrouter-key",
         providers_order=["render_api", "openrouter"],
         max_retries=3,
@@ -328,9 +335,47 @@ async def test_render_api_502_spinup_uses_cold_start_delay_and_recovers(
     result = await client.translate_text("Địa đạo Củ Chi", target_lang="en")
 
     assert result == "Cu Chi Tunnels"
-    sleep_spy.assert_awaited_once_with(12.0)
+    mock_http.get.assert_awaited_once_with("https://test-render-api.example.com/health")
+    sleep_spy.assert_not_awaited()
     assert mock_http.post.call_count == 2
     assert "test-render-api.example.com" in mock_http.post.call_args_list[-1].args[0]
+
+
+@pytest.mark.asyncio
+async def test_render_api_502_wakeup_timeout_falls_back_to_openrouter(mock_http):
+    """Verify failed /health wake-up breaks Render retries immediately and cascades to OpenRouter."""
+    mock_http.get = AsyncMock(side_effect=httpx.TimeoutException("Wakeup timed out"))
+
+    def mock_post(url, **kwargs):
+        if "test-render-api.example.com" in url:
+            return MagicMock(status_code=502, text="<html><title>502</title></html>")
+        if "openrouter.ai" in url:
+            return MagicMock(
+                status_code=200,
+                json=lambda: {
+                    "choices": [{"message": {"content": "Cu Chi Fallback Tunnels"}}]
+                },
+            )
+        return MagicMock(status_code=404)
+
+    mock_http.post = AsyncMock(side_effect=mock_post)
+
+    client = DeepTranslatorClient(
+        render_api_url="https://test-render-api.example.com",
+        render_timeout=70.0,
+        cold_start_delay=0.001,
+        openrouter_key="test-openrouter-key",
+        providers_order=["render_api", "openrouter"],
+        max_retries=3,
+        base_delay=0.001,
+        http_client=mock_http,
+    )
+
+    result = await client.translate_text("Địa đạo Củ Chi", target_lang="en")
+
+    assert result == "Cu Chi Fallback Tunnels"
+    assert mock_http.get.call_count == 1
+    assert mock_http.post.call_count == 2
 
 
 @pytest.mark.asyncio
@@ -353,3 +398,82 @@ async def test_openrouter_narrative_logs_warning_on_non_200_status(
 
     assert res is None
     assert "OpenRouter narrative returned status 404" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_long_narrative_uses_chunked_per_field_render_calls(client, mock_http):
+    """Verify oversized narratives bypass delimiter batching and chunk long descriptions <= 500 chars."""
+    sent_payloads: list[str] = []
+
+    def mock_post(url, **kwargs):
+        text = kwargs.get("json", {}).get("text", "")
+        sent_payloads.append(text)
+        return MagicMock(
+            status_code=200,
+            json=lambda: {"translated_text": f"[ZH] {text}", "latency_ms": 120.0},
+        )
+
+    mock_http.post = AsyncMock(side_effect=mock_post)
+
+    long_desc = (
+        "Địa đạo Củ Chi là hệ thống đường hầm lịch sử nổi tiếng của Việt Nam. " * 15
+    ).strip()
+    narrative = await client.translate_exhibit_narrative(
+        title="Bến Dược",
+        short_description="Khu di tích lịch sử",
+        description=long_desc,
+        target_lang="zh",
+    )
+
+    assert narrative["title"] == "[ZH] Bến Dược"
+    assert narrative["short_description"] == "[ZH] Khu di tích lịch sử"
+    assert narrative["description"] is not None
+    assert len(sent_payloads) >= 4
+    assert all(len(p) <= 500 for p in sent_payloads)
+    assert all("POI_FIELD_BREAK" not in p for p in sent_payloads)
+
+
+@pytest.mark.asyncio
+async def test_batch_narrative_render_failure_does_not_retry_field_by_field(
+    client, mock_http
+):
+    """Verify short narrative skips field-by-field retry when Render returns 500/None and goes to OpenRouter."""
+    render_calls = 0
+
+    def mock_post(url, **kwargs):
+        nonlocal render_calls
+        if "test-render-api.example.com" in url:
+            render_calls += 1
+            return MagicMock(status_code=500, text="Down")
+        return MagicMock(
+            status_code=200,
+            json=lambda: {
+                "choices": [
+                    {
+                        "message": {
+                            "content": json.dumps(
+                                {
+                                    "title": "Fallback Title",
+                                    "short_description": "Fallback Short",
+                                    "description": "Fallback Desc",
+                                }
+                            )
+                        }
+                    }
+                ]
+            },
+        )
+
+    mock_http.post = AsyncMock(side_effect=mock_post)
+
+    narrative = await client.translate_exhibit_narrative(
+        title="Bếp Hoàng Cầm",
+        short_description="Bếp dã chiến",
+        description="Mô tả ngắn",
+        target_lang="zh",
+    )
+
+    assert narrative["title"] == "Fallback Title"
+    assert (
+        render_calls == client.max_retries
+    )  # Only batch attempts, no extra per-field retries
