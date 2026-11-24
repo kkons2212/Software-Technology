@@ -43,18 +43,6 @@ DEFAULT_CORS_ORIGINS = "http://localhost:5173,http://127.0.0.1:5173,http://local
 logger = logging.getLogger(__name__)
 
 
-def _configure_app_logging() -> None:
-    """Configure 'app' logger level from settings.LOG_LEVEL so INFO logs appear on Render."""
-    level_name = str(getattr(settings, "LOG_LEVEL", "INFO")).strip().upper()
-    resolved_level = getattr(logging, level_name, logging.INFO)
-    app_logger = logging.getLogger("app")
-    app_logger.setLevel(resolved_level)
-    if not logging.getLogger().handlers and not app_logger.handlers:
-        handler = logging.StreamHandler()
-        handler.setFormatter(logging.Formatter("%(levelname)s: %(name)s - %(message)s"))
-        app_logger.addHandler(handler)
-
-
 async def _render_keep_alive_loop(
     interval_seconds: int,
     wakeup_timeout: float,
@@ -127,7 +115,6 @@ async def lifespan(app: FastAPI):
 
 def create_app() -> FastAPI:
     """Build the FastAPI application instance with all routers registered."""
-    _configure_app_logging()
     application = FastAPI(
         title=API_TITLE,
         version=API_VERSION,
