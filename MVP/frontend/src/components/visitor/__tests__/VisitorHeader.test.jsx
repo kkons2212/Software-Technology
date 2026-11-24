@@ -109,4 +109,41 @@ describe('VisitorHeader', () => {
     });
     expect(writeTextMock).toHaveBeenCalledWith(fullCode);
   });
+
+  it('localizes brand copy and header actions cleanly across all 6 languages with responsive layout classes', () => {
+    const cases = [
+      { code: 'vi', title: 'Cu Chi Tunnels', subtitle: 'Thuyết minh âm thanh thông minh', unlock: 'Mở khóa', restoreTitle: 'Khôi phục phiên đã mua' },
+      { code: 'en', title: 'Cu Chi Tunnels', subtitle: 'Smart audio guide', unlock: 'Unlock audio', restoreTitle: 'Restore purchased session' },
+      { code: 'ja', title: 'クチの地下道', subtitle: 'スマート音声ガイド', unlock: '音声をロック解除', restoreTitle: '購入したセッションを復元' },
+      { code: 'ko', title: '구찌 터널', subtitle: '스마트 오디오 가이드', unlock: '오디오 잠금 해제', restoreTitle: '구매한 세션 복원' },
+      { code: 'fr', title: 'Tunnels de Cu Chi', subtitle: 'Audioguide intelligent', unlock: 'Débloquer', restoreTitle: 'Restaurer la session achetée' },
+      { code: 'zh', title: '古芝地道', subtitle: '智能语音导览', unlock: '解锁语音', restoreTitle: '恢复已购会话' },
+    ];
+
+    const { container, rerender } = render(
+      <VisitorHeader
+        languages={cases.map((c) => ({ code: c.code, name: c.code.toUpperCase() }))}
+        selectedLanguage="vi"
+      />
+    );
+
+    expect(container.querySelector('.visitor-brand')).toBeInTheDocument();
+    expect(container.querySelector('.visitor-header-actions')).toBeInTheDocument();
+    expect(container.querySelector('.visitor-restore-label')).toBeInTheDocument();
+    expect(container.querySelector('.visitor-unlock-label')).toBeInTheDocument();
+
+    cases.forEach(({ code, title, subtitle, unlock, restoreTitle }) => {
+      rerender(
+        <VisitorHeader
+          languages={cases.map((c) => ({ code: c.code, name: c.code.toUpperCase() }))}
+          selectedLanguage={code}
+        />
+      );
+
+      expect(screen.getByRole('heading', { name: title })).toBeInTheDocument();
+      expect(screen.getByText(subtitle)).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: unlock })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: restoreTitle })).toHaveAttribute('title', restoreTitle);
+    });
+  });
 });
