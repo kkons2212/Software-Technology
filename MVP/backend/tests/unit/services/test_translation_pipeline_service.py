@@ -269,3 +269,33 @@ async def test_pipeline_service_should_synthesize_vietnamese_source_audio(
     assert "vi" in results
     assert results["vi"]["audio"] is True
     mock_audio_worker.process_audio_synthesis.assert_called_once_with(tr_vi.stran_id)
+
+
+@pytest.mark.asyncio
+async def test_pipeline_service_proactively_wakes_render_before_translating(
+    db_session, mocker
+):
+    """Verify run_pipeline_for_poi invokes ensure_render_awake once when target languages exist."""
+    poi, _ = _seed_poi_with_vi_source(db_session)
+
+    mock_translator = mocker.MagicMock(spec=DeepTranslatorClient)
+    mock_translator.ensure_render_awake = AsyncMock(return_value=True)
+
+    mock_trans_worker = mocker.MagicMock(spec=TranslationWorker)
+    mock_trans_worker.translator_client = mock_translator
+    mock_trans_worker.process_translation = AsyncMock(return_value=(True, "TR_EN"))
+
+    mock_audio_worker = mocker.MagicMock(spec=AudioSynthesisWorker)
+    mock_audio_worker.process_audio_synthesis = AsyncMock(return_value=True)
+
+    pipeline = TranslationPipelineService(
+        session_factory=lambda: db_session,
+        translation_worker=mock_trans_worker,
+        audio_worker=mock_audio_worker,
+        pacing_delay=0.0,
+    )
+
+    await pipeline.run_pipeline_for_poi(poi.poi_id, target_languages=["en", "ja"])
+
+    mock_translator.ensure_render_awake.assert_awaited_once()
+    assert mock_trans_worker.process_translation.call_count == 2

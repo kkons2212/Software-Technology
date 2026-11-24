@@ -350,20 +350,27 @@ export default function PoiCatalogPage() {
                             }
 
                             let badgeStyle = 'border-red-200 bg-red-50 text-red-700';
+                            let statusLabel = ADMIN_TRANSLATIONS.statusFailedShort;
                             if (t.status === 'PUBLISHED' || t.status === 'READY') {
                               badgeStyle = 'border-green-200 bg-green-50 text-green-700';
+                              statusLabel = ADMIN_TRANSLATIONS.statusPublished;
                             } else if (t.status === 'PENDING') {
                               badgeStyle = 'border-amber-200 bg-amber-50 text-amber-700';
+                              statusLabel = ADMIN_TRANSLATIONS.statusPending;
                             } else if (t.status === 'DRAFT') {
                               badgeStyle = 'border-blue-200 bg-blue-50 text-blue-700';
+                              statusLabel = ADMIN_TRANSLATIONS.statusDraft;
+                            } else if (t.status === 'NEEDS_UPDATE') {
+                              badgeStyle = 'border-amber-200 bg-amber-50 text-amber-800';
+                              statusLabel = ADMIN_TRANSLATIONS.statusNeedsUpdateShort;
                             }
 
                             return (
                               <span
                                 key={t.language_id}
-                                className={`rounded px-1.5 py-0.5 text-[10px] font-medium uppercase border ${badgeStyle}`}
+                                className={`rounded px-1.5 py-0.5 text-[10px] font-medium border ${badgeStyle}`}
                               >
-                                {t.language_id}: {t.status}
+                                {`${t.language_id.toUpperCase()}: ${statusLabel}`}
                               </span>
                             );
                           })}

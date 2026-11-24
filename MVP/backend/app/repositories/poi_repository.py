@@ -153,7 +153,7 @@ class POIRepository:
         """Update Vietnamese source narrative and invalidate foreign translations (US 03.4).
 
         # ARCH-BOUNDARY: Atomic repository update synchronizing source text and translation status.
-        # SECURITY-INVARIANT: Foreign translations are marked NEEDS_UPDATE to prevent out-of-sync audio playback.
+        # SECURITY-INVARIANT: Foreign translations are marked PENDING so background pipeline re-translates immediately.
         """
         vi_trans = (
             self.db.query(POITranslation)
@@ -174,7 +174,7 @@ class POIRepository:
             .all()
         )
         for trans in foreign_translations:
-            trans.status = "NEEDS_UPDATE"
+            trans.status = "PENDING"
 
         self.db.commit()
         invalidated_count = len(foreign_translations)

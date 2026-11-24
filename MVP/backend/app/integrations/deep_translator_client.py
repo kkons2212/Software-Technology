@@ -17,6 +17,7 @@ DEFAULT_BASE_DELAY = 1.5
 DEFAULT_CHUNK_SIZE = 4500
 RENDER_MAX_CHUNK_CHARS = 500
 DEFAULT_RENDER_TIMEOUT = 70.0
+DEFAULT_RENDER_WAKEUP_TIMEOUT = 110.0
 DEFAULT_RENDER_COLD_START_DELAY = 10.0
 HEALTH_CHECK_TIMEOUT = 5.0
 SPINUP_HTTP_STATUSES = (502, 503, 504)
@@ -81,6 +82,7 @@ class DeepTranslatorClient:
         self,
         render_api_url: str | None = None,
         render_timeout: float | None = None,
+        wakeup_timeout: float | None = None,
         cold_start_delay: float | None = None,
         openrouter_key: str | None = None,
         openrouter_model: str | None = None,
@@ -101,6 +103,13 @@ class DeepTranslatorClient:
             render_timeout
             if render_timeout is not None
             else getattr(settings, "RENDER_TRANSLATION_TIMEOUT", DEFAULT_RENDER_TIMEOUT)
+        )
+        self.wakeup_timeout: float = (
+            wakeup_timeout
+            if wakeup_timeout is not None
+            else getattr(
+                settings, "RENDER_WAKEUP_TIMEOUT", DEFAULT_RENDER_WAKEUP_TIMEOUT
+            )
         )
         self.cold_start_delay: float = (
             cold_start_delay
@@ -200,25 +209,41 @@ class DeepTranslatorClient:
 
         return health_data
 
+    async def ensure_render_awake(self) -> bool:
+        """Proactively wake Render Live API container if render_api is enabled in cascade."""
+        if not self.render_api_url:
+            return False
+        if "render_api" not in self._resolve_effective_order():
+            return False
+        return await self._wait_for_render_wakeup()
+
     async def _wait_for_render_wakeup(self) -> bool:
-        """Wait for Render Live API container to wake from cold sleep via GET /health within render_timeout."""
+        """Wait for Render Live API container to wake from cold sleep via GET /health within wakeup_timeout."""
         # Phase 1 Gate: Guard against missing endpoint
         if not self.render_api_url:
             return False
 
-        # Phase 2 Compute: Poll /health within render_timeout budget
-        deadline = time.monotonic() + max(1.0, self.render_timeout)
+        # Phase 2 Compute: Poll /health within wakeup_timeout budget using a single HTTP client
+        budget = max(0.05, self.wakeup_timeout)
+        deadline = time.monotonic() + budget
         url = f"{self.render_api_url}/health"
+        client = await self._get_http_client(timeout=budget)
         is_awake = False
 
         while True:
             remaining = deadline - time.monotonic()
             if remaining <= 0:
+                logger.warning(
+                    "Render API wake-up /health exhausted budget (budget=%.1fs) without 200 OK",
+                    budget,
+                )
                 break
 
-            client = await self._get_http_client(timeout=remaining)
             try:
-                response = await client.get(url)
+                try:
+                    response = await client.get(url, timeout=remaining)
+                except TypeError:
+                    response = await client.get(url)
                 if response.status_code == 200:
                     payload = response.json()
                     logger.info(
@@ -236,7 +261,7 @@ class DeepTranslatorClient:
             except httpx.TimeoutException:
                 logger.warning(
                     "Render API wake-up /health timed out (budget=%.1fs)",
-                    self.render_timeout,
+                    budget,
                 )
                 break
             except Exception as exc:
@@ -247,6 +272,10 @@ class DeepTranslatorClient:
                 self.cold_start_delay, max(0.0, deadline - time.monotonic())
             )
             if wait_seconds <= 0:
+                logger.warning(
+                    "Render API wake-up /health exhausted budget (budget=%.1fs) without 200 OK",
+                    budget,
+                )
                 break
             await asyncio.sleep(wait_seconds)
 
@@ -355,7 +384,7 @@ class DeepTranslatorClient:
                             response.status_code,
                             attempt + 1,
                             self.max_retries,
-                            self.render_timeout,
+                            self.wakeup_timeout,
                         )
                         woke_up = await self._wait_for_render_wakeup()
                         if woke_up:

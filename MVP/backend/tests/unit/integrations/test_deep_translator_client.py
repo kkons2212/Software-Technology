@@ -38,6 +38,7 @@ def test_client_initialization_defaults():
     client = DeepTranslatorClient()
     assert "translation-temporary.onrender.com" in client.render_api_url
     assert client.render_timeout == 70.0
+    assert client.wakeup_timeout == 110.0
     assert client.cold_start_delay == 10.0
     assert "render_api" in client.providers_order
     assert "openrouter" in client.providers_order
@@ -335,7 +336,10 @@ async def test_render_api_502_triggers_health_wakeup_and_retries_immediately(
     result = await client.translate_text("Địa đạo Củ Chi", target_lang="en")
 
     assert result == "Cu Chi Tunnels"
-    mock_http.get.assert_awaited_once_with("https://test-render-api.example.com/health")
+    assert mock_http.get.await_count == 1
+    assert mock_http.get.call_args.args == (
+        "https://test-render-api.example.com/health",
+    )
     sleep_spy.assert_not_awaited()
     assert mock_http.post.call_count == 2
     assert "test-render-api.example.com" in mock_http.post.call_args_list[-1].args[0]
@@ -477,3 +481,55 @@ async def test_batch_narrative_render_failure_does_not_retry_field_by_field(
     assert (
         render_calls == client.max_retries
     )  # Only batch attempts, no extra per-field retries
+
+
+@pytest.mark.asyncio
+async def test_ensure_render_awake_polls_until_200(mocker, mock_http):
+    """Verify ensure_render_awake retries 502 and returns True once /health responds 200."""
+    mocker.patch(
+        "app.integrations.deep_translator_client.asyncio.sleep",
+        new=AsyncMock(),
+    )
+    mock_http.get = AsyncMock(
+        side_effect=[
+            MagicMock(status_code=502),
+            MagicMock(
+                status_code=200,
+                json=lambda: {"status": "ok", "current_ram_mb": 72.5},
+            ),
+        ]
+    )
+
+    client = DeepTranslatorClient(
+        render_api_url="https://test-render-api.example.com",
+        wakeup_timeout=110.0,
+        cold_start_delay=0.001,
+        providers_order=["render_api", "openrouter"],
+        http_client=mock_http,
+    )
+
+    awake = await client.ensure_render_awake()
+    assert awake is True
+    assert mock_http.get.call_count == 2
+
+
+@pytest.mark.asyncio
+async def test_ensure_render_awake_logs_warning_when_budget_exhausted(
+    caplog, mock_http
+):
+    """Verify _wait_for_render_wakeup logs warning if 502 persists until wakeup_timeout expires."""
+    mock_http.get = AsyncMock(return_value=MagicMock(status_code=502))
+
+    client = DeepTranslatorClient(
+        render_api_url="https://test-render-api.example.com",
+        wakeup_timeout=0.05,
+        cold_start_delay=0.03,
+        providers_order=["render_api", "openrouter"],
+        http_client=mock_http,
+    )
+
+    with caplog.at_level("WARNING"):
+        awake = await client.ensure_render_awake()
+
+    assert awake is False
+    assert "exhausted budget" in caplog.text

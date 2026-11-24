@@ -572,7 +572,7 @@ def test_should_update_poi_and_mark_foreign_translations_needs_update(
     db_session.refresh(tr_vi)
     db_session.refresh(tr_en)
     assert tr_vi.title == "Tunnel entrance updated"
-    assert tr_en.status == "NEEDS_UPDATE"
+    assert tr_en.status == "PENDING"
 
     # Verify audit entry was logged with ADMIN_POI_UPDATED
     audit_row = (

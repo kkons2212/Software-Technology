@@ -206,4 +206,4 @@ def test_should_sync_vi_and_invalidate_foreign_translations_in_repo(db_session):
     db_session.refresh(tr_en)
     assert tr_vi.Title == "Kho vũ khí bí mật"
     assert tr_vi.Status == "PUBLISHED"
-    assert tr_en.Status == "NEEDS_UPDATE"
+    assert tr_en.Status == "PENDING"

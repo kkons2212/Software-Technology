@@ -65,8 +65,8 @@ describe('PoiCatalogPage', () => {
     expect(screen.getByText('Bếp dã chiến không khói nổi tiếng.')).toBeInTheDocument();
     expect(screen.getByText('30m')).toBeInTheDocument();
     expect(screen.getByText('11.1432, 106.4631')).toBeInTheDocument();
-    expect(screen.getByText('en: PENDING')).toBeInTheDocument();
-    expect(screen.getByText('ja: READY')).toBeInTheDocument();
+    expect(screen.getByText('EN: Chờ xử lý')).toBeInTheDocument();
+    expect(screen.getByText('JA: Đã xuất bản')).toBeInTheDocument();
     expect(screen.getByText(/hiển thị 1 trên tổng số 1/i)).toBeInTheDocument();
 
     const img = screen.getByRole('img', { name: 'Bếp Hoàng Cầm' });
@@ -311,6 +311,6 @@ describe('PoiCatalogPage', () => {
     renderPoiCatalog();
 
     expect(await screen.findByText('vi: gốc')).toBeInTheDocument();
-    expect(screen.getByText('en: READY')).toBeInTheDocument();
+    expect(screen.getByText('EN: Đã xuất bản')).toBeInTheDocument();
   });
 });
