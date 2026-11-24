@@ -4,6 +4,7 @@ and Admin geofence writes.
 """
 
 import os
+import re
 import uuid
 import warnings
 from decimal import Decimal
@@ -264,7 +265,7 @@ class POIService:
         for lang in target_languages:
             foreign_trans = POITranslation(
                 stran_id=f"TR_{uuid.uuid4().hex[:12].upper()}",
-                title=f"[{lang.upper()}] {payload.title}",
+                title=payload.title,
                 short_description=payload.short_description,
                 description=payload.description,
                 status="PENDING",
@@ -598,6 +599,13 @@ class POIService:
         return response
 
     @staticmethod
+    def _strip_language_prefix(title: str | None) -> str:
+        """Strip language placeholder prefix like '[EN] ', '[JA] ', etc. if present."""
+        if not title:
+            return ""
+        return re.sub(r"^\[[A-Za-z]{2,4}\]\s*", "", title)
+
+    @staticmethod
     def _to_map_item(
         poi: POI,
         translation: POITranslation | None = None,
@@ -605,7 +613,8 @@ class POIService:
         session_token: str | None = None,
         lang: str | None = None,
     ) -> POIMapItem:
-        title = translation.title if translation else poi.title
+        raw_title = translation.title if translation else poi.title
+        title = POIService._strip_language_prefix(raw_title)
         short_desc = (
             translation.short_description if translation else poi.short_description
         )
