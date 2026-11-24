@@ -15,7 +15,6 @@ import pytest
 from app.core.exceptions import ApiError
 from app.models.poi import POI
 from app.services.wayfinding_service import (
-    CU_CHI_TRAIL_NODES,
     WayfindingService,
     haversine_distance,
 )
@@ -66,12 +65,24 @@ def test_haversine_distance_calculation():
     assert haversine_distance(11.1432, 106.4631, 11.1432, 106.4631) == 0.0
 
 
-def test_should_calculate_dynamic_walking_route(mock_poi_repository, active_poi):
+def test_should_calculate_dynamic_walking_route(
+    mock_poi_repository, active_poi, monkeypatch
+):
     """Calculates valid dynamic GeoJSON LineString connecting visitor GPS to POI."""
     # Arrange
     mock_poi_repository.get_by_id.return_value = active_poi
     service = WayfindingService(poi_repository=mock_poi_repository)
     origin_lat, origin_lng = 11.1432, 106.4631
+    mock_coords = [
+        [origin_lng, origin_lat],
+        [106.4620, 11.1440],
+        [float(active_poi.longitude), float(active_poi.latitude)],
+    ]
+    monkeypatch.setattr(
+        service,
+        "_try_osrm_foot_route",
+        lambda *args, **kwargs: (mock_coords, 195.0),
+    )
 
     # Act
     result = service.calculate_walking_route(
@@ -126,11 +137,14 @@ def test_should_meet_calculation_latency_sla(
     assert elapsed_ms < 500.0  # Must be well below 500ms
 
 
-def test_should_calculate_route_from_outside_museum(mock_poi_repository, active_poi):
+def test_should_calculate_route_from_outside_museum(
+    mock_poi_repository, active_poi, monkeypatch
+):
     """Origin coordinate outside Cu Chi boundaries successfully routes into the exhibit."""
     # Arrange
     mock_poi_repository.get_by_id.return_value = active_poi
     service = WayfindingService(poi_repository=mock_poi_repository)
+    monkeypatch.setattr(service, "_try_osrm_foot_route", lambda *args, **kwargs: None)
     origin_lat, origin_lng = 10.8231, 106.6297
 
     # Act
@@ -143,7 +157,7 @@ def test_should_calculate_route_from_outside_museum(mock_poi_repository, active_
     # Assert
     assert result.type == "Feature"
     assert result.geometry.type == "LineString"
-    assert len(result.geometry.coordinates) >= 2
+    assert len(result.geometry.coordinates) == 2
     assert result.properties.destination.poi_id == "POI_BEN_DUOC"
     assert result.properties.origin.lat == origin_lat
     assert result.properties.origin.lng == origin_lng
@@ -233,23 +247,10 @@ def test_should_use_osrm_foot_route_when_available(
     assert result.properties.total_distance_meters == 210.0
 
 
-def test_should_traverse_38_nodes_trail_graph_with_dijkstra(mock_poi_repository):
-    """Verifies complete 38-node connectivity and Dijkstra pathfinding across distant waypoints."""
-    # Arrange
-    service = WayfindingService(poi_repository=mock_poi_repository)
-
-    # Act & Assert
-    assert len(service._graph) == 38
-    path = service._dijkstra_shortest_path("TRAIL_NODE_01", "TRAIL_NODE_38")
-    assert len(path) >= 5
-    assert path[0] == "TRAIL_NODE_01"
-    assert path[-1] == "TRAIL_NODE_38"
-
-
 def test_should_route_directly_when_within_35_meters(
     mock_poi_repository, active_poi, monkeypatch
 ):
-    """When origin is within 35m of destination POI, route directly without trail graph nodes."""
+    """When origin is within 35m of destination POI, route directly without network lookup."""
     # Arrange
     mock_poi_repository.get_by_id.return_value = active_poi
     service = WayfindingService(poi_repository=mock_poi_repository)
@@ -278,76 +279,13 @@ def test_should_route_directly_when_within_35_meters(
     assert result.properties.total_distance_meters <= 35.0
 
 
-def test_should_handle_dijkstra_identical_nodes(mock_poi_repository):
-    """Verifies Dijkstra Phase 1 gate returns [start_node] when start and end are identical."""
-    # Arrange
-    service = WayfindingService(poi_repository=mock_poi_repository)
-
-    # Act
-    path = service._dijkstra_shortest_path("TRAIL_NODE_05", "TRAIL_NODE_05")
-
-    # Assert
-    assert path == ["TRAIL_NODE_05"]
-
-
-def test_should_stitch_osrm_road_leg_with_dijkstra_trail_leg_when_poi_off_road(
+def test_should_fallback_to_direct_line_when_osrm_fails(
     mock_poi_repository, active_poi, monkeypatch
 ):
-    """When POI is off-road, stitches OSRM route to gateway node with Dijkstra trail graph."""
+    """When OSRM is offline or times out, falls back to direct line with haversine distance."""
     # Arrange
     mock_poi_repository.get_by_id.return_value = active_poi
     service = WayfindingService(poi_repository=mock_poi_repository)
-
-    # Origin is on a road ~200m away from gateway node
-    origin_lat, origin_lng = 11.1415, 106.4630
-
-    gateway_node, _ = service._find_nearest_trail_node(origin_lat, origin_lng)
-    gw_lat, gw_lng, _ = CU_CHI_TRAIL_NODES[gateway_node]
-
-    road_coords = [
-        [origin_lng, origin_lat],
-        [106.4630, 11.1420],
-        [gw_lng, gw_lat],
-    ]
-    road_distance = 180.0
-
-    def mock_osrm(o_lat, o_lng, d_lat, d_lng):
-        # Direct to POI fails (off-road in jungle)
-        if pytest.approx(d_lat, abs=0.0001) == float(active_poi.latitude):
-            return None
-        # OSRM to gateway node succeeds
-        if pytest.approx(d_lat, abs=0.0001) == gw_lat:
-            return (road_coords, road_distance)
-        return None
-
-    monkeypatch.setattr(service, "_try_osrm_foot_route", mock_osrm)
-
-    # Act
-    result = service.calculate_walking_route(
-        origin_lat=origin_lat,
-        origin_lng=origin_lng,
-        destination_poi_id="POI_BEN_DUOC",
-    )
-
-    # Assert
-    coords = result.geometry.coordinates
-    assert coords[0] == [origin_lng, origin_lat]
-    assert [round(gw_lng, 6), round(gw_lat, 6)] in coords
-    assert coords[-1] == [
-        round(float(active_poi.longitude), 6),
-        round(float(active_poi.latitude), 6),
-    ]
-    assert result.properties.total_distance_meters > road_distance
-
-
-def test_should_fallback_to_pure_dijkstra_when_stitched_osrm_fails(
-    mock_poi_repository, active_poi, monkeypatch
-):
-    """When both direct OSRM and stitched OSRM fail, falls back seamlessly to pure trail graph."""
-    # Arrange
-    mock_poi_repository.get_by_id.return_value = active_poi
-    service = WayfindingService(poi_repository=mock_poi_repository)
-    # Simulate complete OSRM failure
     monkeypatch.setattr(service, "_try_osrm_foot_route", lambda *args, **kwargs: None)
 
     origin_lat, origin_lng = 11.1415, 106.4630
@@ -360,30 +298,65 @@ def test_should_fallback_to_pure_dijkstra_when_stitched_osrm_fails(
     )
 
     # Assert
+    expected_dist = haversine_distance(
+        origin_lat, origin_lng, float(active_poi.latitude), float(active_poi.longitude)
+    )
     assert result.type == "Feature"
-    assert len(result.geometry.coordinates) >= 3
-    assert result.geometry.coordinates[0] == [
-        round(origin_lng, 6),
-        round(origin_lat, 6),
+    assert result.geometry.coordinates == [
+        [round(origin_lng, 6), round(origin_lat, 6)],
+        [
+            round(float(active_poi.longitude), 6),
+            round(float(active_poi.latitude), 6),
+        ],
     ]
-    assert result.geometry.coordinates[-1] == [
+    assert result.properties.total_distance_meters == pytest.approx(
+        expected_dist, abs=0.1
+    )
+
+
+def test_should_append_poi_coordinate_when_osrm_terminates_short_of_off_road_poi(
+    mock_poi_repository, active_poi, monkeypatch
+):
+    """When OSRM terminates > 20m from off-road POI, appends POI coordinate and adds distance."""
+    # Arrange
+    mock_poi_repository.get_by_id.return_value = active_poi
+    service = WayfindingService(poi_repository=mock_poi_repository)
+
+    # Route ends at a point ~50m away from active_poi (11.144500, 106.461400)
+    road_terminus = [106.4618, 11.1445]
+    osrm_coords = [
+        [106.4631, 11.1432],
+        road_terminus,
+    ]
+    base_dist = 150.0
+    monkeypatch.setattr(
+        service,
+        "_try_osrm_foot_route",
+        lambda *args, **kwargs: (osrm_coords, base_dist),
+    )
+
+    # Act
+    result = service.calculate_walking_route(
+        origin_lat=11.1432,
+        origin_lng=106.4631,
+        destination_poi_id="POI_BEN_DUOC",
+    )
+
+    # Assert
+    coords = result.geometry.coordinates
+    assert len(coords) == 3
+    assert coords[0] == [106.4631, 11.1432]
+    assert coords[1] == road_terminus
+    assert coords[2] == [
         round(float(active_poi.longitude), 6),
         round(float(active_poi.latitude), 6),
     ]
-    assert result.properties.total_distance_meters > 50.0
-
-
-def test_should_deduplicate_transition_point_during_stitching(mock_poi_repository):
-    """Verify coordinate deduplication at the gateway transition point."""
-    # Arrange
-    service = WayfindingService(poi_repository=mock_poi_repository)
-    leg1 = [[106.46, 11.14], [106.462, 11.142]]
-    leg2 = [[106.462, 11.142], [106.464, 11.144]]
-
-    # Act
-    combined, total_dist = service._stitch_route_segments(leg1, 50.0, leg2, 60.0)
-
-    # Assert
-    assert len(combined) == 3
-    assert combined == [[106.46, 11.14], [106.462, 11.142], [106.464, 11.144]]
-    assert total_dist == 110.0
+    gap_distance = haversine_distance(
+        road_terminus[1],
+        road_terminus[0],
+        float(active_poi.latitude),
+        float(active_poi.longitude),
+    )
+    assert result.properties.total_distance_meters == pytest.approx(
+        base_dist + gap_distance, abs=0.1
+    )

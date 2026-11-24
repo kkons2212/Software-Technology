@@ -1,15 +1,13 @@
 """Wayfinding Service (US 01.4 - TSK-01.4.1).
 
-Computes optimal walking routes using a Hybrid Smart Routing strategy:
-1. Primary: OpenStreetMap Foot Routing (OSRM) for authentic curvature along mapped paths.
-2. Fallback: Internal Cu Chi Trail Graph with Dijkstra shortest path for unmapped jungle trails or offline conditions.
+Computes optimal walking routes using OpenStreetMap (OSRM) Foot Routing
+with automatic direct-line connector fallback for off-road waypoints and offline resilience.
 
 Produces GeoJSON LineString payloads compliant with RFC 7946 with calculation latency < 500ms.
 """
 
 from __future__ import annotations
 
-import heapq
 import logging
 import math
 from typing import TYPE_CHECKING
@@ -39,124 +37,6 @@ WALKING_SPEED_METERS_PER_MINUTE = 72.0
 OSRM_TIMEOUT_SECONDS = 0.8
 OSRM_FOOT_ROUTING_URL = "https://routing.openstreetmap.de/routed-foot/route/v1/driving/{origin_lng},{origin_lat};{dest_lng},{dest_lat}?overview=full&geometries=geojson"
 
-# -----------------------------------------------------------------------------
-# Cu Chi Tunnels Bến Dược - Verified Walking Pathway Trail Network Graph
-# Fallback nodes representing physical junctions, entrances, monuments, and trail bends.
-# -----------------------------------------------------------------------------
-CU_CHI_TRAIL_NODES: dict[str, tuple[float, float, str]] = {
-    "TRAIL_NODE_01": (11.142983, 106.462924, "Trail Waypoint 01"),
-    "TRAIL_NODE_02": (11.142554, 106.463255, "Trail Waypoint 02"),
-    "TRAIL_NODE_03": (11.142524, 106.463966, "Trail Waypoint 03"),
-    "TRAIL_NODE_04": (11.143270, 106.463757, "Trail Waypoint 04"),
-    "TRAIL_NODE_05": (11.142736, 106.464217, "Trail Waypoint 05"),
-    "TRAIL_NODE_06": (11.142914, 106.464837, "Trail Waypoint 06"),
-    "TRAIL_NODE_07": (11.143871, 106.463193, "Trail Waypoint 07"),
-    "TRAIL_NODE_08": (11.144544, 106.462910, "Trail Waypoint 08"),
-    "TRAIL_NODE_09": (11.143058, 106.464190, "Trail Waypoint 09"),
-    "TRAIL_NODE_10": (11.142864, 106.464801, "Trail Waypoint 10"),
-    "TRAIL_NODE_11": (11.143664, 106.464050, "Trail Waypoint 11"),
-    "TRAIL_NODE_12": (11.144290, 106.464490, "Trail Waypoint 12"),
-    "TRAIL_NODE_13": (11.144685, 106.464013, "Trail Waypoint 13"),
-    "TRAIL_NODE_14": (11.144895, 106.463476, "Trail Waypoint 14"),
-    "TRAIL_NODE_15": (11.144195, 106.463519, "Trail Waypoint 15"),
-    "TRAIL_NODE_16": (11.145302, 106.460620, "Trail Waypoint 16"),
-    "TRAIL_NODE_17": (11.145037, 106.460358, "Trail Waypoint 17"),
-    "TRAIL_NODE_18": (11.145178, 106.459240, "Trail Waypoint 18"),
-    "TRAIL_NODE_19": (11.144541, 106.459420, "Trail Waypoint 19"),
-    "TRAIL_NODE_20": (11.144205, 106.460015, "Trail Waypoint 20"),
-    "TRAIL_NODE_21": (11.143674, 106.460512, "Trail Waypoint 21"),
-    "TRAIL_NODE_22": (11.142408, 106.459267, "Trail Waypoint 22"),
-    "TRAIL_NODE_23": (11.142496, 106.460349, "Trail Waypoint 23"),
-    "TRAIL_NODE_24": (11.142673, 106.461035, "Trail Waypoint 24"),
-    "TRAIL_NODE_25": (11.143620, 106.461360, "Trail Waypoint 25"),
-    "TRAIL_NODE_26": (11.143613, 106.462006, "Trail Waypoint 26"),
-    "TRAIL_NODE_27": (11.144224, 106.462499, "Trail Waypoint 27"),
-    "TRAIL_NODE_28": (11.141839, 106.460645, "Trail Waypoint 28"),
-    "TRAIL_NODE_29": (11.140862, 106.460738, "Trail Waypoint 29"),
-    "TRAIL_NODE_30": (11.140570, 106.460350, "Trail Waypoint 30"),
-    "TRAIL_NODE_31": (11.140273, 106.459153, "Trail Waypoint 31"),
-    "TRAIL_NODE_32": (11.140699, 106.458665, "Trail Waypoint 32"),
-    "TRAIL_NODE_33": (11.140605, 106.458107, "Trail Waypoint 33"),
-    "TRAIL_NODE_34": (11.139131, 106.458080, "Trail Waypoint 34"),
-    "TRAIL_NODE_35": (11.138689, 106.457281, "Trail Waypoint 35"),
-    "TRAIL_NODE_36": (11.138541, 106.456562, "Trail Waypoint 36"),
-    "TRAIL_NODE_37": (11.137530, 106.458186, "Trail Waypoint 37"),
-    "TRAIL_NODE_38": (11.137056, 106.458615, "Trail Waypoint 38"),
-}
-
-CU_CHI_TRAIL_EDGES: list[tuple[str, str]] = [
-    ("TRAIL_NODE_01", "TRAIL_NODE_02"),
-    ("TRAIL_NODE_01", "TRAIL_NODE_04"),
-    ("TRAIL_NODE_01", "TRAIL_NODE_07"),
-    ("TRAIL_NODE_01", "TRAIL_NODE_26"),
-    ("TRAIL_NODE_02", "TRAIL_NODE_03"),
-    ("TRAIL_NODE_02", "TRAIL_NODE_04"),
-    ("TRAIL_NODE_02", "TRAIL_NODE_05"),
-    ("TRAIL_NODE_03", "TRAIL_NODE_04"),
-    ("TRAIL_NODE_03", "TRAIL_NODE_05"),
-    ("TRAIL_NODE_03", "TRAIL_NODE_06"),
-    ("TRAIL_NODE_03", "TRAIL_NODE_09"),
-    ("TRAIL_NODE_03", "TRAIL_NODE_10"),
-    ("TRAIL_NODE_04", "TRAIL_NODE_05"),
-    ("TRAIL_NODE_04", "TRAIL_NODE_07"),
-    ("TRAIL_NODE_04", "TRAIL_NODE_09"),
-    ("TRAIL_NODE_04", "TRAIL_NODE_11"),
-    ("TRAIL_NODE_04", "TRAIL_NODE_15"),
-    ("TRAIL_NODE_05", "TRAIL_NODE_06"),
-    ("TRAIL_NODE_05", "TRAIL_NODE_09"),
-    ("TRAIL_NODE_05", "TRAIL_NODE_10"),
-    ("TRAIL_NODE_05", "TRAIL_NODE_11"),
-    ("TRAIL_NODE_06", "TRAIL_NODE_09"),
-    ("TRAIL_NODE_06", "TRAIL_NODE_10"),
-    ("TRAIL_NODE_07", "TRAIL_NODE_08"),
-    ("TRAIL_NODE_07", "TRAIL_NODE_11"),
-    ("TRAIL_NODE_07", "TRAIL_NODE_15"),
-    ("TRAIL_NODE_07", "TRAIL_NODE_27"),
-    ("TRAIL_NODE_08", "TRAIL_NODE_14"),
-    ("TRAIL_NODE_08", "TRAIL_NODE_15"),
-    ("TRAIL_NODE_08", "TRAIL_NODE_27"),
-    ("TRAIL_NODE_09", "TRAIL_NODE_10"),
-    ("TRAIL_NODE_09", "TRAIL_NODE_11"),
-    ("TRAIL_NODE_11", "TRAIL_NODE_12"),
-    ("TRAIL_NODE_11", "TRAIL_NODE_13"),
-    ("TRAIL_NODE_11", "TRAIL_NODE_15"),
-    ("TRAIL_NODE_12", "TRAIL_NODE_13"),
-    ("TRAIL_NODE_12", "TRAIL_NODE_15"),
-    ("TRAIL_NODE_13", "TRAIL_NODE_14"),
-    ("TRAIL_NODE_13", "TRAIL_NODE_15"),
-    ("TRAIL_NODE_14", "TRAIL_NODE_15"),
-    ("TRAIL_NODE_15", "TRAIL_NODE_27"),
-    ("TRAIL_NODE_16", "TRAIL_NODE_17"),
-    ("TRAIL_NODE_16", "TRAIL_NODE_20"),
-    ("TRAIL_NODE_17", "TRAIL_NODE_18"),
-    ("TRAIL_NODE_17", "TRAIL_NODE_20"),
-    ("TRAIL_NODE_18", "TRAIL_NODE_19"),
-    ("TRAIL_NODE_19", "TRAIL_NODE_20"),
-    ("TRAIL_NODE_20", "TRAIL_NODE_21"),
-    ("TRAIL_NODE_21", "TRAIL_NODE_25"),
-    ("TRAIL_NODE_22", "TRAIL_NODE_23"),
-    ("TRAIL_NODE_22", "TRAIL_NODE_28"),
-    ("TRAIL_NODE_23", "TRAIL_NODE_24"),
-    ("TRAIL_NODE_23", "TRAIL_NODE_28"),
-    ("TRAIL_NODE_24", "TRAIL_NODE_25"),
-    ("TRAIL_NODE_24", "TRAIL_NODE_28"),
-    ("TRAIL_NODE_25", "TRAIL_NODE_26"),
-    ("TRAIL_NODE_26", "TRAIL_NODE_27"),
-    ("TRAIL_NODE_28", "TRAIL_NODE_29"),
-    ("TRAIL_NODE_29", "TRAIL_NODE_30"),
-    ("TRAIL_NODE_30", "TRAIL_NODE_31"),
-    ("TRAIL_NODE_31", "TRAIL_NODE_32"),
-    ("TRAIL_NODE_31", "TRAIL_NODE_33"),
-    ("TRAIL_NODE_32", "TRAIL_NODE_33"),
-    ("TRAIL_NODE_33", "TRAIL_NODE_34"),
-    ("TRAIL_NODE_34", "TRAIL_NODE_35"),
-    ("TRAIL_NODE_34", "TRAIL_NODE_36"),
-    ("TRAIL_NODE_35", "TRAIL_NODE_36"),
-    ("TRAIL_NODE_35", "TRAIL_NODE_37"),
-    ("TRAIL_NODE_35", "TRAIL_NODE_38"),
-    ("TRAIL_NODE_37", "TRAIL_NODE_38"),
-]
-
 
 def haversine_distance(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
     """Calculate the great-circle distance between two points in meters."""
@@ -176,109 +56,11 @@ def haversine_distance(lat1: float, lng1: float, lat2: float, lng2: float) -> fl
 
 
 class WayfindingService:
-    """Hybrid Service computing authentic walking paths along OpenStreetMap curves and trail graph."""
+    """Service computing authentic walking paths along OpenStreetMap footways with direct fallback."""
 
     def __init__(self, poi_repository: POIRepository, db_session=None) -> None:
         self.poi_repository = poi_repository
         self.db = db_session
-        self._graph: dict[str, list[tuple[str, float]]] = {}
-        self._build_trail_graph()
-
-    def _build_trail_graph(self) -> None:
-        """Pre-compute graph adjacency list with edge weights (distances in meters)."""
-        for node_id in CU_CHI_TRAIL_NODES:
-            self._graph[node_id] = []
-
-        for u, v in CU_CHI_TRAIL_EDGES:
-            lat_u, lng_u, _ = CU_CHI_TRAIL_NODES[u]
-            lat_v, lng_v, _ = CU_CHI_TRAIL_NODES[v]
-            dist = haversine_distance(lat_u, lng_u, lat_v, lng_v)
-            self._graph[u].append((v, dist))
-            self._graph[v].append((u, dist))
-
-    def _find_nearest_trail_node(self, lat: float, lng: float) -> tuple[str, float]:
-        """Find the closest trail waypoint node to any given coordinate."""
-        nearest_node: str | None = None
-        min_distance = float("inf")
-
-        for node_id, (n_lat, n_lng, _) in CU_CHI_TRAIL_NODES.items():
-            dist = haversine_distance(lat, lng, n_lat, n_lng)
-            if dist < min_distance:
-                min_distance = dist
-                nearest_node = node_id
-
-        resolved_node = nearest_node if nearest_node is not None else "TRAIL_NODE_01"
-        return resolved_node, min_distance
-
-    def _relax_dijkstra_neighbors(
-        self,
-        current_node: str,
-        current_dist: float,
-        distances: dict[str, float],
-        previous_nodes: dict[str, str | None],
-        pq: list[tuple[float, str]],
-    ) -> None:
-        """Update neighboring distances and push improved nodes to priority queue (SISE Helper)."""
-        for neighbor, weight in self._graph[current_node]:
-            alt_dist = current_dist + weight
-            if alt_dist < distances[neighbor]:
-                distances[neighbor] = alt_dist
-                previous_nodes[neighbor] = current_node
-                heapq.heappush(pq, (alt_dist, neighbor))
-
-    def _init_dijkstra_tables(
-        self, start_node: str
-    ) -> tuple[dict[str, float], dict[str, str | None], list[tuple[float, str]]]:
-        """Initialize distances, previous nodes, and priority queue for Dijkstra."""
-        distances: dict[str, float] = {
-            node: float("inf") for node in CU_CHI_TRAIL_NODES
-        }
-        distances[start_node] = 0.0
-        previous_nodes: dict[str, str | None] = {
-            node: None for node in CU_CHI_TRAIL_NODES
-        }
-        pq: list[tuple[float, str]] = [(0.0, start_node)]
-        return distances, previous_nodes, pq
-
-    def _backtrack_dijkstra_path(
-        self, start_node: str, end_node: str, previous_nodes: dict[str, str | None]
-    ) -> list[str]:
-        """Reconstruct shortest path from predecessor map (SISE Helper)."""
-        path: list[str] = []
-        curr: str | None = end_node
-        while curr is not None:
-            path.append(curr)
-            curr = previous_nodes[curr]
-        path.reverse()
-
-        is_valid_path = bool(path and path[0] == start_node)
-        resolved_path = path if is_valid_path else [start_node, end_node]
-        return resolved_path
-
-    def _dijkstra_shortest_path(self, start_node: str, end_node: str) -> list[str]:
-        """Compute shortest path across the trail graph via Dijkstra's algorithm (SISE Compliant)."""
-        # Phase 1 Gate: Identity path
-        if start_node == end_node:
-            return [start_node]
-
-        # Phase 2 Compute: Priority queue traversal
-        distances, previous_nodes, pq = self._init_dijkstra_tables(start_node)
-
-        while pq:
-            current_dist, current_node = heapq.heappop(pq)
-            if current_node == end_node:
-                break
-            if current_dist <= distances[current_node]:
-                self._relax_dijkstra_neighbors(
-                    current_node, current_dist, distances, previous_nodes, pq
-                )
-
-        resolved_path = self._backtrack_dijkstra_path(
-            start_node, end_node, previous_nodes
-        )
-
-        # Phase 3 Exit: Unified return
-        return resolved_path
 
     def _parse_osrm_route_coords(
         self, payload: dict
@@ -316,141 +98,10 @@ class WayfindingService:
                     resolved_route = self._parse_osrm_route_coords(response.json())
         except Exception as exc:
             logger.info(
-                "OSRM routing unavailable (%s), falling back to trail graph", exc
+                "OSRM routing unavailable (%s), falling back to direct line", exc
             )
 
         return resolved_route
-
-    def _is_poi_on_osrm_road(
-        self,
-        osrm_result: tuple[list[list[float]], float] | None,
-        poi_lat: float,
-        poi_lng: float,
-        threshold: float = 40.0,
-    ) -> bool:
-        """Verify if OSRM route delivered coordinates close to target POI (SISE Helper)."""
-        is_close = False
-        if osrm_result is not None:
-            coords, _ = osrm_result
-            if coords:
-                last_lng, last_lat = coords[-1]
-                dist_to_poi = haversine_distance(last_lat, last_lng, poi_lat, poi_lng)
-                is_close = bool(dist_to_poi <= threshold)
-        return is_close
-
-    def _compute_dijkstra_trail_leg(
-        self,
-        start_node: str,
-        end_node: str,
-        poi_lat: float,
-        poi_lng: float,
-    ) -> tuple[list[list[float]], float]:
-        """Compute trail graph path from a start node to destination POI (SISE Helper)."""
-        trail_path_nodes = self._dijkstra_shortest_path(start_node, end_node)
-
-        coords: list[list[float]] = []
-        total_dist = 0.0
-        prev_lat: float | None = None
-        prev_lng: float | None = None
-
-        for node_id in trail_path_nodes:
-            n_lat, n_lng, _ = CU_CHI_TRAIL_NODES[node_id]
-            coords.append([round(n_lng, 6), round(n_lat, 6)])
-            if prev_lat is not None and prev_lng is not None:
-                total_dist += haversine_distance(prev_lat, prev_lng, n_lat, n_lng)
-            prev_lat, prev_lng = n_lat, n_lng
-
-        coords.append([round(poi_lng, 6), round(poi_lat, 6)])
-        if prev_lat is not None and prev_lng is not None:
-            total_dist += haversine_distance(prev_lat, prev_lng, poi_lat, poi_lng)
-
-        return coords, total_dist
-
-    def _stitch_route_segments(
-        self,
-        leg1_coords: list[list[float]],
-        leg1_dist: float,
-        leg2_coords: list[list[float]],
-        leg2_dist: float,
-    ) -> tuple[list[list[float]], float]:
-        """Combine road and trail legs, eliminating duplicate junction point (SISE Helper)."""
-        combined_coords = list(leg1_coords)
-        if combined_coords and leg2_coords:
-            last_pt = combined_coords[-1]
-            first_pt = leg2_coords[0]
-            dist_pts = haversine_distance(
-                last_pt[1], last_pt[0], first_pt[1], first_pt[0]
-            )
-            start_idx = 1 if dist_pts < 1.0 else 0
-            combined_coords.extend(leg2_coords[start_idx:])
-        else:
-            combined_coords.extend(leg2_coords)
-
-        total_distance = leg1_dist + leg2_dist
-        return combined_coords, total_distance
-
-    def _try_stitched_road_trail_route(
-        self,
-        origin_lat: float,
-        origin_lng: float,
-        poi_lat: float,
-        poi_lng: float,
-    ) -> tuple[list[list[float]], float] | None:
-        """Attempt stitched routing: OSRM to gateway node + Dijkstra to off-road POI."""
-        resolved_route: tuple[list[list[float]], float] | None = None
-        gateway_node, dist_origin_to_gateway = self._find_nearest_trail_node(
-            origin_lat, origin_lng
-        )
-
-        if dist_origin_to_gateway > 35.0:
-            gw_lat, gw_lng, _ = CU_CHI_TRAIL_NODES[gateway_node]
-            osrm_leg = self._try_osrm_foot_route(origin_lat, origin_lng, gw_lat, gw_lng)
-            if osrm_leg is not None:
-                leg1_coords, leg1_dist = osrm_leg
-                nearest_poi_node, _ = self._find_nearest_trail_node(poi_lat, poi_lng)
-                leg2_coords, leg2_dist = self._compute_dijkstra_trail_leg(
-                    gateway_node, nearest_poi_node, poi_lat, poi_lng
-                )
-                resolved_route = self._stitch_route_segments(
-                    leg1_coords, leg1_dist, leg2_coords, leg2_dist
-                )
-
-        return resolved_route
-
-    def _compute_internal_trail_route(
-        self,
-        origin_lat: float,
-        origin_lng: float,
-        poi_lat: float,
-        poi_lng: float,
-    ) -> tuple[list[list[float]], float]:
-        """Compute path using internal Cu Chi trail network graph (SISE Compliant)."""
-        direct_dist = haversine_distance(origin_lat, origin_lng, poi_lat, poi_lng)
-
-        if direct_dist <= 35.0:
-            resolved_coords = [
-                [round(origin_lng, 6), round(origin_lat, 6)],
-                [round(poi_lng, 6), round(poi_lat, 6)],
-            ]
-            resolved_distance = direct_dist
-        else:
-            nearest_origin_node, dist_to_start = self._find_nearest_trail_node(
-                origin_lat, origin_lng
-            )
-            nearest_poi_node, _ = self._find_nearest_trail_node(poi_lat, poi_lng)
-
-            trail_coords, trail_dist = self._compute_dijkstra_trail_leg(
-                nearest_origin_node, nearest_poi_node, poi_lat, poi_lng
-            )
-
-            coords = [[round(origin_lng, 6), round(origin_lat, 6)]]
-            coords.extend(trail_coords)
-            total_dist = dist_to_start + trail_dist
-
-            resolved_coords = coords
-            resolved_distance = total_dist
-
-        return resolved_coords, resolved_distance
 
     def _resolve_route_coordinates(
         self,
@@ -459,25 +110,45 @@ class WayfindingService:
         poi_lat: float,
         poi_lng: float,
     ) -> tuple[list[list[float]], float]:
-        """Resolve route using Direct OSRM -> Stitched Road/Trail -> Pure Trail Graph fallback."""
-        resolved_route: tuple[list[list[float]], float] | None = None
+        """Resolve route using Direct OSRM foot routing with direct connector fallback (SISE Compliant)."""
+        # Phase 1 Gate: Micro-proximity (<= 35m) routes directly
+        direct_dist = haversine_distance(origin_lat, origin_lng, poi_lat, poi_lng)
+        if direct_dist <= 35.0:
+            return (
+                [
+                    [round(origin_lng, 6), round(origin_lat, 6)],
+                    [round(poi_lng, 6), round(poi_lat, 6)],
+                ],
+                direct_dist,
+            )
 
-        direct_osrm = self._try_osrm_foot_route(
+        # Phase 2 Compute: Try OSRM foot routing
+        osrm_result = self._try_osrm_foot_route(
             origin_lat, origin_lng, poi_lat, poi_lng
         )
-        if self._is_poi_on_osrm_road(direct_osrm, poi_lat, poi_lng):
-            resolved_route = direct_osrm
-        else:
-            stitched = self._try_stitched_road_trail_route(
-                origin_lat, origin_lng, poi_lat, poi_lng
-            )
-            if stitched is not None:
-                resolved_route = stitched
-            else:
-                resolved_route = self._compute_internal_trail_route(
-                    origin_lat, origin_lng, poi_lat, poi_lng
-                )
+        resolved_route: tuple[list[list[float]], float] | None = None
 
+        if osrm_result is not None:
+            coords, osrm_dist = osrm_result
+            last_lng, last_lat = coords[-1]
+            dist_to_poi = haversine_distance(last_lat, last_lng, poi_lat, poi_lng)
+
+            # If OSRM terminates short of off-road exhibit (> 20m), append direct leg to POI
+            if dist_to_poi > 20.0:
+                extended_coords = list(coords)
+                extended_coords.append([round(poi_lng, 6), round(poi_lat, 6)])
+                resolved_route = (extended_coords, osrm_dist + dist_to_poi)
+            else:
+                resolved_route = (coords, osrm_dist)
+        else:
+            # Fallback when OSRM is unavailable or times out
+            fallback_coords = [
+                [round(origin_lng, 6), round(origin_lat, 6)],
+                [round(poi_lng, 6), round(poi_lat, 6)],
+            ]
+            resolved_route = (fallback_coords, direct_dist)
+
+        # Phase 3 Exit: Unified return
         return resolved_route
 
     def _is_within_museum_bounds(self, lat: float, lng: float) -> bool:
@@ -524,13 +195,13 @@ class WayfindingService:
         origin_lng: float,
         destination_poi_id: str,
     ) -> GeoJsonRouteFeature:
-        """Calculate intelligent walking route using hybrid OSM curvature + trail graph (SISE Compliant)."""
+        """Calculate intelligent walking route using OSM curvature + direct fallback (SISE Compliant)."""
         # Phase 1 Gate: Validate preconditions via dedicated helper
         poi = self._validate_walking_route_preconditions(
             origin_lat, origin_lng, destination_poi_id
         )
 
-        # Phase 2 Compute: Hybrid Routing
+        # Phase 2 Compute: Routing
         poi_lat = float(poi.latitude)
         poi_lng = float(poi.longitude)
         trigger_radius = float(
