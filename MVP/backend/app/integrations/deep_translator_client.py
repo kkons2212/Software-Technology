@@ -693,7 +693,10 @@ class DeepTranslatorClient:
                             detail,
                         )
                         self._openrouter_key_index = (key_idx + 1) % total_keys
-                        if response.status_code not in OPENROUTER_PERMANENT_KEY_STATUSES:
+                        if (
+                            response.status_code
+                            not in OPENROUTER_PERMANENT_KEY_STATUSES
+                        ):
                             all_keys_permanent = False
                         continue
                     else:
