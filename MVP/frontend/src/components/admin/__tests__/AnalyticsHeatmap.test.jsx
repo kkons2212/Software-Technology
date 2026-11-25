@@ -149,18 +149,14 @@ describe('AnalyticsHeatmap Component (US 05.1)', () => {
     expect(legend).toHaveTextContent(ADMIN_TRANSLATIONS.densityCongestion);
   });
 
-  it('displays a high-priority congestion alert card when a hotspot exceeds 70% density', async () => {
+  it('does not display congestion alert card even when a hotspot exceeds 70% density', async () => {
     render(<AnalyticsHeatmap />);
 
     await waitFor(() => {
-      expect(screen.getByTestId('heatmap-congestion-alert')).toBeInTheDocument();
+      expect(screen.getByTestId('heatmap-legend')).toBeInTheDocument();
     });
 
-    const alert = screen.getByTestId('heatmap-congestion-alert');
-    expect(alert).toHaveTextContent(ADMIN_TRANSLATIONS.congestionAlertTitle);
-    expect(alert).toHaveTextContent('Commanding Bunker');
-    expect(alert).toHaveTextContent('500 lượt kích hoạt');
-    expect(alert).toHaveTextContent('100% mật độ tương đối');
+    expect(screen.queryByTestId('heatmap-congestion-alert')).not.toBeInTheDocument();
   });
 
   it('renders POI titles as text in Leaflet popups instead of interpreting HTML', async () => {

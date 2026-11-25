@@ -5,7 +5,7 @@
 // data retrieval to `api/analyticsApi.js`.
 // =============================================================================
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
@@ -318,14 +318,6 @@ export default function AnalyticsHeatmap({
     }
   }, [heatmapData, radius, blur]);
 
-  // Identify highest congestion point
-  const congestionHotspot = useMemo(() => {
-    const points = heatmapData?.points || [];
-    if (points.length === 0) return null;
-    const top = [...points].sort((a, b) => b.trigger_count - a.trigger_count)[0];
-    return top && top.trigger_count > 0 && top.intensity >= 0.7 ? top : null;
-  }, [heatmapData]);
-
   return (
     <div
       data-testid="analytics-heatmap-container"
@@ -372,25 +364,6 @@ export default function AnalyticsHeatmap({
           </div>
         )}
       </div>
-
-      {/* Congestion Alert Notification Card */}
-      {congestionHotspot && (
-        <div
-          data-testid="heatmap-congestion-alert"
-          className="mt-3 flex items-start gap-3 rounded-md border border-red-200 bg-red-50 p-3 text-red-900"
-        >
-          <div className="mt-0.5 h-2 w-2 rounded-full bg-red-600 animate-ping" />
-          <div className="text-xs">
-            <span className="font-bold">{ADMIN_TRANSLATIONS.congestionAlertTitle} </span>
-            <span>
-              {ADMIN_TRANSLATIONS.congestionAlertDescription
-                .replace('{poi}', congestionHotspot.poi_title)
-                .replace('{count}', congestionHotspot.trigger_count)
-                .replace('{density}', (congestionHotspot.intensity * 100).toFixed(0))}
-            </span>
-          </div>
-        </div>
-      )}
 
       {/* Interactive Map Canvas Container */}
       <div className="relative mt-4 overflow-hidden rounded-md border border-slate-200">
