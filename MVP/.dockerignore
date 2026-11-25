@@ -1,0 +1,32 @@
+# Version control & git
+.git
+.github
+.gitignore
+
+# Python virtual environment & cache
+**/.venv
+**/__pycache__
+**/.pytest_cache
+**/.ruff_cache
+**/*.pyc
+**/*.pyo
+**/*.pyd
+
+# Node.js dependencies & build outputs
+**/node_modules
+**/dist
+**/coverage
+**/.eslintcache
+
+# Local environment & secrets
+**/.env
+**/.env.local
+**/.env.*.local
+
+# Operating System files
+**/.DS_Store
+**/Thumbs.db
+
+# Logs & temp files
+**/*.log
+**/tmp
