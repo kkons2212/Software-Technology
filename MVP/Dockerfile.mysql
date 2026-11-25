@@ -11,8 +11,9 @@ ENV MYSQL_USER=museum_app_user
 ENV MYSQL_PASSWORD=app_password_456
 ENV MYSQL_ROOT_PASSWORD=root_secure_pass_123
 
-# Copy the actual schema DDL directly into MySQL's auto-initialization directory.
-# The official mysql:8.0 container executes all .sql scripts in this directory on first boot.
+# Copy schema DDL and initial seeds into MySQL's auto-initialization directory.
+# The official mysql:8.0 container executes all .sql scripts in alphabetical order on first boot.
 COPY backend/scripts/mysql_schema.sql /docker-entrypoint-initdb.d/01_mysql_schema.sql
+COPY backend/scripts/seed_data.sql /docker-entrypoint-initdb.d/02_seed_data.sql
 
 EXPOSE 3306
