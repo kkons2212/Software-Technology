@@ -21,6 +21,8 @@ DEFAULT_RENDER_WAKEUP_TIMEOUT = 110.0
 DEFAULT_RENDER_COLD_START_DELAY = 10.0
 HEALTH_CHECK_TIMEOUT = 5.0
 SPINUP_HTTP_STATUSES = (502, 503, 504)
+OPENROUTER_ROTATE_STATUSES = (401, 402, 403, 429)
+OPENROUTER_PERMANENT_KEY_STATUSES = (401, 402, 403)
 
 
 class TranslationError(Exception):
@@ -121,11 +123,21 @@ class DeepTranslatorClient:
             )
         )
 
-        self.openrouter_key: str = (
+        raw_openrouter_key = (
             openrouter_key
             if openrouter_key is not None
             else getattr(settings, "OPENROUTER_API_KEY", "")
         )
+        parsed_keys: list[str] = []
+        seen_keys: set[str] = set()
+        for token in str(raw_openrouter_key or "").split(","):
+            cleaned = token.strip()
+            if cleaned and cleaned not in seen_keys:
+                seen_keys.add(cleaned)
+                parsed_keys.append(cleaned)
+        self.openrouter_keys: list[str] = parsed_keys
+        self.openrouter_key: str = parsed_keys[0] if parsed_keys else ""
+        self._openrouter_key_index: int = 0
         self.openrouter_model: str = (
             openrouter_model
             if openrouter_model is not None and openrouter_model.strip()
@@ -224,7 +236,7 @@ class DeepTranslatorClient:
             return False
 
         # Phase 2 Compute: Poll /health within wakeup_timeout budget using a single HTTP client
-        budget = max(0.05, self.wakeup_timeout)
+        budget = max(1.0, self.wakeup_timeout)
         deadline = time.monotonic() + budget
         url = f"{self.render_api_url}/health"
         client = await self._get_http_client(timeout=budget)
@@ -384,7 +396,7 @@ class DeepTranslatorClient:
                             response.status_code,
                             attempt + 1,
                             self.max_retries,
-                            self.wakeup_timeout,
+                            self.render_timeout,
                         )
                         woke_up = await self._wait_for_render_wakeup()
                         if woke_up:
@@ -593,12 +605,134 @@ class DeepTranslatorClient:
         # Phase 3 Exit: Single structured return
         return translated_bundle
 
+    @staticmethod
+    def _extract_openrouter_limit_detail(response: httpx.Response) -> str:
+        """Extract safe OpenRouter limit diagnostics (limit_source / X-RateLimit-*) without leaking keys."""
+        if response.status_code == 429:
+            headers = getattr(response, "headers", None) or {}
+            remaining = headers.get("X-RateLimit-Remaining") or headers.get(
+                "x-ratelimit-remaining"
+            )
+            reset = headers.get("X-RateLimit-Reset") or headers.get("x-ratelimit-reset")
+            parts = []
+            if remaining is not None:
+                parts.append(f"remaining={remaining}")
+            if reset is not None:
+                parts.append(f"reset={reset}")
+            if parts:
+                return ", ".join(parts)
+
+        try:
+            body = response.json()
+            if isinstance(body, dict):
+                err = body.get("error")
+                if isinstance(err, dict):
+                    metadata = err.get("metadata")
+                    if isinstance(metadata, dict) and metadata.get("limit_source"):
+                        return f"limit_source={metadata['limit_source']}"
+                    if isinstance(metadata, dict) and metadata:
+                        return f"metadata={metadata}"
+                    if err.get("message"):
+                        return str(err["message"])[:160]
+        except Exception:
+            pass
+
+        raw_text = getattr(response, "text", "") or ""
+        return str(raw_text)[:160]
+
+    async def _post_openrouter_completion(
+        self, payload: dict, context_label: str
+    ) -> str | None:
+        """Send OpenRouter chat completion with automatic multi-key rotation on 401/402/403/429."""
+        if not self.openrouter_keys or not self.openrouter_model.strip():
+            return None
+
+        client = await self._get_http_client(timeout=30.0)
+        url = f"{self.openrouter_base_url.rstrip('/')}/chat/completions"
+        total_keys = len(self.openrouter_keys)
+        resolved_content: str | None = None
+
+        for attempt in range(self.max_retries):
+            all_keys_permanent = True
+            start_idx = self._openrouter_key_index % total_keys
+
+            for offset in range(total_keys):
+                key_idx = (start_idx + offset) % total_keys
+                api_key = self.openrouter_keys[key_idx]
+                headers = {
+                    "Authorization": f"Bearer {api_key}",
+                    "Content-Type": "application/json",
+                    "HTTP-Referer": "https://cuchitunnels.local",
+                    "X-Title": "Cu Chi Tunnels Audio Guide",
+                }
+
+                try:
+                    response = await client.post(url, json=payload, headers=headers)
+                    if response.status_code == 200:
+                        data = response.json()
+                        choices = data.get("choices", [])
+                        if choices:
+                            content_text = (
+                                choices[0].get("message", {}).get("content", "")
+                            )
+                            candidate = content_text.strip()
+                            if candidate:
+                                self._openrouter_key_index = key_idx
+                                resolved_content = candidate
+                                break
+                        all_keys_permanent = False
+                    elif response.status_code in OPENROUTER_ROTATE_STATUSES:
+                        detail = self._extract_openrouter_limit_detail(response)
+                        logger.warning(
+                            "%s hit status %d on key #%d/%d (attempt %d): %s",
+                            context_label,
+                            response.status_code,
+                            key_idx + 1,
+                            total_keys,
+                            attempt + 1,
+                            detail,
+                        )
+                        self._openrouter_key_index = (key_idx + 1) % total_keys
+                        if (
+                            response.status_code
+                            not in OPENROUTER_PERMANENT_KEY_STATUSES
+                        ):
+                            all_keys_permanent = False
+                        continue
+                    else:
+                        all_keys_permanent = False
+                        logger.warning(
+                            "%s returned status %d on attempt %d: %s",
+                            context_label,
+                            response.status_code,
+                            attempt + 1,
+                            str(getattr(response, "text", ""))[:200],
+                        )
+                        break
+                except Exception as exc:
+                    all_keys_permanent = False
+                    logger.warning(
+                        "%s failed on attempt %d: %s",
+                        context_label,
+                        attempt + 1,
+                        exc,
+                    )
+                    break
+
+            if resolved_content is not None or all_keys_permanent:
+                break
+
+            if attempt < self.max_retries - 1:
+                await asyncio.sleep(self.base_delay * (2**attempt))
+
+        return resolved_content
+
     async def _translate_with_openrouter(
         self, text: str, source_lang: str, target_lang: str
     ) -> str | None:
         """Translate text using OpenRouter AI with historical museum persona (SISE Compliant)."""
         # Phase 1 Gate: Guard against missing key or model
-        if not self.openrouter_key or not self.openrouter_key.strip():
+        if not self.openrouter_keys:
             return None
         if not self.openrouter_model or not self.openrouter_model.strip():
             logger.info(
@@ -606,16 +740,7 @@ class DeepTranslatorClient:
             )
             return None
 
-        # Phase 2 Compute: Execute chat completion request
-        client = await self._get_http_client(timeout=30.0)
-        url = f"{self.openrouter_base_url.rstrip('/')}/chat/completions"
-        headers = {
-            "Authorization": f"Bearer {self.openrouter_key}",
-            "Content-Type": "application/json",
-            "HTTP-Referer": "https://cuchitunnels.local",
-            "X-Title": "Cu Chi Tunnels Audio Guide",
-        }
-
+        # Phase 2 Compute: Execute chat completion with automatic multi-key failover
         system_prompt = (
             "You are an expert museum and cultural heritage translator specializing in historical sites "
             "(specifically Vietnam's historic Cu Chi Tunnels - Địa đạo Củ Chi).\n"
@@ -633,46 +758,16 @@ class DeepTranslatorClient:
             ],
             "temperature": 0.2,
         }
-        resolved_content: str | None = None
-
-        for attempt in range(self.max_retries):
-            try:
-                response = await client.post(url, json=payload, headers=headers)
-                if response.status_code == 200:
-                    data = response.json()
-                    choices = data.get("choices", [])
-                    if choices:
-                        content_text = choices[0].get("message", {}).get("content", "")
-                        candidate = content_text.strip()
-                        if candidate:
-                            logger.info(
-                                "Successfully translated via OpenRouter (%s -> %s, model=%s)",
-                                source_lang,
-                                target_lang,
-                                self.openrouter_model,
-                            )
-                            resolved_content = candidate
-                            break
-                elif response.status_code == 429:
-                    logger.warning(
-                        "OpenRouter rate limit (429) on attempt %d", attempt + 1
-                    )
-                else:
-                    logger.warning(
-                        "OpenRouter returned status %d on attempt %d: %s",
-                        response.status_code,
-                        attempt + 1,
-                        response.text[:200],
-                    )
-            except Exception as exc:
-                logger.warning(
-                    "OpenRouter translation failed on attempt %d: %s",
-                    attempt + 1,
-                    exc,
-                )
-
-            if attempt < self.max_retries - 1:
-                await asyncio.sleep(self.base_delay * (2**attempt))
+        resolved_content = await self._post_openrouter_completion(
+            payload, context_label="OpenRouter"
+        )
+        if resolved_content:
+            logger.info(
+                "Successfully translated via OpenRouter (%s -> %s, model=%s)",
+                source_lang,
+                target_lang,
+                self.openrouter_model,
+            )
 
         # Phase 3 Exit: Single structured return
         return resolved_content
@@ -687,7 +782,7 @@ class DeepTranslatorClient:
     ) -> dict[str, str | None] | None:
         """Translate exhibit narrative fields in a single batched OpenRouter call (SISE Compliant)."""
         # Phase 1 Gate: Guard against missing key or model
-        if not self.openrouter_key or not self.openrouter_key.strip():
+        if not self.openrouter_keys:
             return None
         if not self.openrouter_model or not self.openrouter_model.strip():
             logger.info(
@@ -695,16 +790,7 @@ class DeepTranslatorClient:
             )
             return None
 
-        # Phase 2 Compute: Execute structured JSON completion
-        client = await self._get_http_client(timeout=30.0)
-        url = f"{self.openrouter_base_url.rstrip('/')}/chat/completions"
-        headers = {
-            "Authorization": f"Bearer {self.openrouter_key}",
-            "Content-Type": "application/json",
-            "HTTP-Referer": "https://cuchitunnels.local",
-            "X-Title": "Cu Chi Tunnels Audio Guide",
-        }
-
+        # Phase 2 Compute: Execute structured JSON completion with automatic multi-key failover
         input_data = {
             "title": title,
             "short_description": short_description or "",
@@ -731,55 +817,31 @@ class DeepTranslatorClient:
             "temperature": 0.2,
         }
         resolved_narrative: dict[str, str | None] | None = None
-
-        for attempt in range(self.max_retries):
+        raw_content = await self._post_openrouter_completion(
+            payload, context_label="OpenRouter narrative"
+        )
+        if raw_content:
             try:
-                response = await client.post(url, json=payload, headers=headers)
-                if response.status_code == 200:
-                    data = response.json()
-                    choices = data.get("choices", [])
-                    if choices:
-                        raw_content = choices[0].get("message", {}).get("content", "")
-                        parsed = json.loads(raw_content)
-                        if isinstance(parsed, dict) and "title" in parsed:
-                            resolved_narrative = {
-                                "title": parsed.get("title") or title,
-                                "short_description": (
-                                    parsed.get("short_description")
-                                    if short_description
-                                    else None
-                                ),
-                                "description": (
-                                    parsed.get("description") if description else None
-                                ),
-                            }
-                            logger.info(
-                                "Successfully translated narrative via OpenRouter JSON mode (%s -> %s)",
-                                source_lang,
-                                target_lang,
-                            )
-                            break
-                elif response.status_code == 429:
-                    logger.warning(
-                        "OpenRouter narrative rate limit (429) on attempt %d",
-                        attempt + 1,
-                    )
-                else:
-                    logger.warning(
-                        "OpenRouter narrative returned status %d on attempt %d: %s",
-                        response.status_code,
-                        attempt + 1,
-                        response.text[:200],
+                parsed = json.loads(raw_content)
+                if isinstance(parsed, dict) and "title" in parsed:
+                    resolved_narrative = {
+                        "title": parsed.get("title") or title,
+                        "short_description": (
+                            parsed.get("short_description")
+                            if short_description
+                            else None
+                        ),
+                        "description": (
+                            parsed.get("description") if description else None
+                        ),
+                    }
+                    logger.info(
+                        "Successfully translated narrative via OpenRouter JSON mode (%s -> %s)",
+                        source_lang,
+                        target_lang,
                     )
             except Exception as exc:
-                logger.warning(
-                    "OpenRouter narrative batch failed on attempt %d: %s",
-                    attempt + 1,
-                    exc,
-                )
-
-            if attempt < self.max_retries - 1:
-                await asyncio.sleep(self.base_delay * (2**attempt))
+                logger.warning("OpenRouter narrative returned invalid JSON: %s", exc)
 
         # Phase 3 Exit: Single structured return
         return resolved_narrative
