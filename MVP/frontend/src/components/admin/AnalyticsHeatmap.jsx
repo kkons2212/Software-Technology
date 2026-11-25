@@ -328,9 +328,6 @@ export default function AnalyticsHeatmap({
         <div>
           <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
             <span>{ADMIN_TRANSLATIONS.heatmapTitle}</span>
-            <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700 ring-1 ring-inset ring-emerald-600/20">
-              {ADMIN_TRANSLATIONS.liveTelemetryBadge}
-            </span>
           </h2>
           <p className="mt-1 text-xs text-slate-500">
             {ADMIN_TRANSLATIONS.heatmapSubtitle}
@@ -352,11 +349,10 @@ export default function AnalyticsHeatmap({
                 data-testid={`heatmap-range-${opt.value}`}
                 aria-pressed={activeRange === opt.value}
                 onClick={() => handleRangeSelect(opt.value)}
-                className={`min-h-[36px] min-w-[70px] rounded px-3 text-xs font-semibold transition-colors ${
-                  activeRange === opt.value
+                className={`min-h-[36px] min-w-[70px] rounded px-3 text-xs font-semibold transition-colors ${activeRange === opt.value
                     ? 'bg-white text-slate-900 shadow-sm'
                     : 'text-slate-600 hover:text-slate-900'
-                }`}
+                  }`}
               >
                 {opt.label}
               </button>
