@@ -1,0 +1,146 @@
+name: Continuous Delivery (CD)
+
+on:
+  push:
+    branches: [ main ]
+    paths-ignore:
+      - 'documents/**'
+      - '**.md'
+  workflow_dispatch:
+
+concurrency:
+  group: cd-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  # -------------------------------------------------------------
+  # JOB 1: BUILD & PUBLISH CUSTOM DATABASE DOCKER IMAGE
+  # -------------------------------------------------------------
+  build-and-push-db:
+    name: Build & Publish Custom MySQL Image (GHCR)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract Metadata for Database Image
+        id: meta-db
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}-db
+          tags: |
+            type=raw,value=latest
+            type=sha,prefix=sha-,format=short
+
+      - name: Build and Push Custom MySQL 8.0 Image
+        uses: docker/build-push-action@v5
+        with:
+          context: MVP
+          file: MVP/Dockerfile.mysql
+          push: true
+          tags: ${{ steps.meta-db.outputs.tags }}
+          labels: ${{ steps.meta-db.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # -------------------------------------------------------------
+  # JOB 2: BUILD & PUBLISH UNIFIED FULL-STACK APP DOCKER IMAGE
+  # -------------------------------------------------------------
+  build-and-push-app:
+    name: Build & Publish Unified Full-Stack App Image (GHCR)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract Metadata for Full-Stack App Image
+        id: meta-app
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}-app
+          tags: |
+            type=raw,value=latest
+            type=sha,prefix=sha-,format=short
+
+      - name: Build and Push Unified Full-Stack App Image
+        uses: docker/build-push-action@v5
+        with:
+          context: MVP
+          file: MVP/Dockerfile.app
+          push: true
+          tags: ${{ steps.meta-app.outputs.tags }}
+          labels: ${{ steps.meta-app.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # -------------------------------------------------------------
+  # JOB 3: PACKAGE DEPLOYMENT BUNDLE AS GITHUB ARTIFACT
+  # -------------------------------------------------------------
+  package-release-bundle:
+    name: Package Deployable Bundle (Artifact)
+    needs: [build-and-push-db, build-and-push-app]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Assemble Deployable Archive
+        run: |
+          mkdir -p deploy-bundle
+          cp MVP/docker-compose.yml deploy-bundle/
+          cp MVP/backend/scripts/mysql_schema.sql deploy-bundle/
+          cp MVP/backend/.env.example deploy-bundle/.env.example 2>/dev/null || true
+          tar -czf smart-museum-deploy-bundle-${{ github.sha }}.tar.gz -C deploy-bundle .
+
+      - name: Upload Deployment Bundle Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: smart-museum-deploy-bundle-${{ github.sha }}
+          path: smart-museum-deploy-bundle-${{ github.sha }}.tar.gz
+          retention-days: 30
+
+  # -------------------------------------------------------------
+  # JOB 4: GATED PRODUCTION DEPLOYMENT NOTIFICATION
+  # -------------------------------------------------------------
+  trigger-production-deployment:
+    name: Trigger Live Production Deployment (Render)
+    needs: [build-and-push-app]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Execute Render Deploy Webhook
+        env:
+          HOOK_FROM_SECRET: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+          HOOK_FROM_VAR: ${{ vars.RENDER_DEPLOY_HOOK_URL }}
+        run: |
+          DEPLOY_URL="${HOOK_FROM_SECRET:-$HOOK_FROM_VAR}"
+          if [ -n "$DEPLOY_URL" ]; then
+            echo "🚀 Gated CD triggered: Deploying to Render..."
+            HTTP_RESPONSE=$(curl -s -o deploy_response.json -w "%{http_code}" -X POST "$DEPLOY_URL")
+            echo "Render API response code: $HTTP_RESPONSE"
+          else
+            echo "ℹ️ RENDER_DEPLOY_HOOK_URL is not set; skipping webhook trigger."
+          fi

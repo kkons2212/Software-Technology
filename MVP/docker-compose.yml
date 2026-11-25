@@ -1,0 +1,49 @@
+version: '3.8'
+
+services:
+  db:
+    image: ghcr.io/kkons2212/software-technology-db:latest
+    build:
+      context: .
+      dockerfile: Dockerfile.mysql
+    container_name: smart-museum-db
+    restart: always
+    environment:
+      MYSQL_DATABASE: smart_museum
+      MYSQL_USER: museum_app_user
+      MYSQL_PASSWORD: app_password_456
+      MYSQL_ROOT_PASSWORD: root_secure_pass_123
+    ports:
+      - "3306:3306"
+    volumes:
+      - museum_mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot_secure_pass_123"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app:
+    image: ghcr.io/kkons2212/software-technology-app:latest
+    build:
+      context: .
+      dockerfile: Dockerfile.app
+    container_name: smart-museum-app
+    restart: always
+    ports:
+      - "8000:8000"
+    env_file:
+      - path: ./backend/.env
+        required: false
+      - path: ./.env
+        required: false
+    environment:
+      DATABASE_URL: mysql+pymysql://museum_app_user:app_password_456@db:3306/smart_museum?charset=utf8mb4
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-0000000000000000000000000000000000000000000000000000000000000000}
+      ENVIRONMENT: production
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  museum_mysql_data:

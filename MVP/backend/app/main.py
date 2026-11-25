@@ -183,6 +183,32 @@ def create_app() -> FastAPI:
         """Liveness probe for backend application server."""
         return {"status": "ok", "service": API_TITLE}
 
+    # Mount production frontend SPA if bundled inside container (/app/frontend_dist)
+    container_dist = "/app/frontend_dist"
+    local_dist = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "frontend_dist"
+    )
+    spa_dist_dir = container_dist if os.path.isdir(container_dist) else local_dist
+    if os.path.isdir(spa_dist_dir):
+        from starlette.responses import FileResponse
+
+        spa_assets = os.path.join(spa_dist_dir, "assets")
+        if os.path.isdir(spa_assets):
+            application.mount(
+                "/assets", StaticFiles(directory=spa_assets), name="spa-assets"
+            )
+
+        @application.get("/{full_path:path}", include_in_schema=False)
+        async def serve_spa(full_path: str):
+            """Client-side routing fallback for unified SPA bundle."""
+            file_candidate = os.path.join(spa_dist_dir, full_path)
+            if full_path and os.path.isfile(file_candidate):
+                return FileResponse(file_candidate)
+            index_candidate = os.path.join(spa_dist_dir, "index.html")
+            if os.path.isfile(index_candidate):
+                return FileResponse(index_candidate)
+            return {"error": "Frontend asset not found"}
+
     return application
 
 
