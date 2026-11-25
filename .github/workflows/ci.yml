@@ -125,9 +125,10 @@ jobs:
       - name: Install Dependencies
         run: pip install -r requirements.txt
 
-      - name: Verify MySQL 8.0 DDL Schema
+      - name: Verify MySQL 8.0 DDL Schema & Initial Seeds
         run: |
           mysql -h 127.0.0.1 -P 3306 -u root -proot_secure_pass_123 smart_museum < scripts/mysql_schema.sql
+          mysql -h 127.0.0.1 -P 3306 -u root -proot_secure_pass_123 smart_museum < scripts/seed_data.sql
 
       - name: Run Pytest (Coverage >= 80%)
         env:
