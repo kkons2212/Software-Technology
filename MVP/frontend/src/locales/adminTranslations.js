@@ -214,7 +214,6 @@ export const ADMIN_TRANSLATIONS = {
 
   // Analytics Heatmap
   heatmapTitle: 'Bản đồ nhiệt Mật độ Du khách Thời gian thực',
-  liveTelemetryBadge: 'Viễn trắc Trực tiếp',
   heatmapSubtitle: 'Giám sát cảnh báo ùn tắc không gian trong toàn bộ khu di tích Địa đạo Củ Chi.',
   heatmapReportingWindowAriaLabel: 'Khoảng thời gian bản đồ nhiệt',
   congestionAlertTitle: 'Cảnh báo ùn tắc:',
