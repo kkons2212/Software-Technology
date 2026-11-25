@@ -92,9 +92,7 @@ def resolve_base_url() -> str:
                         if val:
                             return val.rstrip("/")
         except Exception as exc:
-            logger.warning(
-                "Failed to read BASE_URL from %s: %s", env_path, exc
-            )
+            logger.warning("Failed to read BASE_URL from %s: %s", env_path, exc)
 
     candidate = (
         settings.BASE_URL
