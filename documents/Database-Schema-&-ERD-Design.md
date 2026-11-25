@@ -12,7 +12,8 @@ The system runs exclusively on **MySQL 8.0+ (InnoDB)** for local development, te
 ---
 
 ## 2. Entity Relationship Diagram now with MYSQL (ERD)
-<img width="2462" height="1496" alt="Untitled (5)" src="https://github.com/user-attachments/assets/70ed32c8-198f-47b8-b058-53197cb219e8" />
+<img width="2000" alt="Smart-aduio-guide" src="https://github.com/user-attachments/assets/f1555103-b858-47f9-b959-760a54555524" />
+
 
 The DDL and data dictionary below define the authoritative schema, including the optional transaction-to-session relationship and the merged audio metadata.
 
