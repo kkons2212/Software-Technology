@@ -43,18 +43,56 @@ def compute_audio_hash(
 class EdgeTTSClient:
     """Generate an MP3 narration using the voice mapped to a language code."""
 
-    # Curated high-quality neural voices evaluated for museum persona
+    LANGUAGE_ALIASES: ClassVar[dict[str, str]] = {
+        "vietnamese": "vi",
+        "english": "en",
+        "japanese": "ja",
+        "korean": "ko",
+        "chinese": "zh",
+        "french": "fr",
+        "german": "de",
+        "spanish": "es",
+        "russian": "ru",
+    }
+
+    # Curated neural voices verified against Microsoft Edge-TTS live catalog
     VOICE_BY_LANGUAGE: ClassVar[dict[str, str]] = {
         "en": "en-US-AriaNeural",
         "ja": "ja-JP-NanamiNeural",
         "ko": "ko-KR-SunHiNeural",
         "zh": "zh-CN-XiaoxiaoNeural",
+        "zh-cn": "zh-CN-XiaoxiaoNeural",
+        "zh-tw": "zh-TW-HsiaoChenNeural",
         "vi": "vi-VN-HoaiMyNeural",
         "fr": "fr-FR-DeniseNeural",
+        "de": "de-DE-TanjaNeural",
+        "es": "es-ES-ElviraNeural",
+        "ru": "ru-RU-SvetlanaNeural",
+    }
+
+    # Secondary native voices used automatically if the primary voice fails (e.g. NoAudioReceived)
+    FALLBACK_VOICE_BY_LANGUAGE: ClassVar[dict[str, str]] = {
+        "en": "en-US-GuyNeural",
+        "ja": "ja-JP-KeitaNeural",
+        "ko": "ko-KR-InJoonNeural",
+        "zh": "zh-CN-YunxiNeural",
+        "zh-cn": "zh-CN-YunxiNeural",
+        "zh-tw": "zh-TW-YunJheNeural",
+        "vi": "vi-VN-NamMinhNeural",
+        "fr": "fr-FR-HenriNeural",
+        "de": "de-DE-ChristophNeural",
+        "es": "es-ES-AlvaroNeural",
+        "ru": "ru-RU-DmitryNeural",
     }
 
     _DISCOVERED_VOICES: ClassVar[dict[str, str]] = {}
+    _DISCOVERED_VOICE_LISTS: ClassVar[dict[str, list[str]]] = {}
     _ALL_VOICES_CACHE: ClassVar[list[dict] | None] = None
+
+    def _normalize_language_code(self, language_id: str) -> str:
+        """Normalize locale/language identifiers (lowercase, '_' -> '-', resolve full names)."""
+        normalized = language_id.strip().lower().replace("_", "-")
+        return self.LANGUAGE_ALIASES.get(normalized, normalized)
 
     def _resolve_voice_for_language(self, lang_code: str) -> str:
         """Helper to resolve configured voice synchronously."""
@@ -62,7 +100,7 @@ class EdgeTTSClient:
 
     def get_voice(self, language_id: str) -> str:
         """Resolve voice identifier synchronously from curated map or discovered cache."""
-        normalized = language_id.strip().lower()
+        normalized = self._normalize_language_code(language_id)
         voice = self.VOICE_BY_LANGUAGE.get(normalized) or self._DISCOVERED_VOICES.get(
             normalized
         )
@@ -78,51 +116,84 @@ class EdgeTTSClient:
             )
         return voice
 
+    def _get_fallback_voice(self, language_id: str, primary_voice: str) -> str | None:
+        """Return a secondary native voice for the same language if available."""
+        normalized = self._normalize_language_code(language_id)
+        prefix = normalized.split("-")[0]
+
+        curated_fallback = self.FALLBACK_VOICE_BY_LANGUAGE.get(
+            normalized
+        ) or self.FALLBACK_VOICE_BY_LANGUAGE.get(prefix)
+        if curated_fallback and curated_fallback != primary_voice:
+            return curated_fallback
+
+        discovered = self._DISCOVERED_VOICE_LISTS.get(
+            normalized
+        ) or self._DISCOVERED_VOICE_LISTS.get(prefix)
+        if discovered:
+            for candidate in discovered:
+                if candidate != primary_voice:
+                    return candidate
+        return None
+
     async def resolve_voice(self, language_id: str) -> str:
         """Resolve voice identifier with dynamic Edge-TTS voice discovery and memory cache.
 
         1. Priority 1: Curated list (VOICE_BY_LANGUAGE) for evaluated museum persona.
         2. Priority 2: In-memory cache (_DISCOVERED_VOICES) of previously resolved voices.
-        3. Priority 3: Dynamic discovery via edge_tts.list_voices(), picking standard regional
-           or female neural voice matching language prefix.
+        3. Priority 3: Dynamic discovery via edge_tts.list_voices(), matching exact locale
+           or exact ISO-639 prefix (never colliding e.g. 'fi' with 'fil-PH').
         """
         try:
             return self.get_voice(language_id)
         except ValueError:
             pass
 
-        normalized = language_id.strip().lower()
+        normalized = self._normalize_language_code(language_id)
         prefix = normalized.split("-")[0]
 
         try:
             if EdgeTTSClient._ALL_VOICES_CACHE is None:
                 EdgeTTSClient._ALL_VOICES_CACHE = await edge_tts.list_voices()
 
-            matches = [
-                v
-                for v in (EdgeTTSClient._ALL_VOICES_CACHE or [])
-                if v.get("Locale", "").lower().startswith(prefix)
+            all_voices = EdgeTTSClient._ALL_VOICES_CACHE or []
+            exact_locale_matches = [
+                v for v in all_voices if v.get("Locale", "").lower() == normalized
             ]
+            prefix_matches = [
+                v
+                for v in all_voices
+                if v.get("Locale", "").lower().split("-")[0] == prefix
+            ]
+            matches = exact_locale_matches or prefix_matches
 
             if matches:
-                # Prefer standard region matching code (e.g. es-ES for es, de-DE for de)
-                standard_target = f"{prefix}-{prefix}"
+                # Prefer exact requested locale or standard region (e.g. th-TH for th)
+                standard_target = (
+                    normalized if "-" in normalized else f"{prefix}-{prefix}"
+                )
                 pool = [
                     v for v in matches if v.get("Locale", "").lower() == standard_target
                 ] or matches
-                # Prefer female voice persona if available
                 females = [v for v in pool if v.get("Gender") == "Female"]
-                chosen = (females or pool)[0]
-                voice_name = chosen["ShortName"]
+                others = [v for v in pool if v not in females]
+                ordered_names = [
+                    v["ShortName"] for v in (females + others) if v.get("ShortName")
+                ]
 
-                EdgeTTSClient._DISCOVERED_VOICES[normalized] = voice_name
-                EdgeTTSClient._DISCOVERED_VOICES[prefix] = voice_name
-                logger.info(
-                    "Dynamically discovered Edge-TTS voice '%s' for language '%s'",
-                    voice_name,
-                    language_id,
-                )
-                return voice_name
+                if ordered_names:
+                    voice_name = ordered_names[0]
+                    EdgeTTSClient._DISCOVERED_VOICES[normalized] = voice_name
+                    EdgeTTSClient._DISCOVERED_VOICE_LISTS[normalized] = ordered_names
+                    if "-" not in normalized:
+                        EdgeTTSClient._DISCOVERED_VOICES[prefix] = voice_name
+                        EdgeTTSClient._DISCOVERED_VOICE_LISTS[prefix] = ordered_names
+                    logger.info(
+                        "Dynamically discovered Edge-TTS voice '%s' for language '%s'",
+                        voice_name,
+                        language_id,
+                    )
+                    return voice_name
         except Exception as exc:
             logger.warning(
                 "Dynamic Edge-TTS voice discovery failed for '%s': %s",
@@ -140,10 +211,29 @@ class EdgeTTSClient:
         language_id: str,
         output_path: Path,
     ) -> None:
-        """Synthesize speech to the given path without blocking the event loop."""
+        """Synthesize speech using the target language voice, with secondary native voice fallback."""
         voice = await self.resolve_voice(language_id)
-        communicator = edge_tts.Communicate(text=text, voice=voice)
-        await communicator.save(str(output_path))
+        logger.info(
+            "Synthesizing Edge-TTS audio (lang=%s, voice=%s)", language_id, voice
+        )
+        try:
+            communicator = edge_tts.Communicate(text=text, voice=voice)
+            await communicator.save(str(output_path))
+        except Exception as primary_exc:
+            fallback_voice = self._get_fallback_voice(language_id, voice)
+            if not fallback_voice:
+                raise
+            logger.warning(
+                "Primary Edge-TTS voice '%s' failed for '%s' (%s); retrying with fallback voice '%s'",
+                voice,
+                language_id,
+                primary_exc,
+                fallback_voice,
+            )
+            fallback_communicator = edge_tts.Communicate(
+                text=text, voice=fallback_voice
+            )
+            await fallback_communicator.save(str(output_path))
 
     async def synthesize_or_reuse(
         self,
