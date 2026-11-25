@@ -9,6 +9,7 @@ export const ADMIN_TRANSLATIONS = {
   brandTitle: 'Địa đạo Củ Chi',
   brandSubtitle: 'Quản trị',
   defaultAdminName: 'Quản trị viên',
+  adminGreeting: 'Chào, {name}',
   signOut: 'Đăng xuất',
   navAriaLabel: 'Điều hướng quản trị',
 

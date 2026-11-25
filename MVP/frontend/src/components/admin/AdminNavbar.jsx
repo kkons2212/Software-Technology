@@ -75,8 +75,11 @@ export default function AdminNavbar() {
 
           <div className="flex items-center space-x-3">
             <span className="text-xs text-slate-600">
-              {/* The profile contract exposes `user_name` (AdminProfileResponse). */}
-              {user?.user_name || user?.full_name || ADMIN_TRANSLATIONS.defaultAdminName}
+              {/* Prioritize Full Name, fallback to user_name, then localized default */}
+              {ADMIN_TRANSLATIONS.adminGreeting.replace(
+                '{name}',
+                user?.full_name?.trim() || user?.user_name || ADMIN_TRANSLATIONS.defaultAdminName,
+              )}
             </span>
             <button
               type="button"
