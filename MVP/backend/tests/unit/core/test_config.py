@@ -91,3 +91,12 @@ def test_get_settings_singleton_caching():
     instance_1 = get_settings()
     instance_2 = get_settings()
     assert instance_1 is instance_2
+
+
+def test_openrouter_api_keys_parsing():
+    """Verify OPENROUTER_API_KEY supports comma-separated fallback keys deduplicated in order."""
+    cfg_empty = Settings(OPENROUTER_API_KEY="  ")
+    assert cfg_empty.openrouter_api_keys == []
+
+    cfg_multi = Settings(OPENROUTER_API_KEY="key-1, key-2 , key-1, key-3")
+    assert cfg_multi.openrouter_api_keys == ["key-1", "key-2", "key-3"]

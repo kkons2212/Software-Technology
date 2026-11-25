@@ -533,3 +533,163 @@ async def test_ensure_render_awake_logs_warning_when_budget_exhausted(
 
     assert awake is False
     assert "exhausted budget" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_openrouter_rotates_immediately_on_429_and_pins_working_key(
+    caplog, mocker, mock_http
+):
+    """Verify 429 on key #1 switches immediately to key #2 without sleeping and pins key #2."""
+    sleep_spy = mocker.patch(
+        "app.integrations.deep_translator_client.asyncio.sleep",
+        new=AsyncMock(),
+    )
+    used_auth_headers: list[str] = []
+
+    def mock_post(url, **kwargs):
+        auth = kwargs.get("headers", {}).get("Authorization", "")
+        used_auth_headers.append(auth)
+        if auth == "Bearer secret-key-1":
+            return MagicMock(
+                status_code=429,
+                headers={"X-RateLimit-Remaining": "0", "X-RateLimit-Reset": "1700000"},
+                text="rate limited",
+            )
+        return MagicMock(
+            status_code=200,
+            json=lambda: {"choices": [{"message": {"content": "Cu Chi Tunnels"}}]},
+        )
+
+    mock_http.post = AsyncMock(side_effect=mock_post)
+    client = DeepTranslatorClient(
+        openrouter_key="secret-key-1, secret-key-2",
+        providers_order=["openrouter"],
+        max_retries=2,
+        http_client=mock_http,
+    )
+
+    with caplog.at_level("WARNING"):
+        res1 = await client.translate_text("Địa đạo Củ Chi", target_lang="en")
+        res2 = await client.translate_text("Bến Dược", target_lang="en")
+
+    assert res1 == "Cu Chi Tunnels"
+    assert res2 == "Cu Chi Tunnels"
+    assert used_auth_headers == [
+        "Bearer secret-key-1",
+        "Bearer secret-key-2",
+        "Bearer secret-key-2",
+    ]
+    sleep_spy.assert_not_awaited()
+    assert "remaining=0" in caplog.text
+    assert "secret-key-1" not in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_openrouter_rotates_on_402_credit_and_403_budget_limits(
+    caplog, mocker, mock_http
+):
+    """Verify 402 (credit limit) and 403 (budget limit) rotate across keys in narrative JSON mode."""
+    sleep_spy = mocker.patch(
+        "app.integrations.deep_translator_client.asyncio.sleep",
+        new=AsyncMock(),
+    )
+    used_auth_headers: list[str] = []
+
+    def mock_post(url, **kwargs):
+        auth = kwargs.get("headers", {}).get("Authorization", "")
+        used_auth_headers.append(auth)
+        if auth == "Bearer key-credit-empty":
+            return MagicMock(
+                status_code=402,
+                json=lambda: {
+                    "error": {
+                        "message": "Insufficient credits",
+                        "metadata": {"limit_source": "key_credit_limit"},
+                    }
+                },
+                text="Insufficient credits",
+            )
+        if auth == "Bearer key-budget-hit":
+            return MagicMock(
+                status_code=403,
+                json=lambda: {
+                    "error": {
+                        "message": "Budget exceeded",
+                        "metadata": {"budget_type": "workspace"},
+                    }
+                },
+                text="Budget exceeded",
+            )
+        return MagicMock(
+            status_code=200,
+            json=lambda: {
+                "choices": [
+                    {
+                        "message": {
+                            "content": json.dumps(
+                                {
+                                    "title": "Hoang Cam Stove",
+                                    "short_description": "Smokeless stove",
+                                    "description": "Historical cooker",
+                                }
+                            )
+                        }
+                    }
+                ]
+            },
+        )
+
+    mock_http.post = AsyncMock(side_effect=mock_post)
+    client = DeepTranslatorClient(
+        openrouter_key="key-credit-empty,key-budget-hit,key-healthy",
+        providers_order=["openrouter"],
+        max_retries=2,
+        http_client=mock_http,
+    )
+
+    with caplog.at_level("WARNING"):
+        res = await client.translate_exhibit_narrative(
+            title="Bếp Hoàng Cầm",
+            short_description="Bếp không khói",
+            description="Bếp dã chiến lịch sử",
+            target_lang="en",
+        )
+
+    assert res["title"] == "Hoang Cam Stove"
+    assert used_auth_headers == [
+        "Bearer key-credit-empty",
+        "Bearer key-budget-hit",
+        "Bearer key-healthy",
+    ]
+    sleep_spy.assert_not_awaited()
+    assert "limit_source=key_credit_limit" in caplog.text
+    assert "key-credit-empty" not in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_openrouter_stops_early_when_all_keys_hit_permanent_402_403(
+    mocker, mock_http
+):
+    """Verify client does not waste backoff sleep when every key hits permanent 402/403."""
+    sleep_spy = mocker.patch(
+        "app.integrations.deep_translator_client.asyncio.sleep",
+        new=AsyncMock(),
+    )
+    mock_http.post = AsyncMock(
+        side_effect=[
+            MagicMock(status_code=402, text="No credit"),
+            MagicMock(status_code=403, text="Budget spent"),
+        ]
+    )
+    client = DeepTranslatorClient(
+        openrouter_key="k1,k2",
+        providers_order=["openrouter"],
+        max_retries=3,
+        http_client=mock_http,
+    )
+
+    res = await client._translate_with_openrouter("Xin chào", "vi", "en")
+
+    assert res is None
+    assert mock_http.post.call_count == 2
+    sleep_spy.assert_not_awaited()

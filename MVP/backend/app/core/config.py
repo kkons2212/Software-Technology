@@ -174,6 +174,21 @@ class Settings(BaseSettings):
             return ["render_api", "openrouter"]
         return tokens
 
+    @property
+    def openrouter_api_keys(self) -> list[str]:
+        """Parse comma-separated OpenRouter API keys (deduplicated, order-preserved)."""
+        if not self.OPENROUTER_API_KEY or not self.OPENROUTER_API_KEY.strip():
+            return []
+
+        keys: list[str] = []
+        seen: set[str] = set()
+        for raw_key in self.OPENROUTER_API_KEY.split(","):
+            key = raw_key.strip()
+            if key and key not in seen:
+                seen.add(key)
+                keys.append(key)
+        return keys
+
 
 @lru_cache
 def get_settings() -> Settings:
