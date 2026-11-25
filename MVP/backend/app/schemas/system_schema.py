@@ -73,7 +73,8 @@ class PublicConfigData(BaseModel):
 
     model_config = ConfigDict(extra="ignore")
 
-    cloudflare_tunnel_url: str
+    base_url: str = ""
+    cloudflare_tunnel_url: str = ""
     visitor_url: str
     admin_url: str
 

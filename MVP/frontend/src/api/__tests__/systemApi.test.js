@@ -36,6 +36,7 @@ describe('systemApi', () => {
 
   it('calls GET /api/v1/system/public-config', async () => {
     const mockPublicConfig = {
+      base_url: 'https://test-tunnel.trycloudflare.com',
       cloudflare_tunnel_url: 'https://test-tunnel.trycloudflare.com',
       visitor_url: 'https://test-tunnel.trycloudflare.com/visitor',
       admin_url: 'https://test-tunnel.trycloudflare.com/admin',

@@ -73,42 +73,53 @@ logger = logging.getLogger(__name__)
 public_router = APIRouter(prefix="/api/v1/system", tags=["Public System Configuration"])
 
 
-def resolve_cloudflare_tunnel_url() -> str:
-    """Dynamically resolve tunnel URL from runtime settings or .env file on disk."""
+def resolve_base_url() -> str:
+    """Dynamically resolve base URL from runtime settings or .env file on disk."""
     env_path = Path(settings.STATIC_DIR).parent / ".env"
     if env_path.is_file():
         try:
             with open(env_path, encoding="utf-8") as f:
                 for line in f:
                     stripped = line.strip()
-                    if stripped.startswith("CLOUDFLARE_TUNNEL_URL="):
+                    if stripped.startswith("BASE_URL="):
+                        raw_val = stripped.split("=", 1)[1].strip()
+                        val = raw_val.strip('"').strip("'").strip()
+                        if val:
+                            return val.rstrip("/")
+                    elif stripped.startswith("CLOUDFLARE_TUNNEL_URL="):
                         raw_val = stripped.split("=", 1)[1].strip()
                         val = raw_val.strip('"').strip("'").strip()
                         if val:
                             return val.rstrip("/")
         except Exception as exc:
-            logger.warning(
-                "Failed to read CLOUDFLARE_TUNNEL_URL from %s: %s", env_path, exc
-            )
+            logger.warning("Failed to read BASE_URL from %s: %s", env_path, exc)
 
-    return (
-        (settings.CLOUDFLARE_TUNNEL_URL or os.getenv("CLOUDFLARE_TUNNEL_URL", ""))
-        .strip()
-        .rstrip("/")
+    candidate = (
+        settings.BASE_URL
+        or os.getenv("BASE_URL", "")
+        or settings.CLOUDFLARE_TUNNEL_URL
+        or os.getenv("CLOUDFLARE_TUNNEL_URL", "")
     )
+    return candidate.strip().rstrip("/")
+
+
+def resolve_cloudflare_tunnel_url() -> str:
+    """Backward-compatible alias for resolve_base_url()."""
+    return resolve_base_url()
 
 
 @public_router.get("/public-config", response_model=PublicConfigResponse)
 def get_public_config() -> PublicConfigResponse:
-    """Return public tunnel URL and QR targets for visitors and administrators."""
-    tunnel_url = resolve_cloudflare_tunnel_url()
-    visitor_url = f"{tunnel_url}/visitor" if tunnel_url else "/visitor"
-    admin_url = f"{tunnel_url}/admin" if tunnel_url else "/admin"
+    """Return public base URL and QR targets for visitors and administrators."""
+    base_url = resolve_base_url()
+    visitor_url = f"{base_url}/visitor" if base_url else "/visitor"
+    admin_url = f"{base_url}/admin" if base_url else "/admin"
 
     return PublicConfigResponse(
         success=True,
         data=PublicConfigData(
-            cloudflare_tunnel_url=tunnel_url,
+            base_url=base_url,
+            cloudflare_tunnel_url=base_url,
             visitor_url=visitor_url,
             admin_url=admin_url,
         ),
