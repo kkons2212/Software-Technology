@@ -26,12 +26,24 @@ describe('AdminHeader', () => {
     mockAuthState.user = null;
   });
 
-  it('shows the signed-in administrator name from the profile contract', () => {
+  it('shows the signed-in administrator greeting with full name when present', () => {
+    mockAuthState.user = { user_name: 'curator', full_name: 'Nguyễn Văn A' };
+
+    renderHeader();
+
+    expect(
+      screen.getByText(ADMIN_TRANSLATIONS.adminGreeting.replace('{name}', 'Nguyễn Văn A')),
+    ).toBeInTheDocument();
+  });
+
+  it('shows the signed-in administrator greeting with user_name when full name is omitted', () => {
     mockAuthState.user = { user_name: 'curator' };
 
     renderHeader();
 
-    expect(screen.getByText('curator')).toBeInTheDocument();
+    expect(
+      screen.getByText(ADMIN_TRANSLATIONS.adminGreeting.replace('{name}', 'curator')),
+    ).toBeInTheDocument();
   });
 
   it('falls back to a generic label when the profile has no name', () => {
@@ -39,7 +51,11 @@ describe('AdminHeader', () => {
 
     renderHeader();
 
-    expect(screen.getByText(ADMIN_TRANSLATIONS.defaultAdminName)).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        ADMIN_TRANSLATIONS.adminGreeting.replace('{name}', ADMIN_TRANSLATIONS.defaultAdminName),
+      ),
+    ).toBeInTheDocument();
   });
 
   it('signs the administrator out when the Sign Out button is pressed', async () => {
