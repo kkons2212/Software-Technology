@@ -130,6 +130,7 @@ def test_should_return_public_system_config_without_authentication(
     assert payload["success"] is True
 
     data = payload["data"]
+    assert "base_url" in data
     assert "cloudflare_tunnel_url" in data
     assert "visitor_url" in data
     assert "admin_url" in data

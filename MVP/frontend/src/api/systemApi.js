@@ -33,11 +33,11 @@ export async function cleanOrphanedAudio({ signal } = {}) {
 const PUBLIC_CONFIG_ENDPOINT = '/api/v1/system/public-config';
 
 /**
- * Fetch public tunnel and base URL configuration for visitor access & QR generation.
+ * Fetch public base URL and QR code configuration for visitor access.
  *
  * @param {object} [options]
  * @param {AbortSignal} [options.signal]
- * @returns {Promise<{cloudflare_tunnel_url: string, visitor_url: string, admin_url: string}>}
+ * @returns {Promise<{base_url: string, cloudflare_tunnel_url: string, visitor_url: string, admin_url: string}>}
  */
 export async function getPublicSystemConfig({ signal } = {}) {
   const response = await apiClient.get(PUBLIC_CONFIG_ENDPOINT, { signal });

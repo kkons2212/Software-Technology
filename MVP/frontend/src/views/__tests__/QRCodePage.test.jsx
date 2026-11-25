@@ -14,27 +14,27 @@ describe('QRCodePage', () => {
 
   it('renders title, loads public config, and displays visitor QR code', async () => {
     vi.spyOn(systemApi, 'getPublicSystemConfig').mockResolvedValue({
-      cloudflare_tunnel_url: 'https://sample-tunnel.trycloudflare.com',
-      visitor_url: 'https://sample-tunnel.trycloudflare.com/visitor',
-      admin_url: 'https://sample-tunnel.trycloudflare.com/admin',
+      base_url: 'https://sample-deployed-app.com',
+      cloudflare_tunnel_url: 'https://sample-deployed-app.com',
+      visitor_url: 'https://sample-deployed-app.com/visitor',
+      admin_url: 'https://sample-deployed-app.com/admin',
     });
 
     render(<QRCodePage />);
 
     expect(
-      screen.getByRole('heading', { level: 1, name: /Mã QR Truy Cập Tour Hướng Dẫn Âm Thanh/i })
+      screen.getByRole('heading', { level: 1, name: /Mã QR Hướng Dẫn Tham Quan/i })
     ).toBeInTheDocument();
 
     await waitFor(() => {
-      const input = screen.getByLabelText(/Đường dẫn liên kết được mã hoá:/i);
-      expect(input.value).toBe('https://sample-tunnel.trycloudflare.com/visitor');
+      expect(screen.getByText(/sample-deployed-app.com\/visitor/i)).toBeInTheDocument();
     });
 
     expect(screen.getByTestId('qr-code-canvas-container')).toBeInTheDocument();
-    expect(screen.getByText(/sample-tunnel.trycloudflare.com/i)).toBeInTheDocument();
+    expect(screen.getByText(/Đang dùng cấu hình BASE_URL/i)).toBeInTheDocument();
   });
 
-  it('handles custom URL apply and copy link', async () => {
+  it('handles copying link to clipboard', async () => {
     vi.spyOn(systemApi, 'getPublicSystemConfig').mockRejectedValue(new Error('Network error'));
 
     // Mock clipboard
@@ -47,22 +47,28 @@ describe('QRCodePage', () => {
     render(<QRCodePage />);
 
     await waitFor(() => {
-      const input = screen.getByLabelText(/Đường dẫn liên kết được mã hoá:/i);
-      expect(input.value).toContain('/visitor');
+      expect(screen.getByTestId('qr-code-canvas-container')).toBeInTheDocument();
     });
 
-    const input = screen.getByLabelText(/Đường dẫn liên kết được mã hoá:/i);
-    fireEvent.change(input, { target: { value: 'https://custom-domain.com/visitor' } });
+    const copyButtons = screen.getAllByRole('button', { name: /sao chép/i });
+    fireEvent.click(copyButtons[0]);
 
-    const applyButton = screen.getByRole('button', { name: /Áp dụng/i });
-    fireEvent.click(applyButton);
-
-    const copyButton = screen.getByRole('button', { name: /Sao chép link/i });
-    fireEvent.click(copyButton);
-
-    expect(navigator.clipboard.writeText).toHaveBeenCalledWith('https://custom-domain.com/visitor');
+    expect(navigator.clipboard.writeText).toHaveBeenCalled();
     await waitFor(() => {
       expect(screen.getByText(/Đã sao chép!/i)).toBeInTheDocument();
     });
+  });
+
+  it('renders download button and direct preview link', async () => {
+    vi.spyOn(systemApi, 'getPublicSystemConfig').mockResolvedValue({
+      base_url: '',
+      visitor_url: '/visitor',
+      admin_url: '/admin',
+    });
+
+    render(<QRCodePage />);
+
+    expect(screen.getByRole('button', { name: /Tải ảnh QR \(PNG\)/i })).toBeInTheDocument();
+    expect(screen.getByText(/Thử mở trên trình duyệt này/i)).toBeInTheDocument();
   });
 });

@@ -111,6 +111,7 @@ class Settings(BaseSettings):
     PAYPAL_EXCHANGE_RATE: float = 25000.0
     AUDIO_GUIDE_SERVICE_FEE: int = 50000
     SERVICE_FEE_CURRENCY: str = "VND"
+    BASE_URL: str = ""
     CLOUDFLARE_TUNNEL_URL: str = ""
     TRANSLATION_PACING_DELAY: float = 1.5
     ENABLE_PAYMENT_SIMULATION: bool = False
