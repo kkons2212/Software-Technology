@@ -5,6 +5,7 @@ from decimal import Decimal
 
 from sqlalchemy import (
     Boolean,
+    CheckConstraint,
     DateTime,
     ForeignKey,
     Integer,
@@ -20,6 +21,9 @@ from app.core.database import Base
 
 class POI(Base):
     __tablename__ = "POI"
+    __table_args__ = (
+        CheckConstraint("Radius >= 10 AND Radius <= 50", name="CHK_POI_Radius_Range"),
+    )
 
     poi_id: Mapped[str] = mapped_column(
         "PoiID", String(20), primary_key=True, index=True

@@ -74,7 +74,7 @@ CREATE TABLE IF NOT EXISTS `POI` (
     `Image_Url` VARCHAR(255) NULL,
     `Latitude` DECIMAL(10, 7) NOT NULL CHECK (`Latitude` BETWEEN -90 AND 90),
     `Longitude` DECIMAL(10, 7) NOT NULL CHECK (`Longitude` BETWEEN -180 AND 180),
-    `Radius` INT NOT NULL DEFAULT 30 CHECK (`Radius` > 0),
+    `Radius` INT NOT NULL DEFAULT 30,
     `Is_Active` BOOLEAN NOT NULL DEFAULT TRUE,
     `Create_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `Update_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -82,6 +82,7 @@ CREATE TABLE IF NOT EXISTS `POI` (
     PRIMARY KEY (`PoiID`),
     INDEX `idx_POI_Create_by` (`Create_by`),
     INDEX `idx_POI_Coordinates` (`Latitude`, `Longitude`),
+    CONSTRAINT `CHK_POI_Radius_Range` CHECK (`Radius` BETWEEN 10 AND 50),
     CONSTRAINT `CHK_POI_Is_Active` CHECK (`Is_Active` IN (0, 1)),
     CONSTRAINT `FK_POI_User` FOREIGN KEY (`Create_by`)
         REFERENCES `User` (`UserName`)
@@ -157,7 +158,6 @@ CREATE TABLE IF NOT EXISTS `VisitorSession` (
     `SessionID` VARCHAR(20) NOT NULL,
     `SessionCode` VARCHAR(255) NOT NULL,
     `SessionToken` VARCHAR(255) NOT NULL,
-    `DeviceFingerPrint` VARCHAR(255) NULL,
     `Status` NVARCHAR(255) NOT NULL DEFAULT 'ACTIVE',
     `Activate_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `Expire_at` DATETIME NOT NULL,

@@ -19,7 +19,6 @@ class SessionRepository:
         session_token: str | None = None,
         preferred_language: str = "vi",
         expire_at: datetime | None = None,
-        device_fingerprint: str | None = None,
     ) -> VisitorSession:
         """Create and persist a new 24-hour VisitorSession adhering to SISE."""
         s_id = f"SES_{uuid.uuid4().hex[:12].upper()}"
@@ -46,7 +45,6 @@ class SessionRepository:
             SessionID=s_id,
             SessionCode=s_code,
             SessionToken=s_token,
-            DeviceFingerPrint=device_fingerprint,
             Status="ACTIVE",
             Activate_at=activate_at,
             Expire_at=expiry,
