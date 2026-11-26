@@ -57,8 +57,9 @@ export default function StorageHealthBanner({
         <aside
           role="alert"
           aria-live="assertive"
-          className={`flex flex-col items-start justify-between gap-3 rounded-lg border ${stickyOnly ? 'p-2 sm:px-3 sm:py-1.5' : 'p-4'
-            } sm:flex-row sm:items-center ${alertClasses}`}
+          className={`flex flex-col items-start justify-between gap-3 rounded-lg border ${
+            stickyOnly ? 'p-2 sm:px-3 sm:py-1.5' : 'p-4'
+          } sm:flex-row sm:items-center ${alertClasses}`}
         >
           <div className="flex items-center space-x-3">
             <svg
