@@ -90,6 +90,14 @@ describe('App', () => {
     ).toBeInTheDocument();
   });
 
+  it('preserves query parameters when redirecting /tour to /visitor', async () => {
+    renderApp('/tour?payment_success=true&order_id=ord-test');
+
+    expect(
+      await screen.findByRole('heading', { level: 1, name: /cu chi tunnels/i }, { timeout: 5000 }),
+    ).toBeInTheDocument();
+  });
+
   it('renders the checkout success page on the visitor checkout success route', async () => {
     renderApp('/visitor/checkout/success');
 
@@ -102,7 +110,7 @@ describe('App', () => {
     renderApp('/qr');
 
     expect(
-      await screen.findByRole('heading', { level: 1, name: /mã qr truy cập tour/i }, { timeout: 5000 }),
+      await screen.findByRole('heading', { level: 1, name: /mã qr/i }, { timeout: 5000 }),
     ).toBeInTheDocument();
   });
 

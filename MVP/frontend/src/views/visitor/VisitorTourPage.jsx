@@ -88,6 +88,7 @@ export default function VisitorTourPage({
   const [poiRetryCount, setPoiRetryCount] = useState(0);
   const [selectedPoiId, setSelectedPoiId] = useState(null);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
+  const [checkoutSuccessData, setCheckoutSuccessData] = useState(null);
   const [isRestoreOpen, setIsRestoreOpen] = useState(false);
   const [activeRoute, setActiveRoute] = useState(null);
 
@@ -153,6 +154,11 @@ export default function VisitorTourPage({
                 sessionToken: orderData.session_token,
                 expiresAt: ensureUtcIso(orderData.session_expires_at || orderData.expires_at),
               });
+              setCheckoutSuccessData({
+                ...orderData,
+                payment_method: 'PAYPAL',
+              });
+              setIsCheckoutOpen(true);
             }
           })
           .catch((err) => {
@@ -668,7 +674,11 @@ export default function VisitorTourPage({
 
       <CheckoutModal
         isOpen={isCheckoutOpen}
-        onClose={() => setIsCheckoutOpen(false)}
+        initialSuccessData={checkoutSuccessData}
+        onClose={() => {
+          setIsCheckoutOpen(false);
+          setCheckoutSuccessData(null);
+        }}
         onSuccess={handleCheckoutSuccess}
         preferredLanguage={selectedLanguage || DEFAULT_LANGUAGE}
         onOpenRestore={() => setIsRestoreOpen(true)}

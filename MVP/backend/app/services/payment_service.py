@@ -12,7 +12,7 @@ from typing import Any
 import httpx
 from fastapi import HTTPException, status
 
-from app.core.config import settings
+from app.core.config import resolve_base_url, settings
 from app.integrations.paypal_client import paypal_client
 from app.models.transaction import Transaction
 from app.repositories.session_repository import SessionRepository
@@ -197,6 +197,7 @@ class PaymentService:
         checkout_url: str | None = None
 
         if payment_method == "VIETQR":
+            base_url = resolve_base_url() or "http://localhost:5173"
             if self._has_payos_credentials():
                 try:
                     numeric_order_code = (
@@ -209,8 +210,8 @@ class PaymentService:
                     order_code=numeric_order_code,
                     amount=fee_amount,
                     description=transfer_memo,
-                    return_url="http://localhost:5173/tour",
-                    cancel_url="http://localhost:5173/tour",
+                    return_url=f"{base_url}/visitor?payment_success=true&order_id={order_id}",
+                    cancel_url=f"{base_url}/visitor?payment_cancel=true",
                 )
                 if payos_data:
                     qr_code_url = payos_data.get("qrCode")
@@ -227,9 +228,12 @@ class PaymentService:
                     memo=transfer_memo,
                 )
         else:
+            base_url = resolve_base_url() or "http://localhost:5173"
             if paypal_client.is_configured():
-                return_url = f"http://localhost:5173/tour?payment_success=true&order_id={order_id}"
-                cancel_url = "http://localhost:5173/tour?payment_cancel=true"
+                return_url = (
+                    f"{base_url}/visitor?payment_success=true&order_id={order_id}"
+                )
+                cancel_url = f"{base_url}/visitor?payment_cancel=true"
                 paypal_data = await paypal_client.create_order(
                     order_id=order_id,
                     amount_vnd=fee_amount,

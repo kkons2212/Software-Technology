@@ -9,12 +9,10 @@ database telemetry, and business logic to `StorageService`.
 """
 
 import logging
-import os
-from pathlib import Path
 
 from fastapi import APIRouter, Depends, Request
 
-from app.core.config import settings
+from app.core.config import resolve_base_url
 from app.core.dependencies import get_current_admin_profile, get_storage_service
 from app.core.limiter import rate_limit
 from app.schemas.auth_schema import AdminProfileResponse
@@ -71,36 +69,6 @@ def clean_orphaned_audio(
 logger = logging.getLogger(__name__)
 
 public_router = APIRouter(prefix="/api/v1/system", tags=["Public System Configuration"])
-
-
-def resolve_base_url() -> str:
-    """Dynamically resolve base URL from runtime settings or .env file on disk."""
-    env_path = Path(settings.STATIC_DIR).parent / ".env"
-    if env_path.is_file():
-        try:
-            with open(env_path, encoding="utf-8") as f:
-                for line in f:
-                    stripped = line.strip()
-                    if stripped.startswith("BASE_URL="):
-                        raw_val = stripped.split("=", 1)[1].strip()
-                        val = raw_val.strip('"').strip("'").strip()
-                        if val:
-                            return val.rstrip("/")
-                    elif stripped.startswith("CLOUDFLARE_TUNNEL_URL="):
-                        raw_val = stripped.split("=", 1)[1].strip()
-                        val = raw_val.strip('"').strip("'").strip()
-                        if val:
-                            return val.rstrip("/")
-        except Exception as exc:
-            logger.warning("Failed to read BASE_URL from %s: %s", env_path, exc)
-
-    candidate = (
-        settings.BASE_URL
-        or os.getenv("BASE_URL", "")
-        or settings.CLOUDFLARE_TUNNEL_URL
-        or os.getenv("CLOUDFLARE_TUNNEL_URL", "")
-    )
-    return candidate.strip().rstrip("/")
 
 
 def resolve_cloudflare_tunnel_url() -> str:

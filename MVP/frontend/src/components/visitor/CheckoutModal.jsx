@@ -71,6 +71,7 @@ export function resolveCheckoutOrderError(err, preferredLanguage = 'vi') {
 
 export default function CheckoutModal({
   isOpen = false,
+  initialSuccessData = null,
   onClose,
   onSuccess,
   preferredLanguage = 'vi',
@@ -88,8 +89,8 @@ export default function CheckoutModal({
   const [simulationError, setSimulationError] = useState(null);
   const [copiedField, setCopiedField] = useState(null);
   const [isSimulating, setIsSimulating] = useState(false);
-  const [isPaidSuccess, setIsPaidSuccess] = useState(false);
-  const [completedSession, setCompletedSession] = useState(null);
+  const [isPaidSuccess, setIsPaidSuccess] = useState(() => Boolean(initialSuccessData));
+  const [completedSession, setCompletedSession] = useState(() => initialSuccessData);
 
   const prevIsOpenRef = useRef(false);
   const prevLangRef = useRef(preferredLanguage);
@@ -134,6 +135,11 @@ export default function CheckoutModal({
 
   useEffect(() => {
     if (isOpen) {
+      if (initialSuccessData) {
+        setIsPaidSuccess(true);
+        setCompletedSession(initialSuccessData);
+        return;
+      }
       const wasOpen = prevIsOpenRef.current;
       const prevLang = prevLangRef.current;
       prevIsOpenRef.current = true;
@@ -151,8 +157,9 @@ export default function CheckoutModal({
       setOrder(null);
       setOrderError(null);
       setIsPaidSuccess(false);
+      setCompletedSession(null);
     }
-  }, [fetchOrder, isOpen, preferredLanguage]);
+  }, [fetchOrder, initialSuccessData, isOpen, preferredLanguage]);
 
   const handleSelectPaymentMethod = (method) => {
     if (method === paymentMethod && order) return;
@@ -236,6 +243,8 @@ export default function CheckoutModal({
     cardActionElement = (
       <a
         href={order.checkout_url}
+        target="_blank"
+        rel="noopener noreferrer"
         className="mt-5 inline-flex w-full items-center justify-center rounded-xl bg-[#0070ba] py-3 px-4 text-xs font-semibold text-white shadow-md hover:bg-[#005ea6] transition"
       >
         {getVisitorText('continueWithPayPal', preferredLanguage, { amount: formattedAmount })}

@@ -215,6 +215,7 @@ export const ADMIN_TRANSLATIONS = {
 
   // Analytics Heatmap
   heatmapTitle: 'Bản đồ nhiệt Mật độ Du khách Thời gian thực',
+  liveTelemetryBadge: 'Viễn trắc Trực tiếp',
   heatmapSubtitle: 'Giám sát cảnh báo ùn tắc không gian trong toàn bộ khu di tích Địa đạo Củ Chi.',
   heatmapReportingWindowAriaLabel: 'Khoảng thời gian bản đồ nhiệt',
   congestionAlertTitle: 'Cảnh báo ùn tắc:',
@@ -227,8 +228,8 @@ export const ADMIN_TRANSLATIONS = {
     'Chưa có lượt kích hoạt điểm nào trong khoảng thời gian này. Bản đồ nhiệt sẽ hiển thị khi có du khách tham quan.',
   densityScale: 'Thang đo Mật độ',
   densityLow: 'Thấp (0 - 40%)',
-  densityModerate: 'Vừa (40 - 70%)',
-  densityCongestion: 'Cao (> 70%)',
+  densityModerate: 'Vừa phải (40 - 70%)',
+  densityCongestion: 'Ùn tắc (> 70%)',
   densityZero: 'Chưa có khách (0)',
   heatRadiusLabel: 'Bán kính nhiệt:',
   blurOpacityLabel: 'Độ mờ tản:',

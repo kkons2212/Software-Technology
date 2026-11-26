@@ -10,7 +10,7 @@ from urllib.parse import quote
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 
-from app.core.config import settings
+from app.core.config import resolve_base_url, settings
 from app.core.dependencies import get_payment_service
 from app.core.limiter import rate_limit
 from app.schemas.payment_schema import (
@@ -117,6 +117,7 @@ def paypal_sandbox_checkout_page(
 
     safe_order_id = escape(order_id, quote=True)
     encoded_order_id = quote(order_id, safe="")
+    base_url = resolve_base_url() or "http://localhost:5173"
 
     html_content = f"""<!DOCTYPE html>
 <html lang="vi">
@@ -158,7 +159,7 @@ def paypal_sandbox_checkout_page(
                class="block w-full text-center bg-[#0070ba] hover:bg-[#005ea6] text-white font-semibold py-3 px-4 rounded-xl shadow transition text-sm">
                 Xác nhận thanh toán PayPal Sandbox (50.000 đ)
             </a>
-            <a href="http://localhost:5173/tour"
+            <a href="{base_url}/visitor"
                class="block w-full text-center bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium py-2.5 px-4 rounded-xl transition text-xs">
                 Hủy bỏ và quay lại Tour
             </a>
@@ -185,9 +186,10 @@ def confirm_paypal_mock_payment(
             detail="Payment simulation is available only in development.",
         )
 
+    base_url = resolve_base_url() or "http://localhost:5173"
     payment_service.simulate_payment_success(order_id=order_id)
     return RedirectResponse(
-        url=f"http://localhost:5173/tour?payment_success=true&order_id={order_id}",
+        url=f"{base_url}/visitor?payment_success=true&order_id={order_id}",
         status_code=status.HTTP_302_FOUND,
     )
 
