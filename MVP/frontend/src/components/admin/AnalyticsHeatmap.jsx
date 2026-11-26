@@ -110,8 +110,6 @@ export default function AnalyticsHeatmap({
   const [heatmapData, setHeatmapData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
-  const [radius, setRadius] = useState(DEFAULT_HEAT_RADIUS);
-  const [blur, setBlur] = useState(DEFAULT_HEAT_BLUR);
   const [reloadToken, setReloadToken] = useState(0);
 
   const mapContainerRef = useRef(null);
@@ -237,8 +235,8 @@ export default function AnalyticsHeatmap({
     if (heatPoints.length > 0 && typeof heatLayerFactory === 'function') {
       try {
         const heat = heatLayerFactory(heatPoints, {
-          radius: Number(radius),
-          blur: Number(blur),
+          radius: Number(DEFAULT_HEAT_RADIUS),
+          blur: Number(DEFAULT_HEAT_BLUR),
           maxZoom: MAX_MAP_ZOOM,
           gradient: HEATMAP_GRADIENT,
         });
@@ -316,7 +314,7 @@ export default function AnalyticsHeatmap({
         }
       });
     }
-  }, [heatmapData, radius, blur]);
+  }, [heatmapData]);
 
   return (
     <div
@@ -329,9 +327,6 @@ export default function AnalyticsHeatmap({
           <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
             <span>{ADMIN_TRANSLATIONS.heatmapTitle}</span>
           </h2>
-          <p className="mt-1 text-xs text-slate-500">
-            {ADMIN_TRANSLATIONS.heatmapSubtitle}
-          </p>
         </div>
 
         {/* Range controls only when standalone (not controlled by parent dashboard) */}
@@ -436,42 +431,8 @@ export default function AnalyticsHeatmap({
         </div>
       </div>
 
-      {/* Sliders for Radius & Blur configuration */}
-      <div className="mt-4 flex flex-wrap items-center justify-between gap-4 border-t border-slate-100 pt-3 text-xs text-slate-600">
-        <div className="flex items-center gap-3">
-          <label htmlFor="heatmap-radius-slider" className="font-medium text-slate-700">
-            {ADMIN_TRANSLATIONS.heatRadiusLabel} <span className="font-mono">{radius}px</span>
-          </label>
-          <input
-            id="heatmap-radius-slider"
-            data-testid="heatmap-radius-slider"
-            type="range"
-            min="10"
-            max="60"
-            step="1"
-            value={radius}
-            onChange={(e) => setRadius(Number(e.target.value))}
-            className="h-1.5 w-28 cursor-pointer rounded-lg bg-slate-200 accent-slate-900"
-          />
-        </div>
-
-        <div className="flex items-center gap-3">
-          <label htmlFor="heatmap-blur-slider" className="font-medium text-slate-700">
-            {ADMIN_TRANSLATIONS.blurOpacityLabel} <span className="font-mono">{blur}px</span>
-          </label>
-          <input
-            id="heatmap-blur-slider"
-            data-testid="heatmap-blur-slider"
-            type="range"
-            min="5"
-            max="35"
-            step="1"
-            value={blur}
-            onChange={(e) => setBlur(Number(e.target.value))}
-            className="h-1.5 w-28 cursor-pointer rounded-lg bg-slate-200 accent-slate-900"
-          />
-        </div>
-
+      {/* Footer info */}
+      <div className="mt-4 flex items-center justify-end border-t border-slate-100 pt-3 text-xs text-slate-600">
         <div className="text-[11px] text-slate-400">
           {ADMIN_TRANSLATIONS.totalExhibitsMonitored} <strong className="text-slate-700">{heatmapData?.total_points || 0}</strong>
         </div>
