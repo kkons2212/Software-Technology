@@ -400,3 +400,65 @@ At the executive operational tier, the Visitor Telemetry & Infrastructure Health
 * Date filtering: Today, Last 7 Days, Last 30 Days, or custom Start Date - End Date.
 * Provides an "Export Report" button downloading structured .csv or .json files.
 * Output files include: Date, Exhibit Name, Trigger Count, Language Code, and Average Duration.
+
+---
+
+# System Architecture & Component Diagram
+
+## Component Diagram
+The system's high-level architecture is organized into four core functional tiers:
+1. **Client Presentation Tier (React 18 + Vite):** Mobile PWA for museum visitors (`VisitorApp`) and desktop web portal for museum administrators (`AdminPortal`).
+2. **Backend Application Engine (FastAPI):** 3-tier architecture consisting of API Routing Controllers, Business Logic Services, Background Processing Workers (TTS & Translation pipelines), Data Access Repositories (SQLAlchemy 2.0), and Third-party Integration Adapters.
+3. **Persistence & Storage Tier:** Relational database (`MySQL Database` - InnoDB) storing 8 business entity tables, alongside cloud object storage (`Supabase Storage` - bucket `museum-media`) for cover photos and neural voice audio narrations.
+4. **External Services Tier:** Third-party cloud ecosystem including OpenStreetMap & OSRM Engine, Microsoft Edge Neural TTS, Deep-Translator / OpenRouter AI, and Payment Gateways (VietQR & PayPal REST API).
+
+![High-Level Component Diagram]
+<img width="1767" height="743" alt="Component Diagram1" src="https://github.com/user-attachments/assets/8bf0c8a2-0ebb-4a9a-8249-b0e26e0a2a16" />
+
+### Component Specification Breakdown
+
+#### Package 1: Client Presentation Tier (`MVP/frontend/src`)
+Houses the user-facing web applications, divided into two distinct frontend clients:
+* **Component: VisitorApp**  
+  Mobile-first Progressive Web App (PWA) for museum visitors. Core internal modules include: `VisitorMapView`, `MiniAudioPlayer`, `PaymentCheckoutModal`, and `SessionRestoreModal`.
+* **Component: AdminPortal**  
+  Desktop administrative portal for museum staff and curators. Core internal modules include: `PoiCatalogPage`, `POIFormModal`, `TranslationAuditPage`, `AnalyticsHeatmap`, and `SystemHealthPage`.
+
+#### Package 2: Backend Application Tier (`MVP/backend/app`)
+The central FastAPI service engine organized following a strict 3-tier architectural model:
+* **Component: API Routing Controllers (`app/controllers/`)**  
+  Encapsulates presentation routing and request handling: `PoiController`, `AdminPoiController`, `TourController`, `AudioController`, `PaymentController`, `SessionController`, `TranslationController`, `TelemetryController`, and `AuthController`.
+* **Component: Business Logic Services (`app/services/`)**  
+  Orchestrates domain business rules and workflows:
+  * `POIService` & `WayfindingService`
+  * `AuthService`
+  * `PaymentService` & `SessionService`
+  * `AudioService`
+  * `TranslationPipelineService`
+  * `TelemetryService` & `ExportService`
+* **Component: Background Workers & Queue (`app/services/` & `workers/`)**  
+  Manages asynchronous job scheduling and execution: `PipelineQueue`, `TranslationWorker`, and `AudioSynthesisWorker`.
+* **Component: Data Access Repositories (`app/repositories/`)**  
+  Provides abstracted persistence operations via SQLAlchemy 2.0 ORM: `POIRepository`, `TranslationRepository`, `AudioRepository`, `UserRepository`, `AuditRepository`, `TransactionRepository`, `SessionRepository`, and `TelemetryRepository`.
+* **Component: External Integration Adapters (`app/integrations/`)**  
+  Encapsulates external HTTP APIs and client SDK integrations: `StorageClient`, `EdgeTTSClient`, `DeepTranslatorClient`, and `PaypalClient`.
+
+#### Package 3: Persistence & Storage Tier
+Provides persistent data and static asset storage:
+* **Component: MySQL Database (`smart_museum`)**  
+  Relational MySQL 8.0 InnoDB database maintaining 8 normalized business tables: `User`, `Audit`, `LanguageCode`, `POI`, `POITranslation`, `Transaction`, `VisitorSession`, and `POITrigger`.
+* **Component: Supabase Storage (`museum-media`)**  
+  Cloud Object Storage bucket storing exhibit cover images (`/images/`) and synthesized neural audio narration files (`/audio/`).
+
+#### Package 4: External Services Tier (Third-Party Services)
+External cloud services and third-party APIs integrated into the ecosystem:
+* **Component: OpenStreetMap & OSRM Engine**  
+  Provides outdoor map tiles and walking wayfinding/routing algorithms.
+* **Component: Microsoft Edge Neural TTS**  
+  Cloud neural speech engine for automated multilingual audio synthesis.
+* **Component: Deep-Translator / OpenRouter API**  
+  Machine translation engine for translating exhibit narratives into foreign target languages.
+* **Component: PayPal REST API & VietQR Gateway**  
+  Online payment gateways for digital ticket admission checkout and automated webhook confirmation.
+
+
