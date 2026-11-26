@@ -1,5 +1,8 @@
 """Unit tests for POIRepository (TSK-03.1.2 & TSK-03.1.5)."""
 
+import pytest
+from sqlalchemy.exc import IntegrityError
+
 from app.models.language import LanguageCode
 from app.models.poi import POI
 from app.models.translation import POITranslation
@@ -207,3 +210,34 @@ def test_should_sync_vi_and_invalidate_foreign_translations_in_repo(db_session):
     assert tr_vi.Title == "Kho vũ khí bí mật"
     assert tr_vi.Status == "PUBLISHED"
     assert tr_en.Status == "PENDING"
+
+
+@pytest.mark.parametrize("invalid_radius", [0, 9, 51])
+def test_should_reject_poi_radius_outside_10_to_50_range(db_session, invalid_radius):
+    repo = POIRepository(db_session)
+    with pytest.raises(IntegrityError):
+        repo.create(
+            POI(
+                PoiID=f"POI_RAD_BAD_{invalid_radius}",
+                Title="Invalid Radius POI",
+                Latitude=11.1445,
+                Longitude=106.4645,
+                Radius=invalid_radius,
+            )
+        )
+    db_session.rollback()
+
+
+@pytest.mark.parametrize("valid_radius", [10, 50])
+def test_should_accept_poi_radius_boundary_values(db_session, valid_radius):
+    repo = POIRepository(db_session)
+    created = repo.create(
+        POI(
+            PoiID=f"POI_RAD_OK_{valid_radius}",
+            Title=f"Boundary Radius {valid_radius}",
+            Latitude=11.1446,
+            Longitude=106.4646,
+            Radius=valid_radius,
+        )
+    )
+    assert created.Radius == valid_radius

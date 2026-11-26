@@ -94,7 +94,7 @@ CREATE TABLE IF NOT EXISTS `POI` (
     `Image_Url` VARCHAR(255) NULL,
     `Latitude` DECIMAL(10, 7) NOT NULL CHECK (`Latitude` BETWEEN -90 AND 90),
     `Longitude` DECIMAL(10, 7) NOT NULL CHECK (`Longitude` BETWEEN -180 AND 180),
-    `Radius` INT NOT NULL DEFAULT 30 CHECK (`Radius` > 0),
+    `Radius` INT NOT NULL DEFAULT 30,
     `Is_Active` BOOLEAN NOT NULL DEFAULT TRUE,
     `Create_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `Update_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -102,6 +102,7 @@ CREATE TABLE IF NOT EXISTS `POI` (
     PRIMARY KEY (`PoiID`),
     INDEX `idx_POI_Create_by` (`Create_by`),
     INDEX `idx_POI_Coordinates` (`Latitude`, `Longitude`),
+    CONSTRAINT `CHK_POI_Radius_Range` CHECK (`Radius` BETWEEN 10 AND 50),
     CONSTRAINT `CHK_POI_Is_Active` CHECK (`Is_Active` IN (0, 1)),
     CONSTRAINT `FK_POI_User` FOREIGN KEY (`Create_by`)
         REFERENCES `User` (`UserName`)
@@ -177,7 +178,6 @@ CREATE TABLE IF NOT EXISTS `VisitorSession` (
     `SessionID` VARCHAR(20) NOT NULL,
     `SessionCode` VARCHAR(255) NOT NULL,
     `SessionToken` VARCHAR(255) NOT NULL,
-    `DeviceFingerPrint` VARCHAR(255) NULL,
     `Status` NVARCHAR(255) NOT NULL DEFAULT 'ACTIVE',
     `Activate_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `Expire_at` DATETIME NOT NULL,
@@ -273,7 +273,7 @@ The full MySQL initialization DDL script is provided in section [2.1. MySQL Sche
 | `Image_Url` | `VARCHAR(255)` | `NULL` | POI cover image URL |
 | `Latitude` | `DECIMAL(10,7)` | `NOT NULL, CHECK (-90..90)` | GPS latitude |
 | `Longitude` | `DECIMAL(10,7)` | `NOT NULL, CHECK (-180..180)` | GPS longitude |
-| `Radius` | `INT` | `DEFAULT 30, CHECK (> 0)` | Geofence radius in meters |
+| `Radius` | `INT` | `DEFAULT 30, CHECK (BETWEEN 10 AND 50)` | Geofence radius in meters |
 | `Is_Active` | `BOOLEAN` | `DEFAULT TRUE, CHECK (0 OR 1)` | Visibility flag |
 | `Create_at` | `DATETIME` | `DEFAULT CURRENT_TIMESTAMP` | Creation timestamp |
 | `Update_at` | `DATETIME` | `DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP` | Last update timestamp |
@@ -310,7 +310,6 @@ The full MySQL initialization DDL script is provided in section [2.1. MySQL Sche
 | `SessionID` | `VARCHAR(20)` | `PRIMARY KEY` | Unique visitor session identifier |
 | `SessionCode` | `VARCHAR(255)` | `NOT NULL, UNIQUE` | Session recovery code |
 | `session_token` | `VARCHAR(255)` | `NOT NULL, UNIQUE` | JWT/Bearer access token for audio playback |
-| `DeviceFingerPrint` | `VARCHAR(255)` | `NULL` | Visitor device fingerprint |
 | `PreferredLanguage` | `VARCHAR(20)` | `NOT NULL, FK -> LanguageCode(LanguageID), ON DELETE RESTRICT` | Selected preferred language |
 | `Status` | `NVARCHAR(255)` | `DEFAULT 'ACTIVE', CHECK (ACTIVE, EXPIRED)` | Session status |
 | `Activate_at` | `DATETIME` | `DEFAULT CURRENT_TIMESTAMP` | Session activation timestamp |
