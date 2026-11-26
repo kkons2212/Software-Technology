@@ -461,4 +461,67 @@ External cloud services and third-party APIs integrated into the ecosystem:
 * **Component: PayPal REST API & VietQR Gateway**  
   Online payment gateways for digital ticket admission checkout and automated webhook confirmation.
 
+---
+
+## Deployment Diagram
+The production deployment distributes the system across three infrastructure layers:
+1. **Client Devices:** `Visitor Mobile` and `Admin PC`, each accessing the system through a standard `Web Browser`.
+2. **Cloud Server Nodes:** Four independently hosted nodes covering `Frontend Server` (Vercel), `Backend Server` (Render.com), `Database Server` (Aiven Cloud MySQL 8.0), and `Media Server` (Supabase Storage CDN).
+3. **External Services:** Five third-party cloud APIs handling translation (`Render Translation API` and `OpenRouter AI`), neural voice synthesis (`Microsoft Edge-TTS`), payment processing (`PayOS / VietQR`), and mapping/routing (`OpenStreetMap & OSRM`).
+
+<img width="2000" alt="Deployment smart-museum" src="https://github.com/user-attachments/assets/dc1d7d27-1763-4b0d-9028-1f5137caf973" />
+
+### Deployment Specification Breakdown
+
+#### Tier 1: Client Devices (`<<device>>`)
+End-user devices running the web interface without requiring native mobile installation:
+* **Device: Visitor Mobile (`<<executionEnvironment>> Web Browser`)**  
+  Mobile browser used on site by museum visitors. Loads `Visitor Web` from the Frontend Server, reads GPS coordinates for geofence auto-play, renders map tiles from OpenStreetMap, streams `.mp3` narrations from the Media Server, and sends API requests to the Backend Server.
+* **Device: Admin PC (`<<executionEnvironment>> Web Browser`)**  
+  Desktop browser used by curators and administrators. Loads `Admin Web` from the Frontend Server and communicates with the Backend Server over HTTPS for exhibit management, translation review, analytics, and storage maintenance.
+
+#### Tier 2: Cloud Server Nodes (`<<node>>`)
+Managed cloud nodes hosting application code, relational data, and media files:
+* **Node: Frontend Server (Vercel)**  
+  Runs a `Web Server` execution environment serving the React 18 + Vite static application (`cuchitunnel.vercel.app`) split into two components:
+  * `Visitor Web`: Interactive map, GPS geofencing, audio player, 24-hour checkout, session restore, and walking wayfinding.
+  * `Admin Web`: Authentication, POI catalog and geofence calibration, translation audit, analytics heatmap, and system health.
+* **Node: Backend Server (Render.com)**  
+  Runs a `Python / FastAPI Server` execution environment (Python 3.10.11) organized into four deployed components:
+  * `API & Auth Layer`: 13 REST routers, CORS policy, rate limiting, JWT cookie verification, and visitor session paywall checks.
+  * `Core Business Services`: Authentication and audit logging, POI and coordinate validation, translation publishing, payment and 24-hour session management, audio authorization, walking route lookup, telemetry analytics, and orphan media cleanup.
+  * `Background Workers`: Asynchronous job queue running auto-translation, MP3 synthesis, and a periodic 600-second `/health` keep-alive ping to the primary translation service.
+  * `Database & External Clients`: SQLAlchemy ORM repositories and outbound HTTP clients for storage, translation, TTS, payment, and routing services.
+* **Node: Database Server (Aiven Cloud)**  
+  Runs a managed `MySQL 8.0` execution environment hosting the `smart_museum Database` artifact with 8 relational tables (`User`, `Audit`, `LanguageCode`, `POI`, `POITranslation`, `Transaction`, `VisitorSession`, and `POITrigger`).
+* **Node: Media Server (Supabase Storage)**  
+  Runs a `Cloud Storage CDN` execution environment hosting the `museum-media Bucket` artifact for persistent `.mp3` narration audio and exhibit cover images.
+
+#### Tier 3: External Services (`<<node>>`)
+Third-party services consumed over HTTPS:
+* **Render Translation API:** Primary translation service (tier 1) for translating Vietnamese exhibit content into target languages, kept warm via periodic `/health` pings.
+* **OpenRouter AI:** Fallback translation provider (tier 2, `openrouter/free`) triggered when the primary translation service times out or fails.
+* **Microsoft Edge-TTS:** Cloud neural text-to-speech engine generating multilingual `.mp3` narration files.
+* **PayOS / VietQR:** Payment gateway generating dynamic VietQR checkouts and delivering signed payment confirmation webhooks to the Backend Server.
+* **OpenStreetMap & OSRM:** OpenStreetMap serves map tiles directly to `Visitor Mobile`, while OSRM computes pedestrian walking routes for the Backend Server.
+
+### Communication Paths
+
+| Source | Target | Protocol & Label | Purpose |
+| :--- | :--- | :--- | :--- |
+| Visitor Mobile | Frontend Server | `<<HTTPS>> Load Visitor Web` | Download visitor web application assets. |
+| Admin PC | Frontend Server | `<<HTTPS>> Load Admin Web` | Download admin portal application assets. |
+| Visitor Mobile | Backend Server | `<<HTTPS>> REST API` | Fetch POIs, create checkout orders, restore 24h sessions, log GPS triggers, and authorize audio playback. |
+| Admin PC | Backend Server | `<<HTTPS>> REST API` | Authenticate admins, manage POIs and translations, upload images, view analytics, and clean orphan files. |
+| Visitor Mobile | Media Server | `<<HTTPS>> Stream Audio & Images` | Stream `.mp3` narrations and load exhibit cover images directly from CDN. |
+| Visitor Mobile | OpenStreetMap & OSRM | `<<HTTPS>> Load Map Tiles` | Render outdoor OpenStreetMap map tiles on the visitor map. |
+| Backend Server | Database Server | `<<MySQL / TLS>> Query Data` | Read and write relational records in `smart_museum` over TLS. |
+| Backend Server | Media Server | `<<HTTPS>> Upload / Delete Media` | Upload generated `.mp3` files and cover photos, and delete unreferenced orphan files. |
+| Backend Server | Render Translation API | `<<HTTPS>> Translate & Health Ping` | Submit primary translation requests and periodic `/health` keep-alive checks. |
+| Backend Server | OpenRouter AI | `<<HTTPS>> Fallback Translate` | Execute fallback AI translation when the primary provider is unavailable. |
+| Backend Server | Microsoft Edge-TTS | `<<HTTPS>> Generate MP3 Audio` | Synthesize multilingual narration audio files. |
+| Backend Server | PayOS / VietQR | `<<HTTPS>> Checkout & Webhook` | Initialize payment orders and receive payment confirmation webhooks. |
+| Backend Server | OpenStreetMap & OSRM | `<<HTTPS>> Walking Route` | Query walking route geometry and distance between visitor location and target POI. |
+
+
 
