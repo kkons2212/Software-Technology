@@ -2,7 +2,7 @@
 ## Predictable Control Flow, Explicit Execution & Single Intent Structured Exit (SISE)
 ### Focus: Backend Layer 2 (Services) & Layer 3 (Repositories / Integrations) with Layer 1 Compatibility
 ### Project: Smart Multilingual Audio Guide & Interactive Map — Cu Chi Tunnels Historical Relic Site
-*Refactoring task breakdown mapped 1-to-1 against `documents/refactor_rule.md` and `documents/tasks.md`. Specifically targeting Layer 2 (Business Logic Services) and Layer 3 (Data Access Repositories & External Integrations), freezing Layer 1 (Controllers/API Contracts), and concurrently refactoring corresponding unit test suites to guarantee zero regression and mathematical predictability ($M \le 6, K \le 2$).*
+*Refactoring task breakdown mapped 1-to-1 against [`refactor-rules.md`](../03-guidelines/refactor-rules.md) and [`tasks.md`](./tasks.md). Specifically targeting Layer 2 (Business Logic Services) and Layer 3 (Data Access Repositories & External Integrations), freezing Layer 1 (Controllers/API Contracts), and concurrently refactoring corresponding unit test suites to guarantee zero regression and mathematical predictability ($M \le 6, K \le 2$).*
 
 ---
 
@@ -23,7 +23,7 @@
 
 ## 📐 2. REFACTORING QUANTITATIVE GATES & DEFINITION OF DONE (DoD)
 
-Every refactoring task in this backlog must strictly comply with the quantitative gates established in `documents/refactor_rule.md` and the Layer 1 Invariant Guarantee:
+Every refactoring task in this backlog must strictly comply with the quantitative gates established in [`refactor-rules.md`](../03-guidelines/refactor-rules.md) and the Layer 1 Invariant Guarantee:
 
 ### 2.1. Mathematical Metric Gates for Production Code
 1. **Max Exit Points ($K$):** $K \le 2$ per function/method (at most 1 top-of-scope validation rejection gate, and strictly 1 unified return).

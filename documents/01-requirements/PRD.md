@@ -85,7 +85,7 @@ At the executive operational tier, the Visitor Telemetry & Infrastructure Health
 
 > [!TIP]
 > **Complete Engineering Task Breakdown & Matrix:**
-> For the standalone engineering Work Breakdown Structure (WBS), including layer assignments (Backend, Frontend, Database, DevOps), Story Points, priority rankings, interactive task checklists, and 1-to-1 Unit Test Definition of Done mappings, refer to [tasks.md].
+> For the standalone engineering Work Breakdown Structure (WBS), including layer assignments (Backend, Frontend, Database, DevOps), Story Points, priority rankings, interactive task checklists, and 1-to-1 Unit Test Definition of Done mappings, refer to [tasks.md](../05-tasks-and-sprints/tasks.md).
 
 ## Theme 1: System Governance, Security & Access Control
 
