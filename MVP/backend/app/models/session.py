@@ -35,7 +35,6 @@ class VisitorSession(Base):
     SessionToken = Column(
         String(255), unique=True, nullable=False, default=lambda: uuid.uuid4().hex
     )
-    DeviceFingerPrint = Column(String(255), nullable=True)
     Status = Column(String(255), nullable=False, default="ACTIVE")
     Activate_at = Column(DateTime, nullable=False, default=func.now())
     Expire_at = Column(DateTime, nullable=False, default=get_default_expire_at)
@@ -59,7 +58,6 @@ class VisitorSession(Base):
     session_id = synonym("SessionID")
     session_code = synonym("SessionCode")
     session_token = synonym("SessionToken")
-    device_fingerprint = synonym("DeviceFingerPrint")
     status = synonym("Status")
     activate_at = synonym("Activate_at")
     expire_at = synonym("Expire_at")
