@@ -2,7 +2,7 @@
 
 Welcome to the **Auto_Translate Live API** documentation. This service is a public, ultra-lightweight neural translation API designed to translate **Vietnamese into any major world language** with low latency and minimal resource overhead.
 
-External applications (web apps, mobile apps, Discord/Telegram bots, background workers, microservices) can connect directly to this live endpoint **without setting up or deploying any code**.
+External applications (web apps, mobile apps, chat services, background workers, microservices) can connect directly to this live endpoint **without setting up or deploying any code**.
 
 ---
 
@@ -299,7 +299,7 @@ result = translate("Dự án này chạy rất ổn định và tiết kiệm t�
 print("Translated:", result)
 ```
 
-#### Asynchronous with `httpx` (FastAPI, Discord/Telegram bots):
+#### Asynchronous with `httpx` (FastAPI, async workers):
 ```python
 import httpx
 

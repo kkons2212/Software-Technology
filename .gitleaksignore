@@ -1,3 +1,4 @@
 # Gitleaks ignore list
 # Format: [commit-hash]:[file-path]:[rule-id]:[line-number]
 3bbb0b62fc852d832522d245c9df324ef8ec6345:MVP/docker-compose.yml:generic-api-key:37
+0ffc19a7f6ac28ed092db815a79bf962cb56924b:documents/04-infrastructure-and-setup/Translation-Setup.md:generic-api-key:302
