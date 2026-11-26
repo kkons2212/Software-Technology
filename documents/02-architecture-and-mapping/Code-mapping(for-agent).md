@@ -1,6 +1,6 @@
 # Codebase Mapping: Agent Fast-Pinpoint Reference (Cu Chi Tunnels Smart Audio Guide)
 
-> **Scope:** Single-read map (< 44 KB). Active `MVP/` wired into [`main.py`](../MVP/backend/app/main.py#L116) & [`App.jsx`](../MVP/frontend/src/App.jsx#L60); stubs/wrappers excluded.  
+> **Scope:** Single-read map (< 44 KB). Active `MVP/` wired into [`main.py`](../../MVP/backend/app/main.py#L116) & [`App.jsx`](../../MVP/frontend/src/App.jsx#L60); stubs/wrappers excluded.  
 > **Aliases:** `BE/`=`MVP/backend/app/`, `FE/`=`MVP/frontend/src/`, `T_BE/`=`MVP/backend/tests/unit/`, `T_FE/`=`MVP/frontend/src/` (`**/__tests__/`).
 
 ---
@@ -11,36 +11,36 @@
 
 | Symptom / HTTP / Error Code | Root Location (File + Symbol) | Primary Fix / Check Target |
 |---|---|---|
-| `423 ACCOUNT_LOCKED` / brute-force lockout | [`auth_service.py#L54`](../MVP/backend/app/services/auth_service.py#L54) (`MAX_FAILED_ATTEMPTS=5`, `LOCKOUT_DURATION_MINUTES=15`) | `BE/services/auth_service.py`, `FE/components/admin/AccountLockoutModal.jsx` |
-| `401 UNAUTHENTICATED` / JWT rejected after logout | [`auth_service.py#L242`](../MVP/backend/app/services/auth_service.py#L242) (`_is_token_revoked`), [`dependencies.py#L73`](../MVP/backend/app/core/dependencies.py#L73) | `BE/core/security.py`, `Audit` (`ADMIN_LOGOUT` timestamp) |
-| `400 GEO_OUT_OF_BOUNDS` on POI create/edit | [`poi_service.py#L58`](../MVP/backend/app/services/poi_service.py#L58) (`_is_within_cu_chi_bounds`), [`config.py#L148`](../MVP/backend/app/core/config.py#L148) (`CU_CHI_BOUNDS`) | Set `ALLOW_GLOBAL_COORDINATES=True` or update `CU_CHI_BOUNDS` + `FE/utils/museumBounds.js` |
-| Image upload rejected (`<= 5 MB`, MIME/Pillow) | [`poi_service.py#L88`](../MVP/backend/app/services/poi_service.py#L88) (`validate_image_file`), [`config.py#L91`](../MVP/backend/app/core/config.py#L91) | `BE/integrations/storage_client.py`, `BE/controllers/admin_poi_controller.py` |
-| Broken `/static/images/` or `/api/v1/media/poi-images/` | [`media_controller.py#L26`](../MVP/backend/app/controllers/media_controller.py#L26) (`get_poi_image`), [`main.py#L140`](../MVP/backend/app/main.py#L140) | Check `STATIC_DIR`, `SUPABASE_URL`, `X-Content-Type-Options: nosniff` |
-| Translation stuck `PENDING` / `FAILED` | [`pipeline_queue.py#L48`](../MVP/backend/app/services/pipeline_queue.py#L48), [`deep_translator_client.py#L34`](../MVP/backend/app/integrations/deep_translator_client.py#L34) | Render wake-up (`110s`) -> OpenRouter keys (`401/402/403/429` rotation) |
-| Publish blocked (`NEEDS_UPDATE` / audio not `READY`) | [`translation_service.py#L172`](../MVP/backend/app/services/translation_service.py#L172) (`publish_translation`) | Must call `POST /admin/translations/{id}/regenerate-audio` before publish |
-| `401 INVALID_WEBHOOK_SIGNATURE` (PayOS) | [`payment_service.py#L586`](../MVP/backend/app/services/payment_service.py#L586) (`verify_payos_webhook_signature`) | Verify `PAYOS_CHECKSUM_KEY` and exact `PayAmount`/`Currency` match |
-| `404` on `/simulate-success` or `/paypal-checkout` | [`payment_controller.py#L75`](../MVP/backend/app/controllers/payment_controller.py#L75), [`config.py#L141`](../MVP/backend/app/core/config.py#L141) | `is_payment_simulation_allowed` requires `ENVIRONMENT=development` or `ENABLE_PAYMENT_SIMULATION=True` |
-| `404 SESSION_NOT_FOUND` or `429` on PIN restore | [`session_service.py#L16`](../MVP/backend/app/services/session_service.py#L16), [`session_restore_rate_limit.py#L9`](../MVP/backend/app/core/session_restore_rate_limit.py#L9) | `5` attempts / `60s` per IP & per `CCT-` code; 24h TTL in `VisitorSession.Expire_at` |
-| `403 CONTENT_LOCKED` / `404 AUDIO_NOT_FOUND` | [`audio_service.py#L34`](../MVP/backend/app/services/audio_service.py#L34), [`audio_repository.py#L145`](../MVP/backend/app/repositories/audio_repository.py#L145) | Check `token` / `X-Session-Token` / `Bearer`; audio falls back to `vi` if missing |
-| Geofence auto-play not firing repeatedly | [`cooldownService.js#L9`](../MVP/frontend/src/services/cooldownService.js#L9) (`DEFAULT_COOLDOWN_DURATION_MS=600000`), [`useGeofenceTrigger.js#L29`](../MVP/frontend/src/hooks/useGeofenceTrigger.js#L29) | 10-minute `localStorage` lock (`poi_cooldown_*`), radius clamped `10m–50m` |
-| Walking route slow or straight-line fallback | [`wayfinding_service.py#L106`](../MVP/backend/app/services/wayfinding_service.py#L106) (`_resolve_route_coordinates`) | Bypass `<= 35m`, OSRM `0.8s` timeout, Haversine fallback |
-| `/qr` link points to `localhost` or wrong origin | [`config.py#L207`](../MVP/backend/app/core/config.py#L207) (`resolve_base_url`), [`system_controller.py#L80`](../MVP/backend/app/controllers/system_controller.py#L80) | Set `BASE_URL` or `CLOUDFLARE_TUNNEL_URL` in `MVP/backend/.env` |
-| Storage `WARNING` (`>=85%`) / `CRITICAL` (`>=95%`) | [`storage_service.py#L24`](../MVP/backend/app/services/storage_service.py#L24), [`config.py#L93`](../MVP/backend/app/core/config.py#L93) (`STORAGE_QUOTA_BYTES=1GB`) | Run `POST /api/v1/admin/storage/clean-orphans` (`1/5minute`) |
+| `423 ACCOUNT_LOCKED` / brute-force lockout | [`auth_service.py#L54`](../../MVP/backend/app/services/auth_service.py#L54) (`MAX_FAILED_ATTEMPTS=5`, `LOCKOUT_DURATION_MINUTES=15`) | `BE/services/auth_service.py`, `FE/components/admin/AccountLockoutModal.jsx` |
+| `401 UNAUTHENTICATED` / JWT rejected after logout | [`auth_service.py#L242`](../../MVP/backend/app/services/auth_service.py#L242) (`_is_token_revoked`), [`dependencies.py#L73`](../../MVP/backend/app/core/dependencies.py#L73) | `BE/core/security.py`, `Audit` (`ADMIN_LOGOUT` timestamp) |
+| `400 GEO_OUT_OF_BOUNDS` on POI create/edit | [`poi_service.py#L58`](../../MVP/backend/app/services/poi_service.py#L58) (`_is_within_cu_chi_bounds`), [`config.py#L148`](../../MVP/backend/app/core/config.py#L148) (`CU_CHI_BOUNDS`) | Set `ALLOW_GLOBAL_COORDINATES=True` or update `CU_CHI_BOUNDS` + `FE/utils/museumBounds.js` |
+| Image upload rejected (`<= 5 MB`, MIME/Pillow) | [`poi_service.py#L88`](../../MVP/backend/app/services/poi_service.py#L88) (`validate_image_file`), [`config.py#L91`](../../MVP/backend/app/core/config.py#L91) | `BE/integrations/storage_client.py`, `BE/controllers/admin_poi_controller.py` |
+| Broken `/static/images/` or `/api/v1/media/poi-images/` | [`media_controller.py#L26`](../../MVP/backend/app/controllers/media_controller.py#L26) (`get_poi_image`), [`main.py#L140`](../../MVP/backend/app/main.py#L140) | Check `STATIC_DIR`, `SUPABASE_URL`, `X-Content-Type-Options: nosniff` |
+| Translation stuck `PENDING` / `FAILED` | [`pipeline_queue.py#L48`](../../MVP/backend/app/services/pipeline_queue.py#L48), [`deep_translator_client.py#L34`](../../MVP/backend/app/integrations/deep_translator_client.py#L34) | Render wake-up (`110s`) -> OpenRouter keys (`401/402/403/429` rotation) |
+| Publish blocked (`NEEDS_UPDATE` / audio not `READY`) | [`translation_service.py#L172`](../../MVP/backend/app/services/translation_service.py#L172) (`publish_translation`) | Must call `POST /admin/translations/{id}/regenerate-audio` before publish |
+| `401 INVALID_WEBHOOK_SIGNATURE` (PayOS) | [`payment_service.py#L586`](../../MVP/backend/app/services/payment_service.py#L586) (`verify_payos_webhook_signature`) | Verify `PAYOS_CHECKSUM_KEY` and exact `PayAmount`/`Currency` match |
+| `404` on `/simulate-success` or `/paypal-checkout` | [`payment_controller.py#L75`](../../MVP/backend/app/controllers/payment_controller.py#L75), [`config.py#L141`](../../MVP/backend/app/core/config.py#L141) | `is_payment_simulation_allowed` requires `ENVIRONMENT=development` or `ENABLE_PAYMENT_SIMULATION=True` |
+| `404 SESSION_NOT_FOUND` or `429` on PIN restore | [`session_service.py#L16`](../../MVP/backend/app/services/session_service.py#L16), [`session_restore_rate_limit.py#L9`](../../MVP/backend/app/core/session_restore_rate_limit.py#L9) | `5` attempts / `60s` per IP & per `CCT-` code; 24h TTL in `VisitorSession.Expire_at` |
+| `403 CONTENT_LOCKED` / `404 AUDIO_NOT_FOUND` | [`audio_service.py#L34`](../../MVP/backend/app/services/audio_service.py#L34), [`audio_repository.py#L145`](../../MVP/backend/app/repositories/audio_repository.py#L145) | Check `token` / `X-Session-Token` / `Bearer`; audio falls back to `vi` if missing |
+| Geofence auto-play not firing repeatedly | [`cooldownService.js#L9`](../../MVP/frontend/src/services/cooldownService.js#L9) (`DEFAULT_COOLDOWN_DURATION_MS=600000`), [`useGeofenceTrigger.js#L29`](../../MVP/frontend/src/hooks/useGeofenceTrigger.js#L29) | 10-minute `localStorage` lock (`poi_cooldown_*`), radius clamped `10m–50m` |
+| Walking route slow or straight-line fallback | [`wayfinding_service.py#L106`](../../MVP/backend/app/services/wayfinding_service.py#L106) (`_resolve_route_coordinates`) | Bypass `<= 35m`, OSRM `0.8s` timeout, Haversine fallback |
+| `/qr` link points to `localhost` or wrong origin | [`config.py#L207`](../../MVP/backend/app/core/config.py#L207) (`resolve_base_url`), [`system_controller.py#L80`](../../MVP/backend/app/controllers/system_controller.py#L80) | Set `BASE_URL` or `CLOUDFLARE_TUNNEL_URL` in `MVP/backend/.env` |
+| Storage `WARNING` (`>=85%`) / `CRITICAL` (`>=95%`) | [`storage_service.py#L24`](../../MVP/backend/app/services/storage_service.py#L24), [`config.py#L93`](../../MVP/backend/app/core/config.py#L93) (`STORAGE_QUOTA_BYTES=1GB`) | Run `POST /api/v1/admin/storage/clean-orphans` (`1/5minute`) |
 
-### 1.2 UI Route -> Page & Components ([`App.jsx`](../MVP/frontend/src/App.jsx#L19))
+### 1.2 UI Route -> Page & Components ([`App.jsx`](../../MVP/frontend/src/App.jsx#L19))
 
 | Route Path | View Component | Key Child Components / Contexts | Module |
 |---|---|---|---|
-| `/`, `/visitor`, `/tour` | [`VisitorTourPage.jsx`](../MVP/frontend/src/views/visitor/VisitorTourPage.jsx#L70) | `VisitorHeader`, `VisitorMapView`, `VisitorPoiMarkers`, `VisitorLocationMarker`, `RouteOverlay`, `PoiPreviewCard`, `ContentPaywallGate`, `MiniAudioPlayer`, `CheckoutModal`, `RestoreSessionModal`, `VisitorSessionContext`, `AudioPlayerContext` | [5.0](#module-50-interactive-map-gps-geofencing--osrm-wayfinding) & [4.0](#module-40-digital-admission-payment--24h-visitor-session) |
-| `/visitor/checkout/success` | [`CheckoutSuccessPage.jsx`](../MVP/frontend/src/views/visitor/CheckoutSuccessPage.jsx#L1) | `usePaymentPolling`, `VisitorSessionContext` | [4.0](#module-40-digital-admission-payment--24h-visitor-session) |
-| `/qr` | [`QRCodePage.jsx`](../MVP/frontend/src/views/QRCodePage.jsx#L29) | `systemApi.getPublicSystemConfig` | [5.0](#module-50-interactive-map-gps-geofencing--osrm-wayfinding) |
-| `/admin/login` | [`AdminLoginView.jsx`](../MVP/frontend/src/views/admin/AdminLoginView.jsx#L34) | `AccountLockoutModal`, `AuthContext` | [1.0](#module-10-administrative-authentication--session-security) |
-| `/admin`, `/admin/analytics` | [`AnalyticsDashboard.jsx`](../MVP/frontend/src/views/admin/AnalyticsDashboard.jsx#L52) | `AdminRouteGuard`, `AdminLayout`, `AdminNavbar`, `AnalyticsHeatmap`, `AnalyticsExport` | [6.0](#module-60-operational-telemetry-density-heatmap--system-health) |
-| `/admin/pois` | [`PoiCatalogPage.jsx`](../MVP/frontend/src/views/admin/PoiCatalogPage.jsx#L20) | `POIFormModal`, `DeactivateConfirmModal`, `AdminMapPicker` | [2.0](#module-20-exhibition-catalog--spatial-geofence-management) |
-| `/admin/geofence`, `/admin/pois/:id/geofence` | [`GeofenceCalibPage.jsx`](../MVP/frontend/src/views/admin/GeofenceCalibPage.jsx#L24) | `AdminMapPicker` | [2.0](#module-20-exhibition-catalog--spatial-geofence-management) |
-| `/admin/translations` | [`TranslationPage.jsx`](../MVP/frontend/src/views/admin/TranslationPage.jsx#L7) | `TranslationAuditView`, `AudioSyncBadge`, `AudioAuditPlayer`, `RegenerateAudioButton` | [3.0](#module-30-multilingual-translation--edge-tts-audio-pipeline) |
-| `/admin/health` | [`SystemHealthPage.jsx`](../MVP/frontend/src/views/admin/SystemHealthPage.jsx#L7) | `StorageHealthBanner`, `CleanOrphansModal` | [6.0](#module-60-operational-telemetry-density-heatmap--system-health) |
-| `*` | [`NotFoundPage.jsx`](../MVP/frontend/src/views/NotFoundPage.jsx#L3) | Fallback 404 page | [Core](#core--shared-infrastructure) |
+| `/`, `/visitor`, `/tour` | [`VisitorTourPage.jsx`](../../MVP/frontend/src/views/visitor/VisitorTourPage.jsx#L70) | `VisitorHeader`, `VisitorMapView`, `VisitorPoiMarkers`, `VisitorLocationMarker`, `RouteOverlay`, `PoiPreviewCard`, `ContentPaywallGate`, `MiniAudioPlayer`, `CheckoutModal`, `RestoreSessionModal`, `VisitorSessionContext`, `AudioPlayerContext` | [5.0](#module-50-interactive-map-gps-geofencing--osrm-wayfinding) & [4.0](#module-40-digital-admission-payment--24h-visitor-session) |
+| `/visitor/checkout/success` | [`CheckoutSuccessPage.jsx`](../../MVP/frontend/src/views/visitor/CheckoutSuccessPage.jsx#L1) | `usePaymentPolling`, `VisitorSessionContext` | [4.0](#module-40-digital-admission-payment--24h-visitor-session) |
+| `/qr` | [`QRCodePage.jsx`](../../MVP/frontend/src/views/QRCodePage.jsx#L29) | `systemApi.getPublicSystemConfig` | [5.0](#module-50-interactive-map-gps-geofencing--osrm-wayfinding) |
+| `/admin/login` | [`AdminLoginView.jsx`](../../MVP/frontend/src/views/admin/AdminLoginView.jsx#L34) | `AccountLockoutModal`, `AuthContext` | [1.0](#module-10-administrative-authentication--session-security) |
+| `/admin`, `/admin/analytics` | [`AnalyticsDashboard.jsx`](../../MVP/frontend/src/views/admin/AnalyticsDashboard.jsx#L52) | `AdminRouteGuard`, `AdminLayout`, `AdminNavbar`, `AnalyticsHeatmap`, `AnalyticsExport` | [6.0](#module-60-operational-telemetry-density-heatmap--system-health) |
+| `/admin/pois` | [`PoiCatalogPage.jsx`](../../MVP/frontend/src/views/admin/PoiCatalogPage.jsx#L20) | `POIFormModal`, `DeactivateConfirmModal`, `AdminMapPicker` | [2.0](#module-20-exhibition-catalog--spatial-geofence-management) |
+| `/admin/geofence`, `/admin/pois/:id/geofence` | [`GeofenceCalibPage.jsx`](../../MVP/frontend/src/views/admin/GeofenceCalibPage.jsx#L24) | `AdminMapPicker` | [2.0](#module-20-exhibition-catalog--spatial-geofence-management) |
+| `/admin/translations` | [`TranslationPage.jsx`](../../MVP/frontend/src/views/admin/TranslationPage.jsx#L7) | `TranslationAuditView`, `AudioSyncBadge`, `AudioAuditPlayer`, `RegenerateAudioButton` | [3.0](#module-30-multilingual-translation--edge-tts-audio-pipeline) |
+| `/admin/health` | [`SystemHealthPage.jsx`](../../MVP/frontend/src/views/admin/SystemHealthPage.jsx#L7) | `StorageHealthBanner`, `CleanOrphansModal` | [6.0](#module-60-operational-telemetry-density-heatmap--system-health) |
+| `*` | [`NotFoundPage.jsx`](../../MVP/frontend/src/views/NotFoundPage.jsx#L3) | Fallback 404 page | [Core](#core--shared-infrastructure) |
 
 ### 1.3 Module & DFD / UC Jump Table
 
@@ -108,19 +108,19 @@ BE (FastAPI):  main.py (14 routers) -> controllers/ -> services/ + workers -> re
 | 6.0 | `POST /api/v1/admin/storage/clean-orphans` | Admin / `1/5m` | `system_controller` -> `StorageService.prune_orphaned_audio_files` | `CleanOrphansResponse` |
 | 6.0 | `GET /health` | Pub / Def | `main` (`health_check`) | `{"status": "ok"}` |
 
-### 2.3 Service-to-Repository-to-DB Matrix ([`mysql_schema.sql`](../MVP/backend/scripts/mysql_schema.sql#L23))
+### 2.3 Service-to-Repository-to-DB Matrix ([`mysql_schema.sql`](../../MVP/backend/scripts/mysql_schema.sql#L23))
 
 | Repository | ORM (`BE/models/`) | MySQL Table | Consuming Services & FKs |
 |---|---|---|---|
-| [`user_repository.py`](../MVP/backend/app/repositories/user_repository.py#L15) | `user.py` | `User` | `AuthService`; parent of `Audit`, `POI`, `POITranslation` |
-| [`audit_repository.py`](../MVP/backend/app/repositories/audit_repository.py#L17) | `audit.py` | `Audit` | `AuthService`, `POIService`, `TranslationService`, `StorageService`; FK `UserName -> User` (`RESTRICT`) |
-| [`language_repository.py`](../MVP/backend/app/repositories/language_repository.py#L13) | `language.py` | `LanguageCode` | `LanguageService`, `POIService`, `TranslationPipelineService` (`vi, en, ja, ko, zh, fr`) |
-| [`poi_repository.py`](../MVP/backend/app/repositories/poi_repository.py#L12) | `poi.py` | `POI` | `POIService`, `WayfindingService`, `Translation*`, `StorageService`; FK `Create_by -> User` (`SET NULL`) |
-| [`translation_repository.py`](../MVP/backend/app/repositories/translation_repository.py#L9) | `translation.py` | `POITranslation` | `TranslationService`, `TranslationPipelineService`, `TranslationWorker`, `AudioSynthesisWorker`; FKs `PoiID`, `LanguageID`, `Review_by` (`RESTRICT`) |
-| [`audio_repository.py`](../MVP/backend/app/repositories/audio_repository.py#L13) | `audio.py` | `POITranslation` (Audio) | `AudioService`, `TTSService`, `AudioSynthesisWorker`, `StorageService`; `POIAudio` dataclass over `Audio_url`, `Duration`, `File_size` |
-| [`transaction_repository.py`](../MVP/backend/app/repositories/transaction_repository.py#L14) | `transaction.py` | `Transaction` | `PaymentService`; parent of `VisitorSession` (`TransactionID`) |
-| [`session_repository.py`](../MVP/backend/app/repositories/session_repository.py#L12) | `session.py` | `VisitorSession` | `SessionService`, `PaymentService`, `AudioService`, `POIService`; FKs `PreferredLanguage`, `TransactionID` (`RESTRICT`) |
-| [`telemetry_repository.py`](../MVP/backend/app/repositories/telemetry_repository.py#L15) | `trigger.py` | `POITrigger` | `TelemetryService`, `ExportService`; FKs `SessionID -> VisitorSession`, `PoiID -> POI` (`RESTRICT`) |
+| [`user_repository.py`](../../MVP/backend/app/repositories/user_repository.py#L15) | `user.py` | `User` | `AuthService`; parent of `Audit`, `POI`, `POITranslation` |
+| [`audit_repository.py`](../../MVP/backend/app/repositories/audit_repository.py#L17) | `audit.py` | `Audit` | `AuthService`, `POIService`, `TranslationService`, `StorageService`; FK `UserName -> User` (`RESTRICT`) |
+| [`language_repository.py`](../../MVP/backend/app/repositories/language_repository.py#L13) | `language.py` | `LanguageCode` | `LanguageService`, `POIService`, `TranslationPipelineService` (`vi, en, ja, ko, zh, fr`) |
+| [`poi_repository.py`](../../MVP/backend/app/repositories/poi_repository.py#L12) | `poi.py` | `POI` | `POIService`, `WayfindingService`, `Translation*`, `StorageService`; FK `Create_by -> User` (`SET NULL`) |
+| [`translation_repository.py`](../../MVP/backend/app/repositories/translation_repository.py#L9) | `translation.py` | `POITranslation` | `TranslationService`, `TranslationPipelineService`, `TranslationWorker`, `AudioSynthesisWorker`; FKs `PoiID`, `LanguageID`, `Review_by` (`RESTRICT`) |
+| [`audio_repository.py`](../../MVP/backend/app/repositories/audio_repository.py#L13) | `audio.py` | `POITranslation` (Audio) | `AudioService`, `TTSService`, `AudioSynthesisWorker`, `StorageService`; `POIAudio` dataclass over `Audio_url`, `Duration`, `File_size` |
+| [`transaction_repository.py`](../../MVP/backend/app/repositories/transaction_repository.py#L14) | `transaction.py` | `Transaction` | `PaymentService`; parent of `VisitorSession` (`TransactionID`) |
+| [`session_repository.py`](../../MVP/backend/app/repositories/session_repository.py#L12) | `session.py` | `VisitorSession` | `SessionService`, `PaymentService`, `AudioService`, `POIService`; FKs `PreferredLanguage`, `TransactionID` (`RESTRICT`) |
+| [`telemetry_repository.py`](../../MVP/backend/app/repositories/telemetry_repository.py#L15) | `trigger.py` | `POITrigger` | `TelemetryService`, `ExportService`; FKs `SessionID -> VisitorSession`, `PoiID -> POI` (`RESTRICT`) |
 
 ---
 
@@ -143,8 +143,8 @@ BE (FastAPI):  main.py (14 routers) -> controllers/ -> services/ + workers -> re
 - **VAL-AUTH-01..02:** `AdminLoginRequest.username` (`1..255` trimmed; DB `User.UserName` max `20`), `password` (`1..128` byte-exact); `JWT_SECRET_KEY` (`64` hex chars); login rate limit `5/minute`.
 
 ### 1.3 Quick-Fix Spots & Change Impact
-- **Lockout threshold (`5`) & duration (`15m`):** [`auth_service.py#L54`](../MVP/backend/app/services/auth_service.py#L54) & [`AccountLockoutModal.jsx#L11`](../MVP/frontend/src/components/admin/AccountLockoutModal.jsx#L11).
-- **JWT expiry (`60m`), idle timeout (`30m`), cookie `Secure`, rate limit (`5/minute`):** [`config.py#L64`](../MVP/backend/app/core/config.py#L64), [`auth_controller.py#L55`](../MVP/backend/app/controllers/auth_controller.py#L55), [`useIdleTimer.js#L41`](../MVP/frontend/src/hooks/useIdleTimer.js#L41).
+- **Lockout threshold (`5`) & duration (`15m`):** [`auth_service.py#L54`](../../MVP/backend/app/services/auth_service.py#L54) & [`AccountLockoutModal.jsx#L11`](../../MVP/frontend/src/components/admin/AccountLockoutModal.jsx#L11).
+- **JWT expiry (`60m`), idle timeout (`30m`), cookie `Secure`, rate limit (`5/minute`):** [`config.py#L64`](../../MVP/backend/app/core/config.py#L64), [`auth_controller.py#L55`](../../MVP/backend/app/controllers/auth_controller.py#L55), [`useIdleTimer.js#L41`](../../MVP/frontend/src/hooks/useIdleTimer.js#L41).
 - **Change Impact:** UI (`AdminLoginView`, `AccountLockoutModal`, `AdminNavbar`, `adminTranslations.js`) | Validation (`auth_schema.py`, `AdminLoginView`) | Rules (`auth_service.py`, `config.py`, `security.py`) | DB (`mysql_schema.sql`, `user.py`, `audit.py`, `user_repository.py`, `audit_repository.py`).
 
 ---
@@ -170,10 +170,10 @@ BE (FastAPI):  main.py (14 routers) -> controllers/ -> services/ + workers -> re
 - **VAL-POI-01:** `title` (`1..255`), `short_description` (`<= 255`), `latitude` (`-90..90`), `longitude` (`-180..180`), `radius` (`10..50`, default `30`); `POIUpdateRequest` requires `>= 1` non-null field.
 
 ### 2.3 Quick-Fix Spots & Change Impact
-- **Title / short description limits (`255`):** [`poi_schema.py#L91`](../MVP/backend/app/schemas/poi_schema.py#L91), [`poi_schema.py#L163`](../MVP/backend/app/schemas/poi_schema.py#L163), [`POIFormModal.jsx#L150`](../MVP/frontend/src/components/admin/POIFormModal.jsx#L150), [`PoiCatalogPage.jsx#L159`](../MVP/frontend/src/views/admin/PoiCatalogPage.jsx#L159).
-- **Radius range (`10m–50m`) & default (`30`):** [`poi_schema.py#L13`](../MVP/backend/app/schemas/poi_schema.py#L13), [`mysql_schema.sql#L85`](../MVP/backend/scripts/mysql_schema.sql#L85), [`AdminMapPicker.jsx#L59`](../MVP/frontend/src/components/admin/AdminMapPicker.jsx#L59).
-- **Cu Chi bounds & image upload rules (`5 MB`):** [`config.py#L91`](../MVP/backend/app/core/config.py#L91), [`config.py#L148`](../MVP/backend/app/core/config.py#L148), [`museumBounds.js#L6`](../MVP/frontend/src/utils/museumBounds.js#L6), [`poi_service.py#L58`](../MVP/backend/app/services/poi_service.py#L58).
-- **Integration:** [`StorageClient.upload_image_file`](../MVP/backend/app/integrations/storage_client.py#L174) (Supabase `museum-media` or local `/static/images`).
+- **Title / short description limits (`255`):** [`poi_schema.py#L91`](../../MVP/backend/app/schemas/poi_schema.py#L91), [`poi_schema.py#L163`](../../MVP/backend/app/schemas/poi_schema.py#L163), [`POIFormModal.jsx#L150`](../../MVP/frontend/src/components/admin/POIFormModal.jsx#L150), [`PoiCatalogPage.jsx#L159`](../../MVP/frontend/src/views/admin/PoiCatalogPage.jsx#L159).
+- **Radius range (`10m–50m`) & default (`30`):** [`poi_schema.py#L13`](../../MVP/backend/app/schemas/poi_schema.py#L13), [`mysql_schema.sql#L85`](../../MVP/backend/scripts/mysql_schema.sql#L85), [`AdminMapPicker.jsx#L59`](../../MVP/frontend/src/components/admin/AdminMapPicker.jsx#L59).
+- **Cu Chi bounds & image upload rules (`5 MB`):** [`config.py#L91`](../../MVP/backend/app/core/config.py#L91), [`config.py#L148`](../../MVP/backend/app/core/config.py#L148), [`museumBounds.js#L6`](../../MVP/frontend/src/utils/museumBounds.js#L6), [`poi_service.py#L58`](../../MVP/backend/app/services/poi_service.py#L58).
+- **Integration:** [`StorageClient.upload_image_file`](../../MVP/backend/app/integrations/storage_client.py#L174) (Supabase `museum-media` or local `/static/images`).
 - **Change Impact:** UI (`PoiCatalogPage`, `POIFormModal`, `GeofenceCalibPage`, `AdminMapPicker`) | Bounds/Schema (`poi_schema.py`, `config.py`, `museumBounds.js`, `mysql_schema.sql`) | Logic (`poi_service.py`, `poi_repository.py`, `poi.py`, `poiApi.js`).
 
 ---
@@ -197,11 +197,11 @@ BE (FastAPI):  main.py (14 routers) -> controllers/ -> services/ + workers -> re
 - **VAL-TRANS-01:** `TranslationUpdateRequest`: `title` (`1..255`), `short_description` (`<= 1000`), DB statuses `PENDING | DRAFT | NEEDS_UPDATE | PUBLISHED | FAILED`.
 
 ### 3.3 Quick-Fix Spots & Change Impact
-- **Render chunk size (`500`) & OpenRouter rotation codes:** [`deep_translator_client.py#L18`](../MVP/backend/app/integrations/deep_translator_client.py#L18).
-- **Timeouts, model, concurrency (`1`), keep-alive (`600s`):** [`config.py#L121`](../MVP/backend/app/core/config.py#L121).
-- **TTS voice mappings:** [`edge_tts_client.py#L59`](../MVP/backend/app/integrations/edge_tts_client.py#L59) (`VOICE_BY_LANGUAGE`, `FALLBACK_VOICE_BY_LANGUAGE`).
-- **Publish lock & `NEEDS_UPDATE` transition:** [`translation_service.py#L116`](../MVP/backend/app/services/translation_service.py#L116) & [`translation_service.py#L172`](../MVP/backend/app/services/translation_service.py#L172).
-- **Audit edit max lengths (`255` / `1000`):** [`translation_schema.py#L11`](../MVP/backend/app/schemas/translation_schema.py#L11) & [`TranslationAuditView.jsx#L609`](../MVP/frontend/src/views/admin/TranslationAuditView.jsx#L609).
+- **Render chunk size (`500`) & OpenRouter rotation codes:** [`deep_translator_client.py#L18`](../../MVP/backend/app/integrations/deep_translator_client.py#L18).
+- **Timeouts, model, concurrency (`1`), keep-alive (`600s`):** [`config.py#L121`](../../MVP/backend/app/core/config.py#L121).
+- **TTS voice mappings:** [`edge_tts_client.py#L59`](../../MVP/backend/app/integrations/edge_tts_client.py#L59) (`VOICE_BY_LANGUAGE`, `FALLBACK_VOICE_BY_LANGUAGE`).
+- **Publish lock & `NEEDS_UPDATE` transition:** [`translation_service.py#L116`](../../MVP/backend/app/services/translation_service.py#L116) & [`translation_service.py#L172`](../../MVP/backend/app/services/translation_service.py#L172).
+- **Audit edit max lengths (`255` / `1000`):** [`translation_schema.py#L11`](../../MVP/backend/app/schemas/translation_schema.py#L11) & [`TranslationAuditView.jsx#L609`](../../MVP/frontend/src/views/admin/TranslationAuditView.jsx#L609).
 - **Change Impact:** UI (`TranslationAuditView`, `AudioAuditPlayer`, `AudioSyncBadge`, `RegenerateAudioButton`) | Logic (`deep_translator_client.py`, `edge_tts_client.py`, `translation_service.py`, `config.py`) | DB (`mysql_schema.sql`, `translation.py`, `language.py`, `translation_repository.py`, `audio_repository.py`).
 
 ---
@@ -226,10 +226,10 @@ BE (FastAPI):  main.py (14 routers) -> controllers/ -> services/ + workers -> re
 - **VAL-PAY-01:** `payment_method` in `VIETQR | CARD | PAYPAL`; mock PayPal `order_id` matches `^TXN_[0-9A-F]{12}$`; `session_code` `3..36` chars normalized to `CCT-...`.
 
 ### 4.3 Quick-Fix Spots & Change Impact
-- **Ticket price (`50000` VND), PayPal rate (`25000.0`), simulation toggle:** [`config.py#L112`](../MVP/backend/app/core/config.py#L112) & [`payment_service.py#L155`](../MVP/backend/app/services/payment_service.py#L155).
-- **VietQR fallback bank info & transfer memo:** [`payment_service.py#L35`](../MVP/backend/app/services/payment_service.py#L35) & [`payment_service.py#L194`](../MVP/backend/app/services/payment_service.py#L194).
-- **24h session TTL & `CCT-` code format:** [`session.py#L14`](../MVP/backend/app/models/session.py#L14) & [`transaction_repository.py#L107`](../MVP/backend/app/repositories/transaction_repository.py#L107).
-- **Restore PIN rate limits (`5` / `60s`):** [`session_restore_rate_limit.py#L9`](../MVP/backend/app/core/session_restore_rate_limit.py#L9).
+- **Ticket price (`50000` VND), PayPal rate (`25000.0`), simulation toggle:** [`config.py#L112`](../../MVP/backend/app/core/config.py#L112) & [`payment_service.py#L155`](../../MVP/backend/app/services/payment_service.py#L155).
+- **VietQR fallback bank info & transfer memo:** [`payment_service.py#L35`](../../MVP/backend/app/services/payment_service.py#L35) & [`payment_service.py#L194`](../../MVP/backend/app/services/payment_service.py#L194).
+- **24h session TTL & `CCT-` code format:** [`session.py#L14`](../../MVP/backend/app/models/session.py#L14) & [`transaction_repository.py#L107`](../../MVP/backend/app/repositories/transaction_repository.py#L107).
+- **Restore PIN rate limits (`5` / `60s`):** [`session_restore_rate_limit.py#L9`](../../MVP/backend/app/core/session_restore_rate_limit.py#L9).
 - **Integrations:** PayOS (`https://api-merchant.payos.vn/v2/payment-requests` or `img.vietqr.io` in `payment_service.py`), PayPal Orders V2 (`paypal_client.py`).
 - **Change Impact:** UI (`CheckoutModal`, `ContentPaywallGate`, `RestoreSessionModal`, `visitorTranslations.js`) | Schema (`payment_schema.py`, `session_schema.py`) | Logic (`payment_service.py`, `session_service.py`, `config.py`) | DB (`mysql_schema.sql`, `transaction.py`, `session.py`, `transaction_repository.py`, `session_repository.py`).
 
@@ -255,10 +255,10 @@ BE (FastAPI):  main.py (14 routers) -> controllers/ -> services/ + workers -> re
 - **VAL-MAP-01:** `origin_lat`, `origin_lng`, `destination_poi_id` required (`10/minute`); returns RFC 7946 `LineString` (`RouteResponse`).
 
 ### 5.3 Quick-Fix Spots & Change Impact
-- **Geofence cooldown (`10 min`) & radius defaults (`30m`):** [`cooldownService.js#L9`](../MVP/frontend/src/services/cooldownService.js#L9) & [`useGeofenceTrigger.js#L13`](../MVP/frontend/src/hooks/useGeofenceTrigger.js#L13).
-- **Playback speeds (`0.8/1.0/1.2`) & stream timeout (`3500ms`):** [`AudioPlayerContext.jsx#L12`](../MVP/frontend/src/contexts/AudioPlayerContext.jsx#L12) & [`MiniAudioPlayer.jsx#L11`](../MVP/frontend/src/components/visitor/MiniAudioPlayer.jsx#L11).
-- **OSRM URL, timeout (`0.8s`), walking speed (`72.0`):** [`wayfinding_service.py#L34`](../MVP/backend/app/services/wayfinding_service.py#L34).
-- **Default map center (`11.1432, 106.4631`) & 6-language copy:** [`museumBounds.js#L6`](../MVP/frontend/src/utils/museumBounds.js#L6) & [`visitorTranslations.js#L7`](../MVP/frontend/src/locales/visitorTranslations.js#L7).
+- **Geofence cooldown (`10 min`) & radius defaults (`30m`):** [`cooldownService.js#L9`](../../MVP/frontend/src/services/cooldownService.js#L9) & [`useGeofenceTrigger.js#L13`](../../MVP/frontend/src/hooks/useGeofenceTrigger.js#L13).
+- **Playback speeds (`0.8/1.0/1.2`) & stream timeout (`3500ms`):** [`AudioPlayerContext.jsx#L12`](../../MVP/frontend/src/contexts/AudioPlayerContext.jsx#L12) & [`MiniAudioPlayer.jsx#L11`](../../MVP/frontend/src/components/visitor/MiniAudioPlayer.jsx#L11).
+- **OSRM URL, timeout (`0.8s`), walking speed (`72.0`):** [`wayfinding_service.py#L34`](../../MVP/backend/app/services/wayfinding_service.py#L34).
+- **Default map center (`11.1432, 106.4631`) & 6-language copy:** [`museumBounds.js#L6`](../../MVP/frontend/src/utils/museumBounds.js#L6) & [`visitorTranslations.js#L7`](../../MVP/frontend/src/locales/visitorTranslations.js#L7).
 - **Change Impact:** UI (`VisitorTourPage`, `VisitorMapView`, `PoiPreviewCard`, `MiniAudioPlayer`, `RouteOverlay`, `QRCodePage`) | Geofence (`useGeofenceTrigger`, `cooldownService`, `poi_schema.py`) | Routing (`wayfinding_service.py`, `tour_controller.py`, `tour_schema.py`).
 
 ---
@@ -281,22 +281,22 @@ BE (FastAPI):  main.py (14 routers) -> controllers/ -> services/ + workers -> re
 - **VAL-TEL-01:** `dwell_time >= 0`, `preferred_language` `2..20` chars, `range` in `TODAY | LAST_7_DAYS | LAST_30_DAYS`, `format` in `^(csv|json)$`.
 
 ### 6.3 Quick-Fix Spots & Change Impact
-- **Storage quota (`1 GB`) & `85% / 95%` thresholds:** [`config.py#L93`](../MVP/backend/app/core/config.py#L93), [`storage_service.py#L24`](../MVP/backend/app/services/storage_service.py#L24), [`StorageHealthBanner.jsx#L4`](../MVP/frontend/src/components/admin/StorageHealthBanner.jsx#L4).
-- **Heatmap gradient, radius (`28`), blur (`18`) & intensity formula:** [`AnalyticsHeatmap.jsx#L38`](../MVP/frontend/src/components/admin/AnalyticsHeatmap.jsx#L38) & [`telemetry_service.py#L173`](../MVP/backend/app/services/telemetry_service.py#L173).
-- **CSV export columns:** [`export_service.py#L92`](../MVP/backend/app/services/export_service.py#L92) (`stream_csv`).
+- **Storage quota (`1 GB`) & `85% / 95%` thresholds:** [`config.py#L93`](../../MVP/backend/app/core/config.py#L93), [`storage_service.py#L24`](../../MVP/backend/app/services/storage_service.py#L24), [`StorageHealthBanner.jsx#L4`](../../MVP/frontend/src/components/admin/StorageHealthBanner.jsx#L4).
+- **Heatmap gradient, radius (`28`), blur (`18`) & intensity formula:** [`AnalyticsHeatmap.jsx#L38`](../../MVP/frontend/src/components/admin/AnalyticsHeatmap.jsx#L38) & [`telemetry_service.py#L173`](../../MVP/backend/app/services/telemetry_service.py#L173).
+- **CSV export columns:** [`export_service.py#L92`](../../MVP/backend/app/services/export_service.py#L92) (`stream_csv`).
 - **Change Impact:** UI (`AnalyticsDashboard`, `AnalyticsHeatmap`, `AnalyticsExport`, `SystemHealthPage`, `StorageHealthBanner`) | Thresholds/Schemas (`analytics_schema.py`, `telemetry_schema.py`, `config.py`, `storage_service.py`) | DB (`mysql_schema.sql`, `trigger.py`, `telemetry_repository.py`).
 
 ---
 
 ## Core & Shared Infrastructure
 
-- **Shared Files:** [`main.jsx`](../MVP/frontend/src/main.jsx#L1), [`NotFoundPage.jsx`](../MVP/frontend/src/views/NotFoundPage.jsx#L3), [`database.py`](../MVP/backend/app/core/database.py#L21), [`dependencies.py`](../MVP/backend/app/core/dependencies.py#L34), [`mysql_schema.sql`](../MVP/backend/scripts/mysql_schema.sql#L1), [`docker-compose.yml`](../MVP/docker-compose.yml#L1), `MVP/Dockerfile.{app,mysql}`, `MVP/backend/.env.example`.
-- **Core Quick-Fix Spots:** FE route [`App.jsx#L19`](../MVP/frontend/src/App.jsx#L19) & [`AdminNavbar.jsx#L9`](../MVP/frontend/src/components/admin/AdminNavbar.jsx#L9) | BE router/CORS [`main.py#L41`](../MVP/backend/app/main.py#L41) & [`main.py#L166`](../MVP/backend/app/main.py#L166) | Error JSON [`exceptions.py#L37`](../MVP/backend/app/core/exceptions.py#L37) & [`apiClient.js#L47`](../MVP/frontend/src/api/apiClient.js#L47) | Rate limits [`config.py#L74`](../MVP/backend/app/core/config.py#L74) & [`limiter.py#L44`](../MVP/backend/app/core/limiter.py#L44).
+- **Shared Files:** [`main.jsx`](../../MVP/frontend/src/main.jsx#L1), [`NotFoundPage.jsx`](../../MVP/frontend/src/views/NotFoundPage.jsx#L3), [`database.py`](../../MVP/backend/app/core/database.py#L21), [`dependencies.py`](../../MVP/backend/app/core/dependencies.py#L34), [`mysql_schema.sql`](../../MVP/backend/scripts/mysql_schema.sql#L1), [`docker-compose.yml`](../../MVP/docker-compose.yml#L1), `MVP/Dockerfile.{app,mysql}`, `MVP/backend/.env.example`.
+- **Core Quick-Fix Spots:** FE route [`App.jsx#L19`](../../MVP/frontend/src/App.jsx#L19) & [`AdminNavbar.jsx#L9`](../../MVP/frontend/src/components/admin/AdminNavbar.jsx#L9) | BE router/CORS [`main.py#L41`](../../MVP/backend/app/main.py#L41) & [`main.py#L166`](../../MVP/backend/app/main.py#L166) | Error JSON [`exceptions.py#L37`](../../MVP/backend/app/core/exceptions.py#L37) & [`apiClient.js#L47`](../../MVP/frontend/src/api/apiClient.js#L47) | Rate limits [`config.py#L74`](../../MVP/backend/app/core/config.py#L74) & [`limiter.py#L44`](../../MVP/backend/app/core/limiter.py#L44).
 
 ---
 
 ## Maintenance & Verification Checklist
 
-1. **Add/Modify Field Order:** [`mysql_schema.sql`](../MVP/backend/scripts/mysql_schema.sql#L1) -> `models/` & `repositories/` -> `schemas/` -> `services/` mapper -> `api/` & UI (`maxLength`) -> unit/Vitest tests.
-2. **SISE Layering:** Keep HTTP parsing in `controllers/` and business rules in `services/`; `controllers/` never import `repositories/` or `models/`; raise [`ApiError`](../MVP/backend/app/core/exceptions.py#L21) for `{"success": false, "error": {"code", "message", "details"}}`.
+1. **Add/Modify Field Order:** [`mysql_schema.sql`](../../MVP/backend/scripts/mysql_schema.sql#L1) -> `models/` & `repositories/` -> `schemas/` -> `services/` mapper -> `api/` & UI (`maxLength`) -> unit/Vitest tests.
+2. **SISE Layering:** Keep HTTP parsing in `controllers/` and business rules in `services/`; `controllers/` never import `repositories/` or `models/`; raise [`ApiError`](../../MVP/backend/app/core/exceptions.py#L21) for `{"success": false, "error": {"code", "message", "details"}}`.
 3. **Pre-Commit Commands:** `cd MVP/backend && ruff check . && black --check --workers 1 . && pytest` | `cd MVP/frontend && npm test`.
