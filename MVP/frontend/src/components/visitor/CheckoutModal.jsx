@@ -243,8 +243,6 @@ export default function CheckoutModal({
     cardActionElement = (
       <a
         href={order.checkout_url}
-        target="_blank"
-        rel="noopener noreferrer"
         className="mt-5 inline-flex w-full items-center justify-center rounded-xl bg-[#0070ba] py-3 px-4 text-xs font-semibold text-white shadow-md hover:bg-[#005ea6] transition"
       >
         {getVisitorText('continueWithPayPal', preferredLanguage, { amount: formattedAmount })}
