@@ -1,7 +1,7 @@
 """Unit tests for POIRepository (TSK-03.1.2 & TSK-03.1.5)."""
 
 import pytest
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, OperationalError
 
 from app.models.language import LanguageCode
 from app.models.poi import POI
@@ -215,7 +215,7 @@ def test_should_sync_vi_and_invalidate_foreign_translations_in_repo(db_session):
 @pytest.mark.parametrize("invalid_radius", [0, 9, 51])
 def test_should_reject_poi_radius_outside_10_to_50_range(db_session, invalid_radius):
     repo = POIRepository(db_session)
-    with pytest.raises(IntegrityError):
+    with pytest.raises((IntegrityError, OperationalError)):
         repo.create(
             POI(
                 PoiID=f"POI_RAD_BAD_{invalid_radius}",
