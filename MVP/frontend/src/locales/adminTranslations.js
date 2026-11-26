@@ -214,8 +214,7 @@ export const ADMIN_TRANSLATIONS = {
   noLanguageRecorded: 'Chưa có dữ liệu ngôn ngữ du khách trong khoảng thời gian này.',
 
   // Analytics Heatmap
-  heatmapTitle: 'Bản đồ nhiệt Mật độ Du khách Thời gian thực',
-  heatmapSubtitle: 'Giám sát cảnh báo ùn tắc không gian trong toàn bộ khu di tích Địa đạo Củ Chi.',
+  heatmapTitle: 'Bản đồ nhiệt Mật độ Du khách',
   heatmapReportingWindowAriaLabel: 'Khoảng thời gian bản đồ nhiệt',
   congestionAlertTitle: 'Cảnh báo ùn tắc:',
   congestionAlertDescription:
@@ -230,8 +229,6 @@ export const ADMIN_TRANSLATIONS = {
   densityModerate: 'Vừa (40 - 70%)',
   densityCongestion: 'Cao (> 70%)',
   densityZero: 'Chưa có khách (0)',
-  heatRadiusLabel: 'Bán kính nhiệt:',
-  blurOpacityLabel: 'Độ mờ tản:',
   totalExhibitsMonitored: 'Tổng số điểm giám sát:',
 
   // --- Phase 5: System Health & Storage Monitoring ---

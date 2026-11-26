@@ -216,21 +216,15 @@ describe('AnalyticsHeatmap Component (US 05.1)', () => {
     ).toBeInTheDocument();
   });
 
-  it('allows adjusting the heat radius and blur sliders', async () => {
+  it('renders heatmap with fixed default radius and blur without sliders', async () => {
     render(<AnalyticsHeatmap />);
 
     await waitFor(() => {
-      expect(screen.getByTestId('heatmap-radius-slider')).toBeInTheDocument();
+      expect(screen.getByTestId('analytics-heatmap-container')).toBeInTheDocument();
     });
 
-    const radiusSlider = screen.getByTestId('heatmap-radius-slider');
-    const blurSlider = screen.getByTestId('heatmap-blur-slider');
-
-    fireEvent.change(radiusSlider, { target: { value: '35' } });
-    fireEvent.change(blurSlider, { target: { value: '22' } });
-
-    expect(radiusSlider.value).toBe('35');
-    expect(blurSlider.value).toBe('22');
+    expect(screen.queryByTestId('heatmap-radius-slider')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('heatmap-blur-slider')).not.toBeInTheDocument();
   });
 
   it('displays an error state and allows retry on fetch failure', async () => {
