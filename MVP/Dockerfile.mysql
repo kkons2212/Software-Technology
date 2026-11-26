@@ -16,4 +16,13 @@ ENV MYSQL_ROOT_PASSWORD=root_secure_pass_123
 COPY backend/scripts/mysql_schema.sql /docker-entrypoint-initdb.d/01_mysql_schema.sql
 COPY backend/scripts/seed_data.sql /docker-entrypoint-initdb.d/02_seed_data.sql
 
+# Force MySQL server and client to default to utf8mb4 encoding across all sessions
+RUN echo "[mysqld]" > /etc/mysql/conf.d/charset.cnf && \
+    echo "character-set-server = utf8mb4" >> /etc/mysql/conf.d/charset.cnf && \
+    echo "collation-server = utf8mb4_unicode_ci" >> /etc/mysql/conf.d/charset.cnf && \
+    echo "[client]" >> /etc/mysql/conf.d/charset.cnf && \
+    echo "default-character-set = utf8mb4" >> /etc/mysql/conf.d/charset.cnf && \
+    echo "[mysql]" >> /etc/mysql/conf.d/charset.cnf && \
+    echo "default-character-set = utf8mb4" >> /etc/mysql/conf.d/charset.cnf
+
 EXPOSE 3306

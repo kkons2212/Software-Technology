@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 from functools import lru_cache
+from pathlib import Path
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -201,3 +202,33 @@ settings = get_settings()
 
 # Ensure static directories exist
 os.makedirs(settings.IMAGE_UPLOAD_DIR, exist_ok=True)
+
+
+def resolve_base_url() -> str:
+    """Dynamically resolve base URL from runtime settings or .env file on disk."""
+    env_path = Path(settings.STATIC_DIR).parent / ".env"
+    if env_path.is_file():
+        try:
+            with open(env_path, encoding="utf-8") as f:
+                for line in f:
+                    stripped = line.strip()
+                    if stripped.startswith("BASE_URL="):
+                        raw_val = stripped.split("=", 1)[1].strip()
+                        val = raw_val.strip('"').strip("'").strip()
+                        if val:
+                            return val.rstrip("/")
+                    elif stripped.startswith("CLOUDFLARE_TUNNEL_URL="):
+                        raw_val = stripped.split("=", 1)[1].strip()
+                        val = raw_val.strip('"').strip("'").strip()
+                        if val:
+                            return val.rstrip("/")
+        except Exception:
+            pass
+
+    candidate = (
+        getattr(settings, "BASE_URL", "")
+        or os.getenv("BASE_URL", "")
+        or getattr(settings, "CLOUDFLARE_TUNNEL_URL", "")
+        or os.getenv("CLOUDFLARE_TUNNEL_URL", "")
+    )
+    return candidate.strip().rstrip("/")

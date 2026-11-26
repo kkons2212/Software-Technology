@@ -6,7 +6,7 @@
 // =============================================================================
 
 import { lazy, Suspense } from 'react';
-import { Navigate, Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import AdminRouteGuard from './components/admin/AdminRouteGuard.jsx';
 import AdminLayout from './components/admin/AdminLayout.jsx';
 import { AudioPlayerProvider } from './contexts/AudioPlayerContext.jsx';
@@ -52,6 +52,11 @@ const SystemHealthPage = lazy(() => import('./views/admin/SystemHealthPage.jsx')
 // Fallback / Error Domain
 const NotFoundPage = lazy(() => import('./views/NotFoundPage.jsx'));
 
+function NavigateWithSearch({ to }) {
+  const location = useLocation();
+  return <Navigate to={{ pathname: to, search: location.search }} replace />;
+}
+
 export default function App() {
   return (
     <VisitorSessionProvider>
@@ -70,7 +75,7 @@ export default function App() {
             {/* Visitor Web App Routes (Mobile-First, Public Access) */}
             <Route path="/" element={<VisitorTourPage />} />
             <Route path={VISITOR_ROUTES.HOME} element={<VisitorTourPage />} />
-            <Route path={VISITOR_ROUTES.TOUR} element={<Navigate to={VISITOR_ROUTES.HOME} replace />} />
+            <Route path={VISITOR_ROUTES.TOUR} element={<NavigateWithSearch to={VISITOR_ROUTES.HOME} />} />
             <Route path={VISITOR_ROUTES.CHECKOUT_SUCCESS} element={<CheckoutSuccessPage />} />
             <Route path="/checkout/success" element={<Navigate to={VISITOR_ROUTES.CHECKOUT_SUCCESS} replace />} />
             <Route path={VISITOR_ROUTES.QR} element={<QRCodePage />} />

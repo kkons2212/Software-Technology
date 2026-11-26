@@ -15,6 +15,7 @@ services:
       MYSQL_ROOT_PASSWORD: root_secure_pass_123
     ports:
       - "3306:3306"
+    command: ["mysqld", "--character-set-server=utf8mb4", "--collation-server=utf8mb4_unicode_ci"]
     volumes:
       - museum_mysql_data:/var/lib/mysql
     healthcheck:

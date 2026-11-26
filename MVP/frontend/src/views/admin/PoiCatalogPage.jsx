@@ -156,13 +156,13 @@ export default function PoiCatalogPage() {
       return;
     }
 
-    if (title.length > 255) {
-      setFormError('Tiêu đề không được vượt quá 255 ký tự.');
+    if (title.length > 100) {
+      setFormError('Tiêu đề không được vượt quá 100 ký tự.');
       return;
     }
 
-    if (shortDescription.length > 255) {
-      setFormError('Mô tả ngắn không được vượt quá 255 ký tự.');
+    if (shortDescription.length > 100) {
+      setFormError('Mô tả ngắn không được vượt quá 100 ký tự.');
       return;
     }
 
@@ -313,11 +313,10 @@ export default function PoiCatalogPage() {
                     </td>
                     <td className="px-4 py-3">
                       <span
-                        className={`inline-flex items-center rounded px-2 py-0.5 text-[11px] font-semibold border ${
-                          poi.is_active !== false
+                        className={`inline-flex items-center rounded px-2 py-0.5 text-[11px] font-semibold border ${poi.is_active !== false
                             ? 'border-green-200 bg-green-50 text-green-700'
                             : 'border-slate-300 bg-slate-100 text-slate-600'
-                        }`}
+                          }`}
                       >
                         {poi.is_active !== false ? ADMIN_TRANSLATIONS.statusActive : ADMIN_TRANSLATIONS.statusHidden}
                       </span>
@@ -413,11 +412,10 @@ export default function PoiCatalogPage() {
                         <button
                           type="button"
                           onClick={() => handleOpenDeactivateModal(poi)}
-                          className={`rounded px-2.5 py-1 text-xs font-medium border ${
-                            poi.is_active !== false
+                          className={`rounded px-2.5 py-1 text-xs font-medium border ${poi.is_active !== false
                               ? 'text-red-700 bg-red-50 border-red-200 hover:bg-red-100'
                               : 'text-slate-700 bg-slate-100 border-slate-300 hover:bg-slate-200'
-                          }`}
+                            }`}
                         >
                           {poi.is_active !== false ? ADMIN_TRANSLATIONS.btnHide : ADMIN_TRANSLATIONS.btnShow}
                         </button>
@@ -463,13 +461,13 @@ export default function PoiCatalogPage() {
                   <label htmlFor="poi-title" className="block text-xs font-medium text-slate-700">
                     {ADMIN_TRANSLATIONS.fieldTitle}
                   </label>
-                  <span className="text-[10px] text-slate-400">{title.length}/255</span>
+                  <span className="text-[10px] text-slate-400">{title.length}/100</span>
                 </div>
                 <input
                   id="poi-title"
                   type="text"
                   required
-                  maxLength={255}
+                  maxLength={100}
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   placeholder={ADMIN_TRANSLATIONS.fieldTitlePlaceholder}
@@ -482,12 +480,12 @@ export default function PoiCatalogPage() {
                   <label htmlFor="poi-short-desc" className="block text-xs font-medium text-slate-700">
                     {ADMIN_TRANSLATIONS.fieldShortDesc}
                   </label>
-                  <span className="text-[10px] text-slate-400">{shortDescription.length}/255</span>
+                  <span className="text-[10px] text-slate-400">{shortDescription.length}/100</span>
                 </div>
                 <textarea
                   id="poi-short-desc"
                   rows={2}
-                  maxLength={255}
+                  maxLength={100}
                   value={shortDescription}
                   onChange={(e) => setShortDescription(e.target.value)}
                   placeholder={ADMIN_TRANSLATIONS.fieldShortDescPlaceholder}

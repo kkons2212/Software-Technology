@@ -91,13 +91,13 @@ class POIUpdateRequest(BaseModel):
     title: str | None = Field(
         default=None,
         min_length=1,
-        max_length=255,
+        max_length=100,
         description="Primary Vietnamese exhibit title",
     )
 
     short_description: str | None = Field(
         default=None,
-        max_length=255,
+        max_length=100,
         description="Free summary for teaser preview",
     )
 
@@ -163,12 +163,12 @@ class POICreateRequest(BaseModel):
     title: str = Field(
         ...,
         min_length=1,
-        max_length=255,
+        max_length=100,
         description="Primary Vietnamese exhibit title",
     )
 
     short_description: str | None = Field(
-        None, max_length=255, description="Free summary for teaser preview"
+        None, max_length=100, description="Free summary for teaser preview"
     )
 
     description: str | None = Field(

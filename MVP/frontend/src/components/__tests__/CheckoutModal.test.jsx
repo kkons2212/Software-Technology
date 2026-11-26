@@ -283,6 +283,31 @@ describe('CheckoutModal', () => {
 
     vi.unstubAllEnvs();
   });
+
+  it('renders success view immediately when initialSuccessData is provided', async () => {
+    const successData = {
+      order_id: 'cct-order-paypal',
+      status: 'PAID',
+      session_code: 'CCT-PAYPAL99',
+      payment_method: 'PAYPAL',
+      expires_at: new Date(Date.now() + 86400000).toISOString(),
+    };
+
+    render(
+      <CheckoutModal
+        isOpen={true}
+        initialSuccessData={successData}
+        onClose={vi.fn()}
+      />
+    );
+
+    expect(await screen.findByTestId('checkout-success-view')).toBeInTheDocument();
+    expect(screen.getByText('Kích hoạt thành công!')).toBeInTheDocument();
+    expect(screen.getByText('CCT-PAYPAL99')).toBeInTheDocument();
+    expect(screen.getByText('PayPal / Card')).toBeInTheDocument();
+    expect(screen.getByText('24 Giờ')).toBeInTheDocument();
+    expect(screen.getByText(/Đã kích hoạt/)).toBeInTheDocument();
+  });
   it('renders multilingual QR loading message matching preferredLanguage', () => {
     // Keep createCheckoutOrder pending so modal remains in loading state
     createCheckoutOrder.mockImplementation(() => new Promise(() => {}));

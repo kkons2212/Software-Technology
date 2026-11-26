@@ -466,6 +466,8 @@ describe('VisitorTourPage', () => {
         sessionToken: 'TOKEN-FALLBACK',
         expiresAt: '2026-11-02T12:00:00Z',
       });
+      expect(screen.getByTestId('checkout-success-view')).toBeInTheDocument();
+      expect(screen.getByText('CODE-FALLBACK')).toBeInTheDocument();
     });
   });
 
