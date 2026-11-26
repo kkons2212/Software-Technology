@@ -1,314 +1,478 @@
-# Translate API Deployment & User Guide (from Setup to Production)
+# Auto_Translate: Live API Integration Guide
 
-This document explains how to run, deploy, and call the **Offline Translation Service** using Docker or directly in Python — **100% offline, zero third-party cloud APIs, sub-millisecond latency**.
+Welcome to the **Auto_Translate Live API** documentation. This service is a public, ultra-lightweight neural translation API designed to translate **Vietnamese into any major world language** with low latency and minimal resource overhead.
 
-- **Docker Image**: `kocoten/offline-translator-api:latest`
-- **Default Host Port**: `8001` *(mapped to internal container port `8000` to prevent port conflicts with other backend services)*
-- **Default Source Language**: **Vietnamese** (`source_lang="vi"`)
-- **Supported Languages**: `vi` (Vietnamese), `en` (English), `ja` (Japanese), `zh` (Chinese), `fr` (French), `ko` (Korean)
-- **Specialized Domain**: General conversation + Historical Tourism & Points of Interest (POI) with 99–100% accuracy.
+External applications (web apps, mobile apps, Discord/Telegram bots, background workers, microservices) can connect directly to this live endpoint **without setting up or deploying any code**.
 
 ---
 
-## 1. System Requirements
+## 1. Quick Connection Details
 
-- **Docker** (Docker Desktop on Windows/macOS, or Docker Engine on Linux).
-- Quick check:
-  ```bash
-  docker --version
-  ```
-
----
-
-## 2. Quick Start with Docker Compose (Recommended)
-
-The project includes a ready-to-use [`docker-compose.yml`](docker-compose.yml) mapped to port **`8001`**:
-
-```yaml
-services:
-  translator-api:
-    build: .
-    image: kocoten/offline-translator-api:latest
-    container_name: offline-translator-api
-    ports:
-      - "8001:8000"
-    restart: unless-stopped
-```
-
-### Start the Service:
-```bash
-docker compose up -d
-```
-
-### View Live Logs:
-```bash
-docker compose logs -f
-```
-
-### Stop the Service:
-```bash
-docker compose down
-```
-
----
-
-## 3. Alternative: Running via Docker CLI
-
-### 3.1. Pull Image from Docker Hub
-```bash
-docker pull kocoten/offline-translator-api:latest
-```
-
-### 3.2. Run the Container
-```bash
-docker run -d --name offline-translator-api -p 8001:8000 --restart unless-stopped kocoten/offline-translator-api:latest
-```
-
-| Parameter | Description |
+| Attribute | Value |
 | :--- | :--- |
-| `-d` | Run in background (detached mode) |
-| `--name offline-translator-api` | Assign a container name |
-| `-p 8001:8000` | Map **Host Port `8001`** $\to$ **Container Port `8000`** |
-| `--restart unless-stopped` | Auto-restart container on reboot or crash |
+| **Live Base URL** | `https://translation-temporary.onrender.com` |
+| **Interactive Swagger UI** | `https://translation-temporary.onrender.com/docs` |
+| **Authentication** | **None required (Public & Open)** |
+| **CORS Policy** | **`allow_origins=["*"]` (Directly callable from any frontend/browser)** |
+| **Content-Type** | `application/json; charset=utf-8` |
 
 ---
 
-## 4. Verification & Health Check
+## 2. Supported Target Languages
 
-### Check Container Status:
-```bash
-docker ps --filter "name=offline-translator-api"
-```
-*Expected: Status `Up ...` and port mapping `0.0.0.0:8001->8000/tcp`.*
+The service currently supports translating from Vietnamese (`vi`) into the following target languages:
 
-### Health Endpoint:
-```bash
-curl http://localhost:8001/health
-# Response: {"status":"ok"}
-```
+| Target Language | Language Code | Model Architecture | Direct / Pivot |
+| :--- | :--- | :--- | :--- |
+| **English** | `en` or `English` | OPUS-MT INT8 | Direct (`vi` $\rightarrow$ `en`) |
+| **French** | `fr` or `French` | OPUS-MT INT8 | Pivot (`vi` $\rightarrow$ `en` $\rightarrow$ `fr`) |
+| **German** | `de` or `German` | OPUS-MT INT8 | Pivot (`vi` $\rightarrow$ `en` $\rightarrow$ `de`) |
+| **Spanish** | `es` or `Spanish` | OPUS-MT INT8 | Pivot (`vi` $\rightarrow$ `en` $\rightarrow$ `es`) |
+| **Japanese** | `ja` or `Japanese` | OPUS-MT INT8 | Pivot (`vi` $\rightarrow$ `en` $\rightarrow$ `ja`) |
+| **Chinese** | `zh` or `Chinese` | OPUS-MT INT8 | Pivot (`vi` $\rightarrow$ `en` $\rightarrow$ `zh`) |
+| **Korean** | `ko` or `Korean` | OPUS-MT INT8 | Pivot (`vi` $\rightarrow$ `en` $\rightarrow$ `ko`) |
+| **Russian** | `ru` or `Russian` | OPUS-MT INT8 | Pivot (`vi` $\rightarrow$ `en` $\rightarrow$ `ru`) |
 
-### Supported Languages Endpoint:
-```bash
-curl http://localhost:8001/languages
-# Response: {"supported":["vi","en","ja","zh","fr","ko"],"default_source":"vi","pivot":"en",...}
-```
+*Target language names are case-insensitive (e.g. `"english"`, `"English"`, `"EN"` are all valid).*
 
 ---
 
-## 5. Calling the Translation API
+## 3. API Endpoints Reference
 
-### 5.1. Interactive Swagger UI
-Open in your browser:
-👉 **[http://localhost:8001/docs](http://localhost:8001/docs)**
+### 3.1. Translate Text (`POST /translate`)
 
----
+Translates Vietnamese text into the selected target language.
 
-### 5.2. Using cURL
+#### Endpoint
+`POST https://translation-temporary.onrender.com/translate`
 
-#### Translate Vietnamese $\to$ English:
-```bash
-curl -X POST "http://localhost:8001/translate" \
-  -H "Content-Type: application/json" \
-  -d '{"text": "Xin chào, tôi yêu bạn!", "target_lang": "en"}'
+#### Request Headers
+```http
+Content-Type: application/json; charset=utf-8
 ```
-**Response:**
+
+#### Request Body
 ```json
 {
-  "text": "Xin chào, tôi yêu bạn!",
-  "source_lang": "vi",
-  "target_lang": "en",
-  "translated": "Hello, I love you!"
+  "text": "Xin chào, hôm nay công việc của bạn thế nào?",
+  "target": "English"
 }
 ```
 
-#### Translate Vietnamese $\to$ Japanese:
-```bash
-curl -X POST "http://localhost:8001/translate" \
-  -H "Content-Type: application/json" \
-  -d '{"text": "Xin chào, tôi yêu bạn!", "target_lang": "ja"}'
-```
-**Response:**
+| Field | Type | Required | Description | Example |
+| :--- | :--- | :--- | :--- | :--- |
+| `text` | string | **Yes** | Vietnamese text to translate (cannot be empty) | `"Chúc bạn một ngày tốt lành!"` |
+| `target` | string | No | Desired target language (defaults to `"English"`) | `"Japanese"` |
+
+#### Successful Response (`200 OK`)
 ```json
 {
-  "text": "Xin chào, tôi yêu bạn!",
-  "source_lang": "vi",
-  "target_lang": "ja",
-  "translated": "こんにちは, 私はあなたを愛しています!"
+  "original_text": "Xin chào, hôm nay công việc của bạn thế nào?",
+  "translated_text": "Hello, how's your work today?",
+  "target_language": "English",
+  "latency_ms": 124.5,
+  "current_ram_mb": 182.4,
+  "ram_limit_mb": 512.0
 }
 ```
 
-#### Translate Historical Tourism POI (e.g. Củ Chi / Thăng Long):
-```bash
-curl -X POST "http://localhost:8001/translate" \
-  -H "Content-Type: application/json" \
-  -d '{"text": "Bếp Hoàng Cầm Không Khói", "target_lang": "en"}'
-```
-**Response:**
+| Response Field | Type | Description |
+| :--- | :--- | :--- |
+| `original_text` | string | The original Vietnamese text sent in the request |
+| `translated_text` | string | The neural translated text |
+| `target_language` | string | The target language used |
+| `latency_ms` | float | Execution duration in milliseconds |
+| `current_ram_mb` | float | Live server RAM usage (MB) |
+| `ram_limit_mb` | float | Hard container RAM ceiling (512.0 MB) |
+
+#### Error Responses
+* **`400 Bad Request`**: Empty text payload or unsupported language name.
+  ```json
+  {"detail": "Text cannot be empty."}
+  ```
+* **`500 Internal Server Error`**: Translation execution failure.
+
+---
+
+### 3.2. Health Check & RAM Telemetry (`GET /health`)
+
+Returns the current uptime status and live RAM telemetry.
+
+#### Endpoint
+`GET https://translation-temporary.onrender.com/health`
+
+#### Successful Response (`200 OK`)
 ```json
 {
-  "text": "Bếp Hoàng Cầm Không Khói",
-  "source_lang": "vi",
-  "target_lang": "en",
-  "translated": "Smokeless Hoang Cam Stove"
+  "status": "ok",
+  "service": "auto-translate",
+  "current_ram_mb": 66.5,
+  "ram_limit_mb": 512.0
 }
 ```
 
 ---
 
-### 5.3. Calling from Backend (Python / FastAPI / Django)
+### 3.3. List Supported Languages (`GET /languages`)
 
+Returns the list of currently supported target languages.
+
+#### Endpoint
+`GET https://translation-temporary.onrender.com/languages`
+
+#### Successful Response (`200 OK`)
+```json
+{
+  "supported_languages": [
+    "Chinese",
+    "English",
+    "French",
+    "German",
+    "Japanese",
+    "Korean",
+    "Russian",
+    "Spanish"
+  ],
+  "count": 8
+}
+```
+
+---
+
+### 3.4. Keep-Awake Status (`GET /keep-awake/status`)
+
+Returns the status, configuration, and latest ping results of the background keep-awake service.
+
+#### Endpoint
+`GET https://translation-temporary.onrender.com/keep-awake/status`
+
+#### Successful Response (`200 OK`)
+```json
+{
+  "service": "auto-translate-keep-awake",
+  "enabled": true,
+  "running": true,
+  "interval_minutes": 10,
+  "target_urls": [
+    "https://my-other-app.onrender.com",
+    "https://translation-temporary.onrender.com/health"
+  ],
+  "last_ping_time": "2026-11-26T06:50:00Z",
+  "total_pings": 42,
+  "last_results": [
+    {
+      "url": "https://my-other-app.onrender.com",
+      "status": 200,
+      "ok": true,
+      "latency_ms": 185.3,
+      "error": null,
+      "timestamp": "2026-11-26T06:50:00Z"
+    },
+    {
+      "url": "https://translation-temporary.onrender.com/health",
+      "status": 200,
+      "ok": true,
+      "latency_ms": 12.4,
+      "error": null,
+      "timestamp": "2026-11-26T06:50:00Z"
+    }
+  ]
+}
+```
+
+---
+
+### 3.5. Trigger On-Demand Ping (`POST /keep-awake/ping`)
+
+Immediately pings all configured target URLs (or a specific URL passed in the request body) without waiting for the timer interval.
+
+#### Endpoint
+`POST https://translation-temporary.onrender.com/keep-awake/ping`
+
+#### Request Body (Optional)
+```json
+{
+  "url": "https://my-other-app.onrender.com"
+}
+```
+*If `url` is omitted or empty, all URLs configured in `KEEP_AWAKE_URL` are pinged.*
+
+#### Successful Response (`200 OK`)
+```json
+{
+  "triggered": true,
+  "results": [
+    {
+      "url": "https://my-other-app.onrender.com",
+      "status": 200,
+      "ok": true,
+      "latency_ms": 142.1,
+      "error": null,
+      "timestamp": "2026-11-26T06:52:10Z"
+    }
+  ],
+  "message": "Pings executed successfully."
+}
+```
+
+---
+
+## 4. Ready-to-Use Code Snippets
+
+### 4.1. JavaScript / TypeScript (Frontend / React / Vue / Vanilla JS)
+*Because CORS is fully enabled, you can call this directly from the browser without a proxy:*
+
+```javascript
+async function translateVietnamese(text, targetLang = "English") {
+  const url = "https://translation-temporary.onrender.com/translate";
+  
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json; charset=utf-8",
+    },
+    body: JSON.stringify({
+      text: text,
+      target: targetLang,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Translation error: ${response.statusText}`);
+  }
+
+  const data = await response.json();
+  return data.translated_text;
+}
+
+// Example usage:
+translateVietnamese("Trí tuệ nhân tạo đang thay đổi thế giới.", "Japanese")
+  .then(output => console.log("Output:", output))
+  .catch(err => console.error("Error:", err));
+```
+
+---
+
+### 4.2. Node.js (Backend / Express / Next.js API Routes)
+
+```javascript
+const axios = require("axios");
+
+async function translate(text, target = "English") {
+  try {
+    const res = await axios.post(
+      "https://translation-temporary.onrender.com/translate",
+      { text, target },
+      { headers: { "Content-Type": "application/json" } }
+    );
+    return res.data.translated_text;
+  } catch (error) {
+    console.error("API error:", error.response?.data || error.message);
+    throw error;
+  }
+}
+
+// Example usage:
+translate("Cảm ơn bạn rất nhiều vì sự giúp đỡ.", "French")
+  .then(console.log);
+```
+
+---
+
+### 4.3. Python (`requests` & `httpx`)
+
+#### Synchronous with `requests`:
 ```python
 import requests
 
-TRANSLATOR_URL = "http://localhost:8001/translate"
+def translate(text: str, target: str = "English") -> str:
+    url = "https://translation-temporary.onrender.com/translate"
+    payload = {"text": text, "target": target}
+    
+    response = requests.post(url, json=payload, timeout=30)
+    response.raise_for_status()
+    
+    return response.json()["translated_text"]
 
-payload = {
-    "text": "Đoạn Hầm Trải Nghiệm Chui Thực Tế",
-    "target_lang": "en",       # en | fr | ja | ko | zh | vi
-    "source_lang": "vi",       # defaults to "vi" (optional)
+# Example:
+result = translate("Dự án này chạy rất ổn định và tiết kiệm tài nguyên.", target="German")
+print("Translated:", result)
+```
+
+#### Asynchronous with `httpx` (FastAPI, Discord/Telegram bots):
+```python
+import httpx
+
+async def translate_async(text: str, target: str = "English") -> str:
+    url = "https://translation-temporary.onrender.com/translate"
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        res = await client.post(url, json={"text": text, "target": target})
+        res.raise_for_status()
+        return res.json()["translated_text"]
+```
+
+---
+
+### 4.4. cURL / Shell (Terminal, Linux, macOS, Windows)
+
+#### Windows PowerShell:
+```powershell
+curl.exe -s -X POST https://translation-temporary.onrender.com/translate `
+  -H "Content-Type: application/json; charset=utf-8" `
+  -d '{\"text\": \"Hôm nay thời tiết rất dễ chịu.\", \"target\": \"French\"}'
+```
+
+#### Linux / macOS Bash:
+```bash
+curl -s -X POST "https://translation-temporary.onrender.com/translate" \
+  -H "Content-Type: application/json; charset=utf-8" \
+  -d '{
+    "text": "Hôm nay thời tiết rất dễ chịu.",
+    "target": "French"
+  }'
+```
+
+---
+
+### 4.5. Dart / Flutter (Mobile Apps)
+
+```dart
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+
+Future<String> translateText(String text, String target) async {
+  final url = Uri.parse('https://translation-temporary.onrender.com/translate');
+  final response = await http.post(
+    url,
+    headers: {'Content-Type': 'application/json; charset=utf-8'},
+    body: jsonEncode({'text': text, 'target': target}),
+  );
+
+  if (response.statusCode == 200) {
+    final body = jsonDecode(utf8.decode(response.bodyBytes));
+    return body['translated_text'];
+  } else {
+    throw Exception('Failed to translate: ${response.statusCode}');
+  }
+}
+```
+
+---
+
+### 4.6. Golang
+
+```go
+package main
+
+import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"net/http"
+)
+
+type TranslateRequest struct {
+	Text   string `json:"text"`
+	Target string `json:"target"`
 }
 
-response = requests.post(TRANSLATOR_URL, json=payload, timeout=5)
-response.raise_for_status()
+type TranslateResponse struct {
+	TranslatedText string `json:"translated_text"`
+}
 
-result = response.json()
-print("Translated:", result["translated"])
-# Output: Actual Crawling Experience Tunnel Section
-```
+func Translate(text, target string) (string, error) {
+	url := "https://translation-temporary.onrender.com/translate"
+	payload, _ := json.Marshal(TranslateRequest{Text: text, Target: target})
 
-> **Note for Docker networks:** If your backend container runs inside the same Docker network as `offline-translator-api`, call:  
-> `http://offline-translator-api:8000/translate` (directly via container name and internal port `8000`).
+	resp, err := http.Post(url, "application/json", bytes.NewBuffer(payload))
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
 
----
+	var result TranslateResponse
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return "", err
+	}
+	return result.TranslatedText, nil
+}
 
-### 5.4. Calling from Node.js / JavaScript (fetch)
-
-```javascript
-const response = await fetch("http://localhost:8001/translate", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({
-    text: "Cổng Chào & Nhà Đón Tiếp Bến Dược",
-    target_lang: "fr",
-  }),
-});
-
-const data = await response.json();
-console.log(data.translated);
-// Output: Porte d'Accueil & Maison d'Accueil de Ben Duoc
-```
-
----
-
-## 6. Using Directly as a Python Library (No Docker Required)
-
-You can also use the translator engine directly in any Python script without running the web service:
-
-```python
-from translator import translate
-
-# Vietnamese to English
-en_text = translate("Hoàng thành Thăng Long", target_lang="en")
-print(en_text)  # Imperial Citadel of Thang Long
-
-# Vietnamese to Chinese
-zh_text = translate("Khu khảo cổ học 18 Hoàng Diệu", target_lang="zh")
-print(zh_text)  # 黃耀18號考古遺址
-
-# Auto-detect source language
-res = translate("Hello, nice to meet you!", target_lang="vi", src_lang="auto")
-print(res)      # Xin chào, rất vui được gặp bạn!
+func main() {
+	translated, err := Translate("Xin chào thế giới!", "Spanish")
+	if err == nil {
+		fmt.Println("Result:", translated)
+	}
+}
 ```
 
 ---
 
-## 7. API Reference
+## 5. Important Production Tips & Best Practices
 
-| Method | Endpoint | Description |
-| :---: | :--- | :--- |
-| `POST` | `/translate` | Primary translation endpoint (JSON body) |
-| `GET` | `/translate` | Quick query parameter testing (`?text=...&target_lang=...`) |
-| `GET` | `/health` | Service liveness probe |
-| `GET` | `/languages` | List supported language codes & pivot configuration |
-| `GET` | `/docs` | Interactive Swagger API documentation |
+### 5.1. Free Tier Cold-Start Handling (Wake-Up Delay)
+* **What happens:** On Render's Free tier, if the API receives no traffic for 15 minutes, it automatically goes to sleep to conserve resources.
+* **First request behavior:** When the next request arrives, Render takes **~15–20 seconds** to wake up the container. Once awake, requests respond in **~100 ms – 300 ms**.
+* **Recommended client strategy:**
+  1. Set client timeout to at least **30–45 seconds**.
+  2. Implement a simple ping or retry:
+     ```javascript
+     // Optional: Ping /health on application startup to ensure the server is warm
+     fetch("https://translation-temporary.onrender.com/health").catch(() => {});
+     ```
 
-### Request Parameters (`POST /translate`)
-
-| Field | Type | Required | Default | Description |
-| :--- | :---: | :---: | :---: | :--- |
-| `text` | string | **Yes** | — | Text to translate (e.g. sentence, POI title, paragraph) |
-| `target_lang` | string | No | `"en"` | Target language code: `en`, `ja`, `zh`, `fr`, `ko`, `vi` |
-| `source_lang` | string | No | `"vi"` | Source language code. Pass `"auto"` for automatic detection |
-
----
-
-## 8. Container Management Commands
-
-```bash
-# View running containers
-docker ps
-
-# Stream logs
-docker logs -f offline-translator-api
-
-# Stop container
-docker stop offline-translator-api
-
-# Start container
-docker start offline-translator-api
-
-# Remove container
-docker rm -f offline-translator-api
-```
+### 5.2. Concurrency & Queueing
+* The service runs on **0.1 CPU** with strict memory containment ($< 512\text{ MB RAM}$).
+* A built-in thread synchronization queue (`self._lock`) coordinates requests safely.
+* **Best practice for callers:**
+  * For batch translations, send requests **sequentially** (one after another) rather than 10 requests at the exact same millisecond.
+  * Normal UI usage (users typing or clicking translate) processes seamlessly with zero delay.
 
 ---
 
-## 9. Build & Push to Docker Hub
+### 5.3. Keeping Free-Tier Render Services Awake 24/7 (Keep-Awake Background Service)
 
-When updating dictionary files or translation logic, rebuild and publish the image:
+Free web services on Render spin down into hibernation after **15 minutes** of inactivity (no incoming HTTP requests). The next request must endure a cold-start delay of 15–30 seconds.
 
-```powershell
-# 1. Log in to Docker Hub
-docker login
+Auto_Translate includes a **built-in zero-overhead background service** designed to keep other free-tier services (and itself) awake around the clock:
 
-# 2. Build the Docker image
-docker compose build
-# Or: docker build -t kocoten/offline-translator-api:latest .
+#### Configuration via Environment Variables
 
-# 3. (Optional) Tag with a semantic version
-docker tag kocoten/offline-translator-api:latest kocoten/offline-translator-api:1.0.0
+Set these in your Render Dashboard under **Environment**:
 
-# 4. Push to Docker Hub
-docker push kocoten/offline-translator-api:latest
-docker push kocoten/offline-translator-api:1.0.0
-```
+| Environment Variable | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `KEEP_AWAKE_ENABLED` | boolean | `false` | Set to `true` to activate the automatic timer. |
+| `KEEP_AWAKE_URL` | string | `""` | Target URL to ping. Supports multiple comma-separated URLs (e.g. `https://my-web-app.onrender.com,https://translation-temporary.onrender.com/health`). |
+| `KEEP_AWAKE_INTERVAL_MINUTES` | integer | `10` | Interval in minutes between pings. Set between `5` and `12` to ensure the 15-minute Render sleep threshold is never breached. |
 
----
-
-## 10. Fully Offline Transfer (No Internet / Air-Gapped Machines)
-
-To deploy on a machine with no internet access:
-
-1. **On the machine with internet:**
-   ```bash
-   docker save kocoten/offline-translator-api:latest -o translator-api.tar
-   ```
-
-2. **Copy `translator-api.tar` via USB or LAN to the destination machine.**
-
-3. **On the destination machine:**
-   ```bash
-   docker load -i translator-api.tar
-   docker run -d --name offline-translator-api -p 8001:8000 --restart unless-stopped kocoten/offline-translator-api:latest
+#### Key Technical Guarantees
+1. **Zero Extra RAM Overhead:** Uses Python's native standard library (`urllib.request`, `asyncio`), adding **0 MB** of extra dependencies or memory footprint.
+2. **Non-Blocking & Resilient:** Runs in an asynchronous background task on the event loop. Network timeouts, slow external responses, or 404/500 errors from target services are logged safely and will **never** crash or slow down the translation service.
+3. **Self-Ping Supported:** To keep `Auto_Translate` itself awake 24/7, simply include its own health endpoint in `KEEP_AWAKE_URL`:
+   ```env
+   KEEP_AWAKE_ENABLED=true
+   KEEP_AWAKE_URL=https://translation-temporary.onrender.com/health
+   KEEP_AWAKE_INTERVAL_MINUTES=10
    ```
 
 ---
 
-## 11. Troubleshooting
+## 6. Architecture & Future Scaling Roadmap
 
-| Symptom | Cause & Solution |
-| :--- | :--- |
-| `port is already allocated: 8001` | Port 8001 is already in use by another service. Change line 7 in `docker-compose.yml` to another host port (e.g. `8002:8000` or `8080:8000`). |
-| `curl: connection refused` | Container is stopped. Run `docker ps -a` and check logs using `docker logs offline-translator-api`. |
-| Cross-Origin Resource Sharing (CORS) | If calling directly from a browser frontend on a different origin, requests can be proxied through your backend or Nginx. |
-| Characters display as `???` in Windows terminal | Run `chcp 65001` in CMD or `$OutputEncoding = [Console]::OutputEncoding = [System.Text.Encoding]::UTF8` in PowerShell. |
+For high-volume production needs in the future, the architecture is designed to expand without breaking API compatibility:
+
+```
+[External Apps / Frontends]
+             │
+             ▼
+   [Cloudflare Load Balancer] (Free - 100k requests/day)
+             │
+     ┌───────┴────────────────────────┐
+     ▼                                ▼
+[Render Free Tier]         [Hugging Face Spaces]
+ (0.1 CPU, 512 MB)          (2 vCPUs, 16 GB RAM - Free)
+```
+
+1. **Phase 1 (Current):** Standalone Render Free Tier deployment serving public requests with sub-512MB RAM containment.
+2. **Phase 2 (Planned Zero-Cost Scaling):** Deploy identical Docker container to **Hugging Face Spaces (2 vCPUs, 16 GB RAM free)**.
+3. **Phase 3 (Load Balancing):** Add a **Cloudflare Worker** to route requests dynamically to whichever instance is idle and healthy.

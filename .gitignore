@@ -58,6 +58,7 @@ MVP/e2e_playwright/
 # Cloudflared binaries & tunnel logs
 *.exe
 **/cloudflared.exe
+!MVP/cloudflared.exe
 .cloudflared/
 
 # External Live API test scripts

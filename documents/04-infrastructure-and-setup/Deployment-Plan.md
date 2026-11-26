@@ -21,7 +21,7 @@ flowchart TD
 
     subgraph RenderCloud["Backend Hosting: Render.com (Web Service)"]
         FastAPI["FastAPI Engine (Python 3.10)<br>Root: MVP/backend"]
-        Worker1["BackgroundTasks: TranslationWorker<br>(OpenRouter Crouton Alpha)"]
+        Worker1["BackgroundTasks: TranslationWorker<br>(Auto_Translate Live API + OpenRouter)"]
         Worker2["BackgroundTasks: AudioSynthesisWorker<br>(Edge-TTS)"]
         FastAPI --> Worker1
         FastAPI --> Worker2
@@ -63,7 +63,7 @@ flowchart TD
 | **Backend API** | **Render.com** | Free Web Service | **$0** (Lifetime) | 512MB RAM, FastAPI ASGI, sleeps after 15m idle. |
 | **Database** | **Aiven Cloud** | Free Tier | **$0** (Pre-configured) | MySQL 8.0, SSL `TLS_AES_256_GCM_SHA384`, DB `smart_museum`. |
 | **File Storage** | **Supabase** | Free Tier | **$0** (1GB Storage) | Persistent storage for narration MP3s and exhibit images. |
-| **AI Translation** | **OpenRouter** | Pay-as-you-go | Nominal (~$0.001/req) | AI Model `stealth/crouton-alpha`. |
+| **AI Translation** | **Auto_Translate + OpenRouter** | Free Tier / Dual Fallback | **$0** (Free Tier) | Primary: `Auto_Translate` OPUS-MT on Render (`https://translation-temporary.onrender.com`). Fallback: OpenRouter (`openrouter/free`). |
 | **CI/CD Pipeline** | **GitHub / GitLab** | Free Tier | **$0** | Automated linting, test suites, and gated deployment hooks. |
 
 ---
@@ -141,10 +141,12 @@ flowchart TD
 - [x] **TASK-03.4:** Configure Render Environment Variables:
   - `DATABASE_URL`: `mysql+pymysql://avnadmin:<AIVEN_PASSWORD>@mysql-218752f0-self-hosting.f.aivencloud.com:21340/smart_museum?charset=utf8mb4`
   - `JWT_SECRET_KEY`: `<64_HEX_CHARACTERS_JWT_SECRET>`
-  - `OPENROUTER_API_KEY`: `<YOUR_OPENROUTER_API_KEY>`
-  - `OPENROUTER_MODEL`: `stealth/crouton-alpha`
+  - `RENDER_TRANSLATION_API_URL`: `https://translation-temporary.onrender.com`
+  - `RENDER_TRANSLATION_TIMEOUT`: `70.0`
+  - `OPENROUTER_API_KEY`: `<YOUR_OPENROUTER_API_KEY>` (Supports comma-separated keys for auto-rotation)
+  - `OPENROUTER_MODEL`: `openrouter/free`
   - `OPENROUTER_BASE_URL`: `https://openrouter.ai/api/v1`
-  - `TRANSLATION_PROVIDERS_ORDER`: `openrouter,offline,google_cloud,gemini,deep_translator`
+  - `TRANSLATION_PROVIDERS_ORDER`: `render_api,openrouter`
   - `SUPABASE_URL`: Supabase project URL from Phase 1
   - `SUPABASE_KEY`: Supabase API key from Phase 1
   - `SUPABASE_BUCKET_NAME`: `museum-media`
@@ -199,7 +201,7 @@ flowchart TD
   - Create a new historical POI from the Admin Portal and upload a cover photo.
   - Confirm the image renders with a public Supabase Storage CDN URL.
 - [ ] **TASK-06.3: Validate AI Translation & Neural Audio Generation**
-  - Confirm `TranslationWorker` translates the exhibit into 5 foreign languages via `stealth/crouton-alpha`.
+  - Confirm `TranslationWorker` translates the exhibit into 5 foreign languages via `Auto_Translate` / OpenRouter.
   - Confirm `AudioSynthesisWorker` synthesizes Edge-TTS audio and saves CDN URLs in `POIAudio`.
 - [ ] **TASK-06.4: Validate Audio Playback on Visitor Web App**
   - Switch language to English, Japanese, and Korean; trigger narration playback.

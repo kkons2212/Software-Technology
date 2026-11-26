@@ -28,7 +28,8 @@ flowchart TD
     end
 
     subgraph ExternalServices["5. Cloud AI & External APIs"]
-        OpenRouter["OpenRouter AI Gateway<br/>Model: crouton-alpha<br/>(Multilingual Neural Translation)"]
+        AutoTranslate["Auto_Translate Live API (Render)<br/>Model: OPUS-MT INT8<br/>(Primary Neural Translation)"]
+        OpenRouter["OpenRouter AI Gateway<br/>Model: openrouter/free<br/>(Fallback Neural Translation)"]
     end
 
     subgraph Automation["6. CI/CD Automation Pipeline"]
@@ -45,7 +46,8 @@ flowchart TD
     %% Backend integrations
     FastAPI <-->|"Relational Queries (SQLAlchemy 2.0 with TLS)"| AivenDB
     FastAPI -->|"Upload Images / Audio MP3"| SupabaseCDN
-    FastAPI -->|"Trigger Content Translation"| OpenRouter
+    FastAPI -->|"Trigger Content Translation"| AutoTranslate
+    AutoTranslate -.->|"Fallback"| OpenRouter
     FastAPI --- BackgroundWorker
 
     %% Direct Media delivery to Client
@@ -66,7 +68,7 @@ flowchart TD
 | **Backend API Engine** | `MVP/backend/` | **Render.com** | Web Service (Python 3.10) | **Singapore (`ap-southeast-1`)** | **Free Web Service** | **Live:** `https://smart-museum-backend.onrender.com`. Central API: JWT auth, GPS checks, Edge-TTS, and payments. |
 | **Relational Database** | Managed via SQLAlchemy ORM | **Aiven Cloud** | Managed MySQL Database 8.0 | **Singapore (`ap-southeast-1`)** | **Free Tier** | Stores 8 structured relational tables: `POI`, `POITranslation`, `POIAudio`, `VisitorSession`, `Transaction`, `User`, `LanguageCode`, and `AuditLog`. |
 | **Media Object Storage** | `app/integrations/storage_client.py` | **Supabase** | Cloud Object Storage (S3-compatible) | **Singapore (`ap-southeast-1`)** | **Free Tier (1GB Storage)** | Permanently stores synthesized Edge-TTS MP3 audio narrations and exhibit cover images. Serves files directly via public CDN URLs. |
-| **AI Translation Gateway** | `app/integrations/deep_translator_client.py` | **OpenRouter** | Cloud AI LLM API | Global Cloud | **Free / Pay-per-use** | Translates Vietnamese exhibit narratives into English, Japanese, Korean, and Chinese using the `crouton-alpha` neural model. |
+| **AI Translation Gateway** | `app/integrations/deep_translator_client.py` | **Auto_Translate (Render) + OpenRouter** | Neural Translation API & AI Gateway | Singapore / Global Cloud | **Free Tier ($0)** | Translates Vietnamese exhibit narratives into English, Japanese, Korean, French, and Chinese using OPUS-MT on Render with OpenRouter fallback. |
 | **CI / CD Pipeline** | `.github/workflows/ci.yml` | **GitHub Actions** | Automated Workflow Runner | Ubuntu Runner | **Free (2,000 min/mo)** | Enforces code formatting (Black), linting (Ruff), AST 3-tier architectural layering, test execution (Pytest), and deployment triggers. |
 
 ---
@@ -115,11 +117,13 @@ SUPABASE_URL=https://vnzojzglicrwmannlrwz.supabase.co
 SUPABASE_KEY=<SUPABASE_SECRET_KEY>
 SUPABASE_BUCKET_NAME=museum-media
 
-# 4. OpenRouter AI Translation (Model: Crouton Alpha)
+# 4. Neural Translation (Auto_Translate + OpenRouter Cascade)
+RENDER_TRANSLATION_API_URL=https://translation-temporary.onrender.com
+RENDER_TRANSLATION_TIMEOUT=70.0
 OPENROUTER_API_KEY=<OPENROUTER_API_KEY>
-OPENROUTER_MODEL=stealth/crouton-alpha
+OPENROUTER_MODEL=openrouter/free
 OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
-TRANSLATION_PROVIDERS_ORDER=openrouter,offline,google_cloud,gemini,deep_translator
+TRANSLATION_PROVIDERS_ORDER=render_api,openrouter
 
 # 5. Payment Gateway Configuration
 PAYOS_CHECKSUM_KEY=<PAYOS_CHECKSUM_KEY>
@@ -139,4 +143,4 @@ VITE_API_BASE_URL=https://smart-museum-backend.onrender.com
 * **Backend API Docs:** [https://smart-museum-backend.onrender.com/docs](https://smart-museum-backend.onrender.com/docs) *(Swagger UI)*
 * **Database Host:** Aiven Cloud MySQL 8.0 (Singapore `ap-southeast-1`, TLS Encrypted)
 * **Media Storage CDN:** Supabase Storage (Bucket `museum-media`, Singapore `ap-southeast-1`)
-* **AI Neural Translation:** OpenRouter API (`stealth/crouton-alpha`)
+* **AI Neural Translation:** Auto_Translate Live API (`https://translation-temporary.onrender.com`) + OpenRouter API fallback
