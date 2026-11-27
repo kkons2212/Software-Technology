@@ -112,12 +112,12 @@ def test_should_issue_valid_jwt_and_profile_when_credentials_valid(
     assert session_token.admin.email == VALID_EMAIL
     # The credential material must never travel back to the caller.
     assert "password_hash" not in session_token.admin.model_dump()
-    # The `exp` claim stays inside the mandated 60-minute window.
+    # The `exp` claim stays inside the mandated 1-day window.
     expires_at = datetime.fromtimestamp(claims["exp"], tz=timezone.utc)
     assert (
-        timedelta(minutes=59)
+        timedelta(hours=23, minutes=59)
         <= expires_at - datetime.now(timezone.utc)
-        <= timedelta(minutes=61)
+        <= timedelta(days=1, minutes=1)
     )
 
 

@@ -31,7 +31,7 @@ INVALID_CREDENTIALS_MESSAGE = "Invalid username or password"
 ACCOUNT_LOCKED_MESSAGE = "Account temporarily locked due to 5 failed attempts. Please retry after 15 minutes."
 LOGOUT_MESSAGE = "Administrator session terminated"
 FORWARDED_CLIENT_IP = "198.51.100.23"
-COOKIE_MAX_AGE_SECONDS = 3600
+COOKIE_MAX_AGE_SECONDS = 86400
 
 
 @pytest.fixture()
@@ -76,6 +76,7 @@ def test_should_return_admin_profile_and_plant_httponly_cookie_on_valid_login(
                 "user_name": VALID_USER_NAME,
                 "email": VALID_EMAIL,
                 "full_name": "System Administrator",
+                "require_password_change": False,
             }
         },
     }

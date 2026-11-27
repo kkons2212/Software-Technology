@@ -20,7 +20,7 @@ from app.core.security import (
 
 PLAIN_PASSWORD = "Admin@12345"
 ADMIN_USER_NAME = "admin"
-EXPECTED_MAX_AGE_SECONDS = 3600
+EXPECTED_MAX_AGE_SECONDS = 86400
 SECONDS_PER_MINUTE = 60
 
 
@@ -45,18 +45,18 @@ def test_should_sign_and_decode_token_when_administrator_authenticates():
     assert JWT_EXPIRES_AT_CLAIM in claims
 
 
-def test_should_return_3600_seconds_cookie_lifetime_for_60_minute_session():
+def test_should_return_86400_seconds_cookie_lifetime_for_1_day_session():
     assert get_access_token_max_age_seconds() == EXPECTED_MAX_AGE_SECONDS
 
 
-def test_should_embed_60_minute_expiration_when_token_created():
+def test_should_embed_1_day_expiration_when_token_created():
     access_token = create_admin_access_token(ADMIN_USER_NAME)
 
     claims = decode_admin_access_token(access_token)
     expires_at = datetime.fromtimestamp(claims[JWT_EXPIRES_AT_CLAIM], tz=timezone.utc)
     remaining = expires_at - datetime.now(timezone.utc)
 
-    assert timedelta(minutes=59) <= remaining <= timedelta(minutes=60, seconds=5)
+    assert timedelta(hours=23, minutes=59) <= remaining <= timedelta(days=1, seconds=5)
 
 
 # ---------------------------------------------------------------------------
