@@ -166,7 +166,7 @@ BE (FastAPI):  main.py (14 routers) -> controllers/ -> services/ + workers -> re
 
 ### 2.2 UI, Business Rules & Validation Control Points
 - **UI:** `PoiCatalogPage.jsx` (`/admin/pois`: thumbnail, coords, radius, language pills, search, create modal, edit/calib/hide/retry actions); `GeofenceCalibPage.jsx` + `AdminMapPicker.jsx` (`/admin/geofence`: draggable pin + `10m–50m` radius slider).
-- **BR-POI-01..05:** Coords must lie inside `CU_CHI_BOUNDS` (`11.136361..11.149306`, `106.455139..106.467639`) unless `ALLOW_GLOBAL_COORDINATES=True`; create seeds `vi=PUBLISHED` + foreign `PENDING` and queues DFD 3.0; editing `title`/`short_description`/`description` resets foreign translations to `PENDING` and queues re-translation; images checked via extension + MIME + Pillow `verify()`/`load()` + `nosniff`; `_strip_language_prefix` removes `[LANG] ` prefixes.
+- **BR-POI-01..06:** Coords must lie inside `CU_CHI_BOUNDS` (`11.136361..11.149306`, `106.455139..106.467639`) unless `ALLOW_GLOBAL_COORDINATES=True`; create rejects overlapping geofence circles with HTTP `409 POI_GEOFENCE_OVERLAP` and lists every conflicting POI (including hidden POIs); create seeds `vi=PUBLISHED` + foreign `PENDING` and queues DFD 3.0; editing `title`/`short_description`/`description` resets foreign translations to `PENDING` and queues re-translation; images checked via extension + MIME + Pillow `verify()`/`load()` + `nosniff`; `_strip_language_prefix` removes `[LANG] ` prefixes.
 - **VAL-POI-01:** `title` (`1..255`), `short_description` (`<= 255`), `latitude` (`-90..90`), `longitude` (`-180..180`), `radius` (`10..50`, default `30`); `POIUpdateRequest` requires `>= 1` non-null field.
 
 ### 2.3 Quick-Fix Spots & Change Impact
@@ -174,7 +174,7 @@ BE (FastAPI):  main.py (14 routers) -> controllers/ -> services/ + workers -> re
 - **Radius range (`10m–50m`) & default (`30`):** [`poi_schema.py#L13`](../../MVP/backend/app/schemas/poi_schema.py#L13), [`mysql_schema.sql#L85`](../../MVP/backend/scripts/mysql_schema.sql#L85), [`AdminMapPicker.jsx#L59`](../../MVP/frontend/src/components/admin/AdminMapPicker.jsx#L59).
 - **Cu Chi bounds & image upload rules (`5 MB`):** [`config.py#L91`](../../MVP/backend/app/core/config.py#L91), [`config.py#L148`](../../MVP/backend/app/core/config.py#L148), [`museumBounds.js#L6`](../../MVP/frontend/src/utils/museumBounds.js#L6), [`poi_service.py#L58`](../../MVP/backend/app/services/poi_service.py#L58).
 - **Integration:** [`StorageClient.upload_image_file`](../../MVP/backend/app/integrations/storage_client.py#L174) (Supabase `museum-media` or local `/static/images`).
-- **Change Impact:** UI (`PoiCatalogPage`, `POIFormModal`, `GeofenceCalibPage`, `AdminMapPicker`) | Bounds/Schema (`poi_schema.py`, `config.py`, `museumBounds.js`, `mysql_schema.sql`) | Logic (`poi_service.py`, `poi_repository.py`, `poi.py`, `poiApi.js`).
+- **Change Impact:** UI (`PoiCatalogPage`, `POIFormModal`, `GeofenceCalibPage`, `AdminMapPicker`) | Bounds/Schema (`poi_schema.py`, `config.py`, `museumBounds.js`, `mysql_schema.sql`) | Logic (`poi_controller.py`, `poi_service.py`, `poi_repository.py`, `poi.py`, `poiApi.js`) | Geofence overlap (`core/geography.py`, `wayfinding_service.py`).
 
 ---
 

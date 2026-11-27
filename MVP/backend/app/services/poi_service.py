@@ -18,6 +18,7 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.core.database import get_db
 from app.core.exceptions import ApiError
+from app.core.geography import haversine_distance
 from app.integrations.storage_client import StorageClient
 from app.models.audit import AUDIT_STATUS_SUCCESS
 from app.models.poi import POI
@@ -41,6 +42,7 @@ GEO_OUT_OF_BOUNDS_ERROR_MESSAGE = (
 )
 POI_NOT_FOUND_ERROR_CODE = "POI_NOT_FOUND"
 POI_NOT_FOUND_ERROR_MESSAGE = "The requested exhibit does not exist."
+POI_GEOFENCE_OVERLAP_ERROR_CODE = "POI_GEOFENCE_OVERLAP"
 
 POI_GEOFENCE_UPDATED_DETAILS = "ADMIN_POI_GEOFENCE_UPDATED"
 POI_DEACTIVATED_DETAILS = "ADMIN_POI_DEACTIVATED"
@@ -221,10 +223,44 @@ class POIService:
         admin_username: str,
         background_tasks: BackgroundTasks | None = None,
         ip_address: str | None = None,
+        image_file: UploadFile | None = None,
     ) -> POIResponse:
         """Execute full business flow: validation, creation, translation seeding, and audit logging."""
         # Phase 1: Precondition Gate
         validate_coordinates_in_bounds(payload.latitude, payload.longitude)
+        overlapping_pois = []
+        for existing_poi in self.poi_repo.list_all_for_geofence_check():
+            distance_m = haversine_distance(
+                payload.latitude,
+                payload.longitude,
+                float(existing_poi.latitude),
+                float(existing_poi.longitude),
+            )
+            combined_radius_m = payload.radius + existing_poi.radius
+            if distance_m <= combined_radius_m:
+                overlapping_pois.append(
+                    {
+                        "poi_id": existing_poi.poi_id,
+                        "title": existing_poi.title,
+                        "distance_m": round(distance_m, 1),
+                        "combined_radius_m": combined_radius_m,
+                    }
+                )
+
+        if overlapping_pois:
+            conflicting_pois = ", ".join(
+                f'{poi["title"]} ({poi["poi_id"]})' for poi in overlapping_pois
+            )
+            raise ApiError(
+                status_code=status.HTTP_409_CONFLICT,
+                code=POI_GEOFENCE_OVERLAP_ERROR_CODE,
+                message=f"Không thể tạo POI vì bán kính bị chồng lấn với: {conflicting_pois}.",
+                details={"overlapping_pois": overlapping_pois},
+            )
+
+        image_url = payload.image_url
+        if image_file is not None:
+            image_url = await self.save_cover_image(image_file)
 
         # Phase 2: Instantiate and persist POI entity via Repository
         poi_id = f"POI_{uuid.uuid4().hex[:12].upper()}"
@@ -233,7 +269,7 @@ class POIService:
             title=payload.title,
             short_description=payload.short_description,
             description=payload.description,
-            image_url=payload.image_url,
+            image_url=image_url,
             latitude=Decimal(str(payload.latitude)),
             longitude=Decimal(str(payload.longitude)),
             radius=payload.radius,

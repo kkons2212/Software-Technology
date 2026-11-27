@@ -197,6 +197,32 @@ describe('PoiCatalogPage', () => {
     });
   });
 
+  it('shows the conflicting POI names and keeps the create form open', async () => {
+    const user = userEvent.setup();
+    getPois.mockResolvedValue(mockPoisData);
+    createPoi.mockRejectedValue(
+      new Error('Không thể tạo POI vì bán kính bị chồng lấn với: Bếp Hoàng Cầm (POI_123).')
+    );
+    renderPoiCatalog();
+
+    await user.click(screen.getByRole('button', { name: ADMIN_TRANSLATIONS.newExhibitButton }));
+    await user.type(screen.getByLabelText(/tên điểm tham quan/i), 'POI mới');
+    await user.click(
+      screen.getByRole('button', {
+        name: new RegExp(ADMIN_TRANSLATIONS.btnSaveAndDigitize, 'i'),
+      })
+    );
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Bếp Hoàng Cầm (POI_123)');
+    expect(createPoi).toHaveBeenCalledTimes(1);
+    expect(
+      screen.getByRole('heading', {
+        level: 2,
+        name: new RegExp(ADMIN_TRANSLATIONS.createExhibitTitle, 'i'),
+      })
+    ).toBeInTheDocument();
+  });
+
   it('clears selected image when "Không dùng ảnh này" button is clicked in Add POI form', async () => {
     const user = userEvent.setup();
     getPois.mockResolvedValue(mockPoisData);

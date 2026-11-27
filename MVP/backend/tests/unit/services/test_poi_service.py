@@ -19,6 +19,7 @@ from app.core.exceptions import ApiError
 from app.models.audit import AUDIT_STATUS_SUCCESS, Audit
 from app.models.language import LanguageCode
 from app.models.poi import POI
+from app.models.translation import POITranslation
 from app.models.user import User
 from app.repositories.audit_repository import AuditRepository
 from app.repositories.poi_repository import POIRepository
@@ -27,6 +28,7 @@ from app.services.poi_service import (
     GEO_OUT_OF_BOUNDS_ERROR_CODE,
     POI_ACTIVATED_DETAILS,
     POI_DEACTIVATED_DETAILS,
+    POI_GEOFENCE_OVERLAP_ERROR_CODE,
     POI_GEOFENCE_UPDATED_DETAILS,
     POI_NOT_FOUND_ERROR_CODE,
     POIService,
@@ -328,8 +330,21 @@ def test_should_reject_far_away_coordinates_in_the_static_validator(
 # ---------------------------------------------------------------------------
 @pytest.mark.asyncio
 async def test_should_create_poi_and_seed_foreign_translations_with_pending_status(
-    poi_catalog_service,
+    poi_catalog_service, monkeypatch
 ):
+    far_poi = POI(
+        poi_id="poi-far-away",
+        title="Distant exhibit",
+        latitude=Decimal("11.1492"),
+        longitude=Decimal("106.4675"),
+        radius=10,
+        is_active=True,
+    )
+    monkeypatch.setattr(
+        poi_catalog_service.poi_repo,
+        "list_all_for_geofence_check",
+        lambda: [far_poi],
+    )
     payload = POICreateRequest(
         title="Bếp Hoàng Cầm",
         short_description="Bếp dã chiến không khói",
@@ -363,6 +378,96 @@ async def test_should_create_poi_and_seed_foreign_translations_with_pending_stat
         assert not t.title.startswith("[KO]")
         assert not t.title.startswith("[ZH]")
         assert t.title == "Bếp Hoàng Cầm"
+
+
+@pytest.mark.asyncio
+async def test_should_reject_creation_and_list_all_overlapping_pois(
+    poi_catalog_service, db_session
+):
+    existing_pois = [
+        POI(
+            poi_id="poi-active",
+            title="POI đang hoạt động",
+            latitude=Decimal("11.1445"),
+            longitude=Decimal("106.4645"),
+            radius=30,
+            is_active=True,
+        ),
+        POI(
+            poi_id="poi-hidden",
+            title="POI đã ẩn",
+            latitude=Decimal("11.1446"),
+            longitude=Decimal("106.4645"),
+            radius=20,
+            is_active=False,
+        ),
+    ]
+    db_session.add_all(existing_pois)
+    db_session.commit()
+    initial_poi_count = db_session.query(POI).count()
+    initial_translation_count = db_session.query(POITranslation).count()
+    initial_audit_count = _count_success_audits(db_session)
+
+    payload = POICreateRequest(
+        title="POI mới",
+        latitude=11.1445,
+        longitude=106.4645,
+        radius=30,
+    )
+    with pytest.raises(ApiError) as raised_error:
+        await poi_catalog_service.create_new_poi(payload, admin_username="admin")
+
+    error = raised_error.value
+    assert error.status_code == 409
+    assert error.detail["code"] == POI_GEOFENCE_OVERLAP_ERROR_CODE
+    assert "POI đang hoạt động" in error.detail["message"]
+    assert "POI đã ẩn" in error.detail["message"]
+    assert {poi["poi_id"] for poi in error.detail["details"]["overlapping_pois"]} >= {
+        "poi-active",
+        "poi-hidden",
+    }
+    assert db_session.query(POI).count() == initial_poi_count
+    assert db_session.query(POITranslation).count() == initial_translation_count
+    assert _count_success_audits(db_session) == initial_audit_count
+
+
+@pytest.mark.asyncio
+async def test_should_not_upload_image_when_geofence_overlaps(
+    poi_catalog_service, db_session, monkeypatch
+):
+    existing_poi = POI(
+        poi_id="poi-image-overlap",
+        title="Existing POI",
+        latitude=Decimal("11.1445"),
+        longitude=Decimal("106.4645"),
+        radius=30,
+        is_active=True,
+    )
+    db_session.add(existing_poi)
+    db_session.commit()
+    upload_called = False
+
+    async def track_image_upload(_image_file):
+        nonlocal upload_called
+        upload_called = True
+        return "/static/images/unused.jpg"
+
+    monkeypatch.setattr(poi_catalog_service, "save_cover_image", track_image_upload)
+    payload = POICreateRequest(
+        title="Overlapping POI",
+        latitude=11.1445,
+        longitude=106.4645,
+        radius=30,
+    )
+    image_file = UploadFile(filename="cover.jpg", file=io.BytesIO(b"image"))
+
+    with pytest.raises(ApiError) as raised_error:
+        await poi_catalog_service.create_new_poi(
+            payload, admin_username="admin", image_file=image_file
+        )
+
+    assert raised_error.value.detail["code"] == POI_GEOFENCE_OVERLAP_ERROR_CODE
+    assert not upload_called
 
 
 def test_should_raise_400_when_coordinates_outside_cu_chi_bounds():
@@ -478,7 +583,12 @@ def test_should_raise_400_when_image_exceeds_size_limit():
 
 
 @pytest.mark.asyncio
-async def test_should_log_audit_entry_when_poi_created(poi_catalog_service, db_session):
+async def test_should_log_audit_entry_when_poi_created(
+    poi_catalog_service, db_session, monkeypatch
+):
+    monkeypatch.setattr(
+        poi_catalog_service.poi_repo, "list_all_for_geofence_check", lambda: []
+    )
     payload = POICreateRequest(
         title="Hầm giải phẫu",
         short_description="Phòng phẫu thuật ngầm",
@@ -507,7 +617,12 @@ async def test_should_log_audit_entry_when_poi_created(poi_catalog_service, db_s
 
 
 @pytest.mark.asyncio
-async def test_should_paginate_pois_and_search_in_service(poi_catalog_service):
+async def test_should_paginate_pois_and_search_in_service(
+    poi_catalog_service, monkeypatch
+):
+    monkeypatch.setattr(
+        poi_catalog_service.poi_repo, "list_all_for_geofence_check", lambda: []
+    )
     for i in range(3):
         await poi_catalog_service.create_new_poi(
             POICreateRequest(

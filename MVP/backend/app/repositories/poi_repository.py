@@ -47,6 +47,10 @@ class POIRepository:
         )
         return items, total_count
 
+    def list_all_for_geofence_check(self) -> list[POI]:
+        """Return every POI, including hidden ones, for overlap validation."""
+        return list(self.db.query(POI).all())
+
     def create_translation(self, translation: POITranslation) -> POITranslation:
         """Persist a POITranslation record."""
         self.db.add(translation)
