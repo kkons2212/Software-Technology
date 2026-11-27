@@ -1,6 +1,7 @@
 """Unit tests for POIController (TSK-03.1.3 & TSK-03.1.5)."""
 
 import io
+from decimal import Decimal
 
 import pytest
 from PIL import Image
@@ -8,7 +9,9 @@ from PIL import Image
 from app.core.dependencies import get_current_admin
 from app.main import app
 from app.models.language import LanguageCode
+from app.models.poi import POI
 from app.models.user import User
+from app.repositories.poi_repository import POIRepository
 
 
 def _ensure_admin_user(db_session):
@@ -35,7 +38,12 @@ def _ensure_admin_user(db_session):
     return admin
 
 
-def test_should_create_poi_via_json_payload(client, db_session):
+@pytest.fixture
+def allow_poi_creation(monkeypatch):
+    monkeypatch.setattr(POIRepository, "list_all_for_geofence_check", lambda self: [])
+
+
+def test_should_create_poi_via_json_payload(client, db_session, allow_poi_creation):
     _ensure_admin_user(db_session)
 
     payload = {
@@ -57,7 +65,9 @@ def test_should_create_poi_via_json_payload(client, db_session):
     assert len(data["translations"]) == 5
 
 
-def test_should_create_poi_via_multipart_form_data_with_image(client, db_session):
+def test_should_create_poi_via_multipart_form_data_with_image(
+    client, db_session, allow_poi_creation
+):
     _ensure_admin_user(db_session)
 
     image_buffer = io.BytesIO()
@@ -97,7 +107,44 @@ def test_should_return_400_when_coordinates_out_of_bounds(client, db_session):
     assert response.status_code == 400
 
 
-def test_should_list_pois_with_pagination_and_search(client, db_session):
+def test_should_return_409_and_list_overlapping_pois(client, db_session):
+    _ensure_admin_user(db_session)
+    db_session.add(
+        POI(
+            poi_id="poi-overlap-api",
+            title="Existing overlap target",
+            latitude=Decimal("11.1445"),
+            longitude=Decimal("106.4645"),
+            radius=30,
+            is_active=True,
+        )
+    )
+    db_session.commit()
+
+    response = client.post(
+        "/api/v1/admin/pois",
+        json={
+            "title": "New overlapping POI",
+            "latitude": 11.1445,
+            "longitude": 106.4645,
+            "radius": 30,
+        },
+    )
+
+    assert response.status_code == 409
+    assert response.json()["error"]["code"] == "POI_GEOFENCE_OVERLAP"
+    assert "Existing overlap target (poi-overlap-api)" in response.json()["error"]["message"]
+    assert (
+        db_session.query(POI)
+        .filter(POI.title == "New overlapping POI")
+        .count()
+        == 0
+    )
+
+
+def test_should_list_pois_with_pagination_and_search(
+    client, db_session, allow_poi_creation
+):
     _ensure_admin_user(db_session)
 
     initial_total = client.get("/api/v1/admin/pois").json()["total"]
@@ -136,7 +183,9 @@ def test_should_list_pois_with_pagination_and_search(client, db_session):
     assert search_json["items"][0]["title"] == "Hầm thông tin"
 
 
-def test_should_get_poi_by_id_and_return_404_when_missing(client, db_session):
+def test_should_get_poi_by_id_and_return_404_when_missing(
+    client, db_session, allow_poi_creation
+):
     _ensure_admin_user(db_session)
 
     create_res = client.post(
@@ -168,7 +217,9 @@ def _login_admin_client(client, db_session):
     return admin
 
 
-def test_should_update_poi_and_invalidate_foreign_translations(client, db_session):
+def test_should_update_poi_and_invalidate_foreign_translations(
+    client, db_session, allow_poi_creation
+):
     _login_admin_client(client, db_session)
 
     # 1. Create initial POI
@@ -232,7 +283,7 @@ def test_should_update_poi_and_invalidate_foreign_translations(client, db_sessio
 
 
 def test_should_update_coordinates_without_invalidating_foreign_translations(
-    client, db_session
+    client, db_session, allow_poi_creation
 ):
     _login_admin_client(client, db_session)
 
@@ -279,7 +330,9 @@ def test_should_update_coordinates_without_invalidating_foreign_translations(
         assert ft.status == "PUBLISHED"
 
 
-def test_should_return_400_when_updating_coordinates_out_of_bounds(client, db_session):
+def test_should_return_400_when_updating_coordinates_out_of_bounds(
+    client, db_session, allow_poi_creation
+):
     _login_admin_client(client, db_session)
     create_res = client.post(
         "/api/v1/admin/pois",
@@ -308,7 +361,9 @@ def test_should_return_404_when_updating_nonexistent_poi(client, db_session):
     assert res.status_code == 404
 
 
-def test_should_gate_content_for_unpaid_visitor(client, db_session):
+def test_should_gate_content_for_unpaid_visitor(
+    client, db_session, allow_poi_creation
+):
     _ensure_admin_user(db_session)
     create_res = client.post(
         "/api/v1/admin/pois",
@@ -345,7 +400,7 @@ def test_should_gate_content_for_unpaid_visitor(client, db_session):
 
 
 def test_should_unlock_content_for_paid_visitor_with_active_session(
-    client, db_session, monkeypatch
+    client, db_session, monkeypatch, allow_poi_creation
 ):
     from app.repositories.session_repository import SessionRepository
 

@@ -9,13 +9,13 @@ Produces GeoJSON LineString payloads compliant with RFC 7946 with calculation la
 from __future__ import annotations
 
 import logging
-import math
 from typing import TYPE_CHECKING
 
 import httpx
 
 from app.core.config import settings
 from app.core.exceptions import ApiError
+from app.core.geography import haversine_distance
 from app.schemas.tour_schema import (
     GeoJsonLineStringGeometry,
     GeoJsonRouteFeature,
@@ -36,23 +36,6 @@ WALKING_SPEED_METERS_PER_MINUTE = 72.0
 # Timeout for OSRM public foot routing to guarantee backend SLA (< 800ms)
 OSRM_TIMEOUT_SECONDS = 0.8
 OSRM_FOOT_ROUTING_URL = "https://routing.openstreetmap.de/routed-foot/route/v1/driving/{origin_lng},{origin_lat};{dest_lng},{dest_lat}?overview=full&geometries=geojson"
-
-
-def haversine_distance(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
-    """Calculate the great-circle distance between two points in meters."""
-    earth_radius_m = 6_371_000.0
-    phi1 = math.radians(lat1)
-    phi2 = math.radians(lat2)
-    delta_phi = math.radians(lat2 - lat1)
-    delta_lambda = math.radians(lng2 - lng1)
-
-    a = (
-        math.sin(delta_phi / 2.0) ** 2
-        + math.cos(phi1) * math.cos(phi2) * math.sin(delta_lambda / 2.0) ** 2
-    )
-    c = 2.0 * math.atan2(math.sqrt(a), math.sqrt(1.0 - a))
-    distance_meters = earth_radius_m * c
-    return distance_meters
 
 
 class WayfindingService:

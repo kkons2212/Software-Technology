@@ -9,6 +9,7 @@ from fastapi import (
     Header,
     Query,
     Request,
+    UploadFile,
     status,
 )
 
@@ -104,13 +105,14 @@ async def create_poi(
     """Create a new POI profile. Supports both application/json and multipart/form-data."""
     client_ip = request.client.host if request.client else None
     content_type = request.headers.get("content-type", "")
+    image_file: UploadFile | None = None
 
     if "multipart/form-data" in content_type:
         form = await request.form()
         image = form.get("image")
         image_url = None
         if hasattr(image, "filename") and image.filename:
-            image_url = await poi_service.save_cover_image(image)
+            image_file = image
         elif isinstance(image, str) and image:
             image_url = image
 
@@ -132,6 +134,7 @@ async def create_poi(
         admin_username=current_admin,
         background_tasks=background_tasks,
         ip_address=client_ip,
+        image_file=image_file,
     )
 
 
