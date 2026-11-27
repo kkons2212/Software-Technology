@@ -422,9 +422,10 @@ async def test_should_reject_creation_and_list_all_overlapping_pois(
     assert error.detail["code"] == POI_GEOFENCE_OVERLAP_ERROR_CODE
     assert "POI đang hoạt động" in error.detail["message"]
     assert "POI đã ẩn" in error.detail["message"]
-    assert {
-        poi["poi_id"] for poi in error.detail["details"]["overlapping_pois"]
-    } >= {"poi-active", "poi-hidden"}
+    assert {poi["poi_id"] for poi in error.detail["details"]["overlapping_pois"]} >= {
+        "poi-active",
+        "poi-hidden",
+    }
     assert db_session.query(POI).count() == initial_poi_count
     assert db_session.query(POITranslation).count() == initial_translation_count
     assert _count_success_audits(db_session) == initial_audit_count

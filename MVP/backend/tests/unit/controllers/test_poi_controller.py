@@ -133,13 +133,11 @@ def test_should_return_409_and_list_overlapping_pois(client, db_session):
 
     assert response.status_code == 409
     assert response.json()["error"]["code"] == "POI_GEOFENCE_OVERLAP"
-    assert "Existing overlap target (poi-overlap-api)" in response.json()["error"]["message"]
     assert (
-        db_session.query(POI)
-        .filter(POI.title == "New overlapping POI")
-        .count()
-        == 0
+        "Existing overlap target (poi-overlap-api)"
+        in response.json()["error"]["message"]
     )
+    assert db_session.query(POI).filter(POI.title == "New overlapping POI").count() == 0
 
 
 def test_should_list_pois_with_pagination_and_search(
@@ -361,9 +359,7 @@ def test_should_return_404_when_updating_nonexistent_poi(client, db_session):
     assert res.status_code == 404
 
 
-def test_should_gate_content_for_unpaid_visitor(
-    client, db_session, allow_poi_creation
-):
+def test_should_gate_content_for_unpaid_visitor(client, db_session, allow_poi_creation):
     _ensure_admin_user(db_session)
     create_res = client.post(
         "/api/v1/admin/pois",
