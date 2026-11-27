@@ -117,7 +117,7 @@ describe('VisitorPoiMarkers', () => {
     expect(tooltip.querySelector('img')).toBeNull();
   });
 
-  it('updates playing and listened marker styles without recreating the markers', () => {
+  it('updates playing, nearest, and listened marker styles without recreating the markers', () => {
     const map = { map: true };
     const pois = [
       { id: 'poi-1', latitude: 11.14, longitude: 106.46, title: 'Tunnel' },
@@ -125,9 +125,14 @@ describe('VisitorPoiMarkers', () => {
     ];
 
     const { rerender } = render(
-      <VisitorPoiMarkers map={map} pois={pois} playingPoiId="poi-1" />,
+      <VisitorPoiMarkers map={map} pois={pois} playingPoiId="poi-1" nearestPoiId="poi-1" />,
     );
     expect(leafletMocks.divIcon.mock.calls.at(-2)[0].html).toContain('marker--playing');
+
+    rerender(
+      <VisitorPoiMarkers map={map} pois={pois} nearestPoiId="poi-1" visitedPoiIds={['poi-1']} />,
+    );
+    expect(leafletMocks.divIcon.mock.calls.at(-2)[0].html).toContain('marker--nearest');
 
     rerender(
       <VisitorPoiMarkers map={map} pois={pois} visitedPoiIds={['poi-1']} />,

@@ -36,6 +36,7 @@ export default function VisitorPoiMarkers({
   pois,
   onSelectPOI,
   playingPoiId = null,
+  nearestPoiId = null,
   visitedPoiIds = [],
 }) {
   const markerLayersRef = useRef([]);
@@ -52,6 +53,7 @@ export default function VisitorPoiMarkers({
         icon: createPoiIcon(index, 'default'),
         title: poi.title,
         bubblingMouseEvents: false,
+        zIndexOffset: index === 0 ? 1000 : 0,
       });
 
       marker.on('click', () => onSelectPOIRef.current?.(poi.id));
@@ -86,14 +88,20 @@ export default function VisitorPoiMarkers({
   useEffect(() => {
     const visitedPoiIdSet = new Set(visitedPoiIds.map(String));
     markerLayersRef.current.forEach(({ marker, poi, index }) => {
+      const isNearest =
+        nearestPoiId !== null &&
+        nearestPoiId !== undefined &&
+        String(poi.id) === String(nearestPoiId);
       const status = String(poi.id) === String(playingPoiId)
         ? 'playing'
-        : visitedPoiIdSet.has(String(poi.id))
-          ? 'visited'
-          : 'default';
+        : isNearest
+          ? 'nearest'
+          : visitedPoiIdSet.has(String(poi.id))
+            ? 'visited'
+            : 'default';
       marker.setIcon(createPoiIcon(index, status));
     });
-  }, [playingPoiId, visitedPoiIds]);
+  }, [pois, playingPoiId, nearestPoiId, visitedPoiIds]);
 
   return null;
 }

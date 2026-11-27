@@ -17,6 +17,7 @@ export default function VisitorMapView({
   onSelectPOI,
   onDismissPOIPreview,
   playingPoiId = null,
+  nearestPoiId = null,
   visitedPoiIds = [],
   activeRoute = null,
   onClearRoute,
@@ -107,6 +108,7 @@ export default function VisitorMapView({
             pois={pois}
             onSelectPOI={onSelectPOI}
             playingPoiId={playingPoiId}
+            nearestPoiId={nearestPoiId}
             visitedPoiIds={visitedPoiIds}
           />
           {activeRoute && (

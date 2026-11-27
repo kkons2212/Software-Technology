@@ -360,6 +360,11 @@ a:focus-visible {
   background: #1d4ed8;
 }
 
+.visitor-poi-marker--nearest {
+  background: #eab308;
+  color: #0f172a;
+}
+
 .visitor-poi-marker--visited {
   background: #15803d;
 }

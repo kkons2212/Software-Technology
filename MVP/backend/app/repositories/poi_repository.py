@@ -66,7 +66,11 @@ class POIRepository:
     ) -> list[tuple[POI, POITranslation | None]]:
         """List active POIs for public visitor map with published translations."""
         if not language_code:
-            statement = select(POI).where(POI.is_active.is_(True)).order_by(POI.poi_id)
+            statement = (
+                select(POI)
+                .where(POI.is_active.is_(True))
+                .order_by(POI.create_at.desc(), POI.poi_id)
+            )
             return [(poi, None) for poi in self.db.scalars(statement)]
 
         statement = (
@@ -79,7 +83,7 @@ class POIRepository:
                 POITranslation.audio_url.is_not(None),
             )
             .distinct()
-            .order_by(POI.poi_id)
+            .order_by(POI.create_at.desc(), POI.poi_id)
         )
         active_pairs = list(self.db.execute(statement).all())
         return active_pairs

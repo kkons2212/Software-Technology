@@ -241,3 +241,34 @@ def test_should_accept_poi_radius_boundary_values(db_session, valid_radius):
         )
     )
     assert created.Radius == valid_radius
+
+
+def test_should_order_newest_created_poi_first_in_list_active_pois(db_session):
+    from datetime import datetime, timedelta
+
+    repo = POIRepository(db_session)
+    now = datetime.utcnow()
+    older = repo.create(
+        POI(
+            PoiID="POI_ORDER_OLD",
+            Title="Older POI",
+            Latitude=11.1447,
+            Longitude=106.4647,
+            Radius=30,
+            Create_at=now - timedelta(hours=1),
+        )
+    )
+    newer = repo.create(
+        POI(
+            PoiID="POI_ORDER_NEW",
+            Title="Newer POI",
+            Latitude=11.1448,
+            Longitude=106.4648,
+            Radius=30,
+            Create_at=now,
+        )
+    )
+
+    items = repo.list_active_pois()
+    ids = [poi.PoiID for poi, _ in items]
+    assert ids.index(newer.PoiID) < ids.index(older.PoiID)

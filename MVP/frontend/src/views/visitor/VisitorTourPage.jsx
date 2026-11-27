@@ -607,6 +607,23 @@ export default function VisitorTourPage({
     activeLocation = location;
   }
 
+  let nearestToNewestPoiId = null;
+  if (Array.isArray(pois) && pois.length > 1) {
+    const newestPoi = pois[0];
+    let minDistance = Infinity;
+    for (let i = 1; i < pois.length; i += 1) {
+      const candidate = pois[i];
+      const dist = calculateHaversineDistance(
+        { lat: newestPoi.latitude, lng: newestPoi.longitude },
+        { lat: candidate.latitude, lng: candidate.longitude }
+      );
+      if (Number.isFinite(dist) && dist < minDistance) {
+        minDistance = dist;
+        nearestToNewestPoiId = candidate.id ?? candidate.poi_id ?? null;
+      }
+    }
+  }
+
   return (
     <main className="visitor-tour-page">
       <VisitorHeader
@@ -653,6 +670,7 @@ export default function VisitorTourPage({
         onSelectPOI={setSelectedPoiId}
         onDismissPOIPreview={handleDismissPOIPreview}
         playingPoiId={playingPoiId}
+        nearestPoiId={nearestToNewestPoiId}
         visitedPoiIds={completedPoiIds}
         activeRoute={activeRoute}
         onClearRoute={handleClearRoute}
