@@ -11,9 +11,10 @@ import { useAuth } from '../../contexts/AuthContext.jsx';
 import { ADMIN_TRANSLATIONS } from '../../locales/adminTranslations.js';
 
 const ADMIN_LOGIN_PATH = '/admin/login';
+const ADMIN_CHANGE_PASSWORD_PATH = '/admin/change-password';
 
 export default function AdminRouteGuard({ children }) {
-  const { isAuthenticated, isBootstrapping, logoutReason } = useAuth();
+  const { currentAdmin, isAuthenticated, isBootstrapping, logoutReason } = useAuth();
   const currentLocation = useLocation();
 
   if (isBootstrapping) {
@@ -35,6 +36,14 @@ export default function AdminRouteGuard({ children }) {
         state={{ from: currentLocation.pathname, reason: logoutReason }}
       />
     );
+  }
+
+  // Force password change if expired (1 day old) and not already on the change password page
+  if (
+    currentAdmin?.require_password_change &&
+    currentLocation.pathname !== ADMIN_CHANGE_PASSWORD_PATH
+  ) {
+    return <Navigate to={ADMIN_CHANGE_PASSWORD_PATH} replace />;
   }
 
   return children;

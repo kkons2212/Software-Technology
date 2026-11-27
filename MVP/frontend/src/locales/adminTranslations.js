@@ -281,4 +281,26 @@ export const ADMIN_TRANSLATIONS = {
   btnConfirmPrune: 'Xác nhận & Dọn dẹp',
   btnCleaningPrune: 'Đang dọn dẹp...',
   cleanOrphansError: 'Không thể dọn dẹp các file âm thanh dư.',
+
+  // Change Password
+  changePasswordTitle: 'Đổi mật khẩu Quản trị viên',
+  changePasswordSubtitle: 'Cập nhật mật khẩu để bảo vệ tài khoản quản trị.',
+  passwordExpiredNotice:
+    'Mật khẩu của bạn đã quá 1 ngày chưa được cập nhật. Vui lòng đổi mật khẩu mới để tiếp tục sử dụng hệ thống.',
+  oldPasswordLabel: 'Mật khẩu hiện tại',
+  newPasswordLabel: 'Mật khẩu mới',
+  confirmPasswordLabel: 'Xác nhận mật khẩu mới',
+  oldPasswordPlaceholder: 'Nhập mật khẩu hiện tại...',
+  newPasswordPlaceholder: 'Nhập mật khẩu mới (tối thiểu 6 ký tự)...',
+  confirmPasswordPlaceholder: 'Nhập lại mật khẩu mới...',
+  oldPasswordRequired: 'Vui lòng nhập mật khẩu hiện tại.',
+  newPasswordRequired: 'Vui lòng nhập mật khẩu mới.',
+  confirmPasswordRequired: 'Vui lòng xác nhận lại mật khẩu mới.',
+  passwordsDoNotMatch: 'Mật khẩu xác nhận không trùng khớp.',
+  passwordMinLength: 'Mật khẩu mới phải có tối thiểu 6 ký tự.',
+  passwordMustDiffer: 'Mật khẩu mới không được trùng với mật khẩu hiện tại.',
+  btnChangePassword: 'Đổi mật khẩu',
+  btnChangingPassword: 'Đang lưu mật khẩu...',
+  changePasswordSuccess: 'Đổi mật khẩu thành công!',
+  navChangePassword: 'Đổi mật khẩu',
 };

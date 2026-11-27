@@ -87,6 +87,10 @@ export function AuthProvider({ children }) {
     onIdle: handleIdleExpiry,
   });
 
+  const updateAdmin = useCallback((administrator) => {
+    setCurrentAdmin(administrator);
+  }, []);
+
   const contextValue = useMemo(
     () => ({
       currentAdmin,
@@ -98,8 +102,9 @@ export function AuthProvider({ children }) {
       logoutReason,
       login,
       logout,
+      updateAdmin,
     }),
-    [currentAdmin, isBootstrapping, logoutReason, login, logout],
+    [currentAdmin, isBootstrapping, logoutReason, login, logout, updateAdmin],
   );
 
   return <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>;

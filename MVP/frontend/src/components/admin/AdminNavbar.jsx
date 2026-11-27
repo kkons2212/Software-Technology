@@ -81,6 +81,12 @@ export default function AdminNavbar() {
                 user?.full_name?.trim() || user?.user_name || ADMIN_TRANSLATIONS.defaultAdminName,
               )}
             </span>
+            <Link
+              to="/admin/change-password"
+              className="rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+            >
+              {ADMIN_TRANSLATIONS.navChangePassword}
+            </Link>
             <button
               type="button"
               onClick={() => logout()}

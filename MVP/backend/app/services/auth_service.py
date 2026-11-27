@@ -17,12 +17,14 @@ from datetime import datetime, timedelta
 
 from fastapi import status
 
+from app.core.config import get_settings
 from app.core.exceptions import ApiError
 from app.core.security import (
     JWT_ISSUED_AT_CLAIM,
     JWT_SUBJECT_CLAIM,
     create_admin_access_token,
     decode_admin_access_token,
+    hash_password,
     is_valid_jwt_issued_at,
     verify_password,
 )
@@ -38,6 +40,7 @@ from app.schemas.auth_schema import (
     AdminLoginRequest,
     AdminProfileResponse,
     AdminSessionTokenDTO,
+    ChangePasswordRequest,
 )
 
 INVALID_CREDENTIALS_ERROR_CODE = "INVALID_CREDENTIALS"
@@ -103,7 +106,7 @@ class AuthService:
         )
         session_token_dto = AdminSessionTokenDTO(
             access_token=create_admin_access_token(administrator.user_name),
-            admin=AdminProfileResponse.model_validate(administrator),
+            admin=self._build_admin_profile(administrator),
         )
         return session_token_dto
 
@@ -141,8 +144,72 @@ class AuthService:
         if is_invalid_session:
             raise self._build_unauthenticated_error()
 
-        resolved_profile = AdminProfileResponse.model_validate(administrator)
+        resolved_profile = self._build_admin_profile(administrator)
         return resolved_profile
+
+    def _is_password_expired(self, administrator: User) -> bool:
+        """Check if administrator password is older than configured expiration days."""
+        if not administrator.update_at:
+            return False
+        update_time = administrator.update_at
+        if update_time.tzinfo is not None:
+            update_time = update_time.replace(tzinfo=None)
+        settings = get_settings()
+        return (datetime.utcnow() - update_time) >= timedelta(
+            days=settings.PASSWORD_EXPIRY_DAYS
+        )
+
+    def _build_admin_profile(self, administrator: User) -> AdminProfileResponse:
+        """Construct AdminProfileResponse and annotate require_password_change flag."""
+        is_expired = self._is_password_expired(administrator)
+        return AdminProfileResponse(
+            user_name=administrator.user_name,
+            email=administrator.email,
+            full_name=administrator.full_name,
+            require_password_change=is_expired,
+        )
+
+    def change_password(
+        self,
+        admin_user_name: str,
+        payload: ChangePasswordRequest,
+        client_ip: str | None,
+    ) -> AdminProfileResponse:
+        """Validate old password and update to new bcrypt-hashed password."""
+        if payload.new_password != payload.confirm_password:
+            raise ApiError(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                code="PASSWORD_MISMATCH",
+                message="New password and confirmation do not match.",
+            )
+
+        administrator = self.user_repository.find_by_username(admin_user_name)
+        if administrator is None or not administrator.is_active:
+            raise self._build_unauthenticated_error()
+
+        if not verify_password(payload.old_password, administrator.password_hash):
+            self.audit_repository.create_log_entry(
+                user_name=administrator.user_name,
+                status=AUDIT_STATUS_FAILED,
+                ip_address=client_ip,
+                details="ADMIN_CHANGE_PASSWORD_FAILED",
+            )
+            raise ApiError(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                code="INVALID_CURRENT_PASSWORD",
+                message="Current password is incorrect.",
+            )
+
+        new_hash = hash_password(payload.new_password)
+        updated_admin = self.user_repository.update_password(administrator, new_hash)
+
+        self.audit_repository.create_log_entry(
+            user_name=administrator.user_name,
+            status=AUDIT_STATUS_SUCCESS,
+            ip_address=client_ip,
+            details="ADMIN_PASSWORD_CHANGED",
+        )
+        return self._build_admin_profile(updated_admin)
 
     def logout_admin(self, admin_user_name: str, client_ip: str | None) -> None:
         """Record the revocation watermark that terminates an active session."""

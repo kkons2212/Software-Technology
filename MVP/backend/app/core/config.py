@@ -17,7 +17,8 @@ DEFAULT_IMAGE_UPLOAD_DIR = os.path.join(DEFAULT_STATIC_DIR, "images")
 # Module-level defaults for backward compatibility with existing tests
 DEFAULT_BCRYPT_ROUNDS = 12
 DEFAULT_JWT_ALGORITHM = "HS256"
-DEFAULT_ACCESS_TOKEN_EXPIRE_MINUTES = 60
+DEFAULT_ACCESS_TOKEN_EXPIRE_MINUTES = 1440  # 1 day (24 hours)
+DEFAULT_PASSWORD_EXPIRY_DAYS = 1  # Require password change if older than 1 day
 DEFAULT_IDLE_TIMEOUT_MINUTES = 30
 DEFAULT_ADMIN_SESSION_COOKIE_NAME = "admin_session"
 DEFAULT_IS_COOKIE_SECURE = False
@@ -61,7 +62,8 @@ class Settings(BaseSettings):
     )
     JWT_ALGORITHM: str = "HS256"
     ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440  # 1 day (24 hours)
+    PASSWORD_EXPIRY_DAYS: int = 1  # Require password change if older than 1 day
     IDLE_TIMEOUT_MINUTES: int = 30
     BCRYPT_ROUNDS: int = 12
     ADMIN_SESSION_COOKIE_NAME: str = "admin_session"

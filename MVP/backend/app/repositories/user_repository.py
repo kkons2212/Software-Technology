@@ -52,3 +52,11 @@ class UserRepository:
         self.db.commit()
         self.db.refresh(user)
         return user
+
+    def update_password(self, user: User, password_hash: str) -> User:
+        """Update administrator password hash and update_at timestamp."""
+        user.password_hash = password_hash
+        user.update_at = datetime.utcnow()
+        self.db.commit()
+        self.db.refresh(user)
+        return user

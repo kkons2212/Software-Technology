@@ -31,6 +31,7 @@ export const ADMIN_ROUTES = {
   GEOFENCE: '/admin/geofence',
   TRANSLATIONS: '/admin/translations',
   HEALTH: '/admin/health',
+  CHANGE_PASSWORD: '/admin/change-password',
 };
 
 // -----------------------------------------------------------------------------
@@ -48,6 +49,7 @@ const PoiCatalogPage = lazy(() => import('./views/admin/PoiCatalogPage.jsx'));
 const GeofenceCalibPage = lazy(() => import('./views/admin/GeofenceCalibPage.jsx'));
 const TranslationPage = lazy(() => import('./views/admin/TranslationPage.jsx'));
 const SystemHealthPage = lazy(() => import('./views/admin/SystemHealthPage.jsx'));
+const ChangePasswordPage = lazy(() => import('./views/admin/ChangePasswordPage.jsx'));
 
 // Fallback / Error Domain
 const NotFoundPage = lazy(() => import('./views/NotFoundPage.jsx'));
@@ -96,6 +98,7 @@ export default function App() {
               <Route path={ADMIN_ROUTES.GEOFENCE} element={<GeofenceCalibPage />} />
               <Route path={ADMIN_ROUTES.TRANSLATIONS} element={<TranslationPage />} />
               <Route path={ADMIN_ROUTES.HEALTH} element={<SystemHealthPage />} />
+              <Route path={ADMIN_ROUTES.CHANGE_PASSWORD} element={<ChangePasswordPage />} />
             </Route>
 
             {/* Catch-all Wildcard Route: User-Friendly 404 Page */}

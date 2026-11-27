@@ -39,6 +39,29 @@ class AdminProfileResponse(BaseModel):
     user_name: str
     email: str
     full_name: str | None = None
+    require_password_change: bool = False
+
+
+class ChangePasswordRequest(BaseModel):
+    """Payload to update an administrator password."""
+
+    old_password: str = Field(min_length=1, max_length=ADMIN_PASSWORD_MAX_LENGTH)
+    new_password: str = Field(min_length=6, max_length=ADMIN_PASSWORD_MAX_LENGTH)
+    confirm_password: str = Field(min_length=6, max_length=ADMIN_PASSWORD_MAX_LENGTH)
+
+
+class ChangePasswordDataResponse(BaseModel):
+    """Payload nested under data after changing password."""
+
+    message: str = "Password changed successfully"
+    admin: AdminProfileResponse
+
+
+class ChangePasswordResponse(BaseModel):
+    """Response envelope for password change."""
+
+    success: bool = True
+    data: ChangePasswordDataResponse
 
 
 class AdminSessionDataResponse(BaseModel):

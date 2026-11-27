@@ -18,6 +18,9 @@ from app.schemas.auth_schema import (
     AdminProfileResponse,
     AdminSessionDataResponse,
     AdminSessionResponse,
+    ChangePasswordDataResponse,
+    ChangePasswordRequest,
+    ChangePasswordResponse,
 )
 from app.services.auth_service import AuthService
 
@@ -101,3 +104,25 @@ def logout_admin(
         path=ADMIN_SESSION_COOKIE_PATH,
     )
     return AdminLogoutResponse(data=AdminLogoutDataResponse())
+
+
+@router.post("/change-password", response_model=ChangePasswordResponse)
+def change_admin_password(
+    payload: ChangePasswordRequest,
+    request: Request,
+    current_admin: AdminProfileResponse = Depends(get_current_admin_profile),
+    auth_service: AuthService = Depends(get_auth_service),
+) -> ChangePasswordResponse:
+    """Change the administrator password.
+
+    Validates current password, updates to new password hash, and resets the
+    last update timestamp so password expiration requirement is lifted.
+    """
+    updated_admin = auth_service.change_password(
+        admin_user_name=current_admin.user_name,
+        payload=payload,
+        client_ip=resolve_client_ip(request),
+    )
+    return ChangePasswordResponse(
+        data=ChangePasswordDataResponse(admin=updated_admin)
+    )

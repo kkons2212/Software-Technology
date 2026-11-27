@@ -9,6 +9,7 @@ import { apiClient } from './apiClient.js';
 const AUTH_LOGIN_ENDPOINT = '/api/v1/auth/login';
 const AUTH_CURRENT_ADMIN_ENDPOINT = '/api/v1/auth/me';
 const AUTH_LOGOUT_ENDPOINT = '/api/v1/auth/logout';
+const AUTH_CHANGE_PASSWORD_ENDPOINT = '/api/v1/auth/change-password';
 
 /**
  * Authenticate an Administrator. The backend sets the HttpOnly session cookie,
@@ -39,4 +40,21 @@ export async function fetchCurrentAdmin() {
  */
 export async function logoutAdmin() {
   return apiClient.post(AUTH_LOGOUT_ENDPOINT);
+}
+
+/**
+ * Change the current Administrator password.
+ * @param {object} params
+ * @param {string} params.oldPassword
+ * @param {string} params.newPassword
+ * @param {string} params.confirmPassword
+ * @returns {Promise<object>} the updated administrator profile
+ */
+export async function changeAdminPassword({ oldPassword, newPassword, confirmPassword }) {
+  const payload = await apiClient.post(AUTH_CHANGE_PASSWORD_ENDPOINT, {
+    old_password: oldPassword,
+    new_password: newPassword,
+    confirm_password: confirmPassword,
+  });
+  return payload?.admin ?? payload;
 }
