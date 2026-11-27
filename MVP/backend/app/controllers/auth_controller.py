@@ -123,6 +123,4 @@ def change_admin_password(
         payload=payload,
         client_ip=resolve_client_ip(request),
     )
-    return ChangePasswordResponse(
-        data=ChangePasswordDataResponse(admin=updated_admin)
-    )
+    return ChangePasswordResponse(data=ChangePasswordDataResponse(admin=updated_admin))
