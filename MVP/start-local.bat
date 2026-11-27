@@ -58,7 +58,13 @@ echo.
 
 :: 2. Khoi dong Backend (FastAPI on Port 8000)
 echo [2/3] Khoi dong Backend (FastAPI - Port 8000)...
-start "Smart Museum - Backend (Port 8000)" cmd /k "cd /d "%~dp0backend" && .\.venv\Scripts\python.exe -m uvicorn app.main:app --reload --port 8000"
+set "BACKEND_PYTHON=python"
+if exist "%~dp0backend\.venv\Scripts\python.exe" (
+    set "BACKEND_PYTHON=%~dp0backend\.venv\Scripts\python.exe"
+) else if exist "%~dp0..\.venv\Scripts\python.exe" (
+    set "BACKEND_PYTHON=%~dp0..\.venv\Scripts\python.exe"
+)
+start "Smart Museum - Backend (Port 8000)" cmd /k "cd /d "%~dp0backend" && "%BACKEND_PYTHON%" -m uvicorn app.main:app --reload --port 8000"
 echo       [OK] Backend dang khoi dong trong cua so rieng.
 echo.
 
